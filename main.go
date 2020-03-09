@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httptrace"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -44,12 +45,25 @@ func (wc WriteCounter) printProgress() {
 func DownloadFile(url string) error {
 
 	// Get the data
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+
+	trace := &httptrace.ClientTrace{
+		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
+			fmt.Printf("DNS Info: %+v\n", dnsInfo)
+		},
+		GotConn: func(connInfo httptrace.GotConnInfo) {
+			fmt.Printf("Got Conn: %+v\n", connInfo)
+		},
+	}
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+	resp, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	start := time.Now()
 
