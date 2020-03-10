@@ -1,1 +1,23 @@
 # nspeed-client
+
+
+gert interface & crosstalk
+
+#linux
+ip route get $destination_ip
+  -> parse $name after 'dev'
+    /sys/class/net/$name/statistics/rx_bytes
+    /sys/class/net/$name/statistics/tx_bytes
+type:
+  investigate how `nmcli con show` works
+
+#windows
+prereq: powershell
+ Get-NetRoute | Where-Object -FilterScript {$_.NextHop -Ne "::"} | Where-Object -FilterScript { $_.NextHop -Ne "0.0.0.0" } | Where-Object -FilterScript { ($_.NextHop.SubString(0,6) -Ne "fe80::") } | Get-NetAdapter
+to display `$Name`
+
+Get-NetAdapterStatistics -Name $Name
+
+#mac
+
+#*bsd
