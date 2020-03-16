@@ -1,0 +1,6 @@
+https://ipv4.bouygues.testdebit.info/1G/1G.iso
+https://ipv4.bouygues.testdebit.info/10G/10G.iso
+
+https://ipv6.bouygues.testdebit.info/1G/1G.iso
+https://ipv6.bouygues.testdebit.info/10G/10G.iso
+

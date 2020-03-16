@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -81,6 +83,7 @@ func DownloadFile(url string) error {
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var memprofile = flag.String("memprofile", "", "write memory profile to file")
 
 func main() {
 
@@ -95,11 +98,28 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	fileURL := flag.Args()[0]
-	fmt.Println("Downloading ", fileURL)
-	err := DownloadFile(fileURL)
-	if err != nil {
-		panic(err)
+	var wg sync.WaitGroup
+	wg.Add(len(flag.Args()))
+	for i := range flag.Args() {
+		fileURL := flag.Args()[i]
+		fmt.Println("Spawning download of ", fileURL)
+		go func() {
+			err := DownloadFile(fileURL)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close() // error handling omitted for example
+		runtime.GC()    // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
 	}
 
 	fmt.Println("Download Finished")
