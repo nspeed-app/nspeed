@@ -44,13 +44,13 @@ func (wc WriteCounter) printProgress() {
 // DownloadFile will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory. We pass an io.TeeReader
 // into Copy() to report progress on the download.
-func DownloadFile(url string) error {
+func DownloadFile(url string) (time.Duration, uint64, error) {
 
 	// Get the data
 	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
-		return err
+		return 0, 0, err
 	}
 
 	trace := &httptrace.ClientTrace{
@@ -72,14 +72,13 @@ func DownloadFile(url string) error {
 	// Create our progress reporter and pass it to be used alongside our writer
 	counter := &WriteCounter{}
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, counter)); err != nil {
-		return err
+		return 0, counter.Total, err
 	}
 	elapsed := time.Since(start)
 
 	// The progress use the same line so print a new line once it's finished downloading
 	fmt.Print("\n")
-	fmt.Println("elapsed", elapsed)
-	return nil
+	return elapsed, counter.Total, nil
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -104,7 +103,8 @@ func main() {
 		fileURL := flag.Args()[i]
 		fmt.Println("Spawning download of ", fileURL)
 		go func() {
-			err := DownloadFile(fileURL)
+			elapsed, dur, err := DownloadFile(fileURL)
+			fmt.Println("elapsed", elapsed)
 			wg.Done()
 		}()
 	}
