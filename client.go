@@ -84,8 +84,8 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 		log.Fatal(err)
 	}
 
-	wc.startTime = time.Now()
 	wc.contentSize = resp.ContentLength
+	wc.startTime = time.Now()
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wc)); err != nil {
 		return 0, wc.totalRead, err
 	}
