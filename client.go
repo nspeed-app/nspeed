@@ -13,6 +13,8 @@ import (
 	"runtime/pprof"
 	"sync"
 	"time"
+
+	"github.com/dustin/go-humanize"
 )
 
 // WriteCounter counts the number of bytes written.
@@ -22,32 +24,39 @@ type WriteCounter struct {
 	URL         string
 	dnsInfo     httptrace.DNSDoneInfo
 	connInfo    httptrace.GotConnInfo
-	Total       uint64
-	stepSize    uint64
+	contentSize int64
+	totalRead   int64
+	stepSize    int64
 	startTime   time.Time
 	elapsedTime time.Duration
+	elapsedSecs int
 }
 
 func (wc *WriteCounter) Write(p []byte) (int, error) {
 	n := len(p)
-	wc.stepSize = uint64(n)
-	wc.Total += wc.stepSize
-	wc.printProgress()
+	wc.stepSize = int64(n)
+	wc.totalRead += wc.stepSize
+	elapsedSecs := int(time.Since(wc.startTime).Seconds())
+	if elapsedSecs > wc.elapsedSecs {
+		wc.elapsedSecs = elapsedSecs
+		wc.printProgress()
+	}
 	return n, nil
 }
 
 func (wc WriteCounter) printProgress() {
-	//fmt.Println(wc.Index+1, humanize.Bytes(wc.Total), wc.stepSize, wc.URL)
+
+	fmt.Println(wc.Index, wc.elapsedSecs, humanize.Bytes(uint64(wc.totalRead)), humanize.Bytes(uint64(wc.contentSize)), wc.stepSize, wc.URL)
 }
 
 func (wc WriteCounter) printFinal() {
-	fmt.Println("time =", wc.elapsedTime, "size =", wc.Total, "for ", wc.URL)
+	fmt.Println("time =", wc.elapsedTime, "size =", wc.totalRead, "for ", wc.URL)
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will
 // write as it downloads and not load the whole file into memory. We pass an io.TeeReader
 // into Copy() to report progress on the download.
-func DownloadFile(url string, idx int) (time.Duration, uint64, error) {
+func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 
 	// Get the data
 	req, err := http.NewRequest("GET", url, nil)
@@ -76,16 +85,16 @@ func DownloadFile(url string, idx int) (time.Duration, uint64, error) {
 	}
 
 	wc.startTime = time.Now()
-
+	wc.contentSize = resp.ContentLength
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wc)); err != nil {
-		return 0, wc.Total, err
+		return 0, wc.totalRead, err
 	}
 	wc.elapsedTime = time.Since(wc.startTime)
 
 	// The progress use the same line so print a new line once it's finished downloading
 	wc.printFinal()
 
-	return wc.elapsedTime, wc.Total, nil
+	return wc.elapsedTime, wc.totalRead, nil
 }
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")

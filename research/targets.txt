@@ -4,3 +4,10 @@ https://ipv4.bouygues.testdebit.info/10G/10G.iso
 https://ipv6.bouygues.testdebit.info/1G/1G.iso
 https://ipv6.bouygues.testdebit.info/10G/10G.iso
 
+https://ipv4.scaleway.testdebit.info/1G/1G.iso
+https://ipv6.scaleway.testdebit.info/1G/1G.iso
+
+http://ubuntu.mirrors.ovh.net/ubuntu-releases/19.10/ubuntu-19.10-desktop-amd64.iso
+
+https://dl.google.com/android/studio/maven-google-com/stable/offline-gmaven-stable.zip
+
