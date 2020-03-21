@@ -17,6 +17,10 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var memprofile = flag.String("memprofile", "", "write memory profile to file")
+var beQuiet = flag.Bool("quiet", false, "don't show progress")
+
 // WriteCounter counts the number of bytes written.
 // implements to the io.Writer interface
 type WriteCounter struct {
@@ -39,18 +43,20 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 	elapsedSecs := int(time.Since(wc.startTime).Seconds())
 	if elapsedSecs > wc.elapsedSecs {
 		wc.elapsedSecs = elapsedSecs
-		wc.printProgress()
+		if !*beQuiet {
+			wc.printProgress()
+		}
 	}
 	return n, nil
 }
 
 func (wc WriteCounter) printProgress() {
 
-	fmt.Println(wc.Index, wc.elapsedSecs, humanize.Bytes(uint64(wc.totalRead)), humanize.Bytes(uint64(wc.contentSize)), wc.stepSize, wc.URL)
+	fmt.Println(wc.Index+1, ";", wc.elapsedSecs, ";", humanize.Bytes(uint64(wc.totalRead)), ";", humanize.Bytes(uint64(wc.contentSize)), ";", wc.stepSize, ";", wc.URL)
 }
 
 func (wc WriteCounter) printFinal() {
-	fmt.Println("time =", wc.elapsedTime, "size =", wc.totalRead, "for ", wc.URL)
+	fmt.Println("time =", wc.elapsedTime, "size =", wc.totalRead, "for ", wc.URL, "index", wc.Index+1, "bps: ", uint64(float64(wc.totalRead)/wc.elapsedTime.Seconds()*8))
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will
@@ -97,9 +103,6 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 	return wc.elapsedTime, wc.totalRead, nil
 }
 
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-var memprofile = flag.String("memprofile", "", "write memory profile to file")
-
 func main() {
 
 	flag.Parse()
@@ -115,17 +118,17 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(len(flag.Args()))
-	for i := range flag.Args() {
-		fileURL := flag.Args()[i]
-		//fmt.Println("Spawning download of ", fileURL)
-		go func() {
-			_, _, err := DownloadFile(fileURL, i)
+	for idx := range flag.Args() {
+		fileURL := flag.Args()[idx]
+		fmt.Println("Spawning download of ", fileURL, "index", idx+1)
+		go func(f string, i int) {
+			_, _, err := DownloadFile(f, i)
 			if err != nil {
-				fmt.Println("error for ", fileURL)
+				fmt.Println("error for ", f)
 				return
 			}
 			wg.Done()
-		}()
+		}(fileURL, idx)
 	}
 	wg.Wait()
 
