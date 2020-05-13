@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dustin/go-humanize"
+	"./nspeed"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -55,13 +55,18 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 
 func (wc WriteCounter) printProgress() {
 
-	fmt.Println(wc.Index+1, ";", wc.elapsedSecs, ";", humanize.Bytes(uint64(wc.totalRead)), ";", humanize.Bytes(uint64(wc.contentSize)), ";", wc.stepSize, ";", wc.URL)
+	fmt.Println(wc.Index+1, ";", wc.elapsedSecs, ";",
+		nspeed.ByteCountBinary(wc.totalRead, "B"), ";",
+		nspeed.ByteCountBinary(wc.contentSize, "B"), ";", wc.stepSize, ";", wc.URL)
 }
 
 func (wc WriteCounter) printFinal() {
-	fmt.Println("time =", wc.elapsedTime, "size =", wc.totalRead,
-		"for ", wc.URL, "index", wc.Index+1,
-		"bps: ", (wc.totalRead*8/wc.elapsedTime.Milliseconds())*1000)
+	fmt.Println(
+		wc.Index+1,
+		nspeed.ByteCountDecimal(wc.totalRead*8/wc.elapsedTime.Milliseconds()*1000, "bps"),
+		"time =", wc.elapsedTime,
+		"size =", wc.totalRead,
+		"url ", wc.URL)
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will
@@ -101,7 +106,7 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 	}
 
 	protocol := resp.Request.Proto
-	fmt.Println("procolol", protocol)
+	fmt.Println(wc.Index+1, "procolol", protocol)
 
 	wc.startTime = time.Now()
 	wc.contentSize = resp.ContentLength
@@ -134,7 +139,7 @@ func main() {
 	wg.Add(len(flag.Args()))
 	for idx := range flag.Args() {
 		fileURL := flag.Args()[idx]
-		fmt.Println("Spawning download of ", fileURL, "index", idx+1)
+		fmt.Println(idx+1, fileURL)
 		go func(f string, i int) {
 			_, _, err := DownloadFile(f, i)
 			if err != nil {

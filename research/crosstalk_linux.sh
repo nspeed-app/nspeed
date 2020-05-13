@@ -10,7 +10,8 @@ echo interface = $ifname
 echo starting curl
 start_time=`date +%s%N`
 before=$(cat /sys/class/net/$ifname/statistics/rx_bytes)
-curl -o /dev/null -s -w "@curl-format.txt" $url
+#curl -o /dev/null -s -w "@curl-format.txt" $url
+go run client.go --quiet $url
 after=$(cat /sys/class/net/$ifname/statistics/rx_bytes)
 end_time=`date +%s%N`
 echo curl ended
