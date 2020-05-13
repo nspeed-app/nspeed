@@ -24,16 +24,19 @@ var beQuiet = flag.Bool("quiet", false, "don't show progress")
 // WriteCounter counts the number of bytes written.
 // implements to the io.Writer interface
 type WriteCounter struct {
-	Index       int
-	URL         string
-	dnsInfo     httptrace.DNSDoneInfo
-	connInfo    httptrace.GotConnInfo
-	contentSize int64
-	totalRead   int64
-	stepSize    int64
-	startTime   time.Time
-	elapsedTime time.Duration
-	elapsedSecs int
+	Index             int
+	URL               string
+	dnsInfo           httptrace.DNSDoneInfo
+	dnsInfoTime       time.Time
+	connInfo          httptrace.GotConnInfo
+	connInfoTime      time.Time
+	contentSize       int64
+	totalRead         int64
+	stepSize          int64
+	startTime         time.Time
+	elapsedTime       time.Duration
+	elapsedSecs       int
+	FirstResponseByte time.Time
 }
 
 func (wc *WriteCounter) Write(p []byte) (int, error) {
@@ -56,7 +59,9 @@ func (wc WriteCounter) printProgress() {
 }
 
 func (wc WriteCounter) printFinal() {
-	fmt.Println("time =", wc.elapsedTime, "size =", wc.totalRead, "for ", wc.URL, "index", wc.Index+1, "bps: ", uint64(float64(wc.totalRead)/wc.elapsedTime.Seconds()*8))
+	fmt.Println("time =", wc.elapsedTime, "size =", wc.totalRead,
+		"for ", wc.URL, "index", wc.Index+1,
+		"bps: ", (wc.totalRead*8/wc.elapsedTime.Milliseconds())*1000)
 }
 
 // DownloadFile will download a url to a local file. It's efficient because it will
@@ -78,10 +83,15 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 
 	trace := &httptrace.ClientTrace{
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
+			wc.dnsInfoTime = time.Now()
 			wc.dnsInfo = dnsInfo
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
+			wc.connInfoTime = time.Now()
 			wc.connInfo = connInfo
+		},
+		GotFirstResponseByte: func() {
+			wc.FirstResponseByte = time.Now()
 		},
 	}
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
@@ -90,8 +100,12 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 		log.Fatal(err)
 	}
 
-	wc.contentSize = resp.ContentLength
+	protocol := resp.Request.Proto
+	fmt.Println("procolol", protocol)
+
 	wc.startTime = time.Now()
+	wc.contentSize = resp.ContentLength
+
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wc)); err != nil {
 		return 0, wc.totalRead, err
 	}
