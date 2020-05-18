@@ -14,12 +14,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shirou/gopsutil/cpu"
+
 	"./nspeed"
 )
 
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-var memprofile = flag.String("memprofile", "", "write memory profile to file")
-var beQuiet = flag.Bool("quiet", false, "don't show progress")
+// options / arguments
+var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
+var optVerbose = flag.Bool("verbose", false, "show progress & details")
+var optTimeout = flag.Int("timeout", 8, "timeout in seconds, 0 for no timeout")
 
 // WriteCounter counts the number of bytes written.
 // implements to the io.Writer interface
@@ -46,7 +50,7 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 	elapsedSecs := int(time.Since(wc.startTime).Seconds())
 	if elapsedSecs > wc.elapsedSecs {
 		wc.elapsedSecs = elapsedSecs
-		if !*beQuiet {
+		if *optVerbose {
 			wc.printProgress()
 		}
 	}
@@ -54,6 +58,11 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 }
 
 func (wc WriteCounter) printProgress() {
+
+	pcts, _ := cpu.Percent(0, true)
+	for i := range pcts {
+		fmt.Printf("%02.0f ", pcts[i])
+	}
 
 	fmt.Println(wc.Index+1, ";", wc.elapsedSecs, ";",
 		nspeed.ByteCountBinary(wc.totalRead, "B"), ";",
@@ -76,6 +85,8 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 
 	// Get the data
 	req, err := http.NewRequest("GET", url, nil)
+
+	// todo: CheckRedirect
 
 	if err != nil {
 		return 0, 0, err
@@ -106,11 +117,12 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 	}
 
 	protocol := resp.Request.Proto
-	fmt.Println(wc.Index+1, "procolol", protocol)
+	fmt.Println(wc.Index+1, "size", resp.ContentLength, "procolol", protocol, "local IP:port", wc.connInfo.Conn.LocalAddr(), "remote IP:port", wc.connInfo.Conn.RemoteAddr())
 
 	wc.startTime = time.Now()
 	wc.contentSize = resp.ContentLength
 
+	// this is where the main transfert happens. iteration 1: we use io.Copy to 'null' (Discard) and a TeeReader to do progression
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wc)); err != nil {
 		return 0, wc.totalRead, err
 	}
@@ -126,14 +138,16 @@ func main() {
 
 	flag.Parse()
 
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
+	if *optCpuprofile != "" {
+		f, err := os.Create(*optCpuprofile)
 		if err != nil {
 			log.Fatal(err)
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+
+	fmt.Println("max cores = ", nspeed.MaxParallelism())
 
 	var wg sync.WaitGroup
 	wg.Add(len(flag.Args()))
@@ -151,8 +165,8 @@ func main() {
 	}
 	wg.Wait()
 
-	if *memprofile != "" {
-		f, err := os.Create(*memprofile)
+	if *optMemprofile != "" {
+		f, err := os.Create(*optMemprofile)
 		if err != nil {
 			log.Fatal("could not create memory profile: ", err)
 		}
