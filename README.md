@@ -1,7 +1,11 @@
 # nspeed-client
 
+#install
+ Windows: `iwr https://nspeed.app/nspeed-client/v0.2/Windows-x64/nspeed-client.exe -useb -outfile nspeed-client.exe`
+ Linux
+ Mac
 
-gert interface & crosstalk
+get interface & crosstalk
 
 #linux
 ip route get $destination_ip
@@ -20,4 +24,4 @@ Get-NetAdapterStatistics -Name $Name
 
 #mac
 
-#*bsd
+#bsd
