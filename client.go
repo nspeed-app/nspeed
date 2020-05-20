@@ -122,7 +122,8 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 	wc.startTime = time.Now()
 	wc.contentSize = resp.ContentLength
 
-	// this is where the main transfert happens. iteration 1: we use io.Copy to 'null' (Discard) and a TeeReader to do progression
+	// this is where the main transfert happens.
+	//   iteration 1: we use io.Copy to 'null' (Discard) and a TeeReader to do progression
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wc)); err != nil {
 		return 0, wc.totalRead, err
 	}
