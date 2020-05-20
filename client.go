@@ -117,7 +117,7 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 	}
 
 	protocol := resp.Request.Proto
-	fmt.Println(wc.Index+1, "size", resp.ContentLength, "procolol", protocol, "local IP:port", wc.connInfo.Conn.LocalAddr(), "remote IP:port", wc.connInfo.Conn.RemoteAddr())
+	fmt.Println(wc.Index+1, "size", resp.ContentLength, "procotol", protocol, "local IP:port", wc.connInfo.Conn.LocalAddr(), "remote IP:port", wc.connInfo.Conn.RemoteAddr())
 
 	wc.startTime = time.Now()
 	wc.contentSize = resp.ContentLength
