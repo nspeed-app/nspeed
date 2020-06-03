@@ -70,9 +70,21 @@ func (wc WriteCounter) printProgress() {
 }
 
 func (wc WriteCounter) printFinal() {
+
+	// nyi - fix me
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recovered from divide by zero")
+		}
+	}()
+	t := wc.elapsedTime.Milliseconds() * 1000
+	speed := "(too fast)"
+	if t > 0 {
+		speed = nspeed.ByteCountDecimal(wc.totalRead*8/t, "bps")
+	}
 	fmt.Println(
 		wc.Index+1,
-		nspeed.ByteCountDecimal(wc.totalRead*8/wc.elapsedTime.Milliseconds()*1000, "bps"),
+		speed,
 		"time =", wc.elapsedTime,
 		"size =", wc.totalRead,
 		"url ", wc.URL)
@@ -83,8 +95,19 @@ func (wc WriteCounter) printFinal() {
 // into Copy() to report progress on the download.
 func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 
+	// create http client
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+		Transport: http.DefaultTransport,
+	}
+
 	// Get the data
 	req, err := http.NewRequest("GET", url, nil)
+
+	// add headers
+	//req.Header.Add("x-nspeed-app-version", "1.0")
 
 	// todo: CheckRedirect
 
@@ -111,7 +134,7 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 		},
 	}
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
-	resp, err := http.DefaultTransport.RoundTrip(req)
+	resp, err := client.Transport.RoundTrip(req)
 	if err != nil {
 		log.Fatal(err)
 	}
