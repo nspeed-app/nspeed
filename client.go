@@ -108,6 +108,7 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 
 	// add headers
 	//req.Header.Add("x-nspeed-app-version", "1.0")
+	//"accept: application/octet-stream"
 
 	// todo: CheckRedirect
 
@@ -139,7 +140,7 @@ func DownloadFile(url string, idx int) (time.Duration, int64, error) {
 		log.Fatal(err)
 	}
 
-	protocol := resp.Request.Proto
+	protocol := resp.Proto
 	fmt.Println(wc.Index+1, "size", resp.ContentLength, "procotol", protocol, "local IP:port", wc.connInfo.Conn.LocalAddr(), "remote IP:port", wc.connInfo.Conn.RemoteAddr())
 
 	wc.startTime = time.Now()

@@ -11,10 +11,12 @@ echo starting curl
 start_time=`date +%s%N`
 before=$(cat /sys/class/net/$ifname/statistics/rx_bytes)
 #curl -o /dev/null -s -w "@curl-format.txt" $url
-go run client.go --quiet $url
+go run client.go $url
 after=$(cat /sys/class/net/$ifname/statistics/rx_bytes)
 end_time=`date +%s%N`
 echo curl ended
 traffic=$(($after-$before))
 dur=$((($end_time-$start_time)/1000000))
+echo "before :" $before
+echo "after :" $after
 echo $traffic bytes on interface $ifname took $dur msecs = $(($traffic*8/$dur/1000)) Mbps
