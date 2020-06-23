@@ -2,12 +2,7 @@
 
 <Work in Progress>
 
-### What is NSpeed
 
-reserved
+## Support or Contact
 
-### wip
-
-### Support or Contact
-
-Check out our [documentation](https://help.nspeed.app) or [https://github.com/nspeed-app/nspeed) and we’ll help you sort it out.
+info@nspeed.app
