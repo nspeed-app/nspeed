@@ -1,8 +1,7 @@
 ## Welcome to NSpeed
 
-<Work in Progress>
-
+Work in Progress
 
 ## Support or Contact
 
-info@nspeed.app
+[info@nspeed.app](mailto:info@nspeed.app)
