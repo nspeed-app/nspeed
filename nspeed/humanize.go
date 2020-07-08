@@ -2,7 +2,7 @@ package nspeed
 
 import "fmt"
 
-// shamelessly stolen from : https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
+// shamelessly copied from : https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
 
 // ByteCountDecimal format byte size to human readable format (decimal units)
 func ByteCountDecimal(b int64, u string) string {

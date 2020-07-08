@@ -77,23 +77,21 @@ func (wc WriteCounter) printFinal() {
 			fmt.Println("recovered from divide by zero")
 		}
 	}()
-	t := wc.elapsedTime.Milliseconds() * 1000
+	t := wc.elapsedTime.Seconds()
 	speed := "(too fast)"
 	if t > 0 {
-		speed = nspeed.ByteCountDecimal(wc.totalRead*8/t, "bps")
+		speed = nspeed.ByteCountDecimal((int64)((float64)(wc.totalRead)*8.0/t), "bps")
 	}
 	fmt.Println(
 		wc.Index+1,
-		speed,
+		"speed =", speed,
 		"time =", wc.elapsedTime,
-		"size =", wc.totalRead,
+		"size =", wc.totalRead, nspeed.ByteCountDecimal(wc.totalRead, "B"),
 		"url ", wc.URL)
 }
 
-// DownloadFile will download a url to a local file. It's efficient because it will
-// write as it downloads and not load the whole file into memory. We pass an io.TeeReader
-// into Copy() to report progress on the download.
-func DownloadFile(url string, idx int) (time.Duration, int64, error) {
+// HTTPDownload implements HTTP GET command
+func HTTPDownload(url string, idx int) (time.Duration, int64, error) {
 
 	// create http client
 	client := &http.Client{
@@ -180,7 +178,7 @@ func main() {
 		fileURL := flag.Args()[idx]
 		fmt.Println(idx+1, fileURL)
 		go func(f string, i int) {
-			_, _, err := DownloadFile(f, i)
+			_, _, err := HTTPDownload(f, i)
 			if err != nil {
 				fmt.Println("error for ", f)
 				return
