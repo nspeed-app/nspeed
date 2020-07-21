@@ -31,3 +31,18 @@ func ByteCountBinary(b int64, u string) string {
 	}
 	return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), "KMGTPE"[exp], u)
 }
+
+// FormatBitperSecond format bit per seconds in human readable format
+func FormatBitperSecond(elapsedSeconds float64, totalBytesRead int64) string {
+	// nyi - fix me
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recovered from divide by zero")
+		}
+	}()
+	speed := "(too fast)"
+	if elapsedSeconds > 0 {
+		speed = ByteCountDecimal((int64)((float64)(totalBytesRead)*8.0/elapsedSeconds), "bps")
+	}
+	return speed
+}

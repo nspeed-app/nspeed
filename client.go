@@ -29,7 +29,8 @@ var optTick = flag.Int("tick", 1, "progress interval in seconds only used in ver
 // implements to the io.Writer interface
 type WriteCounter struct {
 	Index             int
-	resultChan        chan string
+	Done              bool
+	resultChan        chan *WriteCounter
 	URL               string
 	dnsInfo           httptrace.DNSDoneInfo
 	dnsInfoTime       time.Time
@@ -40,7 +41,6 @@ type WriteCounter struct {
 	stepSize          int64
 	startTime         time.Time
 	elapsedTime       time.Duration
-	elapsedSecs       int
 	FirstResponseByte time.Time
 }
 
@@ -48,50 +48,29 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 	n := len(p)
 	wc.stepSize = int64(n)
 	wc.totalRead += wc.stepSize
-	wc.resultChan <- wc.printProgress()
-
-	// elapsedSecs := int(time.Since(wc.startTime).Seconds())
-	// if elapsedSecs > wc.elapsedSecs {
-	// 	wc.elapsedSecs = elapsedSecs
-
+	wc.elapsedTime = time.Since(wc.startTime)
+	wc.resultChan <- wc
 	return n, nil
 }
 
-func (wc *WriteCounter) printProgress() string {
-
-	// pcts, _ := cpu.Percent(0, true)
-	// for i := range pcts {
-	// 	fmt.Printf("%02.0f ", pcts[i])
-	// }
-
-	return fmt.Sprintln(wc.Index+1, ";", wc.elapsedSecs, ";",
+func (wc *WriteCounter) printProgress() {
+	elapsedSecs := wc.elapsedTime.Seconds()
+	fmt.Println(wc.Index+1, ";", elapsedSecs, ";",
 		nspeed.ByteCountBinary(wc.totalRead, "B"), ";",
 		nspeed.ByteCountBinary(wc.contentSize, "B"), ";", wc.stepSize, ";", wc.URL)
 }
 
 func (wc *WriteCounter) printFinal() {
-
-	// nyi - fix me
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("recovered from divide by zero")
-		}
-	}()
-	t := wc.elapsedTime.Seconds()
-	speed := "(too fast)"
-	if t > 0 {
-		speed = nspeed.ByteCountDecimal((int64)((float64)(wc.totalRead)*8.0/t), "bps")
-	}
 	fmt.Println(
 		wc.Index+1,
-		"speed =", speed,
+		"speed =", nspeed.FormatBitperSecond(wc.elapsedTime.Seconds(), wc.totalRead),
 		"time =", wc.elapsedTime,
 		"size =", wc.totalRead, nspeed.ByteCountDecimal(wc.totalRead, "B"),
 		"url ", wc.URL)
 }
 
 // HTTPDownload implements HTTP GET command
-func HTTPDownload(url string, idx int, r chan string) (time.Duration, int64, error) {
+func HTTPDownload(wc *WriteCounter) error {
 
 	// create http client
 	client := &http.Client{
@@ -102,7 +81,7 @@ func HTTPDownload(url string, idx int, r chan string) (time.Duration, int64, err
 	}
 
 	// Get the data
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", wc.URL, nil)
 
 	// add headers
 	//req.Header.Add("x-nspeed-app-version", "1.0")
@@ -111,14 +90,10 @@ func HTTPDownload(url string, idx int, r chan string) (time.Duration, int64, err
 	// todo: CheckRedirect
 
 	if err != nil {
-		return 0, 0, err
+		return err
 	}
 
 	//
-	wc := &WriteCounter{}
-	wc.resultChan = r
-	wc.Index = idx
-	wc.URL = url
 
 	trace := &httptrace.ClientTrace{
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
@@ -148,14 +123,13 @@ func HTTPDownload(url string, idx int, r chan string) (time.Duration, int64, err
 	// this is where the main transfert happens.
 	//   iteration 1: we use io.Copy to 'null' (Discard) and a TeeReader to do progression
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wc)); err != nil {
-		return 0, wc.totalRead, err
+		return err
 	}
 	wc.elapsedTime = time.Since(wc.startTime)
+	wc.Done = true
+	wc.resultChan <- wc
 
-	// The progress use the same line so print a new line once it's finished downloading
-	wc.printFinal()
-
-	return wc.elapsedTime, wc.totalRead, nil
+	return nil
 }
 
 func main() {
@@ -174,20 +148,28 @@ func main() {
 	fmt.Println("max cores = ", nspeed.MaxParallelism())
 
 	var wg sync.WaitGroup
-	wg.Add(len(flag.Args()))
-	results := make(chan string)
+	wg.Add(flag.NArg())
+	results := make(chan *WriteCounter, 1)
+
+	wcWorkers := make([]*WriteCounter, flag.NArg())
 
 	for idx := range flag.Args() {
-		fileURL := flag.Args()[idx]
-		fmt.Println(idx+1, fileURL)
-		go func(f string, i int, r chan string) {
+		wc := WriteCounter{Done: false, Index: idx, URL: flag.Args()[idx], resultChan: results}
+		wcWorkers[idx] = &wc
+		// todo check valid url, prefetch, do dns if needed, etc
+	}
+
+	// we could merge this loop with the previous one but in case we want to start sync everything we keep this separate
+	for _, wc := range wcWorkers {
+		fmt.Println("spawning workload ", wc.Index, wc.URL, wc.Done)
+		go func(w *WriteCounter) {
 			defer wg.Done()
-			_, _, err := HTTPDownload(f, i, r)
+			err := HTTPDownload(w)
 			if err != nil {
-				fmt.Println("error for ", f)
+				fmt.Println("error for ", w.URL)
 				return
 			}
-		}(fileURL, idx, results)
+		}(wc)
 	}
 
 	// main thread loop
@@ -216,9 +198,16 @@ func main() {
 				fmt.Printf("%02.0f ", pcts[i])
 			}
 			fmt.Println("tick ", rc, runtime.NumGoroutine())
-		case <-results:
+			for _, wc := range wcWorkers {
+				if !wc.Done {
+					wc.printProgress()
+				}
+			}
+		case wc := <-results:
 			rc++
-			//fmt.Println("Child sent - ", s, runtime.NumGoroutine())
+			if wc.Done {
+				fmt.Println("Child ended - ", wc.Index, runtime.NumGoroutine())
+			}
 		case <-mastertimeout:
 			fmt.Println("master timeout reached")
 			notdone = false
@@ -229,6 +218,22 @@ func main() {
 		}
 	}
 	fmt.Println("main loop ended")
+	var elapsedTime time.Duration = 0
+	var totalRead int64 = 0
+
+	for _, wc := range wcWorkers {
+		wc.printFinal()
+		totalRead += wc.totalRead
+		if wc.elapsedTime > elapsedTime {
+			elapsedTime = wc.elapsedTime
+		}
+		fmt.Println(
+			"summary:",
+			"speed =", nspeed.FormatBitperSecond(elapsedTime.Seconds(), totalRead),
+			"time =", elapsedTime,
+			"size =", totalRead, nspeed.ByteCountDecimal(totalRead, "B"))
+
+	}
 
 	if *optMemprofile != "" {
 		f, err := os.Create(*optMemprofile)
