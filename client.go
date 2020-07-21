@@ -14,9 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shirou/gopsutil/cpu"
-
 	"./nspeed"
+	"github.com/shirou/gopsutil/cpu"
 )
 
 // options / arguments
@@ -24,11 +23,13 @@ var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optTimeout = flag.Int("timeout", 8, "timeout in seconds, 0 for no timeout")
+var optTick = flag.Int("tick", 1, "progress interval in seconds only used in verbose mode, default 1")
 
 // WriteCounter counts the number of bytes written.
 // implements to the io.Writer interface
 type WriteCounter struct {
 	Index             int
+	resultChan        chan string
 	URL               string
 	dnsInfo           httptrace.DNSDoneInfo
 	dnsInfoTime       time.Time
@@ -47,29 +48,28 @@ func (wc *WriteCounter) Write(p []byte) (int, error) {
 	n := len(p)
 	wc.stepSize = int64(n)
 	wc.totalRead += wc.stepSize
-	elapsedSecs := int(time.Since(wc.startTime).Seconds())
-	if elapsedSecs > wc.elapsedSecs {
-		wc.elapsedSecs = elapsedSecs
-		if *optVerbose {
-			wc.printProgress()
-		}
-	}
+	wc.resultChan <- wc.printProgress()
+
+	// elapsedSecs := int(time.Since(wc.startTime).Seconds())
+	// if elapsedSecs > wc.elapsedSecs {
+	// 	wc.elapsedSecs = elapsedSecs
+
 	return n, nil
 }
 
-func (wc WriteCounter) printProgress() {
+func (wc *WriteCounter) printProgress() string {
 
-	pcts, _ := cpu.Percent(0, true)
-	for i := range pcts {
-		fmt.Printf("%02.0f ", pcts[i])
-	}
+	// pcts, _ := cpu.Percent(0, true)
+	// for i := range pcts {
+	// 	fmt.Printf("%02.0f ", pcts[i])
+	// }
 
-	fmt.Println(wc.Index+1, ";", wc.elapsedSecs, ";",
+	return fmt.Sprintln(wc.Index+1, ";", wc.elapsedSecs, ";",
 		nspeed.ByteCountBinary(wc.totalRead, "B"), ";",
 		nspeed.ByteCountBinary(wc.contentSize, "B"), ";", wc.stepSize, ";", wc.URL)
 }
 
-func (wc WriteCounter) printFinal() {
+func (wc *WriteCounter) printFinal() {
 
 	// nyi - fix me
 	defer func() {
@@ -91,7 +91,7 @@ func (wc WriteCounter) printFinal() {
 }
 
 // HTTPDownload implements HTTP GET command
-func HTTPDownload(url string, idx int) (time.Duration, int64, error) {
+func HTTPDownload(url string, idx int, r chan string) (time.Duration, int64, error) {
 
 	// create http client
 	client := &http.Client{
@@ -116,6 +116,7 @@ func HTTPDownload(url string, idx int) (time.Duration, int64, error) {
 
 	//
 	wc := &WriteCounter{}
+	wc.resultChan = r
 	wc.Index = idx
 	wc.URL = url
 
@@ -174,19 +175,60 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(len(flag.Args()))
+	results := make(chan string)
+
 	for idx := range flag.Args() {
 		fileURL := flag.Args()[idx]
 		fmt.Println(idx+1, fileURL)
-		go func(f string, i int) {
-			_, _, err := HTTPDownload(f, i)
+		go func(f string, i int, r chan string) {
+			defer wg.Done()
+			_, _, err := HTTPDownload(f, i, r)
 			if err != nil {
 				fmt.Println("error for ", f)
 				return
 			}
-			wg.Done()
-		}(fileURL, idx)
+		}(fileURL, idx, results)
 	}
-	wg.Wait()
+
+	// main thread loop
+	// - wait for (partial) result from workers
+	// - wait for progress tick and print results
+	// - wait for all workers to end or optTimeout elapsed
+
+	cWaitgroupEnded := make(chan struct{})
+	go func() {
+		defer close(cWaitgroupEnded)
+		wg.Wait()
+	}()
+
+	rc := 0
+
+	notdone := true
+	mastertimeout := time.After(time.Duration(*optTimeout) * time.Second)
+	progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
+
+	for notdone {
+		select {
+		case <-progressTicker.C:
+			// warning for backlogs if what's done here takes too long
+			pcts, _ := cpu.Percent(0, true)
+			for i := range pcts {
+				fmt.Printf("%02.0f ", pcts[i])
+			}
+			fmt.Println("tick ", rc, runtime.NumGoroutine())
+		case <-results:
+			rc++
+			//fmt.Println("Child sent - ", s, runtime.NumGoroutine())
+		case <-mastertimeout:
+			fmt.Println("master timeout reached")
+			notdone = false
+			//clean end children
+		case <-cWaitgroupEnded:
+			fmt.Println("wait group done")
+			notdone = false
+		}
+	}
+	fmt.Println("main loop ended")
 
 	if *optMemprofile != "" {
 		f, err := os.Create(*optMemprofile)
@@ -199,6 +241,4 @@ func main() {
 			log.Fatal("could not write memory profile: ", err)
 		}
 	}
-
-	fmt.Println("Download Finished")
 }
