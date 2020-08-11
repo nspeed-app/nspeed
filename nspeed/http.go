@@ -5,8 +5,10 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptrace"
+	"net/url"
 	"time"
 )
 
@@ -20,6 +22,25 @@ func HTTPDownload(wm *WorkerMetrics) error {
 		},
 		Transport: http.DefaultTransport,
 	}
+
+	// A - temporay dns debug
+	u, err := url.Parse(wm.URL)
+	if err != nil {
+		panic(err)
+	}
+
+	host, _, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		host = u.Host
+	}
+
+	ips, err := net.LookupIP(host)
+
+	fmt.Println("LookupIp for", host)
+	for _, ip := range ips {
+		fmt.Printf("  %s\n", ip.String())
+	}
+	// end of A
 
 	// Get the data
 	req, err := http.NewRequest("GET", wm.URL, nil)
