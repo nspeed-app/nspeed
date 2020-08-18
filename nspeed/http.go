@@ -1,15 +1,15 @@
 package nspeed
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // HTTPDownload implements HTTP GET command
@@ -24,24 +24,25 @@ func HTTPDownload(wm *WorkerMetrics) error {
 	}
 
 	// A - temporay dns debug
-	u, err := url.Parse(wm.URL)
-	if err != nil {
-		panic(err)
+	if wm.Verbose {
+		u, err := url.Parse(wm.URL)
+		if err != nil {
+			panic(err)
+		}
+
+		host, _, err := net.SplitHostPort(u.Host)
+		if err != nil {
+			host = u.Host
+		}
+
+		ips, err := net.LookupIP(host)
+
+		log.Debug("LookupIp for ", host)
+		for _, ip := range ips {
+			log.Debug("  ", ip.String())
+		}
+		// end of A
 	}
-
-	host, _, err := net.SplitHostPort(u.Host)
-	if err != nil {
-		host = u.Host
-	}
-
-	ips, err := net.LookupIP(host)
-
-	fmt.Println("LookupIp for", host)
-	for _, ip := range ips {
-		fmt.Printf("  %s\n", ip.String())
-	}
-	// end of A
-
 	// Get the data
 	req, err := http.NewRequest("GET", wm.URL, nil)
 
@@ -77,9 +78,11 @@ func HTTPDownload(wm *WorkerMetrics) error {
 	}
 
 	protocol := resp.Proto
-	fmt.Println(wm.Index+1, "size", resp.ContentLength, "procotol", protocol,
-		"local IP:port", wm.ConnInfo.Conn.LocalAddr(),
-		"remote IP:port", wm.ConnInfo.Conn.RemoteAddr())
+	log.Info("#", wm.Index+1,
+		" size = ", ByteCountDecimal(resp.ContentLength, "B"), " (", ByteCountBinary(resp.ContentLength, "iB"), ")",
+		" procotol", protocol,
+		" local IP:port", wm.ConnInfo.Conn.LocalAddr(),
+		" remote IP:port", wm.ConnInfo.Conn.RemoteAddr())
 
 	wm.StartTime = time.Now()
 	wm.ContentSize = resp.ContentLength

@@ -1,9 +1,10 @@
 package nspeed
 
 import (
-	"fmt"
 	"net/http/httptrace"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // WorkerMetrics - main metrics struct
@@ -23,6 +24,7 @@ type WorkerMetrics struct {
 	StartTime         time.Time
 	ElapsedTime       time.Duration
 	FirstResponseByte time.Time
+	Verbose           bool
 }
 
 func (wm *WorkerMetrics) Write(p []byte) (int, error) {
@@ -36,17 +38,29 @@ func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 // PrintProgress prints the intermediary metrics
 func (wm *WorkerMetrics) PrintProgress() {
 	elapsedSecs := wm.ElapsedTime.Seconds()
-	fmt.Println(wm.Index+1, ";", elapsedSecs, ";",
+	log.Info(
+		"#", wm.Index+1, ";", elapsedSecs, ";",
 		ByteCountBinary(wm.TotalRead, "B"), ";",
 		ByteCountBinary(wm.ContentSize, "B"), ";", wm.StepSize, ";", wm.URL)
 }
 
 // PrintFinal prints the final metrics
 func (wm *WorkerMetrics) PrintFinal() {
-	fmt.Println(
-		wm.Index+1,
-		"speed =", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
-		"time =", wm.ElapsedTime,
-		"size =", wm.TotalRead, ByteCountDecimal(wm.TotalRead, "B"),
-		"url ", wm.URL)
+	log.Info(
+		"#", wm.Index+1,
+		" speed = ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
+		" time = ", wm.ElapsedTime.Milliseconds(), " ms (", wm.ElapsedTime.Seconds(), " s)",
+		" size = ", ByteCountDecimal(wm.TotalRead, "B"), " (", ByteCountBinary(wm.TotalRead, "iB"), ")",
+		" url  = ", wm.URL)
+}
+
+// LogFinal prints the final metrics (structured format)
+func (wm *WorkerMetrics) LogFinal() {
+	log.WithFields(log.Fields{
+		"speed": FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
+		"time":  wm.ElapsedTime.Seconds(),
+		"size":  wm.TotalRead,
+		"url":   wm.URL,
+	}).Info("#", wm.Index+1)
+
 }

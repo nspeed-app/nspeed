@@ -3,15 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"strconv"
 	"sync"
 	"time"
 
 	"./nspeed"
 	"github.com/shirou/gopsutil/cpu"
+	log "github.com/sirupsen/logrus"
 )
 
 // options / arguments
@@ -33,8 +34,12 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+	log.SetLevel(log.InfoLevel)
+	if *optVerbose {
+		log.SetLevel(log.DebugLevel)
+	}
 
-	fmt.Println("max cores = ", nspeed.MaxParallelism())
+	log.Debug("max cores = ", nspeed.MaxParallelism())
 
 	var wg sync.WaitGroup
 	wg.Add(flag.NArg())
@@ -43,14 +48,14 @@ func main() {
 	wcWorkers := make([]*nspeed.WorkerMetrics, flag.NArg())
 
 	for idx := range flag.Args() {
-		wm := nspeed.WorkerMetrics{Done: false, Index: idx, URL: flag.Args()[idx], ResultChan: results}
+		wm := nspeed.WorkerMetrics{Done: false, Index: idx, URL: flag.Args()[idx], ResultChan: results, Verbose: *optVerbose}
 		wcWorkers[idx] = &wm
 		// todo check valid url, prefetch, do dns if needed, etc
 	}
 
 	// we could merge this loop with the previous one but in case we want to start sync everything we keep this separate
 	for _, wm := range wcWorkers {
-		fmt.Println("spawning workload ", wm.Index, wm.URL, wm.Done)
+		log.Debug("spawning workload ", wm.Index, wm.URL, wm.Done)
 		go func(w *nspeed.WorkerMetrics) {
 			defer wg.Done()
 			err := nspeed.HTTPDownload(w)
@@ -81,32 +86,35 @@ func main() {
 	for notdone {
 		select {
 		case <-progressTicker.C:
-			// warning for backlogs if what's done here takes too long
+			// warning for overlap/backlogs if what's done here takes too long
 			pcts, _ := cpu.Percent(0, true)
-			for i := range pcts {
-				fmt.Printf("%02.0f ", pcts[i])
+			if *optVerbose {
+				f := log.Fields{}
+				for idx := range pcts {
+					f["core#"+strconv.Itoa(idx)] = pcts[idx]
+				}
+				log.WithFields(f).Debug("cpu ", rc, runtime.NumGoroutine())
 			}
-			fmt.Println("tick ", rc, runtime.NumGoroutine())
 			for _, wm := range wcWorkers {
-				if !wm.Done {
+				if !wm.Done && wm.Verbose {
 					wm.PrintProgress()
 				}
 			}
 		case wm := <-results:
 			rc++
 			if wm.Done {
-				fmt.Println("Child ended - ", wm.Index, runtime.NumGoroutine())
+				log.Debug("Child ended - ", wm.Index, runtime.NumGoroutine())
 			}
 		case <-mastertimeout:
-			fmt.Println("master timeout reached")
+			log.Debug("master timeout reached")
 			notdone = false
 			//clean end children
 		case <-cWaitgroupEnded:
-			fmt.Println("all workers done")
+			log.Debug("all workers done")
 			notdone = false
 		}
 	}
-	fmt.Println("main loop ended", "rc =", rc)
+	log.Debug("main loop ended", "rc =", rc)
 
 	var elapsedTime time.Duration = 0
 	var totalRead int64 = 0
@@ -119,10 +127,10 @@ func main() {
 		}
 	}
 	fmt.Println(
-		"summary:",
+		"total:",
 		"speed =", nspeed.FormatBitperSecond(elapsedTime.Seconds(), totalRead),
 		"time =", elapsedTime,
-		"size =", totalRead, nspeed.ByteCountDecimal(totalRead, "B"))
+		"size =", totalRead, " (", nspeed.ByteCountDecimal(totalRead, "B)"))
 
 	if *optMemprofile != "" {
 		f, err := os.Create(*optMemprofile)
