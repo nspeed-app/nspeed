@@ -1,6 +1,7 @@
 package nspeed
 
 import (
+	"crypto/tls"
 	"io"
 	"io/ioutil"
 	"net"
@@ -78,9 +79,18 @@ func HTTPDownload(wm *WorkerMetrics) error {
 	}
 
 	protocol := resp.Proto
+	crypto := "n/a"
+	cipher := "n/a"
+	if resp.TLS != nil {
+		crypto = TLSVersionName(resp.TLS.Version)
+		cipher = tls.CipherSuiteName(resp.TLS.CipherSuite)
+	}
+
 	log.Info("#", wm.Index+1,
 		" size = ", ByteCountDecimal(resp.ContentLength, "B"), " (", ByteCountBinary(resp.ContentLength, "iB"), ")",
-		" procotol", protocol,
+		" procotol = ", protocol,
+		" crypto = ", crypto,
+		" cipher = ", cipher,
 		" local IP:port", wm.ConnInfo.Conn.LocalAddr(),
 		" remote IP:port", wm.ConnInfo.Conn.RemoteAddr())
 

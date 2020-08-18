@@ -46,3 +46,24 @@ func FormatBitperSecond(elapsedSeconds float64, totalBytesRead int64) string {
 	}
 	return speed
 }
+
+// TLS stuff
+// copied from/inspired by https://github.com/signalsciences/tlstext
+
+// tls version to name is not in std lib ?!
+var tlsversionMap = map[uint16]string{
+	0x0300: "SSL30",
+	0x0301: "TLS10",
+	0x0302: "TLS11",
+	0x0303: "TLS12",
+	0x0304: "TLS13",
+}
+
+// TLSVersionName return TLS version name
+func TLSVersionName(x uint16) string {
+	s, ok := tlsversionMap[x]
+	if !ok {
+		return fmt.Sprintf("%04x", x)
+	}
+	return s
+}
