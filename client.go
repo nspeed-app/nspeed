@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"./nspeed"
 	"github.com/shirou/gopsutil/cpu"
 	log "github.com/sirupsen/logrus"
+	"nspeed.app/nspeed"
 )
 
 // options / arguments
