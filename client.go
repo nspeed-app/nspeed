@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"runtime"
 	"runtime/pprof"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,6 +24,57 @@ var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optTimeout = flag.Int("timeout", 8, "timeout in seconds, 0 for no timeout")
 var optTick = flag.Int("tick", 1, "progress interval in seconds only used in verbose mode, default 1")
 
+type job struct {
+	N     int
+	IP    int
+	Items []string
+}
+
+// flag parsing - thx to https://github.com/artyom
+func parseFlags(rawArgs []string) ([]job, error) {
+	var out []job
+	args := rawArgs
+	fmt.Printf("%s\n", args)
+
+	for len(args) != 0 {
+		j := job{}
+		fs := flag.NewFlagSet("", flag.ExitOnError)
+		fs.IntVar(&j.N, "n", 1, "number of times to process an item")
+		useIPv4 := fs.Bool("4", false, "use IPv4")
+		useIPv6 := fs.Bool("6", false, "use IPv6")
+		if err := fs.Parse(args); err != nil {
+			return nil, err
+		}
+
+		// force IPv4 or IPv6
+		if *useIPv4 && *useIPv6 {
+			fs.Usage()
+			return nil, errors.New("specify IPv4 or IPv6 but not both")
+		}
+		if *useIPv4 {
+			j.IP = 4
+		}
+		if *useIPv6 {
+			j.IP = 6
+		}
+
+		args = args[:0]
+		fmt.Printf("%s\n", args)
+		for i, s := range fs.Args() {
+			if strings.HasPrefix(s, "-") {
+				args = append(args, fs.Args()[i:]...)
+				break
+			}
+			j.Items = append(j.Items, s)
+		}
+		if len(j.Items) != 0 {
+			out = append(out, j)
+		}
+	}
+	return out, nil
+}
+
+// main
 func main() {
 
 	flag.Parse()
@@ -47,8 +100,21 @@ func main() {
 
 	wcWorkers := make([]*nspeed.WorkerMetrics, flag.NArg())
 
+	js, err := parseFlags(flag.Args())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("%+v\n", js)
+	return
+
 	for idx := range flag.Args() {
-		wm := nspeed.WorkerMetrics{Done: false, Index: idx, URL: flag.Args()[idx], ResultChan: results, Verbose: *optVerbose}
+		wm := nspeed.WorkerMetrics{
+			Done:       false,
+			Index:      idx,
+			URL:        flag.Args()[idx],
+			ResultChan: results,
+			Verbose:    *optVerbose}
 		wcWorkers[idx] = &wm
 		// todo check valid url, prefetch, do dns if needed, etc
 	}
