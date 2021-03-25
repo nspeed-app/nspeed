@@ -42,7 +42,7 @@ func main() {
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 
 	client := &http.Client{Transport: t}
-	if resp, err := client.Do(req); err != nil {
+	if _, err := client.Do(req); err != nil {
 		log.Fatal(err)
 	}
 }

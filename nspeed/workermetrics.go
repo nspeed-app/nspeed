@@ -2,6 +2,7 @@ package nspeed
 
 import (
 	"net/http/httptrace"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -21,17 +22,19 @@ type WorkerMetrics struct {
 	ContentSize       int64
 	TotalRead         int64
 	StepSize          int64
-	StartTime         time.Time
+	TestStartTime     time.Time
 	ElapsedTime       time.Duration
 	FirstResponseByte time.Time
+	TLSDone           time.Time
 	Verbose           bool
+	mutex             sync.Mutex
 }
 
 func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 	n := len(p)
 	wm.StepSize = int64(n)
 	wm.TotalRead += wm.StepSize
-	wm.ElapsedTime = time.Since(wm.StartTime)
+	wm.ElapsedTime = time.Since(wm.TestStartTime)
 	return n, nil
 }
 

@@ -2,6 +2,7 @@ package nspeed
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -12,6 +13,20 @@ import (
 
 	log "github.com/sirupsen/logrus"
 )
+
+// roundTripTrace holds timings for a single HTTP roundtrip.
+// mostly from prometheus blackbox_exporter
+type roundTripTrace struct {
+	tls           bool
+	start         time.Time
+	dnsDone       time.Time
+	tlsStart      time.Time
+	tlsDone       time.Time
+	connectDone   time.Time
+	gotConn       time.Time
+	responseStart time.Time
+	end           time.Time
+}
 
 // HTTPDownload implements HTTP GET command
 func HTTPDownload(wm *WorkerMetrics) error {
@@ -57,23 +72,75 @@ func HTTPDownload(wm *WorkerMetrics) error {
 		return err
 	}
 
-	//
+	tr := &roundTripTrace{}
 
 	trace := &httptrace.ClientTrace{
+		DNSStart: func(dnsInfo httptrace.DNSStartInfo) {
+			wm.mutex.Lock()
+			defer wm.mutex.Unlock()
+			tr.start = time.Now()
+		},
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
+			wm.mutex.Lock()
+			defer wm.mutex.Unlock()
 			wm.DNSInfoTime = time.Now()
 			wm.DNSInfo = dnsInfo
+			tr.dnsDone = wm.DNSInfoTime
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
+			wm.mutex.Lock()
+			defer wm.mutex.Unlock()
 			wm.ConnInfoTime = time.Now()
 			wm.ConnInfo = connInfo
+			tr.gotConn = wm.ConnInfoTime
 		},
 		GotFirstResponseByte: func() {
+			wm.mutex.Lock()
+			defer wm.mutex.Unlock()
 			wm.FirstResponseByte = time.Now()
+			tr.responseStart = wm.FirstResponseByte
+		},
+
+		TLSHandshakeStart: func() {
+			wm.mutex.Lock()
+			defer wm.mutex.Unlock()
+			tr.tlsStart = time.Now()
+		},
+
+		TLSHandshakeDone: func(t tls.ConnectionState, err error) {
+			wm.mutex.Lock()
+			defer wm.mutex.Unlock()
+			if err == nil {
+				tr.tls = true
+				wm.TLSDone = time.Now()
+				tr.tlsDone = wm.TLSDone
+			} else {
+				tr.tls = false
+				fmt.Printf("tls: %+v \n", err)
+			}
+		},
+		ConnectStart: func(_, _ string) {
+			wm.mutex.Lock()
+			defer wm.mutex.Unlock()
+			// No DNS resolution because we connected to IP directly.
+			if tr.dnsDone.IsZero() {
+				tr.start = time.Now()
+				tr.dnsDone = tr.start
+			}
+		},
+
+		ConnectDone: func(net, addr string, err error) {
+			wm.mutex.Lock()
+			defer wm.mutex.Unlock()
+			tr.connectDone = time.Now()
 		},
 	}
+
+	refdate := time.Now()
+
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 	resp, err := client.Transport.RoundTrip(req)
+	tr.end = time.Now()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,9 +159,23 @@ func HTTPDownload(wm *WorkerMetrics) error {
 		" crypto = ", crypto,
 		" cipher = ", cipher,
 		" local IP:port", wm.ConnInfo.Conn.LocalAddr(),
-		" remote IP:port", wm.ConnInfo.Conn.RemoteAddr())
+		" remote IP:port", wm.ConnInfo.Conn.RemoteAddr(),
+		" DNSInfoTime = ", wm.DNSInfoTime.Sub(refdate),
+		" ConnInfoTime = ", wm.ConnInfoTime.Sub(refdate),
+		" FirstResponseByte = ", wm.FirstResponseByte.Sub(refdate),
+		" TLSDone = ", wm.TLSDone.Sub(refdate),
+	)
 
-	wm.StartTime = time.Now()
+	fmt.Println("start", tr.start.Sub(refdate))
+	fmt.Println("dnsDone", tr.dnsDone.Sub(refdate))
+	fmt.Println("tlsStart", tr.tlsStart.Sub(refdate))
+	fmt.Println("tlsDone", tr.tlsDone.Sub(refdate))
+	fmt.Println("connectDone", tr.connectDone.Sub(refdate))
+	fmt.Println("gotConn", tr.gotConn.Sub(refdate))
+	fmt.Println("responseStart", tr.responseStart.Sub(refdate))
+	fmt.Println("end", tr.end.Sub(refdate))
+
+	wm.TestStartTime = time.Now()
 	wm.ContentSize = resp.ContentLength
 
 	// this is where the main transfert happens.
@@ -102,7 +183,7 @@ func HTTPDownload(wm *WorkerMetrics) error {
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
 		return err
 	}
-	wm.ElapsedTime = time.Since(wm.StartTime)
+	wm.ElapsedTime = time.Since(wm.TestStartTime)
 	wm.Done = true
 	wm.ResultChan <- wm
 
