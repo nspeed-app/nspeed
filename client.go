@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/v3/cpu"
 	log "github.com/sirupsen/logrus"
 	"nspeed.app/nspeed"
 )
@@ -35,6 +35,7 @@ func parseFlags(rawArgs []string) ([]job, error) {
 	var out []job
 	args := rawArgs
 	fmt.Printf("%s\n", args)
+	//flag.Parse()
 
 	for len(args) != 0 {
 		j := job{}
@@ -77,8 +78,13 @@ func parseFlags(rawArgs []string) ([]job, error) {
 // main
 func main() {
 
-	flag.Parse()
+	//flag.Parse()
+	jobs, err := parseFlags(flag.Args())
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	fmt.Printf("%+v\n", jobs)
 	if *optCpuprofile != "" {
 		f, err := os.Create(*optCpuprofile)
 		if err != nil {
@@ -100,14 +106,6 @@ func main() {
 
 	wcWorkers := make([]*nspeed.WorkerMetrics, flag.NArg())
 
-	js, err := parseFlags(flag.Args())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("%+v\n", js)
-	return
-
 	for idx := range flag.Args() {
 		wm := nspeed.WorkerMetrics{
 			Done:       false,
@@ -116,9 +114,11 @@ func main() {
 			ResultChan: results,
 			Verbose:    *optVerbose}
 		wcWorkers[idx] = &wm
-		// todo check valid url, prefetch, do dns if needed, etc
+		// todo check valid url, prefetch, do dns if needed, add context ? etc
 	}
+	fmt.Printf("%+v\n", wcWorkers)
 
+	return
 	// we could merge this loop with the previous one but in case we want to start sync everything we keep this separate
 	for _, wm := range wcWorkers {
 		log.Debug("spawning workload ", wm.Index, wm.URL, wm.Done)
