@@ -166,14 +166,14 @@ func HTTPDownload(wm *WorkerMetrics) error {
 		" TLSDone = ", wm.TLSDone.Sub(refdate),
 	)
 
-	fmt.Println("start", tr.start.Sub(refdate))
-	fmt.Println("dnsDone", tr.dnsDone.Sub(refdate))
-	fmt.Println("tlsStart", tr.tlsStart.Sub(refdate))
-	fmt.Println("tlsDone", tr.tlsDone.Sub(refdate))
-	fmt.Println("connectDone", tr.connectDone.Sub(refdate))
-	fmt.Println("gotConn", tr.gotConn.Sub(refdate))
-	fmt.Println("responseStart", tr.responseStart.Sub(refdate))
-	fmt.Println("end", tr.end.Sub(refdate))
+	// fmt.Println("start", tr.start.Sub(refdate))
+	// fmt.Println("dnsDone", tr.dnsDone.Sub(refdate))
+	// fmt.Println("tlsStart", tr.tlsStart.Sub(refdate))
+	// fmt.Println("tlsDone", tr.tlsDone.Sub(refdate))
+	// fmt.Println("connectDone", tr.connectDone.Sub(refdate))
+	// fmt.Println("gotConn", tr.gotConn.Sub(refdate))
+	// fmt.Println("responseStart", tr.responseStart.Sub(refdate))
+	// fmt.Println("end", tr.end.Sub(refdate))
 
 	wm.TestStartTime = time.Now()
 	wm.ContentSize = resp.ContentLength

@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +15,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"nspeed.app/nspeed"
 )
+
+// commands
+const getCommand = "get"
+const putCommand = "put"
+
+var implementedCommands = map[string]bool{
+	getCommand: true,
+	putCommand: false,
+}
 
 // options / arguments
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -25,61 +33,82 @@ var optTimeout = flag.Int("timeout", 8, "timeout in seconds, 0 for no timeout")
 var optTick = flag.Int("tick", 1, "progress interval in seconds only used in verbose mode, default 1")
 
 type job struct {
-	N     int
-	IP    int
-	Items []string
+	command   string
+	repeat    int
+	IPversion int
+	target    string
 }
 
 // flag parsing - thx to https://github.com/artyom
-func parseFlags(rawArgs []string) ([]job, error) {
+func parseJobs(rawArgs []string) ([]job, error) {
 	var out []job
 	args := rawArgs
 	fmt.Printf("%s\n", args)
-	//flag.Parse()
 
 	for len(args) != 0 {
+		command := args[0]
+		args = args[1:]
+		val, _ := implementedCommands[command]
+		if !val {
+			return nil, errors.New("unknown command " + command)
+		}
 		j := job{}
-		fs := flag.NewFlagSet("", flag.ExitOnError)
-		fs.IntVar(&j.N, "n", 1, "number of times to process an item")
-		useIPv4 := fs.Bool("4", false, "use IPv4")
-		useIPv6 := fs.Bool("6", false, "use IPv6")
-		if err := fs.Parse(args); err != nil {
-			return nil, err
-		}
-
-		// force IPv4 or IPv6
-		if *useIPv4 && *useIPv6 {
-			fs.Usage()
-			return nil, errors.New("specify IPv4 or IPv6 but not both")
-		}
-		if *useIPv4 {
-			j.IP = 4
-		}
-		if *useIPv6 {
-			j.IP = 6
-		}
-
-		args = args[:0]
-		fmt.Printf("%s\n", args)
-		for i, s := range fs.Args() {
-			if strings.HasPrefix(s, "-") {
-				args = append(args, fs.Args()[i:]...)
-				break
+		j.command = command
+		switch command {
+		case getCommand:
+			fs := flag.NewFlagSet(command, flag.ExitOnError)
+			repeat := fs.Uint("n", 1, "number of times to process an item")
+			useIPv4 := fs.Bool("4", false, "use IPv4")
+			useIPv6 := fs.Bool("6", false, "use IPv6")
+			if err := fs.Parse(args); err != nil {
+				return nil, err
 			}
-			j.Items = append(j.Items, s)
-		}
-		if len(j.Items) != 0 {
+			j.repeat = int(*repeat)
+
+			// force IPv4 or IPv6
+			if *useIPv4 && *useIPv6 {
+				fs.Usage()
+				return nil, errors.New("specify IPv4 or IPv6 but not both")
+			}
+			if *useIPv4 {
+				j.IPversion = 4
+			}
+			if *useIPv6 {
+				j.IPversion = 6
+			}
+			args = fs.Args()
+			if len(args) == 0 {
+				fs.Usage()
+				return nil, errors.New("missing argument")
+			}
+			j.target = args[0]
+			args = args[1:]
 			out = append(out, j)
+		case putCommand:
+			return nil, errors.New("unimplemented command")
+		default:
+			return nil, errors.New("unknown command")
 		}
 	}
+
 	return out, nil
+}
+
+func expandJobs(jobs []job) []job {
+	var out []job
+	for _, job := range jobs {
+		for i := 0; i < job.repeat; i++ {
+			out = append(out, job)
+		}
+	}
+	return out
 }
 
 // main
 func main() {
 
-	//flag.Parse()
-	jobs, err := parseFlags(flag.Args())
+	flag.Parse() // parse global flags
+	jobs, err := parseJobs(flag.Args())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,28 +129,31 @@ func main() {
 
 	log.Debug("max cores = ", nspeed.MaxParallelism())
 
-	var wg sync.WaitGroup
-	wg.Add(flag.NArg())
-	results := make(chan *nspeed.WorkerMetrics, flag.NArg())
+	jobs = expandJobs(jobs)
+	njobs := len(jobs)
+	results := make(chan *nspeed.WorkerMetrics, njobs)
 
-	wcWorkers := make([]*nspeed.WorkerMetrics, flag.NArg())
+	wcWorkers := make([]*nspeed.WorkerMetrics, njobs)
 
-	for idx := range flag.Args() {
+	for idx, job := range jobs {
 		wm := nspeed.WorkerMetrics{
 			Done:       false,
 			Index:      idx,
-			URL:        flag.Args()[idx],
+			URL:        job.target,
 			ResultChan: results,
 			Verbose:    *optVerbose}
 		wcWorkers[idx] = &wm
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
 	}
-	fmt.Printf("%+v\n", wcWorkers)
-
-	return
-	// we could merge this loop with the previous one but in case we want to start sync everything we keep this separate
 	for _, wm := range wcWorkers {
-		log.Debug("spawning workload ", wm.Index, wm.URL, wm.Done)
+		fmt.Printf("%v\n", wm.URL)
+	}
+
+	// we could merge this loop with the previous one but in case we want to start sync everything we keep this separate
+	var wg sync.WaitGroup
+	wg.Add(njobs)
+	for _, wm := range wcWorkers {
+		log.Debug("spawning workload ", wm.Index, " ", wm.URL, " ", wm.Done)
 		go func(w *nspeed.WorkerMetrics) {
 			defer wg.Done()
 			err := nspeed.HTTPDownload(w)
@@ -141,6 +173,7 @@ func main() {
 	go func() {
 		defer close(cWaitgroupEnded)
 		wg.Wait()
+		log.Debug("wait group ended")
 	}()
 
 	rc := 0
