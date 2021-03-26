@@ -1,12 +1,14 @@
 package nspeed
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
 
 // shamelessly copied from : https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
 
-// ByteCountDecimal format byte size to human readable format (decimal units)
-func ByteCountDecimal(b int64, u string) string {
-	const unit = 1000
+func byteCount(b int64, u string, unit int64, letters string) string {
 	if b < unit {
 		return fmt.Sprintf("%d %s", b, u)
 	}
@@ -15,21 +17,45 @@ func ByteCountDecimal(b int64, u string) string {
 		div *= unit
 		exp++
 	}
-	return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), "kMGTPE"[exp], u)
+	if exp >= len(letters) {
+		return fmt.Sprintf("%d %s", b, u)
+	}
+	return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), letters[exp], u)
+}
+
+// ByteCountDecimal format byte size to human readable format (decimal units)
+func ByteCountDecimal(b int64, u string) string {
+	return byteCount(b, u, 1000, "kMGTPE")
+	// const unit = 1000
+	// return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), "kMGTPE"[exp], u)
 }
 
 // ByteCountBinary format byte size to human readable format (binary units)
 func ByteCountBinary(b int64, u string) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d %s", b, u)
+	return byteCount(b, u, 1024, "KMGTPE")
+	// const unit = 1024
+	// return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), "KMGTPE"[exp], u)
+}
+
+// parse bytes units - "<value>kmgtpe" powers of 2 (B), "<value>KMGTPE" powers of 10 (iB)
+const units = "kmgtpe"
+
+func ParseByteUnits(s string) (uint64, error) {
+	m := uint64(1)
+	u := s[len(s)-1:]
+	i := strings.Index(units, strings.ToLower(u))
+	if i > -1 {
+		s = s[:len(s)-1]
+		unit := uint64(1000)
+		if u == strings.ToUpper(u) {
+			unit = uint64(1024)
+		}
+		for x := 0; x <= i; x++ {
+			m = m * unit
+		}
 	}
-	div, exp := int64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), "KMGTPE"[exp], u)
+	val, err := strconv.ParseUint(s, 10, 64)
+	return m * val, err
 }
 
 // FormatBitperSecond format bit per seconds in human readable format
