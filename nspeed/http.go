@@ -14,6 +14,37 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// implement Job interface
+type HTTPjob struct {
+	Command   string
+	Repeat    int
+	IPversion int
+	Target    string
+	Instance  int
+}
+
+func (j *HTTPjob) GoString() string {
+	return fmt.Sprintf("%s {URL: %q, IPversion: %d, Instance: %d}",
+		j.Command,
+		j.Target,
+		j.IPversion,
+		j.Instance,
+	)
+}
+
+func (j *HTTPjob) GetTarget() string {
+	return j.Target
+}
+
+func (j *HTTPjob) Expand(jobs []Job) []Job {
+	for i := 0; i < j.Repeat; i++ {
+		clone := *j // use deep copy if struct change ?
+		clone.Instance = i
+		jobs = append(jobs, &clone)
+	}
+	return jobs
+}
+
 // roundTripTrace holds timings for a single HTTP roundtrip.
 // mostly from prometheus blackbox_exporter
 type roundTripTrace struct {
@@ -29,7 +60,7 @@ type roundTripTrace struct {
 }
 
 // HTTPDownload implements HTTP GET command
-func HTTPDownload(wm *WorkerMetrics) error {
+func (j *HTTPjob) Start(wm *WorkerMetrics) error {
 
 	// create http client
 	client := &http.Client{
@@ -41,7 +72,7 @@ func HTTPDownload(wm *WorkerMetrics) error {
 
 	// A - temporay dns debug
 	if wm.Verbose {
-		u, err := url.Parse(wm.URL)
+		u, err := url.Parse(wm.Target)
 		if err != nil {
 			panic(err)
 		}
@@ -60,7 +91,7 @@ func HTTPDownload(wm *WorkerMetrics) error {
 		// end of A
 	}
 	// Get the data
-	req, err := http.NewRequest("GET", wm.URL, nil)
+	req, err := http.NewRequest("GET", wm.Target, nil)
 
 	// add headers
 	//req.Header.Add("x-nspeed-app-version", "1.0")

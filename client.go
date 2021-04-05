@@ -23,8 +23,8 @@ const serveCommand = "server"
 
 var implementedCommands = map[string]bool{
 	getCommand:   true,
-	putCommand:   false,
-	serveCommand: true,
+	putCommand:   true,
+	serveCommand: false,
 }
 
 // options / arguments
@@ -34,38 +34,32 @@ var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optTimeout = flag.Int("timeout", 8, "timeout in seconds, 0 for no timeout")
 var optTick = flag.Int("tick", 1, "progress interval in seconds only used in verbose mode, default 1")
 
-type job struct {
-	command   string
-	repeat    int
-	IPversion int
-	target    string
-}
-
 // flag parsing - thx to https://github.com/artyom
-func parseJobs(rawArgs []string) ([]job, error) {
-	var out []job
+func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
+	var out []nspeed.Job
 	args := rawArgs
 	fmt.Printf("%s\n", args)
 
 	for len(args) != 0 {
 		command := args[0]
 		args = args[1:]
-		val, _ := implementedCommands[command]
-		if !val {
+		_, ok := implementedCommands[command]
+		if !ok {
 			return nil, errors.New("unknown command " + command)
 		}
-		j := job{}
-		j.command = command
 		switch command {
 		case getCommand:
 			fs := flag.NewFlagSet(command, flag.ExitOnError)
+			j := nspeed.HTTPjob{}
+			j.Command = command
+
 			repeat := fs.Uint("n", 1, "number of times to process an item")
 			useIPv4 := fs.Bool("4", false, "use IPv4")
 			useIPv6 := fs.Bool("6", false, "use IPv6")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
-			j.repeat = int(*repeat)
+			j.Repeat = int(*repeat)
 
 			// force IPv4 or IPv6
 			if *useIPv4 && *useIPv6 {
@@ -83,9 +77,9 @@ func parseJobs(rawArgs []string) ([]job, error) {
 				fs.Usage()
 				return nil, errors.New("missing argument")
 			}
-			j.target = args[0]
+			j.Target = args[0]
 			args = args[1:]
-			out = append(out, j)
+			out = append(out, &j)
 		case putCommand:
 			return nil, errors.New("unimplemented command")
 		case serveCommand:
@@ -105,23 +99,17 @@ func parseJobs(rawArgs []string) ([]job, error) {
 			// todo check cert & key & set ServeTLS
 			host.ServeTLS = false
 
-			nspeed.NSpeedServerApp(host)
+			args = fs.Args()
+			j := nspeed.NSpeedHTTPServer{Parameters: host}
+			out = append(out, &j)
+			// nspeed.NSpeedServerApp(host)
+
 		default:
 			return nil, errors.New("unknown command")
 		}
 	}
 
 	return out, nil
-}
-
-func expandJobs(jobs []job) []job {
-	var out []job
-	for _, job := range jobs {
-		for i := 0; i < job.repeat; i++ {
-			out = append(out, job)
-		}
-	}
-	return out
 }
 
 // main
@@ -149,7 +137,13 @@ func main() {
 
 	log.Debug("max cores = ", nspeed.MaxParallelism())
 
-	jobs = expandJobs(jobs)
+	jobs = nspeed.ExpandJobs(jobs)
+
+	fmt.Println("Jobs:")
+	for _, j := range jobs {
+		fmt.Printf("  %#v\n", j)
+	}
+
 	njobs := len(jobs)
 	results := make(chan *nspeed.WorkerMetrics, njobs)
 
@@ -159,26 +153,27 @@ func main() {
 		wm := nspeed.WorkerMetrics{
 			Done:       false,
 			Index:      idx,
-			URL:        job.target,
+			Target:     job.GetTarget(),
 			ResultChan: results,
-			Verbose:    *optVerbose}
+			Verbose:    *optVerbose,
+			Job:        job}
 		wcWorkers[idx] = &wm
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
 	}
 	for _, wm := range wcWorkers {
-		fmt.Printf("%v\n", wm.URL)
+		fmt.Printf("%v\n", wm.Target)
 	}
 
 	// we could merge this loop with the previous one but in case we want to start sync everything we keep this separate
 	var wg sync.WaitGroup
 	wg.Add(njobs)
 	for _, wm := range wcWorkers {
-		log.Debug("spawning workload ", wm.Index, " ", wm.URL, " ", wm.Done)
+		log.Debug("spawning workload ", wm.Index, " ", wm.Target, " ", wm.Done)
 		go func(w *nspeed.WorkerMetrics) {
 			defer wg.Done()
-			err := nspeed.HTTPDownload(w)
+			err := w.Job.Start(w)
 			if err != nil {
-				fmt.Println("error for ", w.URL)
+				fmt.Println("error for ", w.Target)
 				return
 			}
 		}(wm)

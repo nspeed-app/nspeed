@@ -8,13 +8,29 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type Job interface {
+	GetTarget() string
+	Expand([]Job) []Job
+	GoString() string
+	Start(*WorkerMetrics) error
+}
+
+func ExpandJobs(jobs []Job) []Job {
+	var out []Job
+	for _, job := range jobs {
+		out = job.Expand(out)
+	}
+	return out
+}
+
 // WorkerMetrics - main metrics struct
 // implements to the io.Writer interface
 type WorkerMetrics struct {
 	Index             int
+	Job               Job
 	Done              bool
 	ResultChan        chan *WorkerMetrics
-	URL               string
+	Target            string
 	DNSInfo           httptrace.DNSDoneInfo
 	DNSInfoTime       time.Time
 	ConnInfo          httptrace.GotConnInfo
@@ -44,7 +60,7 @@ func (wm *WorkerMetrics) PrintProgress() {
 	log.Info(
 		"#", wm.Index+1, ";", elapsedSecs, ";",
 		ByteCountBinary(wm.TotalRead, "B"), ";",
-		ByteCountBinary(wm.ContentSize, "B"), ";", wm.StepSize, ";", wm.URL)
+		ByteCountBinary(wm.ContentSize, "B"), ";", wm.StepSize, ";", wm.Target)
 }
 
 // PrintFinal prints the final metrics
@@ -54,7 +70,7 @@ func (wm *WorkerMetrics) PrintFinal() {
 		" speed = ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
 		" time = ", wm.ElapsedTime.Milliseconds(), " ms (", wm.ElapsedTime.Seconds(), " s)",
 		" size = ", ByteCountDecimal(wm.TotalRead, "B"), " (", ByteCountBinary(wm.TotalRead, "iB"), ")",
-		" url  = ", wm.URL)
+		" url  = ", wm.Target)
 }
 
 // LogFinal prints the final metrics (structured format)
@@ -63,7 +79,7 @@ func (wm *WorkerMetrics) LogFinal() {
 		"speed": FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
 		"time":  wm.ElapsedTime.Seconds(),
 		"size":  wm.TotalRead,
-		"url":   wm.URL,
+		"url":   wm.Target,
 	}).Info("#", wm.Index+1)
 
 }

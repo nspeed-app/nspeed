@@ -21,6 +21,17 @@ const (
 	DefaultMaxDuration       = 10 * time.Second
 )
 
+// parameters of aa server instance
+type NSpeedHost struct {
+	Host        string
+	Port        int
+	MaxBodySize int64
+	MaxDuration time.Duration
+	ServeTLS    bool
+	TLSCertFile string
+	TLSKeyFile  string
+}
+
 // Result used for logging
 type Result struct {
 	Status   int
@@ -31,10 +42,26 @@ type Result struct {
 }
 
 // the HTTP Server
+// implements Job
 type NSpeedHTTPServer struct {
-	MaxBodySize int64
-	MaxDuration time.Duration
-	Logger      func(Result)
+	Parameters *NSpeedHost
+	Logger     func(Result)
+}
+
+func (j *NSpeedHTTPServer) GetTarget() string {
+	return "nyi"
+}
+
+func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
+	return append(jobs, j)
+}
+
+func (j *NSpeedHTTPServer) GoString() string {
+	return fmt.Sprintf("server {host: %q, port: %d, UseTLS: %t}",
+		j.Parameters.Host,
+		j.Parameters.Port,
+		j.Parameters.ServeTLS,
+	)
 }
 
 func notImplemented(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +84,7 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 	//
 	var handler http.Handler
 	handler = mux
-	handler = limitRequestSize(h.MaxBodySize, handler)
+	handler = limitRequestSize(h.Parameters.MaxBodySize, handler)
 	handler = preflight(handler)
 	handler = autohead(handler)
 	if h.Logger != nil {
@@ -86,7 +113,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 
 	if numBytes < 1 {
 		numBytes = 1
-	} else if numBytes > h.MaxBodySize {
+	} else if numBytes > h.Parameters.MaxBodySize {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
@@ -103,9 +130,9 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 			chunkSize = 1
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we a new cmd line parameter for max chunk size ?
-		if chunkSize > h.MaxBodySize {
+		if chunkSize > h.Parameters.MaxBodySize {
 			//fmt.Println("chunk is too big {}", chunkSize)
-			chunkSize = h.MaxBodySize
+			chunkSize = h.Parameters.MaxBodySize
 		}
 	} else {
 		chunkSize = 10 * 1024 // todo: move this in a parameter/const
@@ -156,18 +183,8 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	chunk = nil
 }
 
-type NSpeedHost struct {
-	Host        string
-	Port        int
-	MaxBodySize int64
-	MaxDuration time.Duration
-	ServeTLS    bool
-	TLSCertFile string
-	TLSKeyFile  string
-}
-
 // Main implements the http server
-func NSpeedServerApp(host *NSpeedHost) {
+func (s *NSpeedHTTPServer) Start(wm *WorkerMetrics) error {
 
 	// flag.StringVar(&httpsCertFile, "https-cert-file", "", "HTTPS Server certificate file")
 	// flag.StringVar(&httpsKeyFile, "https-key-file", "", "HTTPS Server private key file")
@@ -184,16 +201,11 @@ func NSpeedServerApp(host *NSpeedHost) {
 		logger.Printf(logFmt, time.Now().Format(dateFmt), fmt.Sprintf(msg, args...))
 	}
 
-	h := &NSpeedHTTPServer{
-		MaxBodySize: host.MaxBodySize,
-		MaxDuration: host.MaxDuration,
-	}
-
-	listenAddr := net.JoinHostPort(host.Host, strconv.Itoa(host.Port))
+	listenAddr := net.JoinHostPort(s.Parameters.Host, strconv.Itoa(s.Parameters.Port))
 
 	server := &http.Server{
 		Addr:    listenAddr,
-		Handler: h.Handler(),
+		Handler: s.Handler(),
 	}
 
 	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
@@ -207,7 +219,7 @@ func NSpeedServerApp(host *NSpeedHost) {
 		sig := <-shutdownCh
 		serverLog("shutdown started by signal: %s", sig)
 
-		shutdownTimeout := h.MaxDuration + 1*time.Second
+		shutdownTimeout := s.Parameters.MaxDuration + 1*time.Second
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 
@@ -220,9 +232,9 @@ func NSpeedServerApp(host *NSpeedHost) {
 	}()
 
 	var listenErr error
-	if host.ServeTLS {
+	if s.Parameters.ServeTLS {
 		serverLog("nspeed listening on https://%s", listenAddr)
-		listenErr = server.ListenAndServeTLS(host.TLSCertFile, host.TLSKeyFile)
+		listenErr = server.ListenAndServeTLS(s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
 	} else {
 		serverLog("nspeed listening on http://%s", listenAddr)
 		listenErr = server.ListenAndServe()
@@ -233,4 +245,5 @@ func NSpeedServerApp(host *NSpeedHost) {
 
 	<-exitCh
 	serverLog("shutdown finished")
+	return nil
 }
