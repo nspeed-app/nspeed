@@ -17,7 +17,7 @@ import (
 
 // Default configuration values
 const (
-	DefaultMaxBodySize int64 = 1024 * 1024
+	DefaultMaxBodySize int64 = 1024 * 1024 * 1024 * 1024 // bytes
 	DefaultMaxDuration       = 10 * time.Second
 )
 
@@ -41,7 +41,7 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
-// Handler returns an http.Handler that exposes all HTTPBin endpoints
+// Handler returns an http.Handler that exposes all the server endpoints
 func (h *NSpeedHTTPServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 
@@ -77,11 +77,12 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	numBytes, err := strconv.ParseInt(parts[2], 10, 64)
+	n, err := ParseByteUnits(parts[2])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	numBytes := int64(n)
 
 	if numBytes < 1 {
 		numBytes = 1
@@ -165,7 +166,7 @@ type NSpeedHost struct {
 	TLSKeyFile  string
 }
 
-// Main implements the go-httpbin CLI's main() function in a reusable way
+// Main implements the http server
 func NSpeedServerApp(host *NSpeedHost) {
 
 	// flag.StringVar(&httpsCertFile, "https-cert-file", "", "HTTPS Server certificate file")
@@ -174,8 +175,7 @@ func NSpeedServerApp(host *NSpeedHost) {
 	logger := log.New(os.Stderr, "", 0)
 
 	// A hacky log helper function to ensure that shutdown messages are
-	// formatted the same as other messages.  See StdLogObserver in
-	// httpbin/middleware.go for the format we're matching here.
+	// formatted the same as other messages.
 	serverLog := func(msg string, args ...interface{}) {
 		const (
 			logFmt  = "time=%q msg=%q"
@@ -221,10 +221,10 @@ func NSpeedServerApp(host *NSpeedHost) {
 
 	var listenErr error
 	if host.ServeTLS {
-		serverLog("go-httpbin listening on https://%s", listenAddr)
+		serverLog("nspeed listening on https://%s", listenAddr)
 		listenErr = server.ListenAndServeTLS(host.TLSCertFile, host.TLSKeyFile)
 	} else {
-		serverLog("go-httpbin listening on http://%s", listenAddr)
+		serverLog("nspeed listening on http://%s", listenAddr)
 		listenErr = server.ListenAndServe()
 	}
 	if listenErr != nil && listenErr != http.ErrServerClosed {
