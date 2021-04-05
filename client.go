@@ -90,27 +90,21 @@ func parseJobs(rawArgs []string) ([]job, error) {
 			return nil, errors.New("unimplemented command")
 		case serveCommand:
 			fs := flag.NewFlagSet(command, flag.ExitOnError)
+			host := &nspeed.NSpeedHost{}
 
-			phost := fs.String("h", "::1", "Hostname or ip address to listen on")
-			pport := fs.Int("p", 7330, "Port to listen on")
-			pmaxBodySize := fs.Int64("s", nspeed.DefaultMaxBodySize, "Maximum size of response, in bytes")
-			pmaxDuration := fs.Duration("t", nspeed.DefaultMaxDuration, "Maximum duration a response may take")
-			pTLSCertFile := fs.String("cert", "", "TLS certificate file")
-			pTLSKeyFile := fs.String("key", "", "TLS Key file")
+			fs.StringVar(&host.Host, "h", "", "Hostname or ip address to listen on")
+			fs.IntVar(&host.Port, "p", 7330, "Port to listen on")
+			fs.Int64Var(&host.MaxBodySize, "s", nspeed.DefaultMaxBodySize, "Maximum size of response, in bytes")
+			fs.DurationVar(&host.MaxDuration, "t", nspeed.DefaultMaxDuration, "Maximum duration a response may take")
+			fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
+			fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
+
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
-			host := &nspeed.NSpeedHost{
-				Host:        *phost,
-				Port:        *pport,
-				MaxBodySize: *pmaxBodySize,
-				MaxDuration: *pmaxDuration,
-				TLSCertFile: *pTLSCertFile,
-				TLSKeyFile:  *pTLSKeyFile,
-			}
-
-			// todo check cert & key
+			// todo check cert & key & set ServeTLS
 			host.ServeTLS = false
+
 			nspeed.NSpeedServerApp(host)
 		default:
 			return nil, errors.New("unknown command")
