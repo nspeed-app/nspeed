@@ -19,10 +19,12 @@ import (
 // commands
 const getCommand = "get"
 const putCommand = "put"
+const serveCommand = "server"
 
 var implementedCommands = map[string]bool{
-	getCommand: true,
-	putCommand: false,
+	getCommand:   true,
+	putCommand:   false,
+	serveCommand: true,
 }
 
 // options / arguments
@@ -86,6 +88,21 @@ func parseJobs(rawArgs []string) ([]job, error) {
 			out = append(out, j)
 		case putCommand:
 			return nil, errors.New("unimplemented command")
+		case serveCommand:
+			host := &nspeed.NSpeedHost{}
+			fs := flag.NewFlagSet(command, flag.ExitOnError)
+			host.Host = *fs.String("h", "::1", "Hostname or ip address to listen on")
+			host.Port = *fs.Int("p", 7330, "Port to listen on")
+			host.MaxBodySize = *fs.Int64("s", nspeed.DefaultMaxBodySize, "Maximum size of response, in bytes")
+			host.MaxDuration = *fs.Duration("t", nspeed.DefaultMaxDuration, "Maximum duration a response may take")
+			host.TLSCertFile = *fs.String("cert", "", "TLS certificate file")
+			host.TLSKeyFile = *fs.String("key", "", "TLS Key file")
+			if err := fs.Parse(args); err != nil {
+				return nil, err
+			}
+			// todo check cert & key
+			host.ServeTLS = false
+			nspeed.NSpeedServerApp(host)
 		default:
 			return nil, errors.New("unknown command")
 		}
