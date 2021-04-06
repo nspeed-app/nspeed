@@ -208,7 +208,7 @@ func main() {
 	for notdone {
 		select {
 		case <-progressTicker.C:
-			// warning for overlap/backlogs if what's done here takes too long
+			// time critical: warning for overlap/backlogs if what's done here takes too long
 			pcts, _ := cpu.Percent(0, true)
 			if *optVerbose {
 				f := log.Fields{}

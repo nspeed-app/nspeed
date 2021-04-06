@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// a HTTP command, get or post
 // implement Job interface
 type HTTPjob struct {
 	Command   string
@@ -214,6 +215,7 @@ func (j *HTTPjob) Start(wm *WorkerMetrics) error {
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
 		return err
 	}
+	resp.Body.Close()
 	wm.ElapsedTime = time.Since(wm.TestStartTime)
 	wm.Done = true
 	wm.ResultChan <- wm
