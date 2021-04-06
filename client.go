@@ -21,10 +21,11 @@ const getCommand = "get"
 const putCommand = "put"
 const serveCommand = "server"
 
-var implementedCommands = map[string]bool{
-	getCommand:   true,
-	putCommand:   true,
-	serveCommand: false,
+// list of supported commands. Value is the set number. Commands in the same set can be mixed together.
+var implementedCommands = map[string]int{
+	getCommand:   1,
+	putCommand:   1,
+	serveCommand: 2,
 }
 
 // options / arguments
@@ -34,18 +35,25 @@ var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optTimeout = flag.Int("timeout", 8, "timeout in seconds, 0 for no timeout")
 var optTick = flag.Int("tick", 1, "progress interval in seconds only used in verbose mode, default 1")
 
-// flag parsing - thx to https://github.com/artyom
+// flag parsing - thx to https://github.com/artyom for hints
 func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	var out []nspeed.Job
 	args := rawArgs
 	fmt.Printf("%s\n", args)
+	cmdSet := 0
 
 	for len(args) != 0 {
 		command := args[0]
 		args = args[1:]
-		_, ok := implementedCommands[command]
+		set, ok := implementedCommands[command]
 		if !ok {
 			return nil, errors.New("unknown command " + command)
+		}
+		if cmdSet == 0 {
+			cmdSet = set
+		}
+		if cmdSet != set {
+			return nil, errors.New("cannot mix these commands " + command)
 		}
 		switch command {
 		case getCommand:

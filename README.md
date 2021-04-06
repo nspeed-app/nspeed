@@ -1,27 +1,23 @@
-# nspeed-client
+# NSpeed
+A client and server high performance network bandwidth measurement using Internet standards (HTTP/1, HTTP/2, HTTP3, WebRTC)
+Interoperaable with standard clients and servers
 
-#install
- Windows: `iwr https://nspeed.app/nspeed-client/v0.2/Windows-x64/nspeed-client.exe -useb -outfile nspeed-client.exe`
- Linux
- Mac
+## Usage
+    nspeed [global options] [command] ... [command]
 
-get interface & crosstalk
+## Installation
 
-#linux
-ip route get $destination_ip
-  -> parse $name after 'dev'
-    /sys/class/net/$name/statistics/rx_bytes
-    /sys/class/net/$name/statistics/tx_bytes
-type:
-  investigate how `nmcli con show` works
+wip
 
-#windows
-prereq: powershell
- Get-NetRoute | Where-Object -FilterScript {$_.NextHop -Ne "::"} | Where-Object -FilterScript { $_.NextHop -Ne "0.0.0.0" } | Where-Object -FilterScript { ($_.NextHop.SubString(0,6) -Ne "fe80::") } | Get-NetAdapter
-to display `$Name`
+## Development
 
-Get-NetAdapterStatistics -Name $Name
+wip
 
-#mac
+## Acknowledgement
+- Vivien Guéant & everyone at lafibre.info for spawning the ideas and testing
+- [L'ARCEP][arcep] for the ['2020 Open Internet' publication][rapport]
+- Artyom Pervukhin ( https://github.com/artyom ) for hints
+- Will McCutchen ( https://github.com/mccutchen ) for go-httpbin
 
-#bsd
+[arcep]: https://arcep.fr/
+[rapport]: https://en.arcep.fr/news/press-releases/view/n/internet-ouvert.html

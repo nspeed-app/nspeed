@@ -7,7 +7,6 @@ import (
 )
 
 // shamelessly copied from : https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
-
 func byteCount(b int64, u string, unit int64, letters string) string {
 	if b < unit {
 		return fmt.Sprintf("%d %s", b, u)
