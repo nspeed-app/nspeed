@@ -25,3 +25,7 @@ Get-NetAdapterStatistics -Name $Name
 #mac
 
 #bsd
+
+build
+
+go build -ldflags "-X main.Version=$(git describe --tags)"
