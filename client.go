@@ -107,7 +107,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			host := &nspeed.NSpeedHost{}
 
 			fs.StringVar(&host.Host, "h", "", "Hostname or ip address to listen on")
-			fs.IntVar(&host.Port, "p", 7330, "Port to listen on")
+			fs.IntVar(&host.Port, "p", nspeed.DefaultPort, "Port to listen on")
 			fs.Int64Var(&host.MaxBodySize, "s", nspeed.DefaultMaxBodySize, "Maximum size of response, in bytes")
 			fs.DurationVar(&host.MaxDuration, "t", nspeed.DefaultMaxDuration, "Maximum duration a response may take")
 			fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")

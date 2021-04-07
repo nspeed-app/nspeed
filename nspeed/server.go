@@ -19,6 +19,7 @@ import (
 const (
 	DefaultMaxBodySize int64 = 1024 * 1024 * 1024 * 1024 // bytes
 	DefaultMaxDuration       = 10 * time.Second
+	DefaultPort              = 7333
 )
 
 // parameters of aa server instance
@@ -57,9 +58,11 @@ func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
 }
 
 func (j *NSpeedHTTPServer) GoString() string {
-	return fmt.Sprintf("server {host: %q, port: %d, UseTLS: %t}",
+	return fmt.Sprintf("server {host: %q, port: %d, max_size: %s, max_duration: %s, UseTLS: %t}",
 		j.Parameters.Host,
 		j.Parameters.Port,
+		ByteCountDecimal(j.Parameters.MaxBodySize, "B"),
+		j.Parameters.MaxDuration.String(),
 		j.Parameters.ServeTLS,
 	)
 }
@@ -73,13 +76,13 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	// mux.HandleFunc("/", serverfile)
-	mux.HandleFunc("/stream-bytes/", h.StreamBytes)
+	mux.HandleFunc("/s/", h.StreamBytes)
 
 	// return client informations
 	mux.HandleFunc("/ip", notImplemented)
 
 	// prevent appending '/'
-	mux.HandleFunc("/stream-bytes", http.NotFound)
+	mux.HandleFunc("/s", http.NotFound)
 
 	//
 	var handler http.Handler
@@ -94,6 +97,7 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 	return handler
 }
 
+// mostly from https://github.com/mccutchen/go-httpbin
 // handleBytes consolidates the logic for validating input params of the Bytes
 // and StreamBytes endpoints and knows how to write the response in chunks if
 // streaming is true.
@@ -121,13 +125,15 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	var chunkSize int64 = numBytes
 
 	if r.URL.Query().Get("chunk_size") != "" {
-		chunkSize, err = strconv.ParseInt(r.URL.Query().Get("chunk_size"), 10, 64)
+		cs, err := ParseByteUnits(r.URL.Query().Get("chunk_size"))
+		chunkSize = int64(cs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if chunkSize < 1 {
-			chunkSize = 1
+		if chunkSize == 0 {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we a new cmd line parameter for max chunk size ?
 		if chunkSize > h.Parameters.MaxBodySize {
@@ -158,7 +164,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	// prepare a buffer of chunkSize bytes
+	// prepare a buffer of chunkSize bytes (todo: move this out of here)
 	var i int64
 	var chunk []byte
 	for i = 0; i < chunkSize; i++ {
@@ -183,7 +189,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	chunk = nil
 }
 
-// Main implements the http server
+// implements the http server
 func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	// flag.StringVar(&httpsCertFile, "https-cert-file", "", "HTTPS Server certificate file")
@@ -204,8 +210,10 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	listenAddr := net.JoinHostPort(s.Parameters.Host, strconv.Itoa(s.Parameters.Port))
 
 	server := &http.Server{
-		Addr:    listenAddr,
-		Handler: s.Handler(),
+		Addr:         listenAddr,
+		Handler:      s.Handler(),
+		WriteTimeout: s.Parameters.MaxDuration,
+		//ReadTimeout:  s.Parameters.MaxDuration,
 	}
 
 	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
@@ -227,7 +235,6 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 		if err := server.Shutdown(ctx); err != nil {
 			serverLog("shutdown error: %s", err)
 		}
-
 		close(exitCh)
 	}()
 

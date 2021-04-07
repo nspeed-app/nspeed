@@ -229,7 +229,10 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	if wm.TotalProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
 		if err == context.DeadlineExceeded {
 			wm.Expired = true
-			log.Info("#", wm.Index+1, " expired")
+			log.Info("#", wm.Index+1, " expired client side")
+		} else if err == io.ErrUnexpectedEOF {
+			wm.Expired = true
+			log.Info("#", wm.Index+1, " expired server side")
 		} else {
 			log.Error("#", wm.Index+1, " error: ", err)
 			return err
