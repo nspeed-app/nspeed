@@ -3,6 +3,7 @@ package nspeed
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -226,19 +227,26 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	//   a TeeReader to do progression with the wm which has an io.Writer interface
 	//   the resp (thru req) context  will handle timeout & parent cancellation
 
-	if wm.TotalProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
-		if err == context.DeadlineExceeded {
-			wm.Expired = true
-			log.Info("#", wm.Index+1, " expired client side")
-		} else if err == io.ErrUnexpectedEOF {
-			wm.Expired = true
-			log.Info("#", wm.Index+1, " expired server side")
-		} else {
-			log.Error("#", wm.Index+1, " error: ", err)
-			return err
+	wm.Valid = false
+	if resp.StatusCode == http.StatusOK {
+		if wm.TotalProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
+			if err == context.DeadlineExceeded {
+				wm.Expired = true
+				log.Info("#", wm.Index+1, " expired client side")
+			} else if err == io.ErrUnexpectedEOF {
+				wm.Expired = true
+				log.Info("#", wm.Index+1, " expired server side")
+			} else {
+				log.Error("#", wm.Index+1, " error: ", err)
+				wm.Valid = false
+				wm.Error = err
+			}
 		}
+		log.Info("#", wm.Index+1, " copied ", wm.TotalProcessed)
+		wm.Valid = true
+	} else {
+		wm.Error = errors.New("http status code: " + resp.Status)
 	}
-	log.Info("#", wm.Index+1, " copied ", wm.TotalProcessed)
 	wm.ElapsedTime = time.Since(wm.TestStartTime)
 	wm.Done = true
 	wm.ResultChan <- wm

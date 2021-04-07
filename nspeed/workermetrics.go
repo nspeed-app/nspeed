@@ -48,6 +48,8 @@ type WorkerMetrics struct {
 	TLSDone           time.Time
 	Verbose           bool
 	mutex             sync.Mutex
+	Valid             bool
+	Error             error
 }
 
 func (wm *WorkerMetrics) Write(p []byte) (int, error) {
@@ -69,12 +71,17 @@ func (wm *WorkerMetrics) PrintProgress() {
 
 // PrintFinal prints the final metrics
 func (wm *WorkerMetrics) PrintFinal() {
-	log.Info(
-		"#", wm.Index+1,
-		" speed = ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
-		" time = ", wm.ElapsedTime.Milliseconds(), " ms (", wm.ElapsedTime.Seconds(), " s)",
-		" size = ", ByteCountDecimal(wm.TotalRead, "B"), " (", ByteCountBinary(wm.TotalRead, "iB"), ")",
-		" url  = ", wm.Target)
+	if wm.Valid {
+		log.Info(
+			"#", wm.Index+1,
+			" speed = ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
+			" time = ", wm.ElapsedTime.Milliseconds(), " ms (", wm.ElapsedTime.Seconds(), " s)",
+			" size = ", ByteCountDecimal(wm.TotalRead, "B"), " (", ByteCountBinary(wm.TotalRead, "iB"), ")",
+			" url  = ", wm.Target)
+		return
+	}
+	log.Info("#", wm.Index+1, " error: ", wm.Error)
+
 }
 
 // LogFinal prints the final metrics (structured format)
