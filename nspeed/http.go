@@ -64,7 +64,7 @@ type roundTripTrace struct {
 }
 
 // HTTPDownload implements HTTP GET command
-func (j *HTTPjob) Start(wm *WorkerMetrics) error {
+func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	// create http client
 	client := &http.Client{
@@ -95,7 +95,7 @@ func (j *HTTPjob) Start(wm *WorkerMetrics) error {
 		// end of A
 	}
 	// Get the data
-	req, err := http.NewRequest("GET", wm.Target, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", wm.Target, nil)
 
 	// add headers
 	//req.Header.Add("x-nspeed-app-version", "1.0")
@@ -174,11 +174,10 @@ func (j *HTTPjob) Start(wm *WorkerMetrics) error {
 	refdate := time.Now()
 
 	// add timeout (we do this just before the body consumption)
-	ctx := context.Background()
-	if j.Timeout != 0 {
-		ctx, cancel := context.WithTimeout(ctx, j.Timeout)
+	if j.Timeout > 0 {
+		thisctx, cancel := context.WithTimeout(ctx, j.Timeout)
 		defer cancel()
-		req = req.WithContext(ctx)
+		req = req.WithContext(thisctx)
 	}
 
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
@@ -225,13 +224,18 @@ func (j *HTTPjob) Start(wm *WorkerMetrics) error {
 	// this is where the main transfert happens.
 	//   iteration 1: we use io.Copy to 'null' (Discard) and
 	//   a TeeReader to do progression with the wm which has an io.Writer interface
-	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
+	//   the resp (thru req) context  will handle timeout & parent cancellation
+
+	if wm.TotalProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
 		if err == context.DeadlineExceeded {
 			wm.Expired = true
+			log.Info("#", wm.Index+1, " expired")
 		} else {
+			log.Error("#", wm.Index+1, " error: ", err)
 			return err
 		}
 	}
+	log.Info("#", wm.Index+1, " copied ", wm.TotalProcessed)
 	wm.ElapsedTime = time.Since(wm.TestStartTime)
 	wm.Done = true
 	wm.ResultChan <- wm

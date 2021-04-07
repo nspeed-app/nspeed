@@ -1,6 +1,7 @@
 package nspeed
 
 import (
+	"context"
 	"net/http/httptrace"
 	"sync"
 	"time"
@@ -12,7 +13,7 @@ type Job interface {
 	GetTarget() string
 	Expand([]Job) []Job
 	GoString() string
-	Start(*WorkerMetrics) error
+	Start(context.Context, *WorkerMetrics) error
 }
 
 func ExpandJobs(jobs []Job) []Job {
@@ -39,6 +40,7 @@ type WorkerMetrics struct {
 	ConnInfoTime      time.Time
 	ContentSize       int64
 	TotalRead         int64
+	TotalProcessed    int64
 	StepSize          int64
 	TestStartTime     time.Time
 	ElapsedTime       time.Duration

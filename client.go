@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -40,7 +41,7 @@ var optMemprofile = flag.String("memprofile", "", "write memory profile to file"
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optTick = flag.Int("tick", 1, "progress interval in seconds only used in verbose mode, default 1")
 var versionFlag = flag.Bool("version", false, "display version")
-var optTimeout = flag.Uint("timeout", 8, "default timeout in seconds, 0 for no timeout")
+var optTimeout = flag.Uint("timeout", 0, "default timeout in seconds, 0 for no timeout")
 var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 
 // flag parsing - thx to https://github.com/artyom for hints
@@ -71,7 +72,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			repeat := fs.Uint("n", 1, "number of times to process an item")
 			useIPv4 := fs.Bool("4", false, "use IPv4")
 			useIPv6 := fs.Bool("6", false, "use IPv6")
-			timeout := fs.Uint("t", *optTimeout, "timeout")
+			timeout := fs.Uint("t", 0, "timeout")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
@@ -199,13 +200,20 @@ func main() {
 	}
 
 	// we could merge this loop with the previous one but in case we want to start sync everything we keep this separate
+	ctx := context.Background()
+	if *optTimeout > 0 {
+		newctx, cancel := context.WithTimeout(ctx, time.Duration(*optTimeout)*time.Second)
+		defer cancel()
+		ctx = newctx
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(njobs)
 	for _, wm := range wcWorkers {
 		log.Debug("spawning workload ", wm.Index, " ", wm.Target, " ", wm.Done)
 		go func(w *nspeed.WorkerMetrics) {
 			defer wg.Done()
-			err := w.Job.Start(w)
+			err := w.Job.Start(ctx, w)
 			if err != nil {
 				fmt.Println("error for ", w.Target)
 				return
@@ -233,7 +241,6 @@ func main() {
 		notdone = false
 	}
 	progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
-	//mastertimeout := time.After(time.Duration(*optTimeout) * time.Second)
 
 	for notdone {
 		select {
@@ -257,16 +264,12 @@ func main() {
 			if wm.Done {
 				log.Debugf("job %d ended - (on timeout: %t) - (%d remaining active goroutines)", wm.Index, wm.Expired, runtime.NumGoroutine())
 			}
-		// case <-mastertimeout:
-		// 	log.Debug("master timeout reached")
-		// 	notdone = false
-		// 	//clean end children
 		case <-cWaitgroupEnded:
-			log.Debug("all workers done")
+			log.Debugf("all workers done (%d remaining active goroutines)", runtime.NumGoroutine())
 			notdone = false
 		}
 	}
-	log.Debug("main loop ended", "rc =", rc)
+	log.Debug("main loop ended", "rc = ", rc)
 
 	var elapsedTime time.Duration = 0
 	var totalRead int64 = 0

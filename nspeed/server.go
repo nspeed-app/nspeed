@@ -184,7 +184,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 }
 
 // Main implements the http server
-func (s *NSpeedHTTPServer) Start(wm *WorkerMetrics) error {
+func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	// flag.StringVar(&httpsCertFile, "https-cert-file", "", "HTTPS Server certificate file")
 	// flag.StringVar(&httpsKeyFile, "https-key-file", "", "HTTPS Server private key file")
