@@ -1,6 +1,7 @@
 package nspeed
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -22,14 +23,16 @@ type HTTPjob struct {
 	IPversion int
 	Target    string
 	Instance  int
+	Timeout   time.Duration
 }
 
 func (j *HTTPjob) GoString() string {
-	return fmt.Sprintf("%s {URL: %q, IPversion: %d, Instance: %d}",
+	return fmt.Sprintf("%s {URL: %q, IPversion: %d, Instance: %d, timeout: %s}",
 		j.Command,
 		j.Target,
 		j.IPversion,
 		j.Instance,
+		j.Timeout.String(),
 	)
 }
 
@@ -170,12 +173,21 @@ func (j *HTTPjob) Start(wm *WorkerMetrics) error {
 
 	refdate := time.Now()
 
+	// add timeout (we do this just before the body consumption)
+	ctx := context.Background()
+	if j.Timeout != 0 {
+		ctx, cancel := context.WithTimeout(ctx, j.Timeout)
+		defer cancel()
+		req = req.WithContext(ctx)
+	}
+
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
 	resp, err := client.Transport.RoundTrip(req)
 	tr.end = time.Now()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer resp.Body.Close()
 
 	protocol := resp.Proto
 	crypto := "n/a"
@@ -211,11 +223,15 @@ func (j *HTTPjob) Start(wm *WorkerMetrics) error {
 	wm.ContentSize = resp.ContentLength
 
 	// this is where the main transfert happens.
-	//   iteration 1: we use io.Copy to 'null' (Discard) and a TeeReader to do progression
+	//   iteration 1: we use io.Copy to 'null' (Discard) and
+	//   a TeeReader to do progression with the wm which has an io.Writer interface
 	if _, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
-		return err
+		if err == context.DeadlineExceeded {
+			wm.Expired = true
+		} else {
+			return err
+		}
 	}
-	resp.Body.Close()
 	wm.ElapsedTime = time.Since(wm.TestStartTime)
 	wm.Done = true
 	wm.ResultChan <- wm

@@ -25,10 +25,12 @@ func ExpandJobs(jobs []Job) []Job {
 
 // WorkerMetrics - main metrics struct
 // implements to the io.Writer interface
+// this needs heavy refactoring
 type WorkerMetrics struct {
 	Index             int
 	Job               Job
-	Done              bool
+	Done              bool // job ended
+	Expired           bool // job timed out
 	ResultChan        chan *WorkerMetrics
 	Target            string
 	DNSInfo           httptrace.DNSDoneInfo

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"strconv"
 	"sync"
@@ -15,6 +16,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"nspeed.app/nspeed"
 )
+
+// Version can be set at link time to override debug.BuildInfo.Main.Version,
+// which is "(devel)" when building from within the module. See
+// golang.org/issue/29814 and golang.org/issue/29228.
+var Version string
 
 // commands
 const getCommand = "get"
@@ -32,10 +38,14 @@ var implementedCommands = map[string]int{
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
-var optTimeout = flag.Int("timeout", 8, "timeout in seconds, 0 for no timeout")
 var optTick = flag.Int("tick", 1, "progress interval in seconds only used in verbose mode, default 1")
+var versionFlag = flag.Bool("version", false, "display version")
+var optTimeout = flag.Uint("timeout", 8, "default timeout in seconds, 0 for no timeout")
+var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 
 // flag parsing - thx to https://github.com/artyom for hints
+// make sure global args are parsed first
+// refactor: parsing should be done per command type
 func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	var out []nspeed.Job
 	args := rawArgs
@@ -58,15 +68,16 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 		switch command {
 		case getCommand:
 			fs := flag.NewFlagSet(command, flag.ExitOnError)
-			j := nspeed.HTTPjob{}
-			j.Command = command
-
 			repeat := fs.Uint("n", 1, "number of times to process an item")
 			useIPv4 := fs.Bool("4", false, "use IPv4")
 			useIPv6 := fs.Bool("6", false, "use IPv6")
+			timeout := fs.Uint("t", *optTimeout, "timeout")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
+
+			j := nspeed.HTTPjob{Timeout: time.Duration(*timeout) * time.Second}
+			j.Command = command
 			j.Repeat = int(*repeat)
 
 			// force IPv4 or IPv6
@@ -124,6 +135,20 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 func main() {
 
 	flag.Parse() // parse global flags
+
+	if *versionFlag {
+		if Version != "" {
+			fmt.Println(Version)
+			return
+		}
+		if buildInfo, ok := debug.ReadBuildInfo(); ok {
+			fmt.Println(buildInfo.Main.Version)
+			return
+		}
+		fmt.Println("(unknown)")
+		return
+	}
+
 	jobs, err := parseJobs(flag.Args())
 	if err != nil {
 		log.Fatal(err)
@@ -148,8 +173,8 @@ func main() {
 	jobs = nspeed.ExpandJobs(jobs)
 
 	fmt.Println("Jobs:")
-	for _, j := range jobs {
-		fmt.Printf("  %#v\n", j)
+	for i, j := range jobs {
+		fmt.Printf("  %d %#v\n", i, j)
 	}
 
 	njobs := len(jobs)
@@ -160,6 +185,7 @@ func main() {
 	for idx, job := range jobs {
 		wm := nspeed.WorkerMetrics{
 			Done:       false,
+			Expired:    false,
 			Index:      idx,
 			Target:     job.GetTarget(),
 			ResultChan: results,
@@ -190,7 +216,8 @@ func main() {
 	// main thread loop
 	// - wait for (partial) result from workers
 	// - wait for progress tick and print results
-	// - wait for all workers to end or optTimeout elapsed
+	// - wait for all workers to have ended or timeout'ed
+	// - handle ctrl-c & errors
 
 	cWaitgroupEnded := make(chan struct{})
 	go func() {
@@ -202,8 +229,11 @@ func main() {
 	rc := 0
 
 	notdone := true
-	mastertimeout := time.After(time.Duration(*optTimeout) * time.Second)
+	if *optTest {
+		notdone = false
+	}
 	progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
+	//mastertimeout := time.After(time.Duration(*optTimeout) * time.Second)
 
 	for notdone {
 		select {
@@ -225,12 +255,12 @@ func main() {
 		case wm := <-results:
 			rc++
 			if wm.Done {
-				log.Debug("Child ended - ", wm.Index, runtime.NumGoroutine())
+				log.Debugf("job %d ended - (on timeout: %t) - (%d remaining active goroutines)", wm.Index, wm.Expired, runtime.NumGoroutine())
 			}
-		case <-mastertimeout:
-			log.Debug("master timeout reached")
-			notdone = false
-			//clean end children
+		// case <-mastertimeout:
+		// 	log.Debug("master timeout reached")
+		// 	notdone = false
+		// 	//clean end children
 		case <-cWaitgroupEnded:
 			log.Debug("all workers done")
 			notdone = false
@@ -254,6 +284,7 @@ func main() {
 		"time =", elapsedTime,
 		"size =", totalRead, " (", nspeed.ByteCountDecimal(totalRead, "B)"))
 
+	// todo: defer this block
 	if *optMemprofile != "" {
 		f, err := os.Create(*optMemprofile)
 		if err != nil {
