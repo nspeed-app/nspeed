@@ -50,7 +50,7 @@ var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	var out []nspeed.Job
 	args := rawArgs
-	fmt.Printf("%s\n", args)
+	//fmt.Printf("%s\n", args)
 	cmdSet := 0
 
 	for len(args) != 0 {
@@ -68,16 +68,20 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 		}
 		switch command {
 		case getCommand:
-			fs := flag.NewFlagSet(command, flag.ExitOnError)
+			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			repeat := fs.Uint("n", 1, "number of times to process an item")
 			useIPv4 := fs.Bool("4", false, "use IPv4")
 			useIPv6 := fs.Bool("6", false, "use IPv6")
 			timeout := fs.Uint("t", 0, "timeout")
+			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
 
-			j := nspeed.HTTPjob{Timeout: time.Duration(*timeout) * time.Second}
+			j := nspeed.HTTPjob{
+				Timeout:   time.Duration(*timeout) * time.Second,
+				UserAgent: *useragent,
+			}
 			j.Command = command
 			j.Repeat = int(*repeat)
 
@@ -103,7 +107,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 		case putCommand:
 			return nil, errors.New("unimplemented command")
 		case serveCommand:
-			fs := flag.NewFlagSet(command, flag.ExitOnError)
+			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			host := &nspeed.NSpeedHost{}
 
 			fs.StringVar(&host.Host, "h", "", "Hostname or ip address to listen on")

@@ -212,9 +212,6 @@ func (s *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 // implements the http server
 func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
-	// flag.StringVar(&httpsCertFile, "https-cert-file", "", "HTTPS Server certificate file")
-	// flag.StringVar(&httpsKeyFile, "https-key-file", "", "HTTPS Server private key file")
-
 	logger := log.New(os.Stderr, "", 0)
 
 	// A hacky log helper function to ensure that shutdown messages are

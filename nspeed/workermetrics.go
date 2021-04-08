@@ -64,7 +64,7 @@ func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 func (wm *WorkerMetrics) PrintProgress() {
 	elapsedSecs := wm.ElapsedTime.Seconds()
 	log.Info(
-		"#", wm.Index+1, ";", elapsedSecs, ";",
+		"#", wm.Index, ";", elapsedSecs, ";",
 		ByteCountBinary(wm.TotalRead, "B"), ";",
 		ByteCountBinary(wm.ContentSize, "B"), ";", wm.StepSize, ";", wm.Target)
 }
@@ -73,14 +73,14 @@ func (wm *WorkerMetrics) PrintProgress() {
 func (wm *WorkerMetrics) PrintFinal() {
 	if wm.Valid {
 		log.Info(
-			"#", wm.Index+1,
+			"#", wm.Index,
 			" speed = ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
 			" time = ", wm.ElapsedTime.Milliseconds(), " ms (", wm.ElapsedTime.Seconds(), " s)",
 			" size = ", ByteCountDecimal(wm.TotalRead, "B"), " (", ByteCountBinary(wm.TotalRead, "iB"), ")",
 			" url  = ", wm.Target)
 		return
 	}
-	log.Info("#", wm.Index+1, " error: ", wm.Error)
+	log.Info("#", wm.Index, " error: ", wm.Error)
 
 }
 

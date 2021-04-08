@@ -25,6 +25,7 @@ type HTTPjob struct {
 	Target    string
 	Instance  int
 	Timeout   time.Duration
+	UserAgent string
 }
 
 func (j *HTTPjob) GoString() string {
@@ -98,9 +99,8 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	// Get the data
 	req, err := http.NewRequestWithContext(ctx, "GET", wm.Target, nil)
 
-	// add headers
-	//req.Header.Add("x-nspeed-app-version", "1.0")
-	//"accept: application/octet-stream"
+	// add more headers here
+	req.Header.Set("User-Agent", j.UserAgent)
 
 	// todo: CheckRedirect
 
