@@ -125,8 +125,9 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var chunkSize int64 = numBytes
+	var chunkSize int64 = 10 * 1024 // todo: move this in a parameter/const
 
+	//danger zone
 	if r.URL.Query().Get("chunk_size") != "" {
 		cs, err := ParseByteUnits(r.URL.Query().Get("chunk_size"))
 		chunkSize = int64(cs)
@@ -139,13 +140,12 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we a new cmd line parameter for max chunk size ?
+		// since huge chunksize can overload the server memory this is not safe
 		if chunkSize > h.Parameters.MaxBodySize {
-			//fmt.Println("chunk is too big {}", chunkSize)
-			chunkSize = h.Parameters.MaxBodySize
+			http.Error(w, "chunk size too big", http.StatusBadRequest)
 		}
-	} else {
-		chunkSize = 10 * 1024 // todo: move this in a parameter/const
 	}
+	// end danger zone
 
 	var seed int64
 	rawSeed := r.URL.Query().Get("seed")
@@ -165,40 +165,66 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", strconv.FormatInt(numBytes, 10))
 
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK) // this could also be done by the first w.Write()
 
-	// prepare a buffer of chunkSize bytes (todo: move this out of here)
+	// prepare a buffer of chunkSize bytes (todo: move this out of here to not stress GC)
 	var i int64
 	var chunk []byte
 	for i = 0; i < chunkSize; i++ {
 		chunk = append(chunk, byte(rng.Intn(256)))
 	}
 
+	// prepare metrics handler
+	wm := WorkerMetrics{
+		Done:    false,
+		Expired: false,
+		Target:  fmt.Sprintf("download %s to %s", parts[2], r.RemoteAddr),
+		Job:     h,
+	}
+	wm.TestStartTime = time.Now()
+	wm.FirstResponseByte = time.Now()
+	wm.ContentSize = numBytes
 	f := w.(http.Flusher)
 	// send the buffer as many times as needed
 	var numChunk = numBytes / chunkSize
-	// fmt.Println("numChunk :", numChunk)
+	wm.StepSize = chunkSize
 	for i = 0; i < numChunk; i++ {
-		w.Write(chunk)
+		n, err := w.Write(chunk)
 		f.Flush()
+		wm.TotalRead += int64(n)
+		wm.ElapsedTime = time.Since(wm.TestStartTime)
+		if err != nil {
+			wm.Error = err
+			wm.Expired = true
+			break
+		}
 	}
 
 	// send the modulo is any
 	// fmt.Println("modulo :", numBytes % chunkSize)
-	if numBytes%chunkSize > 0 {
-		w.Write(chunk[:numBytes%chunkSize])
+	if numBytes%chunkSize > 0 && !wm.Expired {
+		n, err := w.Write(chunk[:numBytes%chunkSize])
 		f.Flush()
+		wm.TotalRead += int64(n)
+		wm.ElapsedTime = time.Since(wm.TestStartTime)
+		if err != nil {
+			wm.Error = err
+			wm.Expired = true
+		}
 	}
-	chunk = nil
+	wm.Done = true
+	wm.Valid = true
+	wm.PrintFinal()
 }
 
 // handle upload
-func (s *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
+func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
+
 	wm := WorkerMetrics{
 		Done:    false,
 		Expired: false,
-		Target:  "upload from %todo",
-		Job:     s,
+		Target:  fmt.Sprintf("upload to %s", r.RemoteAddr),
+		Job:     h,
 	}
 	wm.FirstResponseByte = time.Now()
 	n, err := io.Copy(io.Discard, io.TeeReader(r.Body, &wm))

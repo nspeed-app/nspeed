@@ -100,6 +100,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", wm.Target, nil)
 
 	// add more headers here
+	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("User-Agent", j.UserAgent)
 
 	// todo: CheckRedirect

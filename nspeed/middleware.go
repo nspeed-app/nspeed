@@ -103,8 +103,8 @@ func preflight(h http.Handler) http.Handler {
 		respHeader.Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, HEAD, PUT, DELETE, PATCH, OPTIONS")
-			w.Header().Set("Access-Control-Max-Age", "3600") //todo
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS") // , HEAD, PUT, DELETE, PATCH, ") // todo
+			w.Header().Set("Access-Control-Max-Age", "3600")                     //todo
 			if r.Header.Get("Access-Control-Request-Headers") != "" {
 				w.Header().Set("Access-Control-Allow-Headers", r.Header.Get("Access-Control-Request-Headers"))
 			}
@@ -112,6 +112,7 @@ func preflight(h http.Handler) http.Handler {
 			return
 		}
 
+		// debug - dump headers
 		for k, v := range r.Header {
 			fmt.Printf("%v: %v\n", k, v)
 		}

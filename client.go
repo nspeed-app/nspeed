@@ -159,7 +159,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("%+v\n", jobs)
 	if *optCpuprofile != "" {
 		f, err := os.Create(*optCpuprofile)
 		if err != nil {
@@ -244,20 +243,24 @@ func main() {
 	if *optTest {
 		notdone = false
 	}
-	progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
+	progressTickerChannel := make(<-chan time.Time) // forever
+
+	if *optVerbose {
+		progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
+		progressTickerChannel = progressTicker.C
+	}
 
 	for notdone {
 		select {
-		case <-progressTicker.C:
+		case <-progressTickerChannel:
 			// time critical: warning for overlap/backlogs if what's done here takes too long
+			// this section assumes *optVerbose == true
 			pcts, _ := cpu.Percent(0, true)
-			if *optVerbose {
-				f := log.Fields{}
-				for idx := range pcts {
-					f["core#"+strconv.Itoa(idx)] = pcts[idx]
-				}
-				log.WithFields(f).Debug("cpu ", rc, runtime.NumGoroutine())
+			f := log.Fields{}
+			for idx := range pcts {
+				f["core#"+strconv.Itoa(idx)] = pcts[idx]
 			}
+			log.WithFields(f).Debug("cpu ", rc, runtime.NumGoroutine())
 			for _, wm := range wcWorkers {
 				if !wm.Done && wm.Verbose {
 					wm.PrintProgress()
