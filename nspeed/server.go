@@ -3,6 +3,7 @@ package nspeed
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -76,13 +77,15 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	// mux.HandleFunc("/", serverfile)
-	mux.HandleFunc("/s/", h.StreamBytes)
+	mux.HandleFunc("/g/", h.StreamBytes)
+	mux.HandleFunc("/p/", h.Upload)
 
 	// return client informations
 	mux.HandleFunc("/ip", notImplemented)
 
 	// prevent appending '/'
-	mux.HandleFunc("/s", http.NotFound)
+	mux.HandleFunc("/g", http.NotFound)
+	mux.HandleFunc("/p", http.NotFound)
 
 	//
 	var handler http.Handler
@@ -118,7 +121,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	if numBytes < 1 {
 		numBytes = 1
 	} else if numBytes > h.Parameters.MaxBodySize {
-		http.Error(w, "Not Found", http.StatusNotFound)
+		http.Error(w, "too big", http.StatusBadRequest)
 		return
 	}
 
@@ -189,6 +192,23 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	chunk = nil
 }
 
+// handle upload
+func (s *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
+	wm := WorkerMetrics{
+		Done:    false,
+		Expired: false,
+		Target:  "upload from %todo",
+		Job:     s,
+	}
+	wm.FirstResponseByte = time.Now()
+	n, err := io.Copy(io.Discard, io.TeeReader(r.Body, &wm))
+	wm.ElapsedTime = time.Since(wm.FirstResponseByte)
+	wm.TotalProcessed = n
+	wm.Error = err
+	wm.Valid = true
+	wm.PrintFinal()
+}
+
 // implements the http server
 func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
@@ -206,6 +226,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 		)
 		logger.Printf(logFmt, time.Now().Format(dateFmt), fmt.Sprintf(msg, args...))
 	}
+	s.Logger = StdLogFunc(logger)
 
 	listenAddr := net.JoinHostPort(s.Parameters.Host, strconv.Itoa(s.Parameters.Port))
 
@@ -213,7 +234,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 		Addr:         listenAddr,
 		Handler:      s.Handler(),
 		WriteTimeout: s.Parameters.MaxDuration,
-		//ReadTimeout:  s.Parameters.MaxDuration,
+		ReadTimeout:  s.Parameters.MaxDuration,
 	}
 
 	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
