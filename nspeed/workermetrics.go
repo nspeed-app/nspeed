@@ -92,6 +92,6 @@ func (wm *WorkerMetrics) LogFinal() {
 		"time":  wm.ElapsedTime.Seconds(),
 		"size":  wm.TotalRead,
 		"url":   wm.Target,
-	}).Info("#", wm.Index+1)
+	}).Info("#", wm.Index)
 
 }
