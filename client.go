@@ -79,11 +79,11 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			}
 
 			j := nspeed.HTTPjob{
+				Command:   "GET",
 				Timeout:   time.Duration(*timeout) * time.Second,
 				UserAgent: *useragent,
+				Repeat:    int(*repeat),
 			}
-			j.Command = command
-			j.Repeat = int(*repeat)
 
 			// force IPv4 or IPv6
 			if *useIPv4 && *useIPv6 {
@@ -105,7 +105,51 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			args = args[1:]
 			out = append(out, &j)
 		case putCommand:
-			return nil, errors.New("unimplemented command")
+			fs := flag.NewFlagSet(command, flag.ContinueOnError)
+			repeat := fs.Uint("n", 1, "number of times to process an item")
+			useIPv4 := fs.Bool("4", false, "use IPv4")
+			useIPv6 := fs.Bool("6", false, "use IPv6")
+			timeout := fs.Uint("t", 0, "timeout")
+			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
+			contentType := fs.String("ct", "application/octet-stream", "content type")
+
+			if err := fs.Parse(args); err != nil {
+				return nil, err
+			}
+
+			j := nspeed.HTTPjob{
+				Command:     "POST",
+				Timeout:     time.Duration(*timeout) * time.Second,
+				UserAgent:   *useragent,
+				ContentType: *contentType,
+				Repeat:      int(*repeat),
+			}
+			// force IPv4 or IPv6
+			if *useIPv4 && *useIPv6 {
+				fs.Usage()
+				return nil, errors.New("specify IPv4 or IPv6 but not both")
+			}
+			if *useIPv4 {
+				j.IPversion = 4
+			}
+			if *useIPv6 {
+				j.IPversion = 6
+			}
+			args = fs.Args()
+			if len(args) < 2 {
+				fs.Usage()
+				return nil, errors.New("missing arguments")
+			}
+
+			j.Target = args[0]
+
+			cs, err := nspeed.ParseByteUnits(args[1])
+			if err != nil {
+				return nil, err
+			}
+			j.ContentSize = int64(cs)
+			args = args[2:]
+			out = append(out, &j)
 		case serveCommand:
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			host := &nspeed.NSpeedHost{}
@@ -198,9 +242,9 @@ func main() {
 		wcWorkers[idx] = &wm
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
 	}
-	for _, wm := range wcWorkers {
-		fmt.Printf("%v\n", wm.Target)
-	}
+	// for _, wm := range wcWorkers {
+	// 	fmt.Printf("%v\n", wm.Target)
+	// }
 
 	// we could merge this loop with the previous one but in case we want to start sync everything we keep this separate
 	ctx := context.Background()

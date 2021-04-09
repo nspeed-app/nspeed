@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -159,20 +158,11 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		seed = time.Now().Unix()
 	}
 
-	src := rand.NewSource(seed)
-	rng := rand.New(src)
+	chunk := InitChunk(chunkSize, seed)
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", strconv.FormatInt(numBytes, 10))
-
 	w.WriteHeader(http.StatusOK) // this could also be done by the first w.Write()
-
-	// prepare a buffer of chunkSize bytes (todo: move this out of here to not stress GC)
-	var i int64
-	var chunk []byte
-	for i = 0; i < chunkSize; i++ {
-		chunk = append(chunk, byte(rng.Intn(256)))
-	}
 
 	// prepare metrics handler
 	wm := WorkerMetrics{
@@ -181,18 +171,18 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		Target:  fmt.Sprintf("download %s to %s", parts[2], r.RemoteAddr),
 		Job:     h,
 	}
-	wm.TestStartTime = time.Now()
+	wm.TransfertStartTime = time.Now()
 	wm.FirstResponseByte = time.Now()
 	wm.ContentSize = numBytes
 	f := w.(http.Flusher)
 	// send the buffer as many times as needed
 	var numChunk = numBytes / chunkSize
 	wm.StepSize = chunkSize
-	for i = 0; i < numChunk; i++ {
+	for i := int64(0); i < numChunk; i++ {
 		n, err := w.Write(chunk)
 		f.Flush()
 		wm.TotalRead += int64(n)
-		wm.ElapsedTime = time.Since(wm.TestStartTime)
+		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 		if err != nil {
 			wm.Error = err
 			wm.Expired = true
@@ -206,7 +196,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		n, err := w.Write(chunk[:numBytes%chunkSize])
 		f.Flush()
 		wm.TotalRead += int64(n)
-		wm.ElapsedTime = time.Since(wm.TestStartTime)
+		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 		if err != nil {
 			wm.Error = err
 			wm.Expired = true

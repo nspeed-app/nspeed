@@ -10,7 +10,9 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"net/textproto"
 	"net/url"
+	"syscall"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -19,13 +21,15 @@ import (
 // a HTTP command, get or post
 // implement Job interface
 type HTTPjob struct {
-	Command   string
-	Repeat    int
-	IPversion int
-	Target    string
-	Instance  int
-	Timeout   time.Duration
-	UserAgent string
+	Command     string
+	Repeat      int
+	IPversion   int
+	Target      string
+	Instance    int
+	Timeout     time.Duration
+	UserAgent   string
+	ContentType string
+	ContentSize int64
 }
 
 func (j *HTTPjob) GoString() string {
@@ -71,7 +75,9 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	// create http client
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
+			log.Infof("job %d got redirect", wm.Index) // todo display redirect chain ?
+			wm.InitNew()
+			return nil // http.ErrUseLastResponse
 		},
 		Transport: http.DefaultTransport,
 	}
@@ -96,21 +102,29 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		}
 		// end of A
 	}
-	// Get the data
-	req, err := http.NewRequestWithContext(ctx, "GET", wm.Target, nil)
 
-	// add more headers here
-	req.Header.Set("Accept-Encoding", "identity")
-	req.Header.Set("User-Agent", j.UserAgent)
-
-	// todo: CheckRedirect
-
+	var body io.ReadCloser
+	body = http.NoBody
+	if j.Command == "POST" {
+		wm.ContentSize = j.ContentSize
+		wm.StepSize = 1024 * 1024
+		wm.TotalRead = 0
+		wm.TotalProcessed = 0
+		body = wm
+	}
+	req, err := http.NewRequestWithContext(ctx, j.Command, wm.Target, body)
 	if err != nil {
 		return err
 	}
 
+	// add more headers here
+	req.Header.Set("Accept-Encoding", "identity")
+	req.Header.Set("User-Agent", j.UserAgent)
+	req.Header.Set("Content-Type", j.ContentType)
+
 	tr := &roundTripTrace{}
 
+	// todo handle redirects
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(dnsInfo httptrace.DNSStartInfo) {
 			wm.mutex.Lock()
@@ -171,11 +185,18 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			defer wm.mutex.Unlock()
 			tr.connectDone = time.Now()
 		},
+
+		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+			wm.mutex.Lock()
+			defer wm.mutex.Unlock()
+			log.Infof("got 1xx: %d %+v", code, header)
+			return nil
+		},
 	}
 
 	refdate := time.Now()
 
-	// add timeout (we do this just before the body consumption)
+	// add timeout
 	if j.Timeout > 0 {
 		thisctx, cancel := context.WithTimeout(ctx, j.Timeout)
 		defer cancel()
@@ -183,79 +204,71 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	}
 
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
-	resp, err := client.Transport.RoundTrip(req)
+
+	wm.InitNew()
+
+	// resp, err := client.Transport.RoundTrip(req)
+	resp, err := client.Do(req)
 	tr.end = time.Now()
-	if err != nil {
+
+	if errors.Is(err, context.DeadlineExceeded) {
+		wm.Expired = true
+		log.Info("#", wm.Index, " timer expired client side")
+	} else if errors.Is(err, syscall.ECONNRESET) {
+		wm.Expired = true
+		log.Info("#", wm.Index, " something expired server side")
+	} else if err != nil {
 		log.Fatal(err)
 	}
-	defer resp.Body.Close()
 
-	protocol := resp.Proto
-	if resp.TLS != nil {
+	if j.Command == "GET" {
+		defer resp.Body.Close()
+
+		protocol := resp.Proto
 		log.Info("#", wm.Index,
 			" size = ", ByteCountDecimal(resp.ContentLength)+"B", " (", ByteCountBinary(resp.ContentLength)+"B", ")",
 			" procotol = ", protocol,
-			" crypto = ", TLSVersionName(resp.TLS.Version),
-			" cipher = ", tls.CipherSuiteName(resp.TLS.CipherSuite),
-			" local IP:port", wm.ConnInfo.Conn.LocalAddr(),
-			" remote IP:port", wm.ConnInfo.Conn.RemoteAddr(),
-			" DNSInfoTime = ", wm.DNSInfoTime.Sub(refdate),
-			" ConnInfoTime = ", wm.ConnInfoTime.Sub(refdate),
-			" FirstResponseByte = ", wm.FirstResponseByte.Sub(refdate),
-			" TLSDone = ", wm.TLSDone.Sub(refdate),
-		)
-	} else {
-		log.Info("#", wm.Index,
-			" size = ", ByteCountDecimal(resp.ContentLength)+"B", " (", ByteCountBinary(resp.ContentLength)+"B", ")",
-			" procotol = ", protocol,
-			" local IP:port", wm.ConnInfo.Conn.LocalAddr(),
-			" remote IP:port", wm.ConnInfo.Conn.RemoteAddr(),
+			" local IP:port = ", wm.ConnInfo.Conn.LocalAddr(),
+			" remote IP:port = ", wm.ConnInfo.Conn.RemoteAddr(),
 			" DNSInfoTime = ", wm.DNSInfoTime.Sub(refdate),
 			" ConnInfoTime = ", wm.ConnInfoTime.Sub(refdate),
 			" FirstResponseByte = ", wm.FirstResponseByte.Sub(refdate),
 		)
-	}
-
-	// fmt.Println("start", tr.start.Sub(refdate))
-	// fmt.Println("dnsDone", tr.dnsDone.Sub(refdate))
-	// fmt.Println("tlsStart", tr.tlsStart.Sub(refdate))
-	// fmt.Println("tlsDone", tr.tlsDone.Sub(refdate))
-	// fmt.Println("connectDone", tr.connectDone.Sub(refdate))
-	// fmt.Println("gotConn", tr.gotConn.Sub(refdate))
-	// fmt.Println("responseStart", tr.responseStart.Sub(refdate))
-	// fmt.Println("end", tr.end.Sub(refdate))
-
-	wm.TestStartTime = time.Now()
-	wm.ContentSize = resp.ContentLength
-
-	// this is where the main transfert happens.
-	//   iteration 1: we use io.Copy to 'null' (Discard) and
-	//   a TeeReader to do progression with the wm which has an io.Writer interface
-	//   the resp (thru req) context  will handle timeout & parent cancellation
-
-	wm.Valid = false
-	if resp.StatusCode == http.StatusOK {
-		if wm.TotalProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
-			if err == context.DeadlineExceeded {
-				wm.Expired = true
-				log.Info("#", wm.Index, " timer expired client side")
-			} else if err == io.ErrUnexpectedEOF {
-				wm.Expired = true
-				log.Info("#", wm.Index, " something expired server side")
-			} else {
-				log.Error("#", wm.Index, " error: ", err)
-				wm.Valid = false
-				wm.Error = err
-			}
+		if resp.TLS != nil {
+			log.Info("#", wm.Index,
+				" crypto = ", TLSVersionName(resp.TLS.Version),
+				" cipher = ", tls.CipherSuiteName(resp.TLS.CipherSuite),
+				" TLSDone in = ", wm.TLSDone.Sub(refdate),
+			)
 		}
-		log.Info("#", wm.Index, " transfered ", wm.TotalProcessed, " bytes")
-		wm.Valid = true
-	} else {
-		wm.Error = errors.New("http status code: " + resp.Status)
-	}
-	wm.ElapsedTime = time.Since(wm.TestStartTime)
-	wm.Done = true
-	wm.ResultChan <- wm
 
+		wm.ContentSize = resp.ContentLength
+
+		// this is where the GET transfert happens.
+		//   iteration 1: we use io.Copy to 'null' (Discard) and
+		//   a TeeReader to do progression with the wm which has an io.Writer interface
+		//   the resp (thru req) context  will handle timeout & parent cancellation
+
+		if resp.StatusCode == http.StatusOK {
+			if wm.TotalProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
+				if err == context.DeadlineExceeded {
+					wm.Expired = true
+					log.Info("#", wm.Index, " timer expired client side")
+				} else if err == io.ErrUnexpectedEOF {
+					wm.Expired = true
+					log.Info("#", wm.Index, " something expired server side")
+				} else {
+					log.Error("#", wm.Index, " error: ", err)
+					wm.Valid = false
+					wm.Error = err
+				}
+			}
+			log.Info("#", wm.Index, " transfered ", wm.TotalProcessed, " bytes")
+			wm.Valid = true
+		} else {
+			wm.Error = errors.New("http status code: " + resp.Status)
+		}
+	}
+	wm.ResultChan <- wm
 	return nil
 }
