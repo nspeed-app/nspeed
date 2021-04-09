@@ -72,7 +72,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			repeat := fs.Uint("n", 1, "number of times to process an item")
 			useIPv4 := fs.Bool("4", false, "use IPv4")
 			useIPv6 := fs.Bool("6", false, "use IPv6")
-			timeout := fs.Uint("t", 0, "timeout")
+			timeout := fs.Uint("t", 8, "timeout")
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
@@ -109,7 +109,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			repeat := fs.Uint("n", 1, "number of times to process an item")
 			useIPv4 := fs.Bool("4", false, "use IPv4")
 			useIPv6 := fs.Bool("6", false, "use IPv6")
-			timeout := fs.Uint("t", 0, "timeout")
+			timeout := fs.Uint("t", 8, "timeout")
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			contentType := fs.String("ct", "application/octet-stream", "content type")
 
