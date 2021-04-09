@@ -11,6 +11,10 @@ wip
 
 ## Development
 
+"commands" to implement:
+  - ping
+  - p2p (webrtc)
+
 wip
 
 ## Acknowledgement

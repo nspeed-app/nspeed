@@ -7,33 +7,29 @@ import (
 )
 
 // shamelessly copied from : https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
-func byteCount(b int64, u string, unit int64, letters string) string {
+func byteCount(b int64, u string, unit int64, units string) string {
 	if b < unit {
-		return fmt.Sprintf("%d %s", b, u)
+		return fmt.Sprintf("%d ", b)
 	}
 	div, exp := int64(unit), 0
 	for n := b / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
 	}
-	if exp >= len(letters) {
-		return fmt.Sprintf("%d %s", b, u)
+	if exp >= len(units) {
+		return fmt.Sprintf("%d", b)
 	}
-	return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), letters[exp], u)
+	return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), units[exp], u)
 }
 
 // ByteCountDecimal format byte size to human readable format (decimal units)
-func ByteCountDecimal(b int64, u string) string {
-	return byteCount(b, u, 1000, "kMGTPE")
-	// const unit = 1000
-	// return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), "kMGTPE"[exp], u)
+func ByteCountDecimal(b int64) string {
+	return byteCount(b, "", 1000, "kMGTPE")
 }
 
 // ByteCountBinary format byte size to human readable format (binary units)
-func ByteCountBinary(b int64, u string) string {
-	return byteCount(b, u, 1024, "KMGTPE")
-	// const unit = 1024
-	// return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), "KMGTPE"[exp], u)
+func ByteCountBinary(b int64) string {
+	return byteCount(b, "i", 1024, "KMGTPE")
 }
 
 // parse bytes units - "<value>kmgtpe" powers of 2 (B), "<value>KMGTPE" powers of 10 (iB)
@@ -67,7 +63,7 @@ func FormatBitperSecond(elapsedSeconds float64, totalBytesRead int64) string {
 	}()
 	speed := "(too fast)"
 	if elapsedSeconds > 0 {
-		speed = ByteCountDecimal((int64)((float64)(totalBytesRead)*8.0/elapsedSeconds), "bps")
+		speed = ByteCountDecimal((int64)((float64)(totalBytesRead)*8.0/elapsedSeconds)) + "bps"
 	}
 	return speed
 }

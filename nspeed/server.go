@@ -62,7 +62,7 @@ func (j *NSpeedHTTPServer) GoString() string {
 	return fmt.Sprintf("server {host: %q, port: %d, max_size: %s, max_duration: %s, UseTLS: %t}",
 		j.Parameters.Host,
 		j.Parameters.Port,
-		ByteCountDecimal(j.Parameters.MaxBodySize, "B"),
+		ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
 		j.Parameters.MaxDuration.String(),
 		j.Parameters.ServeTLS,
 	)

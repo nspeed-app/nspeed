@@ -66,8 +66,8 @@ func (wm *WorkerMetrics) PrintProgress() {
 	elapsedSecs := wm.ElapsedTime.Seconds()
 	log.Info(
 		"#", wm.Index, ";", elapsedSecs, ";",
-		ByteCountBinary(wm.TotalRead, "B"), ";",
-		ByteCountBinary(wm.ContentSize, "B"), ";", wm.StepSize, ";", wm.Target)
+		ByteCountBinary(wm.TotalRead)+"B", ";",
+		ByteCountBinary(wm.ContentSize)+"B", ";", wm.StepSize, ";", wm.Target)
 }
 
 // PrintFinal prints the final metrics
@@ -77,7 +77,7 @@ func (wm *WorkerMetrics) PrintFinal() {
 			"#", wm.Index,
 			" speed = ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
 			" time = ", wm.ElapsedTime.Milliseconds(), " ms (", wm.ElapsedTime.Seconds(), " s)",
-			" size = ", ByteCountDecimal(wm.TotalRead, "B"), " (", ByteCountBinary(wm.TotalRead, "iB"), ")",
+			" size = ", ByteCountDecimal(wm.TotalRead)+"B", " (", ByteCountBinary(wm.TotalRead)+"B", ")",
 			" url  = ", wm.Target)
 		return
 	}

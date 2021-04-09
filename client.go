@@ -292,7 +292,7 @@ func main() {
 		"total:",
 		"speed =", nspeed.FormatBitperSecond(elapsedTime.Seconds(), totalRead),
 		"time =", elapsedTime,
-		"size =", totalRead, " (", nspeed.ByteCountDecimal(totalRead, "B)"))
+		"size =", totalRead, "Bytes (", nspeed.ByteCountDecimal(totalRead)+"B )")
 
 	// todo: defer this block
 	if *optMemprofile != "" {

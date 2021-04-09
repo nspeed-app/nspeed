@@ -191,25 +191,30 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	defer resp.Body.Close()
 
 	protocol := resp.Proto
-	crypto := "n/a"
-	cipher := "n/a"
 	if resp.TLS != nil {
-		crypto = TLSVersionName(resp.TLS.Version)
-		cipher = tls.CipherSuiteName(resp.TLS.CipherSuite)
+		log.Info("#", wm.Index,
+			" size = ", ByteCountDecimal(resp.ContentLength)+"B", " (", ByteCountBinary(resp.ContentLength)+"B", ")",
+			" procotol = ", protocol,
+			" crypto = ", TLSVersionName(resp.TLS.Version),
+			" cipher = ", tls.CipherSuiteName(resp.TLS.CipherSuite),
+			" local IP:port", wm.ConnInfo.Conn.LocalAddr(),
+			" remote IP:port", wm.ConnInfo.Conn.RemoteAddr(),
+			" DNSInfoTime = ", wm.DNSInfoTime.Sub(refdate),
+			" ConnInfoTime = ", wm.ConnInfoTime.Sub(refdate),
+			" FirstResponseByte = ", wm.FirstResponseByte.Sub(refdate),
+			" TLSDone = ", wm.TLSDone.Sub(refdate),
+		)
+	} else {
+		log.Info("#", wm.Index,
+			" size = ", ByteCountDecimal(resp.ContentLength)+"B", " (", ByteCountBinary(resp.ContentLength)+"B", ")",
+			" procotol = ", protocol,
+			" local IP:port", wm.ConnInfo.Conn.LocalAddr(),
+			" remote IP:port", wm.ConnInfo.Conn.RemoteAddr(),
+			" DNSInfoTime = ", wm.DNSInfoTime.Sub(refdate),
+			" ConnInfoTime = ", wm.ConnInfoTime.Sub(refdate),
+			" FirstResponseByte = ", wm.FirstResponseByte.Sub(refdate),
+		)
 	}
-
-	log.Info("#", wm.Index+1,
-		" size = ", ByteCountDecimal(resp.ContentLength, "B"), " (", ByteCountBinary(resp.ContentLength, "iB"), ")",
-		" procotol = ", protocol,
-		" crypto = ", crypto,
-		" cipher = ", cipher,
-		" local IP:port", wm.ConnInfo.Conn.LocalAddr(),
-		" remote IP:port", wm.ConnInfo.Conn.RemoteAddr(),
-		" DNSInfoTime = ", wm.DNSInfoTime.Sub(refdate),
-		" ConnInfoTime = ", wm.ConnInfoTime.Sub(refdate),
-		" FirstResponseByte = ", wm.FirstResponseByte.Sub(refdate),
-		" TLSDone = ", wm.TLSDone.Sub(refdate),
-	)
 
 	// fmt.Println("start", tr.start.Sub(refdate))
 	// fmt.Println("dnsDone", tr.dnsDone.Sub(refdate))
@@ -233,17 +238,17 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		if wm.TotalProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
 			if err == context.DeadlineExceeded {
 				wm.Expired = true
-				log.Info("#", wm.Index+1, " expired client side")
+				log.Info("#", wm.Index, " timer expired client side")
 			} else if err == io.ErrUnexpectedEOF {
 				wm.Expired = true
-				log.Info("#", wm.Index+1, " expired server side")
+				log.Info("#", wm.Index, " something expired server side")
 			} else {
-				log.Error("#", wm.Index+1, " error: ", err)
+				log.Error("#", wm.Index, " error: ", err)
 				wm.Valid = false
 				wm.Error = err
 			}
 		}
-		log.Info("#", wm.Index+1, " copied ", wm.TotalProcessed)
+		log.Info("#", wm.Index, " transfered ", wm.TotalProcessed, " bytes")
 		wm.Valid = true
 	} else {
 		wm.Error = errors.New("http status code: " + resp.Status)

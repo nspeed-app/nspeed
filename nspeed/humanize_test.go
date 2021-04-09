@@ -27,3 +27,22 @@ func TestParseByteUnits(t *testing.T) {
 		}
 	}
 }
+
+func TestByteCountBinary(t *testing.T) {
+	tables := []struct {
+		x int64
+		y string
+	}{
+		{1, "1"},
+		{1000, "1000"},
+		{1024, "1.0 Ki"},
+		{1024 * 1024, "1.0 Mi"},
+		{1024*1024 + 100*1024, "1.1 Mi"},
+	}
+	for _, table := range tables {
+		s := ByteCountBinary(table.x)
+		if s != table.y {
+			t.Errorf("ByteCountBinary of (%d) was incorrect, got: %s want %s", table.x, s, table.y)
+		}
+	}
+}
