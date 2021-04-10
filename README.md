@@ -27,7 +27,7 @@ Interoperaable with standard clients and servers
     nspeed get -n 4 https://bouygues.testdebit.info/10G/10G.iso
 
     # download 2 different targets
-    nspeed get https://bouygues.testdebit.info/10G/10G.iso https://scaleway.testdebit.info/10G/10G.iso
+    nspeed get https://bouygues.testdebit.info/10G/10G.iso get https://scaleway.testdebit.info/10G/10G.iso
 
     # upload 2 1GB to a single target (use "1G" for 1GiB -accepted prefixes: k,m,g,t,p,e)
     nspeed put -n 2 https://bouygues.testdebit.info/ 1g
