@@ -62,7 +62,7 @@ Binary distribution available here: [dl.nspeed.app](https://dl.nspeed.app) or in
 
 These binaries are for Windows, Linux and Darwin (MacOs).
 Download the one for your system and rename it to nspeed.
-On Unix systems: chmod +x nspeed
+On Unix systems make the file executable with: `chmod +x nspeed` 
 
 Source code with be released before v1.0
 
