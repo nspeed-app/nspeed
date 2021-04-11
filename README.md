@@ -13,17 +13,17 @@ Interoperaable with standard clients and servers
     The "server" command can only be combined with itself. others commands can be mixed.
     each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance
 
-    nspeed get [options] url 
+    get [options] url 
 
-    nspeed put [options] url size
+    put [options] url size
 
-    nspeed server [options]
+    server [options] 
 
-    as of v0.4 the "-4" and "-6" options are not yet implemented
+    as of v0.4 the "-4" and "-6" options are not yet implemented but parsed.
 
 ## Examples
 
-    # download four times a single target
+    # download a single target four times at the same time
     nspeed get -n 4 https://bouygues.testdebit.info/10G/10G.iso
 
     # download 2 different targets
@@ -38,7 +38,7 @@ Interoperaable with standard clients and servers
     # start a server with default settings (port: 7333, max time 10s , max size 1.1 TB)
     nspeed server
     
-    # start a server at port 8888 with max time of 5 seconds and 1 GB max load
+    # start a server at port 8888 with max time of 5 seconds and 1 GB max size accepted
     server -p 8080 -t 5s -s 1000000000
 
     # download 1GB from a nspeed server
@@ -47,6 +47,14 @@ Interoperaable with standard clients and servers
     # download 20 x 100MiB from a nspeed server
     nspeed get -n 20 http://localhost:7333/g/100M
 
+    # download 1GiB from a nspeed local server with curl
+    curl -o /dev/null http://localhost:7333/g/1G
+
+    # upload a local file "/path/to/file" to a nspeed server with curl (with progress and result speed)
+    curl -T @/path/to/file http://localhost:7333/p/ | tee
+
+    # same as above but without sending the filename to the server
+    curl -X POST --data-binary @/path/to/file http://localhost:7333/p/ | tee
 
 ## Installation
 
@@ -56,13 +64,18 @@ These binaries are for Windows, Linux and Darwin (MacOs).
 Download the one for your system and rename it to nspeed.
 On Unix systems: chmod +x nspeed
 
-Source code with be released with v1.0
+Source code with be released before v1.0
 
 ## Development
 
 "commands" with planned implementation:
   - ping (icmp/udp/tcp latency)
   - p2p (webrtc over udp with STUN/ICE nat traversal)
+
+other planned features:
+  - web ui / remote control (api)
+  - formatted metrics (prometheus/openmetrics)
+  - and much more
 
 wip
 
