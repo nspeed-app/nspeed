@@ -1,6 +1,6 @@
 # NSpeed
 A client and server high performance network bandwidth measurement using Internet standards (HTTP/1, HTTP/2, HTTP3, WebRTC)
-Interoperaable with standard clients and servers
+Interoperable with standard web clients and web servers
 
 ## Usage
     nspeed [global options] [command] ... [command]
