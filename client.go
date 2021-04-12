@@ -70,8 +70,8 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 		case getCommand:
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			repeat := fs.Uint("n", 1, "number of times to process an item")
-			useIPv4 := fs.Bool("4", false, "use IPv4")
-			useIPv6 := fs.Bool("6", false, "use IPv6")
+			useIPv4 := fs.Bool("4", false, "use IPv4 only")
+			useIPv6 := fs.Bool("6", false, "use IPv6 only")
 			timeout := fs.Uint("t", 8, "timeout")
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			if err := fs.Parse(args); err != nil {
@@ -107,8 +107,8 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 		case putCommand:
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			repeat := fs.Uint("n", 1, "number of times to process an item")
-			useIPv4 := fs.Bool("4", false, "use IPv4")
-			useIPv6 := fs.Bool("6", false, "use IPv6")
+			useIPv4 := fs.Bool("4", false, "use IPv4 only")
+			useIPv6 := fs.Bool("6", false, "use IPv6 only")
 			timeout := fs.Uint("t", 8, "timeout")
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			contentType := fs.String("ct", "application/octet-stream", "content type")
@@ -154,7 +154,9 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			host := &nspeed.NSpeedHost{}
 
-			fs.StringVar(&host.Host, "h", "", "Hostname or ip address to listen on")
+			fs.StringVar(&host.Host, "h", "", "Hostname or ip address to listen")
+			useIPv4 := fs.Bool("4", false, "use IPv4 only")
+			useIPv6 := fs.Bool("6", false, "use IPv6 only")
 			fs.IntVar(&host.Port, "p", nspeed.DefaultPort, "Port to listen on")
 			fs.Int64Var(&host.MaxBodySize, "s", nspeed.DefaultMaxBodySize, "Maximum size of response, in bytes")
 			fs.DurationVar(&host.MaxDuration, "t", nspeed.DefaultMaxDuration, "Maximum duration a response may take")
@@ -164,6 +166,19 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
+
+			// force IPv4 or IPv6
+			if *useIPv4 && *useIPv6 {
+				fs.Usage()
+				return nil, errors.New("specify IPv4 or IPv6 but not both")
+			}
+			if *useIPv4 {
+				host.ForceIPVersion = 4
+			}
+			if *useIPv6 {
+				host.ForceIPVersion = 6
+			}
+
 			// todo check cert & key & set ServeTLS
 			host.ServeTLS = false
 

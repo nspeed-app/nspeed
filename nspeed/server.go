@@ -24,13 +24,14 @@ const (
 
 // parameters of aa server instance
 type NSpeedHost struct {
-	Host        string
-	Port        int
-	MaxBodySize int64
-	MaxDuration time.Duration
-	ServeTLS    bool
-	TLSCertFile string
-	TLSKeyFile  string
+	Host           string
+	Port           int
+	ForceIPVersion int // 0 (none), 4 (force IPv4)  or 6 (force IPv6)
+	MaxBodySize    int64
+	MaxDuration    time.Duration
+	ServeTLS       bool
+	TLSCertFile    string
+	TLSKeyFile     string
 }
 
 // Result used for logging
@@ -58,9 +59,10 @@ func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
 }
 
 func (j *NSpeedHTTPServer) GoString() string {
-	return fmt.Sprintf("server {host: %q, port: %d, max_size: %s, max_duration: %s, UseTLS: %t}",
+	return fmt.Sprintf("server {host: %q, port: %d, IPversion: %d, max_size: %s, max_duration: %s, UseTLS: %t}",
 		j.Parameters.Host,
 		j.Parameters.Port,
+		j.Parameters.ForceIPVersion,
 		ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
 		j.Parameters.MaxDuration.String(),
 		j.Parameters.ServeTLS,
@@ -272,13 +274,30 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 		close(exitCh)
 	}()
 
+	// "tcp4" for IPv4 only
+	// "tcp6" or IPv4 only
+	// "tcp" (default)forboth
+	network := "tcp"
+	if s.Parameters.ForceIPVersion == 4 {
+		network = "tcp4"
+	}
+	if s.Parameters.ForceIPVersion == 6 {
+		network = "tcp6"
+	}
+
+	ln, err := net.Listen(network, listenAddr)
+	if err != nil {
+		return err
+	}
+	defer ln.Close()
+
 	var listenErr error
 	if s.Parameters.ServeTLS {
 		serverLog("nspeed listening on https://%s", listenAddr)
-		listenErr = server.ListenAndServeTLS(s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
+		listenErr = server.ServeTLS(ln, s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
 	} else {
 		serverLog("nspeed listening on http://%s", listenAddr)
-		listenErr = server.ListenAndServe()
+		listenErr = server.Serve(ln)
 	}
 	if listenErr != nil && listenErr != http.ErrServerClosed {
 		logger.Fatalf("failed to listen: %s", listenErr)

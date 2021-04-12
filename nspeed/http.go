@@ -82,6 +82,23 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		Transport: http.DefaultTransport,
 	}
 
+	// dialer := &net.Dialer{
+	// 	Timeout:   30 * time.Second,
+	// 	LocalAddr: nil,
+	// 	DualStack: false,
+	// 	KeepAlive: 30 * time.Second,
+	// 	Resolver:  &net.Resolver{},
+	// 	Control: func(network string, address string, c syscall.RawConn) error {
+
+	// 	},
+	// }
+
+	// client.Transport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+	// 	return dialer.DialContext(ctx, network, addr)
+	// }
+
+	//todo: client.Transport.(*http.Transport).ForceAttemptHTTP2 = true
+
 	// A - temporay dns debug
 	if wm.Verbose {
 		u, err := url.Parse(wm.Target)
@@ -173,7 +190,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		ConnectStart: func(_, _ string) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			// No DNS resolution because we connected to IP directly.
+			// No DNS resolution means we used an IP address directly.
 			if tr.dnsDone.IsZero() {
 				tr.start = time.Now()
 				tr.dnsDone = tr.start
