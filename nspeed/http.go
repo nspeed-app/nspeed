@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/textproto"
-	"net/url"
 	"syscall"
 	"time"
 
@@ -24,6 +23,7 @@ type HTTPjob struct {
 	Command     string
 	Repeat      int
 	IPversion   int
+	Host        string
 	Target      string
 	Instance    int
 	Timeout     time.Duration
@@ -33,10 +33,11 @@ type HTTPjob struct {
 }
 
 func (j *HTTPjob) GoString() string {
-	return fmt.Sprintf("%s {URL: %q, IPversion: %d, Instance: %d, timeout: %s}",
+	return fmt.Sprintf("%s {URL: %q, IPversion: %d, Host: %s, Instance: %d, timeout: %s}",
 		j.Command,
 		j.Target,
 		j.IPversion,
+		j.Host,
 		j.Instance,
 		j.Timeout.String(),
 	)
@@ -72,13 +73,34 @@ type roundTripTrace struct {
 // HTTPDownload implements HTTP GET command
 func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
+	var LocalAddr net.Addr
+	if j.Host != "" {
+		la, err := net.ResolveIPAddr("ip", j.Host)
+		if err != nil {
+			return errors.New("bad local host address: " + j.Host)
+		}
+		LocalAddr = &net.TCPAddr{
+			IP:   la.IP,
+			Port: 0,
+			Zone: la.Zone,
+		}
+	}
+
 	var dialer = &net.Dialer{
 		Timeout:       5 * time.Second,
 		FallbackDelay: -1,
-		LocalAddr:     nil, // todo "-a" for client
-		// Control: func(network string, address string, c syscall.RawConn) error {
-
-		// },
+		LocalAddr:     LocalAddr, // "-a" for client
+		//there should a be higher level to enforce an IP version but for now we do this here
+		Control: func(network string, address string, c syscall.RawConn) error {
+			log.Printf("Control %s %s %d ", network, address, j.IPversion)
+			if j.IPversion == 4 && network[len(network)-1] == '6' {
+				return errors.New("bad IP version: want IPv4 got " + network)
+			}
+			if j.IPversion == 6 && network[len(network)-1] == '4' {
+				return errors.New("bad IP version: want IPv6 got " + network)
+			}
+			return nil
+		},
 	}
 
 	var netTransport = &http.Transport{
@@ -95,37 +117,14 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			return nil // http.ErrUseLastResponse
 		},
 		Transport: netTransport, // http.DefaultTransport,
-		Timeout:   10 * time.Second,
-	}
-
-	//todo: client.Transport.(*http.Transport).ForceAttemptHTTP2 = true
-
-	// A - temporay dns debug
-	if wm.Verbose {
-		u, err := url.Parse(wm.Target)
-		if err != nil {
-			panic(err)
-		}
-
-		host, _, err := net.SplitHostPort(u.Host)
-		if err != nil {
-			host = u.Host
-		}
-
-		ips, err := net.LookupIP(host)
-
-		log.Debug("LookupIp for ", host)
-		for _, ip := range ips {
-			log.Debug("  ", ip.String())
-		}
-		// end of A
+		// Timeout:   10 * time.Second,
 	}
 
 	var body io.ReadCloser
 	body = http.NoBody
 	if j.Command == "POST" {
 		wm.ContentSize = j.ContentSize
-		wm.StepSize = 1024 * 1024
+		wm.StepSize = 1024 * 1024 // todo
 		wm.TotalRead = 0
 		wm.TotalProcessed = 0
 		body = wm

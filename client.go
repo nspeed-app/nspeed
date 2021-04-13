@@ -74,6 +74,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			useIPv4 := fs.Bool("4", false, "use IPv4 only")
 			useIPv6 := fs.Bool("6", false, "use IPv6 only")
 			timeout := fs.Uint("t", 8, "timeout")
+			host := fs.String("a", "", "local address to use")
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
@@ -103,6 +104,8 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 				return nil, errors.New("missing argument")
 			}
 			j.Target = args[0]
+			j.Host = *host
+
 			args = args[1:]
 			out = append(out, &j)
 		case putCommand:
@@ -111,6 +114,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			useIPv4 := fs.Bool("4", false, "use IPv4 only")
 			useIPv6 := fs.Bool("6", false, "use IPv6 only")
 			timeout := fs.Uint("t", 8, "timeout")
+			host := fs.String("a", "", "local address to use")
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			contentType := fs.String("ct", "application/octet-stream", "content type")
 
@@ -143,6 +147,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			}
 
 			j.Target = args[0]
+			j.Host = *host
 
 			cs, err := nspeed.ParseByteUnits(args[1])
 			if err != nil {
@@ -288,7 +293,7 @@ func main() {
 			defer wg.Done()
 			err := w.Job.Start(ctx, w)
 			if err != nil {
-				fmt.Println("error for ", w.Target)
+				log.Errorf("error %s for %s\n", err, w.Target)
 				return
 			}
 		}(wm)

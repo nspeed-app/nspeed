@@ -27,6 +27,9 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     # download 2 different targets
     nspeed get https://bouygues.testdebit.info/10G/10G.iso get https://scaleway.testdebit.info/10G/10G.iso
 
+    # downlaod the same target both in IPv4 and IPv6
+    nspeed get -4 https://bouygues.testdebit.info/100M/100M.iso get -6 https://bouygues.testdebit.info/100M/100M.iso
+
     # upload 2 1GB to a single target (use "1G" for 1GiB -accepted prefixes: k,m,g,t,p,e)
     nspeed put -n 2 https://bouygues.testdebit.info/ 1g
 
@@ -67,8 +70,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
 
 Binary distribution available here: [dl.nspeed.app](https://dl.nspeed.app) or in the [release section](https://github.com/nspeed-app/nspeed/releases)
 
-These binaries are for Windows, Linux and Darwin (MacOs).
-Download the one for your system and rename it to nspeed.
+Download the one for your system and eventually rename it to `nspeed`.
 On Unix systems make the file executable with: `chmod +x nspeed` 
 
 Source code with be released before v1.0
