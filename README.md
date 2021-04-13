@@ -1,6 +1,6 @@
 # NSpeed
-A client and server high performance network bandwidth measurement using Internet standards (HTTP/1, HTTP/2, HTTP3, WebRTC)
-Interoperable with standard web clients and web servers
+A client and server high performance network bandwidth measurement tool using Internet standards (HTTP/1, HTTP/2, HTTP/3*, WebRTC, WebTransport*)
+Interoperable with standard web clients (like curl) and standard web servers (NGinx, Apache, etc)
 
 ## Usage
     nspeed [global options] [command] ... [command]
@@ -11,15 +11,13 @@ Interoperable with standard web clients and web servers
     - server
 
     The "server" command can only be combined with itself. others commands can be mixed.
-    each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance
+    Each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance
 
     get [options] url 
 
     put [options] url size
 
     server [options] 
-
-    as of v0.4 the "-4" and "-6" options are not yet implemented but parsed.
 
 ## Examples
 
@@ -39,7 +37,16 @@ Interoperable with standard web clients and web servers
     nspeed server
     
     # start a server at port 8888 with max time of 5 seconds and 1 GB max size accepted
-    server -p 8080 -t 5s -s 1000000000
+    nspeed server -p 8080 -t 5s -s 1000000000
+
+    # start a server listening on all interfaces but in IPv6 only
+    nspeed server -6 -a ""
+
+    # start a server listening on a specific IPv4 address
+    nspeed server -a 192.168.1.3
+
+    # start two instances of server, one listening on a specific IPv6 address and one on a specific IPv4 address
+    nspeed server -a 2001:1234:5678::3 server -a 192.168.1.3
 
     # download 1GB from a nspeed server
     nspeed get http://localhost:7333/g/1g
@@ -70,14 +77,14 @@ Source code with be released before v1.0
 
 "commands" with planned implementation:
   - ping (icmp/udp/tcp latency)
-  - p2p (webrtc over udp with STUN/ICE nat traversal)
+  - p2p (using webrtc over udp with STUN/ICE nat traversal)
 
 other planned features:
   - web ui / remote control (api)
   - formatted metrics (prometheus/openmetrics)
   - and much more
 
-wip
+*wip: when available in Go
 
 ## Acknowledgement
 - Vivien Guéant & everyone at [lafibre.info](https://lafibre.info) for spawning the ideas and their feedback and testing.

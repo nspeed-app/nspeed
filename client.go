@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -154,18 +155,21 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			host := &nspeed.NSpeedHost{}
 
-			fs.StringVar(&host.Host, "h", "", "Hostname or ip address to listen")
+			fs.StringVar(&host.Host, "a", "localhost", "Hostname or ip address to listen (use \"\" for all interfaces/all addresses)")
 			useIPv4 := fs.Bool("4", false, "use IPv4 only")
 			useIPv6 := fs.Bool("6", false, "use IPv6 only")
 			fs.IntVar(&host.Port, "p", nspeed.DefaultPort, "Port to listen on")
-			fs.Int64Var(&host.MaxBodySize, "s", nspeed.DefaultMaxBodySize, "Maximum size of response, in bytes")
-			fs.DurationVar(&host.MaxDuration, "t", nspeed.DefaultMaxDuration, "Maximum duration a response may take")
+			maxsize := fs.String("s", strconv.FormatInt(nspeed.DefaultMaxBodySize, 10), "Maximum size of response, in bytes or units of bytes")
+			maxtime := fs.Uint("t", uint(nspeed.DefaultMaxDuration.Seconds()), "Maximum duration a response may take")
 			fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
 			fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
 
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
+
+			//
+			host.MaxDuration = time.Duration(*maxtime) * time.Second
 
 			// force IPv4 or IPv6
 			if *useIPv4 && *useIPv6 {
@@ -178,6 +182,13 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			if *useIPv6 {
 				host.ForceIPVersion = 6
 			}
+
+			ms, err := nspeed.ParseByteUnits(*maxsize)
+			if err != nil {
+				fs.Usage()
+				return nil, err
+			}
+			host.MaxBodySize = int64(ms)
 
 			// todo check cert & key & set ServeTLS
 			host.ServeTLS = false
@@ -296,46 +307,46 @@ func main() {
 		log.Debug("wait group ended")
 	}()
 
-	rc := 0
+	rc := njobs
 
-	notdone := true
+	done := false
 	if *optTest {
-		notdone = false
+		done = true
 	}
-	progressTickerChannel := make(<-chan time.Time) // forever
 
+	progressTickerChannel := make(<-chan time.Time) // forever
 	if *optVerbose {
 		progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
 		progressTickerChannel = progressTicker.C
 	}
 
-	for notdone {
+	for !done {
 		select {
 		case <-progressTickerChannel:
 			// time critical: warning for overlap/backlogs if what's done here takes too long
 			// this section assumes *optVerbose == true
 			pcts, _ := cpu.Percent(0, true)
-			f := log.Fields{}
-			for idx := range pcts {
-				f["core#"+strconv.Itoa(idx)] = pcts[idx]
+			cpuload := "|"
+			for _, pc := range pcts {
+				cpuload += fmt.Sprintf("%3v|", math.Round(pc))
 			}
-			log.WithFields(f).Debug("cpu ", rc, runtime.NumGoroutine())
+			log.Printf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			for _, wm := range wcWorkers {
 				if !wm.Done && wm.Verbose {
 					wm.PrintProgress()
 				}
 			}
 		case wm := <-results:
-			rc++
+			rc--
 			if wm.Done {
 				log.Debugf("job %d ended - (on timeout: %t) - (%d remaining active goroutines)", wm.Index, wm.Expired, runtime.NumGoroutine())
 			}
 		case <-cWaitgroupEnded:
 			log.Debugf("all workers done (%d remaining active goroutines)", runtime.NumGoroutine())
-			notdone = false
+			done = true
 		}
 	}
-	log.Debug("main loop ended", "rc = ", rc)
+	log.Debugf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())
 
 	var elapsedTime time.Duration = 0
 	var totalRead int64 = 0

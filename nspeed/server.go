@@ -17,7 +17,7 @@ import (
 
 // Default configuration values
 const (
-	DefaultMaxBodySize int64 = 1024 * 1024 * 1024 * 1024 // bytes
+	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 100 // bytes
 	DefaultMaxDuration       = 10 * time.Second
 	DefaultPort              = 7333
 )
@@ -59,12 +59,12 @@ func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
 }
 
 func (j *NSpeedHTTPServer) GoString() string {
-	return fmt.Sprintf("server {host: %q, port: %d, IPversion: %d, max_size: %s, max_duration: %s, UseTLS: %t}",
+	return fmt.Sprintf("server {host: %q, port: %d, IPversion: %d, max_size: %s, max_duration: %d, UseTLS: %t}",
 		j.Parameters.Host,
 		j.Parameters.Port,
 		j.Parameters.ForceIPVersion,
 		ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
-		j.Parameters.MaxDuration.String(),
+		j.Parameters.MaxDuration,
 		j.Parameters.ServeTLS,
 	)
 }
@@ -275,8 +275,8 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	}()
 
 	// "tcp4" for IPv4 only
-	// "tcp6" or IPv4 only
-	// "tcp" (default)forboth
+	// "tcp6" or IPv6 only
+	// "tcp" (default) for both
 	network := "tcp"
 	if s.Parameters.ForceIPVersion == 4 {
 		network = "tcp4"

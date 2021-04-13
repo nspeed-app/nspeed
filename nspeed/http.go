@@ -72,6 +72,21 @@ type roundTripTrace struct {
 // HTTPDownload implements HTTP GET command
 func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
+	var dialer = &net.Dialer{
+		Timeout:       5 * time.Second,
+		FallbackDelay: -1,
+		LocalAddr:     nil, // todo "-a" for client
+		// Control: func(network string, address string, c syscall.RawConn) error {
+
+		// },
+	}
+
+	var netTransport = &http.Transport{
+		DialContext:         dialer.DialContext,
+		ForceAttemptHTTP2:   true,
+		TLSHandshakeTimeout: 5 * time.Second,
+	}
+
 	// create http client
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -79,23 +94,9 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			wm.InitNew()
 			return nil // http.ErrUseLastResponse
 		},
-		Transport: http.DefaultTransport,
+		Transport: netTransport, // http.DefaultTransport,
+		Timeout:   10 * time.Second,
 	}
-
-	// dialer := &net.Dialer{
-	// 	Timeout:   30 * time.Second,
-	// 	LocalAddr: nil,
-	// 	DualStack: false,
-	// 	KeepAlive: 30 * time.Second,
-	// 	Resolver:  &net.Resolver{},
-	// 	Control: func(network string, address string, c syscall.RawConn) error {
-
-	// 	},
-	// }
-
-	// client.Transport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-	// 	return dialer.DialContext(ctx, network, addr)
-	// }
 
 	//todo: client.Transport.(*http.Transport).ForceAttemptHTTP2 = true
 
@@ -247,10 +248,13 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			" procotol = ", protocol,
 			" local IP:port = ", wm.ConnInfo.Conn.LocalAddr(),
 			" remote IP:port = ", wm.ConnInfo.Conn.RemoteAddr(),
-			" DNSInfoTime = ", wm.DNSInfoTime.Sub(refdate),
+			" DNSInfoTime = ", tr.dnsDone.Sub(refdate), //wm.DNSInfoTime.Sub(refdate),
 			" ConnInfoTime = ", wm.ConnInfoTime.Sub(refdate),
 			" FirstResponseByte = ", wm.FirstResponseByte.Sub(refdate),
 		)
+		for _, a := range wm.DNSInfo.Addrs {
+			log.Info("#", wm.Index, "dns: ", a)
+		}
 		if resp.TLS != nil {
 			log.Info("#", wm.Index,
 				" crypto = ", TLSVersionName(resp.TLS.Version),

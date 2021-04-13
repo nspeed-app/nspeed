@@ -66,10 +66,10 @@ func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 
 // PrintProgress prints the intermediary metrics
 func (wm *WorkerMetrics) PrintProgress() {
-	log.Info(
-		"#", wm.Index, ";", wm.ElapsedTime.Seconds(), ";",
-		ByteCountBinary(wm.TotalRead)+"B", ";",
-		ByteCountBinary(wm.ContentSize)+"B", ";", wm.StepSize, ";", wm.Target)
+	log.Infof("job %d | elapsed %.2f secs | %sB of %sB | buffer = %d",
+		wm.Index, wm.ElapsedTime.Seconds(),
+		ByteCountBinary(wm.TotalRead), ByteCountBinary(wm.ContentSize),
+		wm.StepSize)
 }
 
 // PrintFinal prints the final metrics
