@@ -92,7 +92,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		LocalAddr:     LocalAddr, // "-a" for client
 		//there should a be higher level to enforce an IP version but for now we do this here
 		Control: func(network string, address string, c syscall.RawConn) error {
-			log.Printf("Control %s %s %d ", network, address, j.IPversion)
+			log.Debugf("Control %s %s %d ", network, address, j.IPversion)
 			if j.IPversion == 4 && network[len(network)-1] == '6' {
 				return errors.New("bad IP version: want IPv4 got " + network)
 			}
@@ -107,6 +107,8 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		DialContext:         dialer.DialContext,
 		ForceAttemptHTTP2:   true,
 		TLSHandshakeTimeout: 5 * time.Second,
+		WriteBufferSize:     1024 * 1024,
+		ReadBufferSize:      1024 * 1024,
 	}
 
 	// create http client
@@ -238,8 +240,12 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		log.Fatal(err)
 	}
 
-	if j.Command == "GET" {
-		defer resp.Body.Close()
+	if j.Command == "GET" && resp != nil {
+		defer func() {
+			if resp.Body != nil {
+				resp.Body.Close()
+			}
+		}()
 
 		protocol := resp.Proto
 		log.Info("#", wm.Index,
