@@ -15,6 +15,9 @@ import (
 	"time"
 )
 
+var ServerVersion string
+var ServerName string
+
 // Default configuration values
 const (
 	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 100 // bytes
@@ -51,7 +54,7 @@ type NSpeedHTTPServer struct {
 }
 
 func (j *NSpeedHTTPServer) GetTarget() string {
-	return "nyi"
+	return fmt.Sprintf("server %s:%d (%d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
 }
 
 func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
@@ -79,6 +82,7 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 
 	// mux.HandleFunc("/", serverfile)
 	mux.HandleFunc("/g/", h.StreamBytes)
+	mux.HandleFunc("/p", h.Upload)
 	mux.HandleFunc("/p/", h.Upload)
 
 	// return client informations
@@ -86,7 +90,6 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 
 	// prevent appending '/'
 	mux.HandleFunc("/g", http.NotFound)
-	mux.HandleFunc("/p", http.NotFound)
 
 	//
 	var handler http.Handler

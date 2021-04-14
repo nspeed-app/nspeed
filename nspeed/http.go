@@ -20,16 +20,17 @@ import (
 // a HTTP command, get or post
 // implement Job interface
 type HTTPjob struct {
-	Command     string
-	Repeat      int
-	IPversion   int
-	Host        string
-	Target      string
-	Instance    int
-	Timeout     time.Duration
-	UserAgent   string
-	ContentType string
-	ContentSize int64
+	Command      string
+	Repeat       int
+	IPversion    int
+	Host         string
+	Target       string
+	Instance     int
+	Timeout      time.Duration
+	UserAgent    string
+	ContentType  string
+	ContentSize  int64
+	SkipTLSCheck bool
 }
 
 func (j *HTTPjob) GoString() string {
@@ -107,16 +108,22 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		DialContext:         dialer.DialContext,
 		ForceAttemptHTTP2:   true,
 		TLSHandshakeTimeout: 5 * time.Second,
-		WriteBufferSize:     1024 * 1024,
-		ReadBufferSize:      1024 * 1024,
+		// WriteBufferSize:     1024 * 1024,
+		// ReadBufferSize:      1024 * 1024,
+	}
+
+	if j.SkipTLSCheck {
+		netTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
 	// create http client
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			log.Infof("job %d got redirect", wm.Index) // todo display redirect chain ?
-			wm.InitNew()
-			return nil // http.ErrUseLastResponse
+			loc, err := req.Response.Location()
+			log.Infof("job %d got redirect to %s (%v)", wm.Index, loc.String(), err)
+
+			wm.InitNew() //todo: evaluate
+			return nil   // http.ErrUseLastResponse
 		},
 		Transport: netTransport, // http.DefaultTransport,
 		// Timeout:   10 * time.Second,

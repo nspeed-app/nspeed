@@ -101,6 +101,7 @@ func preflight(h http.Handler) http.Handler {
 		respHeader := w.Header()
 		respHeader.Set("Access-Control-Allow-Origin", origin)
 		respHeader.Set("Access-Control-Allow-Credentials", "true")
+		respHeader.Set("Server:", ServerName+" "+ServerVersion)
 
 		if r.Method == "OPTIONS" {
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS") // , HEAD, PUT, DELETE, PATCH, ") // todo
