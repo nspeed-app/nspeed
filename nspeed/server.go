@@ -20,7 +20,7 @@ var ServerName string
 
 // Default configuration values
 const (
-	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 100 // bytes
+	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 40 // bytes
 	DefaultMaxDuration       = 10 * time.Second
 	DefaultPort              = 7333
 )

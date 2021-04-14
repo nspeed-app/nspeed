@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
-	"strconv"
 	"sync"
 	"time"
 
@@ -34,6 +33,12 @@ var implementedCommands = map[string]int{
 	getCommand:   1,
 	putCommand:   1,
 	serveCommand: 2,
+}
+
+var commandDescription = map[string]string{
+	getCommand:   "perform an HTTP GET command to measure download speed",
+	putCommand:   "perform an HTTP POST command to measure upload speed",
+	serveCommand: "launch a standard web server supporting GET and POST commands of abitraty sizes",
 }
 
 // global options
@@ -73,7 +78,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			fs.Usage = func() {
 				fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
 				fmt.Fprintf(fs.Output(), "  %s [options] url\n", getCommand)
-				fmt.Fprintf(fs.Output(), "Available options:\n")
+				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 				fs.PrintDefaults()
 			}
 			repeat := fs.Uint("n", 1, "number of times to process an item")
@@ -123,7 +128,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 				fmt.Fprintf(fs.Output(), "  %s [options] url size\n", getCommand)
 				fmt.Fprintf(fs.Output(), "size is a number of bytes with an optionnal units like \"100k\" (100x1000 bytes) or \"100K\" (100x1024 bytes)\n")
 				fmt.Fprintf(fs.Output(), "supported units: kmgtpe (x1000 units) and KMGTPE (x1024 units)\n")
-				fmt.Fprintf(fs.Output(), "Available options:\n")
+				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 				fs.PrintDefaults()
 			}
 			repeat := fs.Uint("n", 1, "number of times to process an item")
@@ -178,13 +183,19 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 		case serveCommand:
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			host := &nspeed.NSpeedHost{}
+			fs.Usage = func() {
+				fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
+				fmt.Fprintf(fs.Output(), "  %s [options]\n", getCommand)
+				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
+				fs.PrintDefaults()
+			}
 
 			fs.StringVar(&host.Host, "a", "localhost", "Hostname or ip address to listen (use \"\" for all interfaces/all addresses)")
 			//flag.Lookup("address").NoOptDefVal = ""
 			useIPv4 := fs.Bool("4", false, "use IPv4 only")
 			useIPv6 := fs.Bool("6", false, "use IPv6 only")
 			fs.IntVar(&host.Port, "p", nspeed.DefaultPort, "Port to listen on")
-			maxsize := fs.String("s", strconv.FormatInt(nspeed.DefaultMaxBodySize, 10), "Maximum size of response, in bytes or units of bytes")
+			maxsize := fs.String("s", nspeed.FormatByteDecimalUnits(nspeed.DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
 			maxtime := fs.Uint("t", uint(nspeed.DefaultMaxDuration.Seconds()), "Maximum duration a response may take")
 			fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
 			fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
@@ -247,11 +258,11 @@ func main() {
 		name := "nspeed" //todp
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s [global options] <command> ... <command>\n\n", name)
-		fmt.Fprintf(flag.CommandLine.Output(), "Available commands: ")
+		fmt.Fprintf(flag.CommandLine.Output(), "Available commands:\n")
 		for c := range implementedCommands {
-			fmt.Fprintf(flag.CommandLine.Output(), "%s ", c)
+			fmt.Fprintf(flag.CommandLine.Output(), "  - %-6s: %s\n", c, commandDescription[c])
 		}
-		fmt.Fprintf(flag.CommandLine.Output(), "\n\nuse: \"%s <command> -h\" to see usage for each command\n\n", name)
+		fmt.Fprintf(flag.CommandLine.Output(), "\nuse: \"%s <command> -h\" to each command specific arguments and options\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "Available global options:\n\n")
 		flag.PrintDefaults()
 	}

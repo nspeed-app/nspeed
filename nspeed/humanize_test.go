@@ -18,6 +18,7 @@ func TestParseByteUnits(t *testing.T) {
 		{"1M", 1024 * 1024, false},
 		{"1g", 1000 * 1000 * 1000, false},
 		{"1G", 1024 * 1024 * 1024, false},
+		{"1.2k", 1200, false},
 	} // todo : add more tests
 
 	for _, table := range tables {
@@ -33,8 +34,8 @@ func TestByteCountBinary(t *testing.T) {
 		x int64
 		y string
 	}{
-		{1, "1"},
-		{1000, "1000"},
+		{1, "1 "},
+		{1000, "1000 "},
 		{1024, "1.0 Ki"},
 		{1024 * 1024, "1.0 Mi"},
 		{1024*1024 + 100*1024, "1.1 Mi"},
@@ -42,7 +43,7 @@ func TestByteCountBinary(t *testing.T) {
 	for _, table := range tables {
 		s := ByteCountBinary(table.x)
 		if s != table.y {
-			t.Errorf("ByteCountBinary of (%d) was incorrect, got: %s want %s", table.x, s, table.y)
+			t.Errorf("ByteCountBinary of (%d) was incorrect, got: |%s| want |%s|", table.x, s, table.y)
 		}
 	}
 }

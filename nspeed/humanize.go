@@ -7,9 +7,9 @@ import (
 )
 
 // shamelessly copied from : https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
-func byteCount(b int64, u string, unit int64, units string) string {
+func byteCount(b int64, unit int64, units string) (string, string) {
 	if b < unit {
-		return fmt.Sprintf("%d ", b)
+		return fmt.Sprintf("%d", b), ""
 	}
 	div, exp := int64(unit), 0
 	for n := b / unit; n >= unit; n /= unit {
@@ -17,19 +17,41 @@ func byteCount(b int64, u string, unit int64, units string) string {
 		exp++
 	}
 	if exp >= len(units) {
-		return fmt.Sprintf("%d", b)
+		return fmt.Sprintf("%d", b), ""
 	}
-	return fmt.Sprintf("%.1f %c%s", float64(b)/float64(div), units[exp], u)
+	return fmt.Sprintf("%.1f", float64(b)/float64(div)), units[exp : exp+1]
 }
 
 // ByteCountDecimal format byte size to human readable format (decimal units)
+// suitable to append the unit name after (B, bps, etc)
 func ByteCountDecimal(b int64) string {
-	return byteCount(b, "", 1000, "kMGTPE")
+	s, u := byteCount(b, 1000, "kMGTPE")
+	return s + " " + u
 }
 
 // ByteCountBinary format byte size to human readable format (binary units)
+// suitable to append the unit name after (B, bps, etc)
 func ByteCountBinary(b int64) string {
-	return byteCount(b, "i", 1024, "KMGTPE")
+	s, u := byteCount(b, 1024, "KMGTPE")
+	if len(u) > 0 {
+		return s + " " + u + "i"
+	} else {
+		return s + " "
+	}
+}
+
+// FormatByteDecimalUnits format byte size to human readable format (decimal units)
+// suitable to be parsed by ParseByteUnits
+func FormatByteDecimalUnits(b int64) string {
+	s, u := byteCount(b, 1000, "kmgtpe")
+	return s + u
+}
+
+// FormatByteDecimalUnits format byte size to human readable format (decimal units)
+// suitable to be parsed by ParseByteUnits
+func FormatBinaryUnits(b int64) string {
+	s, u := byteCount(b, 1024, "KMGTPE")
+	return s + u
 }
 
 // parse bytes units - "<value>kmgtpe" powers of 2 (B), "<value>KMGTPE" powers of 10 (iB)
@@ -49,8 +71,15 @@ func ParseByteUnits(s string) (uint64, error) {
 			m = m * unit
 		}
 	}
-	val, err := strconv.ParseUint(s, 10, 64)
-	return m * val, err
+	val, err := strconv.ParseFloat(s, 64)
+	if err == nil {
+		if val < 0.0 {
+			fmt.Println("NEG")
+			return 0, strconv.ErrSyntax
+		}
+		return uint64(float64(m) * val), err
+	}
+	return 0, err
 }
 
 // FormatBitperSecond format bit per seconds in human readable format
