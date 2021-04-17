@@ -1,8 +1,10 @@
 package nspeed
 
 import (
+	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"time"
 )
@@ -140,4 +142,66 @@ func StdLogFunc(l *log.Logger) func(Result) {
 			result.Duration.Seconds()*1e3, // https://github.com/golang/go/issues/5491#issuecomment-66079585
 		)
 	}
+}
+
+// ResolveInterfaceHostAddress return IP address by resolving in order: interface name, dns name
+func ResolveInterfaceHostAddress(address string) ([]net.IPAddr, error) {
+	itf, err := net.InterfaceByName(address)
+	if err != nil {
+		ips, err := net.LookupIP(address)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Printf("got dns for %s\n", address)
+		var ipaddrs []net.IPAddr
+		for _, ip := range ips {
+			if filterIP(ip) {
+				continue
+			}
+			ipaddr := net.IPAddr{IP: ip}
+			ipaddrs = append(ipaddrs, ipaddr)
+		}
+		return ipaddrs, nil
+	}
+
+	fmt.Printf("got interface for %s\n", address)
+	// got an interface
+	if itf.Flags&net.FlagUp == 0 {
+		return nil, errors.New("interface is not up: " + itf.Name)
+	}
+
+	addrs, err := itf.Addrs()
+	if err != nil {
+		return nil, err
+	}
+	var ipaddrs []net.IPAddr
+	for _, addr := range addrs {
+		ipn, ok := addr.(*net.IPNet)
+		if !ok {
+			fmt.Printf("not IPAddr %s\n", addr.String())
+			continue
+		}
+		ipa := net.IPAddr{IP: ipn.IP}
+		if filterIP(ipa.IP) {
+			continue
+		}
+		// if linklocal & IPv6
+		if ipa.IP.IsLinkLocalUnicast() && ipa.IP.To4() == nil {
+			ipa.Zone = itf.Name // todo: not sure this works on all platform, might use itf.Index
+		}
+		ipaddrs = append(ipaddrs, ipa)
+	}
+	return ipaddrs, nil
+}
+
+// filter IP: must be valid and global unicast
+func filterIP(ip net.IP) bool {
+	fmt.Printf("filtering %s\n", ip.String())
+	if ip == nil {
+		return true
+	}
+	if !ip.IsGlobalUnicast() {
+		return true
+	}
+	return false
 }
