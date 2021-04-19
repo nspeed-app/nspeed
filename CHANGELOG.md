@@ -1,8 +1,3 @@
-#v 0.6
-todo:
-- delay
-- api
-- merge client & server
 # v0.5
 ## general
  - better usage help text
