@@ -20,7 +20,7 @@
   - put: redirect(s) happen after the upload which normal behavior for a HTTP POST.
   - performance inconsistencies on Windows
   - '-a "" ' doesn't parse on Windows
-
+  - 'a inteface_name' binds also to the IPv6 temporary address(es) which exist at that moment. this will be fixed lateR.
  # v0.4 - 2021/04/09
  first alpha
 

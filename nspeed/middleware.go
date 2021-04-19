@@ -181,21 +181,22 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 	for _, addr := range addrs {
 		ipn, ok := addr.(*net.IPNet)
 		if !ok {
-			fmt.Printf("not IPAddr %s\n", addr.String())
+			//log.Error("not IPAddr %s\n", addr.String())
 			continue
 		}
 		ipa := net.IPAddr{IP: ipn.IP}
 		if ipa.IP == nil {
 			continue
 		}
-		// if linklocal & IPv6 -> move at the end
-		if ipa.IP.IsLinkLocalUnicast() && ipa.IP.To4() == nil {
-			ipa.Zone = itf.Name // todo: not sure this works on all platform, might use itf.Index
+		// if link-local -> move at the end
+		if ipa.IP.IsLinkLocalUnicast() {
+			if ipa.IP.To4() == nil {
+				ipa.Zone = itf.Name // todo: not sure this works on all platform, might use itf.Index
+			}
 			ipaddrs = append(ipaddrs, ipa)
 		} else {
 			ipaddrs = append([]net.IPAddr{ipa}, ipaddrs...)
 		}
-
 	}
 	return ipaddrs, nil
 }
