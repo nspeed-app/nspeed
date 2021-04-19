@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 )
@@ -70,6 +71,7 @@ func init() {
 }
 
 func main() {
+	fmt.Printf("%v\n", os.Args)
 	// All the interesting pieces are with the variables declared above, but
 	// to enable the flag package to see the flags defined there, one must
 	// execute, typically at the start of main (not init!):
