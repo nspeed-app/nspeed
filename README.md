@@ -1,6 +1,6 @@
 # NSpeed
-A client and server high performance network bandwidth measurement using Internet standards (HTTP/1, HTTP/2, HTTP3, WebRTC)
-Interoperable with standard web clients and web servers
+A client and server high performance network bandwidth measurement tool using Internet standards (HTTP/1, HTTP/2, HTTP/3*, WebRTC, WebTransport*)
+Interoperable with standard web clients (like curl) and standard web servers (NGinx, Apache, etc)
 
 ## Usage
     nspeed [global options] [command] ... [command]
@@ -11,15 +11,13 @@ Interoperable with standard web clients and web servers
     - server
 
     The "server" command can only be combined with itself. others commands can be mixed.
-    each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance
+    Each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance
 
     get [options] url 
 
     put [options] url size
 
     server [options] 
-
-    as of v0.4 the "-4" and "-6" options are not yet implemented but parsed.
 
 ## Examples
 
@@ -28,6 +26,9 @@ Interoperable with standard web clients and web servers
 
     # download 2 different targets
     nspeed get https://bouygues.testdebit.info/10G/10G.iso get https://scaleway.testdebit.info/10G/10G.iso
+
+    # downlaod the same target both in IPv4 and IPv6
+    nspeed get -4 https://bouygues.testdebit.info/100M/100M.iso get -6 https://bouygues.testdebit.info/100M/100M.iso
 
     # upload 2 1GB to a single target (use "1G" for 1GiB -accepted prefixes: k,m,g,t,p,e)
     nspeed put -n 2 https://bouygues.testdebit.info/ 1g
@@ -39,7 +40,16 @@ Interoperable with standard web clients and web servers
     nspeed server
     
     # start a server at port 8888 with max time of 5 seconds and 1 GB max size accepted
-    server -p 8080 -t 5s -s 1000000000
+    nspeed server -p 8080 -t 5s -s 1000000000
+
+    # start a server listening on all interfaces but in IPv6 only
+    nspeed server -6 -a ""
+
+    # start a server listening on a specific IPv4 address
+    nspeed server -a 192.168.1.3
+
+    # start two instances of server, one listening on a specific IPv6 address and one on a specific IPv4 address
+    nspeed server -a 2001:1234:5678::3 server -a 192.168.1.3
 
     # download 1GB from a nspeed server
     nspeed get http://localhost:7333/g/1g
@@ -60,8 +70,7 @@ Interoperable with standard web clients and web servers
 
 Binary distribution available here: [dl.nspeed.app](https://dl.nspeed.app) or in the [release section](https://github.com/nspeed-app/nspeed/releases)
 
-These binaries are for Windows, Linux and Darwin (MacOs).
-Download the one for your system and rename it to nspeed.
+Download the one for your system and eventually rename it to `nspeed`.
 On Unix systems make the file executable with: `chmod +x nspeed` 
 
 Source code with be released before v1.0
@@ -70,14 +79,14 @@ Source code with be released before v1.0
 
 "commands" with planned implementation:
   - ping (icmp/udp/tcp latency)
-  - p2p (webrtc over udp with STUN/ICE nat traversal)
+  - p2p (using webrtc over udp with STUN/ICE nat traversal)
 
 other planned features:
   - web ui / remote control (api)
   - formatted metrics (prometheus/openmetrics)
   - and much more
 
-wip
+*wip: when available in Go
 
 ## Acknowledgement
 - Vivien Guéant & everyone at [lafibre.info](https://lafibre.info) for spawning the ideas and their feedback and testing.
