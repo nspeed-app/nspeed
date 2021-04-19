@@ -76,14 +76,23 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	var LocalAddr net.Addr
 	if j.Host != "" {
-		la, err := net.ResolveIPAddr("ip", j.Host)
+		la, err := ResolveInterfaceHostAddress(j.Host)
+		//la, err := net.ResolveIPAddr("ip", j.Host)
 		if err != nil {
 			return errors.New("bad local host address: " + j.Host)
 		}
+
+		fhostIPAddrs := FilterAddresses(la, j.IPversion)
+
+		if len(fhostIPAddrs) == 0 {
+			log.Errorf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", la, fhostIPAddrs, j.IPversion)
+			return errors.New("no valid candidate address found")
+		}
+
 		LocalAddr = &net.TCPAddr{
-			IP:   la.IP,
+			IP:   fhostIPAddrs[0].IP,
 			Port: 0,
-			Zone: la.Zone,
+			Zone: fhostIPAddrs[0].Zone,
 		}
 	}
 

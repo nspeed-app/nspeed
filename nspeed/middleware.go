@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -149,14 +150,25 @@ func StdLogFunc(l *log.Logger) func(Result) {
 // if 'host' is a valid inteface name, all IPs of that interface are returned, IPv6 link-local(s) are last in the result
 // if 'host' is a not valid interface, 'host' is treated as a dns name and resolved as such
 func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
+
 	itf, err := net.InterfaceByName(host)
 	if err != nil {
+		var ipaddrs []net.IPAddr
+
+		// special case, "ipv6%zone"
+		hi := strings.SplitN(host, "%", 2)
+		if len(hi) == 2 {
+			ip := net.ParseIP(hi[0])
+			if ip == nil {
+				return nil, errors.New("bad IP format")
+			}
+			return append(ipaddrs, net.IPAddr{IP: ip, Zone: hi[1]}), nil
+		}
+
 		ips, err := net.LookupIP(host)
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("got dns for %s\n", host)
-		var ipaddrs []net.IPAddr
 		for _, ip := range ips {
 			if ip == nil {
 				continue
@@ -167,10 +179,9 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 		return ipaddrs, nil
 	}
 
-	fmt.Printf("got interface for %s\n", host)
-	// got an interface
+	// we got an interface
 	if itf.Flags&net.FlagUp == 0 {
-		return nil, errors.New("interface is not up: " + itf.Name)
+		return nil, errors.New("interface is down: " + itf.Name)
 	}
 
 	addrs, err := itf.Addrs()
@@ -199,4 +210,30 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 		}
 	}
 	return ipaddrs, nil
+}
+
+// FilterAddresses
+func FilterAddresses(addrs []net.IPAddr, ipversion int) []net.IPAddr {
+	var fipaddrs []net.IPAddr
+
+	if ipversion == 0 {
+		return addrs
+	}
+
+	// bad ipversion -> return nothing
+	if ipversion != 4 && ipversion != 6 {
+		return nil
+	}
+
+	for _, addr := range addrs {
+		if addr.IP.To4() == nil && ipversion == 6 {
+			fipaddrs = append(fipaddrs, addr)
+			continue
+		}
+		if addr.IP.To4() != nil && ipversion == 4 {
+			fipaddrs = append(fipaddrs, addr)
+			continue
+		}
+	}
+	return fipaddrs
 }
