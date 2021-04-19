@@ -250,6 +250,8 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	host := s.Parameters.Host
 
 	// empty host is a special case
+
+	serverLog("host parameter is:'%s'", host)
 	if host != "" {
 		// if host is an interface name
 		hostIPAddrs, err := ResolveInterfaceHostAddress(s.Parameters.Host)
