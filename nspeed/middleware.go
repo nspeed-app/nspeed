@@ -144,18 +144,21 @@ func StdLogFunc(l *log.Logger) func(Result) {
 	}
 }
 
-// ResolveInterfaceHostAddress return IP address by resolving in order: interface name, dns name
-func ResolveInterfaceHostAddress(address string) ([]net.IPAddr, error) {
-	itf, err := net.InterfaceByName(address)
+// ResolveInterfaceHostAddress returns the IP address(es) og 'host' by
+// resolving 'host' as, in that order,: interface name, dns name
+// if 'host' is a valid inteface name, all IPs of that interface are returned, IPv6 link-local(s) are last in the result
+// if 'host' is a not valid interface, 'host' is treated as a dns name and resolved as such
+func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
+	itf, err := net.InterfaceByName(host)
 	if err != nil {
-		ips, err := net.LookupIP(address)
+		ips, err := net.LookupIP(host)
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("got dns for %s\n", address)
+		fmt.Printf("got dns for %s\n", host)
 		var ipaddrs []net.IPAddr
 		for _, ip := range ips {
-			if filterIP(ip) {
+			if ip == nil {
 				continue
 			}
 			ipaddr := net.IPAddr{IP: ip}
@@ -164,7 +167,7 @@ func ResolveInterfaceHostAddress(address string) ([]net.IPAddr, error) {
 		return ipaddrs, nil
 	}
 
-	fmt.Printf("got interface for %s\n", address)
+	fmt.Printf("got interface for %s\n", host)
 	// got an interface
 	if itf.Flags&net.FlagUp == 0 {
 		return nil, errors.New("interface is not up: " + itf.Name)
@@ -182,26 +185,17 @@ func ResolveInterfaceHostAddress(address string) ([]net.IPAddr, error) {
 			continue
 		}
 		ipa := net.IPAddr{IP: ipn.IP}
-		if filterIP(ipa.IP) {
+		if ipa.IP == nil {
 			continue
 		}
-		// if linklocal & IPv6
+		// if linklocal & IPv6 -> move at the end
 		if ipa.IP.IsLinkLocalUnicast() && ipa.IP.To4() == nil {
 			ipa.Zone = itf.Name // todo: not sure this works on all platform, might use itf.Index
+			ipaddrs = append(ipaddrs, ipa)
+		} else {
+			ipaddrs = append([]net.IPAddr{ipa}, ipaddrs...)
 		}
-		ipaddrs = append(ipaddrs, ipa)
+
 	}
 	return ipaddrs, nil
-}
-
-// filter IP: must be valid and global unicast
-func filterIP(ip net.IP) bool {
-	fmt.Printf("filtering %s\n", ip.String())
-	if ip == nil {
-		return true
-	}
-	if !ip.IsGlobalUnicast() {
-		return true
-	}
-	return false
 }
