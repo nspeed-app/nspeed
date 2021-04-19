@@ -20,7 +20,7 @@
   - server: the default host is now 'localhost' which leads to bind only to IPv4 (Go bug: https://github.com/golang/go/issues/9334). A temporary workaround is to launch a second server instance with the -6 flag: `nspeed server server -6` will listen to localhost on IPv4 and IPv6. A fix will be implemented soon. Some OS can fail to resolve 'localhost' to ::1 even if they have IPv6 configured. In that case use "-a ::1" explicitly (`nspeed server server -a ::1`)
   - put: redirect(s) happen after the upload which normal behavior for a HTTP POST.
   - performance inconsistencies on Windows
-  - '-a "" ' doesn't parse on Windows, workaround: use '-a ::' 
+  - '-a "" ' doesn't parse on Windows, workaround: use '-a=""' 
   - server: '-a interface_name' bind to the first candidate address (ipv6/ipv4/link-local) found for that interface. It's not the same behavior as a bind with SO_BINDTODEVICE (which is platform specific).
   - client: '-a interface_name' use the first candidate address (ipv6/ipv4/link-local) found for that interface. It doesn't perfom a source address selection depending on the destination.
  # v0.4 - 2021/04/09

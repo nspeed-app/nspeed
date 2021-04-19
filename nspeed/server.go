@@ -247,21 +247,27 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	}
 	s.Logger = StdLogFunc(logger)
 
-	// if host is an interface name
-	hostIPAddrs, err := ResolveInterfaceHostAddress(s.Parameters.Host)
-	if err != nil {
-		return err
-	}
+	host := s.Parameters.Host
 
-	fhostIPAddrs := FilterAddresses(hostIPAddrs, s.Parameters.ForceIPVersion)
+	// empty host is a special case
+	if host != "" {
+		// if host is an interface name
+		hostIPAddrs, err := ResolveInterfaceHostAddress(s.Parameters.Host)
+		if err != nil {
+			return err
+		}
 
-	if len(fhostIPAddrs) == 0 {
-		serverLog("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, s.Parameters.ForceIPVersion)
-		return errors.New("no valid candidate address found")
+		fhostIPAddrs := FilterAddresses(hostIPAddrs, s.Parameters.ForceIPVersion)
+
+		if len(fhostIPAddrs) == 0 {
+			serverLog("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, s.Parameters.ForceIPVersion)
+			return errors.New("no valid candidate address found")
+		}
+		host = fhostIPAddrs[0].String()
 	}
 
 	// since Addr of http.Server is a single value we only use the first address
-	listenAddr := net.JoinHostPort(fhostIPAddrs[0].String(), strconv.Itoa(s.Parameters.Port))
+	listenAddr := net.JoinHostPort(host, strconv.Itoa(s.Parameters.Port))
 	server := &http.Server{
 		Addr:         listenAddr,
 		Handler:      s.Handler(),
