@@ -43,7 +43,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     nspeed server -p 8080 -t 5s -s 1000000000
 
     # start a server listening on all interfaces but in IPv6 only
-    nspeed server -6 -a ""
+    nspeed server -6 -a=""
 
     # start a server listening on a specific IPv4 address
     nspeed server -a 192.168.1.3
