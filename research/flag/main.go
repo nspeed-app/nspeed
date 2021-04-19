@@ -78,5 +78,5 @@ func main() {
 	flag.Parse()
 	// We don't run it here because this is not a main function and
 	// the testing suite has already parsed the flags.
-	fmt.Printf("%v\n", gopherType)
+	fmt.Printf("g=|%s|\n", gopherType)
 }
