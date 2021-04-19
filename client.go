@@ -38,7 +38,7 @@ var implementedCommands = map[string]int{
 var commandDescription = map[string]string{
 	getCommand:   "perform an HTTP GET command to measure download speed",
 	putCommand:   "perform an HTTP POST command to measure upload speed",
-	serveCommand: "launch a standard web server supporting GET and POST commands of abitraty sizes",
+	serveCommand: "launch a standard web server supporting GET and POST commands of arbitraty sizes",
 }
 
 // global options
@@ -262,7 +262,7 @@ func main() {
 		for c := range implementedCommands {
 			fmt.Fprintf(flag.CommandLine.Output(), "  - %-6s: %s\n", c, commandDescription[c])
 		}
-		fmt.Fprintf(flag.CommandLine.Output(), "\nuse: \"%s <command> -h\" to each command specific arguments and options\n\n", name)
+		fmt.Fprintf(flag.CommandLine.Output(), "\nuse: \"%s <command> -h\" to see each command specific arguments and options\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "Available global options:\n\n")
 		flag.PrintDefaults()
 	}
