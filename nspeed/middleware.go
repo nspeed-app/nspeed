@@ -1,12 +1,9 @@
 package nspeed
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -143,97 +140,4 @@ func StdLogFunc(l *log.Logger) func(Result) {
 			result.Duration.Seconds()*1e3, // https://github.com/golang/go/issues/5491#issuecomment-66079585
 		)
 	}
-}
-
-// ResolveInterfaceHostAddress returns the IP address(es) og 'host' by
-// resolving 'host' as, in that order,: interface name, dns name
-// if 'host' is a valid inteface name, all IPs of that interface are returned, IPv6 link-local(s) are last in the result
-// if 'host' is a not valid interface, 'host' is treated as a dns name and resolved as such
-func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
-
-	itf, err := net.InterfaceByName(host)
-	if err != nil {
-		var ipaddrs []net.IPAddr
-
-		// special case, "ipv6%zone"
-		hi := strings.SplitN(host, "%", 2)
-		if len(hi) == 2 {
-			ip := net.ParseIP(hi[0])
-			if ip == nil {
-				return nil, errors.New("bad IP format")
-			}
-			return append(ipaddrs, net.IPAddr{IP: ip, Zone: hi[1]}), nil
-		}
-
-		ips, err := net.LookupIP(host)
-		if err != nil {
-			return nil, err
-		}
-		for _, ip := range ips {
-			if ip == nil {
-				continue
-			}
-			ipaddr := net.IPAddr{IP: ip}
-			ipaddrs = append(ipaddrs, ipaddr)
-		}
-		return ipaddrs, nil
-	}
-
-	// we got an interface
-	if itf.Flags&net.FlagUp == 0 {
-		return nil, errors.New("interface is down: " + itf.Name)
-	}
-
-	addrs, err := itf.Addrs()
-	if err != nil {
-		return nil, err
-	}
-	var ipaddrs []net.IPAddr
-	for _, addr := range addrs {
-		ipn, ok := addr.(*net.IPNet)
-		if !ok {
-			//log.Error("not IPAddr %s\n", addr.String())
-			continue
-		}
-		ipa := net.IPAddr{IP: ipn.IP}
-		if ipa.IP == nil {
-			continue
-		}
-		// if link-local -> move at the end
-		if ipa.IP.IsLinkLocalUnicast() {
-			if ipa.IP.To4() == nil {
-				ipa.Zone = itf.Name // todo: not sure this works on all platform, might use itf.Index
-			}
-			ipaddrs = append(ipaddrs, ipa)
-		} else {
-			ipaddrs = append([]net.IPAddr{ipa}, ipaddrs...)
-		}
-	}
-	return ipaddrs, nil
-}
-
-// FilterAddresses
-func FilterAddresses(addrs []net.IPAddr, ipversion int) []net.IPAddr {
-	var fipaddrs []net.IPAddr
-
-	if ipversion == 0 {
-		return addrs
-	}
-
-	// bad ipversion -> return nothing
-	if ipversion != 4 && ipversion != 6 {
-		return nil
-	}
-
-	for _, addr := range addrs {
-		if addr.IP.To4() == nil && ipversion == 6 {
-			fipaddrs = append(fipaddrs, addr)
-			continue
-		}
-		if addr.IP.To4() != nil && ipversion == 4 {
-			fipaddrs = append(fipaddrs, addr)
-			continue
-		}
-	}
-	return fipaddrs
 }

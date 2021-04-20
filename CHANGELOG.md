@@ -1,3 +1,15 @@
+#v0.6
+## general
+ - '-a' flag now always prefers IPv6 first
+ - some minor displayed text changes
+ - display usage if no argument
+ - all command can now mixed.
+ ## server
+  -"-d duration" duration after which the server shutdown (duration must have a unit: s,m or h and a combinaison : 5h20m for instance)
+  -"-n value" number of requests after which  the server shutdown
+## client
+  - "-w duration" wait delay before starting the command
+
 # v0.5
 ## general
  - better usage help text

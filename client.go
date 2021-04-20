@@ -32,7 +32,7 @@ const serveCommand = "server"
 var implementedCommands = map[string]int{
 	getCommand:   1,
 	putCommand:   1,
-	serveCommand: 2,
+	serveCommand: 1,
 }
 
 var commandDescription = map[string]string{
@@ -56,7 +56,7 @@ var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	var out []nspeed.Job
 	args := rawArgs
-	//fmt.Printf("%s\n", args)
+
 	cmdSet := 0
 
 	for len(args) != 0 {
@@ -197,6 +197,8 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			fs.IntVar(&host.Port, "p", nspeed.DefaultPort, "Port to listen on")
 			maxsize := fs.String("s", nspeed.FormatByteDecimalUnits(nspeed.DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
 			maxtime := fs.Uint("t", uint(nspeed.DefaultMaxDuration.Seconds()), "Maximum duration a response may take")
+			fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h,d)")
+			fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = infinite)")
 			fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
 			fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
 
@@ -289,6 +291,10 @@ func main() {
 	jobs, err := parseJobs(flag.Args())
 	if err != nil {
 		log.Fatal(err)
+	}
+	if len(jobs) == 0 {
+		flag.CommandLine.Usage()
+		return
 	}
 
 	if *optCpuprofile != "" {

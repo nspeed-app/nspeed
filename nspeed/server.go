@@ -36,6 +36,8 @@ type NSpeedHost struct {
 	ServeTLS       bool
 	TLSCertFile    string
 	TLSKeyFile     string
+	RunDuration    time.Duration
+	MaxRequests    int
 }
 
 // Result used for logging
@@ -63,7 +65,7 @@ func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
 }
 
 func (j *NSpeedHTTPServer) GoString() string {
-	return fmt.Sprintf("server {host: %q, port: %d, IPversion: %d, max_size: %s, max_duration: %d, UseTLS: %t}",
+	return fmt.Sprintf("server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_duration: %d, UseTLS: %t}",
 		j.Parameters.Host,
 		j.Parameters.Port,
 		j.Parameters.ForceIPVersion,
@@ -281,15 +283,28 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	shutdownCh := make(chan os.Signal, 1)
 	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
 
+	cancel := func() {}
+	if s.Parameters.RunDuration != 0 {
+		newctx, c := context.WithTimeout(ctx, s.Parameters.RunDuration)
+		serverLog("server will shutdown in: %v", s.Parameters.RunDuration)
+		ctx = newctx
+		cancel = c
+		defer cancel()
+	}
 	// exitCh will be closed when it is safe to exit, after graceful shutdown
 	exitCh := make(chan struct{})
 
 	go func() {
-		sig := <-shutdownCh
-		serverLog("shutdown started by signal: %s", sig)
+		select {
+		case sig := <-shutdownCh:
+			serverLog("shutdown started by signal: %s", sig)
+			cancel()
+		case <-ctx.Done():
+			serverLog("shutdown started by context cancel: %s", ctx.Err())
+		}
 
 		shutdownTimeout := s.Parameters.MaxDuration + 1*time.Second
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		ctx, cancel := context.WithTimeout(ctx, shutdownTimeout)
 		defer cancel()
 
 		server.SetKeepAlivesEnabled(false)

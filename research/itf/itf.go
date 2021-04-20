@@ -11,13 +11,13 @@ import (
 func localAddresses() {
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		fmt.Print(fmt.Errorf("localAddresses: %+v\n", err.Error()))
+		fmt.Printf("localAddresses: %+v\n", err)
 		return
 	}
 	for _, i := range ifaces {
 		addrs, err := i.Addrs()
 		if err != nil {
-			fmt.Print(fmt.Errorf("localAddresses: %+v\n", err.Error()))
+			fmt.Printf("localAddresses: %+v\n", err)
 			continue
 		}
 		for _, a := range addrs {
@@ -35,8 +35,8 @@ func localAddresses() {
 
 func main() {
 	localAddresses()
-	fmt.Printf("calling for %s\n", os.Args[1:])
 	for _, a := range os.Args[1:] {
+		fmt.Printf("calling ResolveInterfaceHostAddress for %s\n", a)
 		ipaddrs, err := nspeed.ResolveInterfaceHostAddress(a)
 		if err != nil {
 			fmt.Printf("%s\n", err)

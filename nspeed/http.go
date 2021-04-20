@@ -34,7 +34,7 @@ type HTTPjob struct {
 }
 
 func (j *HTTPjob) GoString() string {
-	return fmt.Sprintf("%s {URL: %q, IPversion: %d, Host: %s, Instance: %d, timeout: %s}",
+	return fmt.Sprintf("%s {URL: %q, IPversion: %d, Address: %s, Instance: %d, timeout: %s}",
 		j.Command,
 		j.Target,
 		j.IPversion,
