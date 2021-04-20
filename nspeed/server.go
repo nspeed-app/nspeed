@@ -52,8 +52,11 @@ type Result struct {
 // the HTTP Server
 // implements Job
 type NSpeedHTTPServer struct {
-	Parameters *NSpeedHost
-	Logger     func(Result)
+	Parameters    *NSpeedHost
+	Server        *http.Server
+	Cancel        context.CancelFunc
+	TotalRequests int
+	Logger        func(Result)
 }
 
 func (j *NSpeedHTTPServer) GetTarget() string {
@@ -73,6 +76,15 @@ func (j *NSpeedHTTPServer) GoString() string {
 		j.Parameters.MaxDuration,
 		j.Parameters.ServeTLS,
 	)
+}
+
+// called each time a request is completed, see muxer
+func (j *NSpeedHTTPServer) OnRequestEnded() {
+	j.TotalRequests++
+	if j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests {
+		fmt.Printf("%d total request reached, shuting down server\n", j.TotalRequests)
+		j.Cancel()
+	}
 }
 
 func notImplemented(w http.ResponseWriter, r *http.Request) {
@@ -100,6 +112,7 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 	handler = limitRequestSize(h.Parameters.MaxBodySize, handler)
 	handler = preflight(handler)
 	handler = autohead(handler)
+	handler = limitNumRequests(h.OnRequestEnded, handler)
 	if h.Logger != nil {
 		handler = logger(h.Logger, handler)
 	}
@@ -237,6 +250,7 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	logger := log.New(os.Stderr, "", 0)
+	s.TotalRequests = 0 // just in case we reuse
 
 	// A hacky log helper function to ensure that shutdown messages are
 	// formatted the same as other messages.
@@ -272,7 +286,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	// since Addr of http.Server is a single value we only use the first address
 	listenAddr := net.JoinHostPort(host, strconv.Itoa(s.Parameters.Port))
-	server := &http.Server{
+	s.Server = &http.Server{
 		Addr:         listenAddr,
 		Handler:      s.Handler(),
 		WriteTimeout: s.Parameters.MaxDuration,
@@ -283,13 +297,12 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	shutdownCh := make(chan os.Signal, 1)
 	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
 
-	cancel := func() {}
+	// run duration is either global timeout from ctx or RunDuration parameter
+	s.Cancel = func() {}
 	if s.Parameters.RunDuration != 0 {
-		newctx, c := context.WithTimeout(ctx, s.Parameters.RunDuration)
+		ctx, s.Cancel = context.WithTimeout(ctx, s.Parameters.RunDuration)
 		serverLog("server will shutdown in: %v", s.Parameters.RunDuration)
-		ctx = newctx
-		cancel = c
-		defer cancel()
+		defer s.Cancel()
 	}
 	// exitCh will be closed when it is safe to exit, after graceful shutdown
 	exitCh := make(chan struct{})
@@ -298,17 +311,17 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 		select {
 		case sig := <-shutdownCh:
 			serverLog("shutdown started by signal: %s", sig)
-			cancel()
+			s.Cancel()
 		case <-ctx.Done():
 			serverLog("shutdown started by context cancel: %s", ctx.Err())
 		}
 
 		shutdownTimeout := s.Parameters.MaxDuration + 1*time.Second
-		ctx, cancel := context.WithTimeout(ctx, shutdownTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 
-		server.SetKeepAlivesEnabled(false)
-		if err := server.Shutdown(ctx); err != nil {
+		s.Server.SetKeepAlivesEnabled(false)
+		if err := s.Server.Shutdown(ctx); err != nil {
 			serverLog("shutdown error: %s", err)
 		}
 		close(exitCh)
@@ -334,10 +347,10 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	var listenErr error
 	if s.Parameters.ServeTLS {
 		serverLog("nspeed listening on https://%s", listenAddr)
-		listenErr = server.ServeTLS(ln, s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
+		listenErr = s.Server.ServeTLS(ln, s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
 	} else {
 		serverLog("nspeed listening on http://%s", listenAddr)
-		listenErr = server.Serve(ln)
+		listenErr = s.Server.Serve(ln)
 	}
 	if listenErr != nil && listenErr != http.ErrServerClosed {
 		logger.Fatalf("failed to listen: %s", listenErr)

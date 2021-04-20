@@ -72,6 +72,13 @@ func limitRequestSize(maxSize int64, h http.Handler) http.Handler {
 	})
 }
 
+func limitNumRequests(OnRequestEnded func(), h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h.ServeHTTP(w, r)
+		OnRequestEnded()
+	})
+}
+
 // headResponseWriter implements http.ResponseWriter in order to discard the
 // body of the response
 type headResponseWriter struct {
