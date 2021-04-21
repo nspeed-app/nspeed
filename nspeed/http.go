@@ -31,6 +31,7 @@ type HTTPjob struct {
 	ContentType  string
 	ContentSize  int64
 	SkipTLSCheck bool
+	Delay        time.Duration
 }
 
 func (j *HTTPjob) GoString() string {
@@ -229,6 +230,12 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		},
 	}
 
+	// this is where we wait
+	if j.Delay > 0 {
+		log.Infof("#%d delay option, waiting %v", wm.Index, j.Delay)
+		time.Sleep(j.Delay)
+		log.Info("#", wm.Index, " waking up")
+	}
 	refdate := time.Now()
 
 	// add timeout

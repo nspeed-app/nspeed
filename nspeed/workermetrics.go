@@ -15,7 +15,7 @@ type Job interface {
 	GetTarget() string
 	Expand([]Job) []Job
 	GoString() string
-	Start(context.Context, *WorkerMetrics) error
+	Start(context.Context, *WorkerMetrics) error // todo: split this into Init & Run
 }
 
 func ExpandJobs(jobs []Job) []Job {

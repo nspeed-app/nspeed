@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -57,6 +58,7 @@ type NSpeedHTTPServer struct {
 	Cancel        context.CancelFunc
 	TotalRequests int
 	Logger        func(Result)
+	mutex         sync.Mutex
 }
 
 func (j *NSpeedHTTPServer) GetTarget() string {
@@ -78,11 +80,27 @@ func (j *NSpeedHTTPServer) GoString() string {
 	)
 }
 
-// called each time a request is completed, see muxer
-func (j *NSpeedHTTPServer) OnRequestEnded() {
+// called each time before a request, prevent new request before actual shutdown if MaxRequest reached
+func (j *NSpeedHTTPServer) OnRequestStart() bool {
+	j.mutex.Lock()
 	j.TotalRequests++
-	if j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests {
-		fmt.Printf("%d total request reached, shuting down server\n", j.TotalRequests)
+	done := j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests
+	defer j.mutex.Unlock()
+
+	if done {
+		fmt.Printf("%d max total requests reached, notifying client\n", j.TotalRequests)
+		return true
+	}
+	return false
+}
+
+// called each time a request is completed, see muxer
+func (j *NSpeedHTTPServer) OnRequestEnd() {
+	j.mutex.Lock()
+	done := j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests
+	j.mutex.Unlock()
+	if done {
+		fmt.Printf("%d max total requests reached, shuting down server\n", j.TotalRequests)
 		j.Cancel()
 	}
 }
@@ -112,7 +130,7 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 	handler = limitRequestSize(h.Parameters.MaxBodySize, handler)
 	handler = preflight(handler)
 	handler = autohead(handler)
-	handler = limitNumRequests(h.OnRequestEnded, handler)
+	handler = limitNumRequests(h.OnRequestStart, h.OnRequestEnd, handler)
 	if h.Logger != nil {
 		handler = logger(h.Logger, handler)
 	}
@@ -297,8 +315,9 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	shutdownCh := make(chan os.Signal, 1)
 	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
 
+	// s.Cancel will allows to shutdown the server
+	ctx, s.Cancel = context.WithCancel(ctx)
 	// run duration is either global timeout from ctx or RunDuration parameter
-	s.Cancel = func() {}
 	if s.Parameters.RunDuration != 0 {
 		ctx, s.Cancel = context.WithTimeout(ctx, s.Parameters.RunDuration)
 		serverLog("server will shutdown in: %v", s.Parameters.RunDuration)
@@ -316,7 +335,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 			serverLog("shutdown started by context cancel: %s", ctx.Err())
 		}
 
-		shutdownTimeout := s.Parameters.MaxDuration + 1*time.Second
+		shutdownTimeout := s.Parameters.MaxDuration + s.Parameters.MaxDuration*time.Second //todo check with global timeout too
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 

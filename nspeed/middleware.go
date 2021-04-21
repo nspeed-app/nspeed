@@ -72,10 +72,14 @@ func limitRequestSize(maxSize int64, h http.Handler) http.Handler {
 	})
 }
 
-func limitNumRequests(OnRequestEnded func(), h http.Handler) http.Handler {
+func limitNumRequests(OnRequestStart func() bool, OnRequestEnd func(), h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r)
-		OnRequestEnded()
+		if OnRequestStart() {
+			h.ServeHTTP(w, r)
+		} else {
+			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+		}
+		OnRequestEnd()
 	})
 }
 

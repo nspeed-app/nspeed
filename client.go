@@ -81,6 +81,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 				fs.PrintDefaults()
 			}
+
 			repeat := fs.Uint("n", 1, "number of times to process an item")
 			useIPv4 := fs.Bool("4", false, "use IPv4 only")
 			useIPv6 := fs.Bool("6", false, "use IPv6 only")
@@ -88,6 +89,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			host := fs.String("a", "", "specific local address to use")
 			skipTLScert := fs.Bool("k", false, "skip certificates validation")
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
+			waitdelay := fs.Uint("w", 0, "delay in seconds to wait before starting the command")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
@@ -95,6 +97,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			j := nspeed.HTTPjob{
 				Command:   "GET",
 				Timeout:   time.Duration(*timeout) * time.Second,
+				Delay:     time.Duration(*waitdelay) * time.Second,
 				UserAgent: *useragent,
 				Repeat:    int(*repeat),
 			}
@@ -139,6 +142,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			skipTLScert := fs.Bool("k", false, "skip certificates validation")
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			contentType := fs.String("ct", "application/octet-stream", "content type")
+			waitdelay := fs.Uint("w", 0, "delay in seconds to wait before starting the command")
 
 			if err := fs.Parse(args); err != nil {
 				return nil, err
@@ -147,6 +151,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			j := nspeed.HTTPjob{
 				Command:     "POST",
 				Timeout:     time.Duration(*timeout) * time.Second,
+				Delay:       time.Duration(*waitdelay) * time.Second,
 				UserAgent:   *useragent,
 				ContentType: *contentType,
 				Repeat:      int(*repeat),
@@ -197,7 +202,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			fs.IntVar(&host.Port, "p", nspeed.DefaultPort, "Port to listen on")
 			maxsize := fs.String("s", nspeed.FormatByteDecimalUnits(nspeed.DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
 			maxtime := fs.Uint("t", uint(nspeed.DefaultMaxDuration.Seconds()), "Maximum duration a response may take")
-			fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h,d)")
+			fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
 			fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = infinite)")
 			fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
 			fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
