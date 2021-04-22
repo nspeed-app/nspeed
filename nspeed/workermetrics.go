@@ -31,28 +31,31 @@ func ExpandJobs(jobs []Job) []Job {
 // this needs heavy refactoring
 // & check openmetrics suff
 type WorkerMetrics struct {
-	Index              int
-	Job                Job
-	Done               bool // job ended
-	Expired            bool // job timed out or other side ended
-	ResultChan         chan *WorkerMetrics
-	Target             string
-	DNSInfo            httptrace.DNSDoneInfo
-	DNSInfoTime        time.Time
-	ConnInfo           httptrace.GotConnInfo
-	ConnInfoTime       time.Time
-	ContentSize        int64
-	TotalRead          int64
-	TotalProcessed     int64
-	StepSize           int64
-	TransfertStartTime time.Time
-	ElapsedTime        time.Duration
-	FirstResponseByte  time.Time
-	TLSDone            time.Time
-	LogLevel           log.Level
-	mutex              sync.Mutex
-	Valid              bool
-	Error              error
+	Index               int
+	Job                 Job
+	Done                bool // job ended
+	Expired             bool // job timed out or other side ended
+	ResultChan          chan *WorkerMetrics
+	Target              string
+	DNSInfo             httptrace.DNSDoneInfo
+	DNSInfoTime         time.Time
+	ConnInfo            httptrace.GotConnInfo
+	ConnInfoTime        time.Time
+	ContentReadSize     int64
+	ContentWriteSize    int64
+	TotalRead           int64
+	TotalWrite          int64
+	TotalReadProcessed  int64
+	TotalWriteProcessed int64
+	StepSize            int64
+	TransfertStartTime  time.Time
+	ElapsedTime         time.Duration
+	FirstResponseByte   time.Time
+	TLSDone             time.Time
+	LogLevel            log.Level
+	mutex               sync.Mutex
+	Valid               bool
+	Error               error
 }
 
 // Writer
@@ -67,9 +70,10 @@ func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 // PrintProgress prints the intermediary metrics
 func (wm *WorkerMetrics) PrintProgress() {
 	if wm.LogLevel >= log.InfoLevel {
-		log.Infof("job %d | elapsed %.2f secs | %sB of %sB | buffer = %d",
+		log.Infof("job %d | elapsed %.2f secs | %sB of %sB | %sB of %sB | buffer = %d",
 			wm.Index, wm.ElapsedTime.Seconds(),
-			ByteCountBinary(wm.TotalRead), ByteCountBinary(wm.ContentSize),
+			ByteCountBinary(wm.TotalRead), ByteCountBinary(wm.ContentReadSize),
+			ByteCountBinary(wm.TotalWrite), ByteCountBinary(wm.ContentWriteSize),
 			wm.StepSize)
 	}
 }
@@ -116,7 +120,10 @@ func (wm *WorkerMetrics) Close() error {
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	// assert wm.Done == false
 	wm.Done = true
-	if wm.TotalProcessed < wm.ContentSize {
+	if wm.TotalWriteProcessed < wm.ContentWriteSize {
+		wm.Expired = true
+	}
+	if wm.TotalReadProcessed < wm.ContentReadSize {
 		wm.Expired = true
 	}
 	wm.Valid = true
@@ -142,7 +149,7 @@ func (wm *WorkerMetrics) Read(p []byte) (n int, err error) {
 	if maxstep == 0 {
 		return 0, nil
 	}
-	lefttodo := wm.ContentSize - wm.TotalProcessed
+	lefttodo := wm.ContentReadSize - wm.TotalReadProcessed
 	if lefttodo == 0 {
 		return 0, io.EOF
 	}
@@ -150,7 +157,7 @@ func (wm *WorkerMetrics) Read(p []byte) (n int, err error) {
 	todo := min(min(int64(maxstep), wm.StepSize), lefttodo)
 
 	wm.TotalRead += todo
-	wm.TotalProcessed += todo
+	wm.TotalReadProcessed += todo
 
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	return int(todo), nil

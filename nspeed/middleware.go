@@ -1,10 +1,10 @@
 package nspeed
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // mostly from go-httbin - todo: refactor / rewrite this
@@ -123,12 +123,6 @@ func preflight(h http.Handler) http.Handler {
 			w.WriteHeader(200)
 			return
 		}
-
-		// debug - dump headers
-		for k, v := range r.Header {
-			fmt.Printf("%v: %v\n", k, v)
-		}
-
 		h.ServeHTTP(w, r)
 	})
 }

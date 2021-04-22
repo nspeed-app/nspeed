@@ -142,10 +142,11 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	var body io.ReadCloser
 	body = http.NoBody
 	if j.Command == "POST" {
-		wm.ContentSize = j.ContentSize
+		wm.ContentWriteSize = j.ContentSize
+		wm.ContentReadSize = 0
 		wm.StepSize = 1024 * 1024 // todo
-		wm.TotalRead = 0
-		wm.TotalProcessed = 0
+		wm.TotalWrite = 0
+		wm.TotalWriteProcessed = 0
 		body = wm
 	}
 	req, err := http.NewRequestWithContext(ctx, j.Command, wm.Target, body)
@@ -291,7 +292,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			)
 		}
 
-		wm.ContentSize = resp.ContentLength
+		wm.ContentReadSize = resp.ContentLength
 
 		// this is where the GET transfert happens.
 		//   iteration 1: we use io.Copy to 'null' (Discard) and
@@ -299,7 +300,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		//   the resp (thru req) context  will handle timeout & parent cancellation
 
 		if resp.StatusCode == http.StatusOK {
-			if wm.TotalProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
+			if wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
 				if err == context.DeadlineExceeded {
 					wm.Expired = true
 					log.Info("#", wm.Index, " timer expired client side")
@@ -312,7 +313,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 					wm.Error = err
 				}
 			}
-			log.Info("#", wm.Index, " transfered ", wm.TotalProcessed, " bytes")
+			log.Info("#", wm.Index, " transfered ", wm.TotalReadProcessed, " bytes")
 			wm.Valid = true
 		} else {
 			wm.Error = errors.New("http status code: " + resp.Status)

@@ -1,4 +1,5 @@
 missing: latency
+upload: send random data instead of zero
 
 prévisions pour la v0.6: API
 - client: ajout d'une option: délais d'attente avant de lancer les transferts.

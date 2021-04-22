@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -268,9 +267,8 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 // implements the http server
-func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
+func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics, logger) error {
 
-	logger := log.New(os.Stderr, "", 0)
 	s.TotalRequests = 0 // just in case we reuse
 
 	// A hacky log helper function to ensure that shutdown messages are
@@ -280,7 +278,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 			logFmt  = "time=%q msg=%q"
 			dateFmt = "2006-01-02T15:04:05.9999"
 		)
-		logger.Printf(logFmt, time.Now().Format(dateFmt), fmt.Sprintf(msg, args...))
+		logger.Infof(logFmt, time.Now().Format(dateFmt), fmt.Sprintf(msg, args...))
 	}
 	s.Logger = StdLogFunc(logger)
 

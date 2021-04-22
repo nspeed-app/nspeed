@@ -313,6 +313,14 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors:    true,
+		DisableTimestamp: false,
+		FullTimestamp:    false,
+		QuoteEmptyFields: true,
+	})
+
 	log.SetLevel(log.WarnLevel)
 
 	if *optVerbose {
@@ -417,7 +425,7 @@ func main() {
 					wm.PrintProgress()
 				}
 			}
-			PrintMemUsage()
+			PrintMemUsage(log.GetLevel())
 		case wm := <-results:
 			rc--
 			if wm.Done {
@@ -432,19 +440,23 @@ func main() {
 
 	var elapsedTime time.Duration = 0
 	var totalRead int64 = 0
+	var totalWrite int64 = 0
 
 	for _, wm := range wcWorkers {
 		wm.PrintFinal()
 		totalRead += wm.TotalRead
+		totalWrite += wm.TotalWrite
 		if wm.ElapsedTime > elapsedTime {
 			elapsedTime = wm.ElapsedTime
 		}
 	}
 	fmt.Println(
 		"total:",
-		"speed =", nspeed.FormatBitperSecond(elapsedTime.Seconds(), totalRead),
+		"read speed =", nspeed.FormatBitperSecond(elapsedTime.Seconds(), totalRead),
+		"write speed =", nspeed.FormatBitperSecond(elapsedTime.Seconds(), totalWrite),
 		"time =", elapsedTime,
-		"size =", totalRead, "Bytes (", nspeed.ByteCountDecimal(totalRead)+"B )")
+		"read size =", totalRead, "Bytes (", nspeed.ByteCountDecimal(totalRead)+"B )",
+		"write size =", totalRead, "Bytes (", nspeed.ByteCountDecimal(totalWrite)+"B )")
 
 	// todo: defer this block
 	if *optMemprofile != "" {
@@ -462,14 +474,14 @@ func main() {
 
 // debug stuff
 
-func PrintMemUsage() {
+func PrintMemUsage(level log.Level) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+	log.Infof("Alloc = %v MiB", bToMb(m.Alloc))
+	log.Infof("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	log.Infof("\tSys = %v MiB", bToMb(m.Sys))
+	log.Infof("\tNumGC = %v\n", m.NumGC)
 }
 
 func bToMb(b uint64) uint64 {
