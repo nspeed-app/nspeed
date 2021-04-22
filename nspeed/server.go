@@ -51,7 +51,7 @@ type Result struct {
 }
 
 // the HTTP Server
-// implements Job
+// implements Job interface
 type NSpeedHTTPServer struct {
 	Parameters    *NSpeedHost
 	Server        *http.Server
@@ -62,7 +62,7 @@ type NSpeedHTTPServer struct {
 }
 
 func (j *NSpeedHTTPServer) GetTarget() string {
-	return fmt.Sprintf("server %s:%d (%d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
+	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
 }
 
 func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
@@ -70,28 +70,31 @@ func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
 }
 
 func (j *NSpeedHTTPServer) GoString() string {
-	return fmt.Sprintf("server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_duration: %d, UseTLS: %t}",
+	return fmt.Sprintf("server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_request duration: %d, UseTLS: %t, maxruns: %d, max life: %v}",
 		j.Parameters.Host,
 		j.Parameters.Port,
 		j.Parameters.ForceIPVersion,
 		ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
 		j.Parameters.MaxDuration,
 		j.Parameters.ServeTLS,
+		j.Parameters.MaxRequests,
+		j.Parameters.RunDuration,
 	)
 }
 
 // called each time before a request, prevent new request before actual shutdown if MaxRequest reached
+// return false if too many requests
 func (j *NSpeedHTTPServer) OnRequestStart() bool {
 	j.mutex.Lock()
 	j.TotalRequests++
-	done := j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests
+	done := j.Parameters.MaxRequests > 0 && j.TotalRequests > j.Parameters.MaxRequests
 	defer j.mutex.Unlock()
 
 	if done {
 		fmt.Printf("%d max total requests reached, notifying client\n", j.TotalRequests)
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 // called each time a request is completed, see muxer
