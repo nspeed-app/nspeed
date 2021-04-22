@@ -215,7 +215,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	}
 	wm.TransfertStartTime = time.Now()
 	wm.FirstResponseByte = time.Now()
-	wm.ContentSize = numBytes
+	wm.ContentWriteSize = numBytes
 	f := w.(http.Flusher)
 	// send the buffer as many times as needed
 	var numChunk = numBytes / chunkSize
@@ -237,7 +237,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	if numBytes%chunkSize > 0 && !wm.Expired {
 		n, err := w.Write(chunk[:numBytes%chunkSize])
 		f.Flush()
-		wm.TotalRead += int64(n)
+		wm.TotalWrite += int64(n)
 		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 		if err != nil {
 			wm.Error = err
@@ -261,7 +261,7 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	wm.FirstResponseByte = time.Now()
 	n, err := io.Copy(io.Discard, io.TeeReader(r.Body, &wm))
 	wm.ElapsedTime = time.Since(wm.FirstResponseByte)
-	wm.TotalProcessed = n
+	wm.TotalReadProcessed = n
 	wm.Error = err
 	wm.Valid = true
 	wm.PrintFinal()
