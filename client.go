@@ -45,6 +45,7 @@ var commandDescription = map[string]string{
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
+var optDebug = flag.Bool("debug", false, "show more progress & details")
 var optTick = flag.Int("tick", 1, "progress interval in seconds (only used in verbose mode)")
 var versionFlag = flag.Bool("version", false, "display version")
 var optTimeout = flag.Uint("timeout", 0, "default timeout in seconds, 0 for no timeout")
@@ -297,6 +298,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// no command, return for now, later: check if launched from UI world (explorer, file manager, browser, etc)
 	if len(jobs) == 0 {
 		flag.CommandLine.Usage()
 		return
@@ -310,8 +313,13 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.WarnLevel)
+
 	if *optVerbose {
+		log.SetLevel(log.InfoLevel)
+	}
+
+	if *optDebug {
 		log.SetLevel(log.DebugLevel)
 	}
 
@@ -336,7 +344,7 @@ func main() {
 			Index:      idx,
 			Target:     job.GetTarget(),
 			ResultChan: results,
-			Verbose:    *optVerbose,
+			LogLevel:   log.GetLevel(),
 			Job:        job}
 		wcWorkers[idx] = &wm
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
@@ -388,7 +396,7 @@ func main() {
 	}
 
 	progressTickerChannel := make(<-chan time.Time) // forever
-	if *optVerbose {
+	if log.GetLevel() >= log.InfoLevel {
 		progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
 		progressTickerChannel = progressTicker.C
 	}
@@ -397,7 +405,7 @@ func main() {
 		select {
 		case <-progressTickerChannel:
 			// time critical: warning for overlap/backlogs if what's done here takes too long
-			// this section assumes *optVerbose == true
+			// this section assumes loglevel >= info
 			pcts, _ := cpu.Percent(0, true)
 			cpuload := "|"
 			for _, pc := range pcts {
@@ -405,7 +413,7 @@ func main() {
 			}
 			log.Printf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			for _, wm := range wcWorkers {
-				if !wm.Done && wm.Verbose {
+				if !wm.Done && (wm.LogLevel >= log.InfoLevel) {
 					wm.PrintProgress()
 				}
 			}

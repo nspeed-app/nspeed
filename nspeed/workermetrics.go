@@ -49,7 +49,7 @@ type WorkerMetrics struct {
 	ElapsedTime        time.Duration
 	FirstResponseByte  time.Time
 	TLSDone            time.Time
-	Verbose            bool
+	LogLevel           log.Level
 	mutex              sync.Mutex
 	Valid              bool
 	Error              error
@@ -66,7 +66,7 @@ func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 
 // PrintProgress prints the intermediary metrics
 func (wm *WorkerMetrics) PrintProgress() {
-	if wm.Verbose {
+	if wm.LogLevel >= log.InfoLevel {
 		log.Infof("job %d | elapsed %.2f secs | %sB of %sB | buffer = %d",
 			wm.Index, wm.ElapsedTime.Seconds(),
 			ByteCountBinary(wm.TotalRead), ByteCountBinary(wm.ContentSize),
