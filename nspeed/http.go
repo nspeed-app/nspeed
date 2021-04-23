@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
 // a HTTP command, get or post
@@ -32,6 +32,7 @@ type HTTPjob struct {
 	ContentSize  int64
 	SkipTLSCheck bool
 	Delay        time.Duration
+	Logger       *zerolog.Logger
 }
 
 func (j *HTTPjob) GoString() string {
@@ -75,6 +76,8 @@ type roundTripTrace struct {
 // HTTPDownload implements HTTP GET command
 func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
+	j.Logger = &wm.Logger
+
 	var LocalAddr net.Addr
 	if j.Host != "" {
 		la, err := ResolveInterfaceHostAddress(j.Host)
@@ -86,7 +89,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		fhostIPAddrs := FilterAddresses(la, j.IPversion)
 
 		if len(fhostIPAddrs) == 0 {
-			log.Errorf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", la, fhostIPAddrs, j.IPversion)
+			j.Logger.Error().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", la, fhostIPAddrs, j.IPversion)
 			return errors.New("no valid candidate address found")
 		}
 
@@ -103,7 +106,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		LocalAddr:     LocalAddr, // "-a" for client
 		//there should a be higher level to enforce an IP version but for now we do this here
 		Control: func(network string, address string, c syscall.RawConn) error {
-			log.Debugf("Control %s %s %d ", network, address, j.IPversion)
+			j.Logger.Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
 			if j.IPversion == 4 && network[len(network)-1] == '6' {
 				return errors.New("bad IP version: want IPv4 got " + network)
 			}
@@ -130,7 +133,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			loc, err := req.Response.Location()
-			log.Infof("job %d got redirect to %s (%v)", wm.Index, loc.String(), err)
+			j.Logger.Info().Msgf("job %d got redirect to %s (%v)", wm.Index, loc.String(), err)
 
 			wm.InitNew() //todo: evaluate
 			return nil   // http.ErrUseLastResponse
@@ -226,16 +229,16 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			log.Infof("got 1xx: %d %+v", code, header)
+			j.Logger.Info().Msgf("got 1xx: %d %+v", code, header)
 			return nil
 		},
 	}
 
 	// this is where we wait
 	if j.Delay > 0 {
-		log.Infof("#%d delay option, waiting %v", wm.Index, j.Delay)
+		j.Logger.Info().Msgf("#%d delay option, waiting %v", wm.Index, j.Delay)
 		time.Sleep(j.Delay)
-		log.Info("#", wm.Index, " waking up")
+		j.Logger.Info().Msgf("#", wm.Index, " waking up")
 	}
 	refdate := time.Now()
 
@@ -256,12 +259,12 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		wm.Expired = true
-		log.Info("#", wm.Index, " timer expired client side")
+		j.Logger.Info().Msgf("#", wm.Index, " timer expired client side")
 	} else if errors.Is(err, syscall.ECONNRESET) {
 		wm.Expired = true
-		log.Info("#", wm.Index, " something expired server side")
+		j.Logger.Info().Msgf("#", wm.Index, " something expired server side")
 	} else if err != nil {
-		log.Fatal(err)
+		j.Logger.Fatal().Err(err)
 	}
 
 	if j.Command == "GET" && resp != nil {
@@ -272,7 +275,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		}()
 
 		protocol := resp.Proto
-		log.Info("#", wm.Index,
+		j.Logger.Info().Msgf("todo",
 			" size = ", ByteCountDecimal(resp.ContentLength)+"B", " (", ByteCountBinary(resp.ContentLength)+"B", ")",
 			" procotol = ", protocol,
 			" local IP:port = ", wm.ConnInfo.Conn.LocalAddr(),
@@ -282,14 +285,13 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			" FirstResponseByte = ", wm.FirstResponseByte.Sub(refdate),
 		)
 		for _, a := range wm.DNSInfo.Addrs {
-			log.Info("#", wm.Index, "dns: ", a)
+			j.Logger.Info().Stringer("dnsinfo", &a)
 		}
 		if resp.TLS != nil {
-			log.Info("#", wm.Index,
-				" crypto = ", TLSVersionName(resp.TLS.Version),
-				" cipher = ", tls.CipherSuiteName(resp.TLS.CipherSuite),
-				" TLSDone in = ", wm.TLSDone.Sub(refdate),
-			)
+			j.Logger.Info().
+				Str("crypto", TLSVersionName(resp.TLS.Version)).
+				Str("cipher", tls.CipherSuiteName(resp.TLS.CipherSuite)).
+				Dur("TLSDuration", wm.TLSDone.Sub(refdate))
 		}
 
 		wm.ContentReadSize = resp.ContentLength
@@ -303,17 +305,19 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			if wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
 				if err == context.DeadlineExceeded {
 					wm.Expired = true
-					log.Info("#", wm.Index, " timer expired client side")
+					j.Logger.Info().Str("cause", "timer expired client side")
 				} else if err == io.ErrUnexpectedEOF {
 					wm.Expired = true
-					log.Info("#", wm.Index, " something expired server side")
-				} else {
-					log.Error("#", wm.Index, " error: ", err)
+					j.Logger.Info().Str("cause", "something expired server side")
+				} else if err != nil {
+					j.Logger.Error().Err(err)
 					wm.Valid = false
 					wm.Error = err
+				} else {
+					j.Logger.Info().Str("cause", "completed normally")
 				}
 			}
-			log.Info("#", wm.Index, " transfered ", wm.TotalReadProcessed, " bytes")
+			j.Logger.Info().Msgf("transfered %d bytes", wm.TotalReadProcessed)
 			wm.Valid = true
 		} else {
 			wm.Error = errors.New("http status code: " + resp.Status)

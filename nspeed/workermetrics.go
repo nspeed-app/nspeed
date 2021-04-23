@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
 type Job interface {
@@ -52,7 +52,8 @@ type WorkerMetrics struct {
 	ElapsedTime         time.Duration
 	FirstResponseByte   time.Time
 	TLSDone             time.Time
-	LogLevel            log.Level
+	Logger              zerolog.Logger
+	LogLevel            zerolog.Level
 	mutex               sync.Mutex
 	Valid               bool
 	Error               error
@@ -67,40 +68,44 @@ func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-// PrintProgress prints the intermediary metrics
-func (wm *WorkerMetrics) PrintProgress() {
-	if wm.LogLevel >= log.InfoLevel {
-		log.Infof("job %d | elapsed %.2f secs | %sB of %sB | %sB of %sB | buffer = %d",
-			wm.Index, wm.ElapsedTime.Seconds(),
-			ByteCountBinary(wm.TotalRead), ByteCountBinary(wm.ContentReadSize),
-			ByteCountBinary(wm.TotalWrite), ByteCountBinary(wm.ContentWriteSize),
-			wm.StepSize)
-	}
-}
-
-// PrintFinal prints the final metrics
-func (wm *WorkerMetrics) PrintFinal() {
-	if wm.Valid {
-		log.Info(
-			"#", wm.Index,
-			" speed = ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
-			" time = ", wm.ElapsedTime.Milliseconds(), " ms (", wm.ElapsedTime.Seconds(), " s)",
-			" size = ", ByteCountDecimal(wm.TotalRead)+"B", " (", ByteCountBinary(wm.TotalRead)+"B", ")",
-			" url  = ", wm.Target)
+// LogProgress logs the intermediary metrics
+func (wm *WorkerMetrics) LogProgress(logger *zerolog.Logger) {
+	if logger == nil {
 		return
 	}
-	log.Info("#", wm.Index, " error: ", wm.Error)
+	if wm.LogLevel <= zerolog.InfoLevel {
+		logger.Info().
+			Float64("Elapsed", wm.ElapsedTime.Seconds()).
+			Int64("TotalRead", wm.TotalRead).
+			Int64("ContentReadSize", wm.ContentReadSize).
+			Int64("TotalWrite", wm.TotalWrite).
+			Int64("ContentWriteSize", wm.ContentWriteSize).
+			Int64("stepsize", wm.StepSize)
+
+		// log.Infof("job %d | elapsed %.2f secs | %sB of %sB | %sB of %sB | buffer = %d",
+		// 	wm.Index, wm.ElapsedTime.Seconds(),
+		// 	ByteCountBinary(wm.TotalRead), ByteCountBinary(wm.ContentReadSize),
+		// 	ByteCountBinary(wm.TotalWrite), ByteCountBinary(wm.ContentWriteSize),
+		// 	wm.StepSize)
+	}
 }
 
-// LogFinal prints the final metrics (structured format)
-func (wm *WorkerMetrics) LogFinal() {
-	log.WithFields(log.Fields{
-		"speed": FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead),
-		"time":  wm.ElapsedTime.Seconds(),
-		"size":  wm.TotalRead,
-		"url":   wm.Target,
-	}).Info("#", wm.Index)
-
+// LogFinal logs the final metrics
+func (wm *WorkerMetrics) LogFinal(logger *zerolog.Logger) {
+	if logger == nil {
+		return
+	}
+	if wm.Valid {
+		logger.Info().
+			Int64("TotalRead", wm.TotalRead).
+			Int64("TotalWrite", wm.TotalWrite).
+			Int64("ReadBPS", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds())).
+			Int64("WriteBPS", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds())).
+			Float64("duration", wm.ElapsedTime.Seconds()).
+			Str("url", wm.Target)
+	} else {
+		wm.Logger.Info().Err(wm.Error)
+	}
 }
 
 // initialize metrics

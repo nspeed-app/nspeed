@@ -14,6 +14,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
 var ServerVersion string
@@ -40,23 +42,14 @@ type NSpeedHost struct {
 	MaxRequests    int
 }
 
-// Result used for logging
-type Result struct {
-	Status   int
-	Method   string
-	URI      string
-	Size     int64
-	Duration time.Duration
-}
-
 // the HTTP Server
 // implements Job interface
 type NSpeedHTTPServer struct {
 	Parameters    *NSpeedHost
 	Server        *http.Server
 	Cancel        context.CancelFunc
+	Logger        *zerolog.Logger
 	TotalRequests int
-	Logger        func(Result)
 	mutex         sync.Mutex
 }
 
@@ -245,7 +238,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	}
 	wm.Done = true
 	wm.Valid = true
-	wm.PrintFinal()
+	wm.LogFinal(h.Logger)
 }
 
 // handle upload
@@ -263,30 +256,21 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	wm.TotalReadProcessed = n
 	wm.Error = err
 	wm.Valid = true
-	wm.PrintFinal()
+	wm.LogFinal(h.Logger)
 }
 
 // implements the http server
-func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics, logger) error {
+func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
+
+	s.Logger = &wm.Logger //
 
 	s.TotalRequests = 0 // just in case we reuse
-
-	// A hacky log helper function to ensure that shutdown messages are
-	// formatted the same as other messages.
-	serverLog := func(msg string, args ...interface{}) {
-		const (
-			logFmt  = "time=%q msg=%q"
-			dateFmt = "2006-01-02T15:04:05.9999"
-		)
-		logger.Infof(logFmt, time.Now().Format(dateFmt), fmt.Sprintf(msg, args...))
-	}
-	s.Logger = StdLogFunc(logger)
 
 	host := s.Parameters.Host
 
 	// empty host is a special case
 
-	serverLog("host parameter is:'%s'", host)
+	s.Logger.Debug().Msgf("host parameter is:'%s'", host)
 	if host != "" {
 		// if host is an interface name
 		hostIPAddrs, err := ResolveInterfaceHostAddress(s.Parameters.Host)
@@ -297,7 +281,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics, logger)
 		fhostIPAddrs := FilterAddresses(hostIPAddrs, s.Parameters.ForceIPVersion)
 
 		if len(fhostIPAddrs) == 0 {
-			serverLog("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, s.Parameters.ForceIPVersion)
+			s.Logger.Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, s.Parameters.ForceIPVersion)
 			return errors.New("no valid candidate address found")
 		}
 		host = fhostIPAddrs[0].String()
@@ -321,7 +305,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics, logger)
 	// run duration is either global timeout from ctx or RunDuration parameter
 	if s.Parameters.RunDuration != 0 {
 		ctx, s.Cancel = context.WithTimeout(ctx, s.Parameters.RunDuration)
-		serverLog("server will shutdown in: %v", s.Parameters.RunDuration)
+		s.Logger.Debug().Msgf("server will shutdown in: %v", s.Parameters.RunDuration)
 		defer s.Cancel()
 	}
 	// exitCh will be closed when it is safe to exit, after graceful shutdown
@@ -330,10 +314,10 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics, logger)
 	go func() {
 		select {
 		case sig := <-shutdownCh:
-			serverLog("shutdown started by signal: %s", sig)
+			s.Logger.Debug().Msgf("shutdown started by signal: %s", sig)
 			s.Cancel()
 		case <-ctx.Done():
-			serverLog("shutdown started by context cancel: %s", ctx.Err())
+			s.Logger.Debug().Msgf("shutdown started by context cancel: %s", ctx.Err())
 		}
 
 		shutdownTimeout := s.Parameters.MaxDuration + s.Parameters.MaxDuration*time.Second //todo check with global timeout too
@@ -342,7 +326,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics, logger)
 
 		s.Server.SetKeepAlivesEnabled(false)
 		if err := s.Server.Shutdown(ctx); err != nil {
-			serverLog("shutdown error: %s", err)
+			s.Logger.Debug().Msgf("shutdown error: %s", err)
 		}
 		close(exitCh)
 	}()
@@ -366,17 +350,17 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics, logger)
 
 	var listenErr error
 	if s.Parameters.ServeTLS {
-		serverLog("nspeed listening on https://%s", listenAddr)
+		s.Logger.Info().Msgf("nspeed listening on https://%s", listenAddr)
 		listenErr = s.Server.ServeTLS(ln, s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
 	} else {
-		serverLog("nspeed listening on http://%s", listenAddr)
+		s.Logger.Info().Msgf("nspeed listening on http://%s", listenAddr)
 		listenErr = s.Server.Serve(ln)
 	}
 	if listenErr != nil && listenErr != http.ErrServerClosed {
-		logger.Fatalf("failed to listen: %s", listenErr)
+		s.Logger.Fatal().Msgf("failed to listen: %s", listenErr)
 	}
 
 	<-exitCh
-	serverLog("shutdown finished")
+	s.Logger.Info().Msgf("shutdown finished")
 	return nil
 }

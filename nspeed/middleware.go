@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 )
 
 // mostly from go-httbin - todo: refactor / rewrite this
@@ -48,18 +48,17 @@ func (mw *metaResponseWriter) Size() int64 {
 	return mw.size
 }
 
-func logger(o func(Result), h http.Handler) http.Handler {
+func logger(logger *zerolog.Logger, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mw := &metaResponseWriter{w: w}
 		t := time.Now()
 		h.ServeHTTP(mw, r)
-		o(Result{
-			Status:   mw.Status(),
-			Method:   r.Method,
-			URI:      r.URL.RequestURI(),
-			Size:     mw.Size(),
-			Duration: time.Since(t),
-		})
+		logger.Info().
+			Int("status", mw.Status()).
+			Str("method", r.Method).
+			Stringer("URL", r.URL).
+			Int64("size", mw.Size()).
+			Dur("duration", time.Since(t))
 	})
 }
 
@@ -125,24 +124,4 @@ func preflight(h http.Handler) http.Handler {
 		}
 		h.ServeHTTP(w, r)
 	})
-}
-
-// StdLogFunc creates a func that will log each request in structured
-// format using the given stdlib logger
-func StdLogFunc(l *log.Logger) func(Result) {
-	const (
-		logFmt  = "time=%q status=%d method=%q uri=%q size_bytes=%d duration_ms=%0.02f"
-		dateFmt = "2006-01-02T15:04:05.9999"
-	)
-	return func(result Result) {
-		l.Printf(
-			logFmt,
-			time.Now().Format(dateFmt),
-			result.Status,
-			result.Method,
-			result.URI,
-			result.Size,
-			result.Duration.Seconds()*1e3, // https://github.com/golang/go/issues/5491#issuecomment-66079585
-		)
-	}
 }

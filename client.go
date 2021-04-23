@@ -13,8 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"github.com/shirou/gopsutil/v3/cpu"
-	log "github.com/sirupsen/logrus"
 	"nspeed.app/nspeed"
 )
 
@@ -296,7 +298,7 @@ func main() {
 
 	jobs, err := parseJobs(flag.Args())
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 
 	// no command, return for now, later: check if launched from UI world (explorer, file manager, browser, etc)
@@ -308,30 +310,23 @@ func main() {
 	if *optCpuprofile != "" {
 		f, err := os.Create(*optCpuprofile)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Err(err)
 		}
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
 
-	log.SetFormatter(&log.TextFormatter{
-		DisableColors:    true,
-		DisableTimestamp: false,
-		FullTimestamp:    false,
-		QuoteEmptyFields: true,
-	})
-
-	log.SetLevel(log.WarnLevel)
+	zerolog.SetGlobalLevel(zerolog.WarnLevel)
 
 	if *optVerbose {
-		log.SetLevel(log.InfoLevel)
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
 	if *optDebug {
-		log.SetLevel(log.DebugLevel)
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
-	log.Debug("max cores = ", nspeed.MaxParallelism())
+	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
 
 	jobs = nspeed.ExpandJobs(jobs)
 
@@ -352,7 +347,8 @@ func main() {
 			Index:      idx,
 			Target:     job.GetTarget(),
 			ResultChan: results,
-			LogLevel:   log.GetLevel(),
+			LogLevel:   zerolog.GlobalLevel(),
+			Logger:     log.With().Int("index", idx).Logger(),
 			Job:        job}
 		wcWorkers[idx] = &wm
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
@@ -372,12 +368,12 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(njobs)
 	for _, wm := range wcWorkers {
-		log.Debug("spawning workload ", wm.Index, " ", wm.Target, " ", wm.Done)
+		log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
 		go func(w *nspeed.WorkerMetrics) {
 			defer wg.Done()
 			err := w.Job.Start(ctx, w)
 			if err != nil {
-				log.Errorf("error %s for %s\n", err, w.Target)
+				log.Error().Msgf("error %s for %s", err, w.Target)
 				return
 			}
 		}(wm)
@@ -393,7 +389,7 @@ func main() {
 	go func() {
 		defer close(cWaitgroupEnded)
 		wg.Wait()
-		log.Debug("wait group ended")
+		log.Debug().Msg("wait group ended")
 	}()
 
 	rc := njobs
@@ -404,7 +400,7 @@ func main() {
 	}
 
 	progressTickerChannel := make(<-chan time.Time) // forever
-	if log.GetLevel() >= log.InfoLevel {
+	if zerolog.GlobalLevel() >= zerolog.InfoLevel {
 		progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
 		progressTickerChannel = progressTicker.C
 	}
@@ -421,29 +417,29 @@ func main() {
 			}
 			log.Printf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			for _, wm := range wcWorkers {
-				if !wm.Done && (wm.LogLevel >= log.InfoLevel) {
-					wm.PrintProgress()
+				if !wm.Done && (wm.LogLevel >= zerolog.InfoLevel) {
+					wm.LogProgress(&wm.Logger)
 				}
 			}
-			PrintMemUsage(log.GetLevel())
+			PrintMemUsage(zerolog.GlobalLevel())
 		case wm := <-results:
 			rc--
 			if wm.Done {
-				log.Debugf("job %d ended - (on timeout: %t) - (%d remaining active goroutines)", wm.Index, wm.Expired, runtime.NumGoroutine())
+				log.Debug().Msgf("job %d ended - (on timeout: %t) - (%d remaining active goroutines)", wm.Index, wm.Expired, runtime.NumGoroutine())
 			}
 		case <-cWaitgroupEnded:
-			log.Debugf("all workers done (%d remaining active goroutines)", runtime.NumGoroutine())
+			log.Debug().Msgf("all workers done (%d remaining active goroutines)", runtime.NumGoroutine())
 			done = true
 		}
 	}
-	log.Debugf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())
+	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())
 
 	var elapsedTime time.Duration = 0
 	var totalRead int64 = 0
 	var totalWrite int64 = 0
 
 	for _, wm := range wcWorkers {
-		wm.PrintFinal()
+		wm.LogFinal(&wm.Logger)
 		totalRead += wm.TotalRead
 		totalWrite += wm.TotalWrite
 		if wm.ElapsedTime > elapsedTime {
@@ -462,26 +458,29 @@ func main() {
 	if *optMemprofile != "" {
 		f, err := os.Create(*optMemprofile)
 		if err != nil {
-			log.Fatal("could not create memory profile: ", err)
+			log.Fatal().Msgf("could not create memory profile: ", err)
 		}
 		defer f.Close() // error handling omitted for example
 		runtime.GC()    // get up-to-date statistics
 		if err := pprof.WriteHeapProfile(f); err != nil {
-			log.Fatal("could not write memory profile: ", err)
+			log.Fatal().Msgf("could not write memory profile: ", err)
 		}
 	}
 }
 
 // debug stuff
 
-func PrintMemUsage(level log.Level) {
+func PrintMemUsage(level zerolog.Level) {
+	if level < zerolog.InfoLevel {
+		return
+	}
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	log.Infof("Alloc = %v MiB", bToMb(m.Alloc))
-	log.Infof("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	log.Infof("\tSys = %v MiB", bToMb(m.Sys))
-	log.Infof("\tNumGC = %v\n", m.NumGC)
+	log.Info().Msgf("Alloc = %v MiB", bToMb(m.Alloc))
+	log.Info().Msgf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+	log.Info().Msgf("\tSys = %v MiB", bToMb(m.Sys))
+	log.Info().Msgf("\tNumGC = %v\n", m.NumGC)
 }
 
 func bToMb(b uint64) uint64 {
