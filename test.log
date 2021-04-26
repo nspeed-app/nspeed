@@ -1,0 +1,22 @@
+{"level":"info","job":0,"delay":2000,"time":"2021-04-26T15:20:00+02:00","message":"waiting"}
+{"level":"info","job":1,"delay":2000,"time":"2021-04-26T15:20:00+02:00","message":"waiting"}
+{"level":"info","job":2,"time":"2021-04-26T15:20:00+02:00","message":"nspeed listening on http://127.0.0.1:7333"}
+{"level":"info","job":0,"Elapsed":0,"TotalRead":0,"ContentReadSize":0,"TotalWrite":0,"ContentWriteSize":0,"stepsize":0,"time":"2021-04-26T15:20:01+02:00"}
+{"level":"info","job":1,"Elapsed":0,"TotalRead":0,"ContentReadSize":0,"TotalWrite":0,"ContentWriteSize":0,"stepsize":0,"time":"2021-04-26T15:20:01+02:00"}
+{"level":"info","job":2,"Elapsed":0,"TotalRead":0,"ContentReadSize":0,"TotalWrite":0,"ContentWriteSize":0,"stepsize":0,"time":"2021-04-26T15:20:01+02:00"}
+{"level":"info","job":1,"time":"2021-04-26T15:20:02+02:00","message":"waking up"}
+{"level":"info","job":0,"time":"2021-04-26T15:20:02+02:00","message":"waking up"}
+{"level":"info","job":0,"Elapsed":0,"TotalRead":0,"ContentReadSize":0,"TotalWrite":0,"ContentWriteSize":0,"stepsize":0,"time":"2021-04-26T15:20:02+02:00"}
+{"level":"info","job":1,"Elapsed":0,"TotalRead":0,"ContentReadSize":0,"TotalWrite":0,"ContentWriteSize":0,"stepsize":0,"time":"2021-04-26T15:20:02+02:00"}
+{"level":"info","job":2,"Elapsed":0,"TotalRead":0,"ContentReadSize":0,"TotalWrite":0,"ContentWriteSize":0,"stepsize":0,"time":"2021-04-26T15:20:02+02:00"}
+{"level":"info","job":1,"ContentLength":1000000000,"ContentLength-B":"1.0 GB","ContentLength-iB":"953.7 MiB","protocol":"HTTP/1.1","LocalAddr":"127.0.0.1:37702","RemoteAddr":"127.0.0.1:7333","DNSInfoTime":0.770115,"ConnInfoTime":2.202359,"FirstResponseByte":4.596518,"time":"2021-04-26T15:20:02+02:00"}
+{"level":"info","job":0,"ContentLength":1000000000,"ContentLength-B":"1.0 GB","ContentLength-iB":"953.7 MiB","protocol":"HTTP/1.1","LocalAddr":"127.0.0.1:37704","RemoteAddr":"127.0.0.1:7333","DNSInfoTime":1.631833,"ConnInfoTime":2.269731,"FirstResponseByte":5.215298,"time":"2021-04-26T15:20:02+02:00"}
+{"level":"info","job":2,"TotalRead":999997440,"TotalWrite":2560,"ReadBPS":20475754451,"WriteBPS":52418,"duration":0.390704994,"url":"download 1g to 127.0.0.1:37704","time":"2021-04-26T15:20:02+02:00"}
+{"level":"info","job":2,"time":"2021-04-26T15:20:02+02:00","message":"2 max total requests reached, shutting down server"}
+{"level":"info","job":2,"time":"2021-04-26T15:20:02+02:00","message":"shutdown finished"}
+{"level":"info","job":0,"time":"2021-04-26T15:20:02+02:00","message":"transfered 1000000000 bytes"}
+{"level":"info","job":1,"time":"2021-04-26T15:20:02+02:00","message":"transfered 1000000000 bytes"}
+{"level":"info","job":2,"TotalRead":999997440,"TotalWrite":2560,"ReadBPS":19256316226,"WriteBPS":49296,"duration":0.415447037,"url":"download 1g to 127.0.0.1:37702","time":"2021-04-26T15:20:02+02:00"}
+{"level":"info","job":2,"time":"2021-04-26T15:20:02+02:00","message":"2 max total requests reached, shutting down server"}
+{"level":"info","job":0,"TotalRead":1000000000,"TotalWrite":0,"ReadBPS":20142735249,"WriteBPS":0,"duration":0.397165524,"url":"http://localhost:7333/g/1g","time":"2021-04-26T15:20:02+02:00"}
+{"level":"info","job":1,"TotalRead":1000000000,"TotalWrite":0,"ReadBPS":19055285306,"WriteBPS":0,"duration":0.419831027,"url":"http://localhost:7333/g/1g","time":"2021-04-26T15:20:02+02:00"}

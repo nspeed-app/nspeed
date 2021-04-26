@@ -46,11 +46,16 @@ var commandDescription = map[string]string{
 // global options
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
+
+var OptLogOutput = flag.String("log", "", "structured logging output filename (use - for stdout)")
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optDebug = flag.Bool("debug", false, "show more progress & details")
 var optTick = flag.Int("tick", 1, "progress interval in seconds (only used in verbose mode)")
+
 var versionFlag = flag.Bool("version", false, "display version")
+
 var optTimeout = flag.Uint("timeout", 0, "default timeout in seconds, 0 for no timeout")
+
 var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 
 // flag parsing - thx to https://github.com/artyom for hints
@@ -316,7 +321,23 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	// Logging stuff
+	consoleWriter := zerolog.ConsoleWriter{Out: os.Stderr}
+
+	// formatted log, "-" = stdout or filename
+	if *OptLogOutput != "" {
+		f := os.Stdout
+		if *OptLogOutput != "-" {
+			var err error
+			f, err = os.Create(*OptLogOutput)
+			if err != nil {
+				panic(err)
+			}
+		}
+		log.Logger = zerolog.New(zerolog.MultiLevelWriter(consoleWriter, f)).With().Timestamp().Logger()
+	} else {
+		log.Logger = log.Output(consoleWriter)
+	}
 
 	zerolog.SetGlobalLevel(zerolog.WarnLevel)
 
@@ -479,7 +500,7 @@ func PrintMemUsage(level zerolog.Level) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	log.Info().Uint64("Alloc", m.Alloc).
+	log.Debug().Uint64("Alloc", m.Alloc).
 		Uint64("TotalAlloc", m.TotalAlloc).
 		Uint64("Sys", m.Sys).
 		Uint64("Alloc(MiB)", bToMb(m.Alloc)).
