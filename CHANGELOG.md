@@ -5,6 +5,7 @@
  - display usage if no argument
  - all command can now mixed.
  - by default now nspeed outputs less messages. "-verbose" displays these messages.new option "-debug" acts like v0.5 "-verbose" option.
+ - new '-log filename' flag to write result to a structured file
  ## server
   -"-d duration" duration after which the server shutdown (duration must have a unit: s,m or h and a combinaison : 5h20m for instance)
   -"-n value" number of requests after which  the server shutdown

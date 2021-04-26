@@ -47,7 +47,7 @@ var commandDescription = map[string]string{
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
 
-var OptLogOutput = flag.String("log", "", "structured logging output filename (use - for stdout)")
+var OptLogOutput = flag.String("log", "", "structured logging output filename (use - for stdout), implied -verbose")
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optDebug = flag.Bool("debug", false, "show more progress & details")
 var optTick = flag.Int("tick", 1, "progress interval in seconds (only used in verbose mode)")
@@ -322,9 +322,22 @@ func main() {
 	}
 
 	// Logging stuff
-	consoleWriter := zerolog.ConsoleWriter{Out: os.Stderr}
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	consoleLevel := zerolog.WarnLevel
+	if *optVerbose {
+		consoleLevel = zerolog.InfoLevel
+	}
 
-	// formatted log, "-" = stdout or filename
+	if *optDebug {
+		consoleLevel = zerolog.DebugLevel
+	}
+
+	// console output, stderr, level is consoleLevel which depends on flags
+	consoleWriter := nspeed.CreateFilteredWriter(zerolog.MultiLevelWriter(zerolog.ConsoleWriter{Out: os.Stderr}), consoleLevel, false)
+
+	// file output, "-" = stdout or filename
+	// level is always info (for now)
+	// todo : remove 'level'
 	if *OptLogOutput != "" {
 		f := os.Stdout
 		if *OptLogOutput != "-" {
@@ -334,19 +347,10 @@ func main() {
 				panic(err)
 			}
 		}
-		log.Logger = zerolog.New(zerolog.MultiLevelWriter(consoleWriter, f)).With().Timestamp().Logger()
+		fileWriter := nspeed.CreateFilteredWriter(zerolog.MultiLevelWriter(f), zerolog.InfoLevel, true)
+		log.Logger = log.Output(zerolog.MultiLevelWriter(fileWriter, consoleWriter))
 	} else {
 		log.Logger = log.Output(consoleWriter)
-	}
-
-	zerolog.SetGlobalLevel(zerolog.WarnLevel)
-
-	if *optVerbose {
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	}
-
-	if *optDebug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
 	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
