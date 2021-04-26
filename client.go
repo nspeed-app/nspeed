@@ -316,6 +316,8 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	zerolog.SetGlobalLevel(zerolog.WarnLevel)
 
 	if *optVerbose {
@@ -348,7 +350,7 @@ func main() {
 			Target:     job.GetTarget(),
 			ResultChan: results,
 			LogLevel:   zerolog.GlobalLevel(),
-			Logger:     log.With().Int("index", idx).Logger(),
+			Logger:     log.With().Int("job", idx).Logger(),
 			Job:        job}
 		wcWorkers[idx] = &wm
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
@@ -477,10 +479,14 @@ func PrintMemUsage(level zerolog.Level) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	log.Info().Msgf("Alloc = %v MiB", bToMb(m.Alloc))
-	log.Info().Msgf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	log.Info().Msgf("\tSys = %v MiB", bToMb(m.Sys))
-	log.Info().Msgf("\tNumGC = %v\n", m.NumGC)
+	log.Info().Uint64("Alloc", m.Alloc).
+		Uint64("TotalAlloc", m.TotalAlloc).
+		Uint64("Sys", m.Sys).
+		Uint64("Alloc(MiB)", bToMb(m.Alloc)).
+		Uint64("TotalAlloc(MiB)", bToMb(m.TotalAlloc)).
+		Uint64("Sys", bToMb(m.Sys)).
+		Uint32("NumGC", m.NumGC).
+		Send()
 }
 
 func bToMb(b uint64) uint64 {

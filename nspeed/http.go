@@ -236,9 +236,9 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	// this is where we wait
 	if j.Delay > 0 {
-		j.Logger.Info().Msgf("#%d delay option, waiting %v", wm.Index, j.Delay)
+		j.Logger.Info().Dur("delay", j.Delay).Msg("waiting")
 		time.Sleep(j.Delay)
-		j.Logger.Info().Msgf("#", wm.Index, " waking up")
+		j.Logger.Info().Msg("waking up")
 	}
 	refdate := time.Now()
 
@@ -275,15 +275,18 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		}()
 
 		protocol := resp.Proto
-		j.Logger.Info().Msgf("todo",
-			" size = ", ByteCountDecimal(resp.ContentLength)+"B", " (", ByteCountBinary(resp.ContentLength)+"B", ")",
-			" procotol = ", protocol,
-			" local IP:port = ", wm.ConnInfo.Conn.LocalAddr(),
-			" remote IP:port = ", wm.ConnInfo.Conn.RemoteAddr(),
-			" DNSInfoTime = ", tr.dnsDone.Sub(refdate), //wm.DNSInfoTime.Sub(refdate),
-			" ConnInfoTime = ", wm.ConnInfoTime.Sub(refdate),
-			" FirstResponseByte = ", wm.FirstResponseByte.Sub(refdate),
-		)
+		j.Logger.Info().
+			Int64("ContentLength", resp.ContentLength).
+			Str("ContentLength-B", ByteCountDecimal(resp.ContentLength)+"B").
+			Str("ContentLength-iB", ByteCountBinary(resp.ContentLength)+"B").
+			Str("protocol", protocol).
+			Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
+			Stringer("RemoteAddr", wm.ConnInfo.Conn.RemoteAddr()).
+			Dur("DNSInfoTime", tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
+			Dur("ConnInfoTime", wm.ConnInfoTime.Sub(refdate)).
+			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
+			Send()
+
 		for _, a := range wm.DNSInfo.Addrs {
 			j.Logger.Info().Stringer("dnsinfo", &a)
 		}

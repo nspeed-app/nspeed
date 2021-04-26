@@ -80,7 +80,8 @@ func (wm *WorkerMetrics) LogProgress(logger *zerolog.Logger) {
 			Int64("ContentReadSize", wm.ContentReadSize).
 			Int64("TotalWrite", wm.TotalWrite).
 			Int64("ContentWriteSize", wm.ContentWriteSize).
-			Int64("stepsize", wm.StepSize)
+			Int64("stepsize", wm.StepSize).
+			Send()
 
 		// log.Infof("job %d | elapsed %.2f secs | %sB of %sB | %sB of %sB | buffer = %d",
 		// 	wm.Index, wm.ElapsedTime.Seconds(),
@@ -102,7 +103,8 @@ func (wm *WorkerMetrics) LogFinal(logger *zerolog.Logger) {
 			Int64("ReadBPS", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds())).
 			Int64("WriteBPS", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds())).
 			Float64("duration", wm.ElapsedTime.Seconds()).
-			Str("url", wm.Target)
+			Str("url", wm.Target).
+			Send()
 	} else {
 		wm.Logger.Info().Err(wm.Error)
 	}

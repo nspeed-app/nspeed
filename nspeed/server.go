@@ -83,7 +83,7 @@ func (j *NSpeedHTTPServer) OnRequestStart() bool {
 	defer j.mutex.Unlock()
 
 	if done {
-		fmt.Printf("%d max total requests reached, notifying client\n", j.TotalRequests)
+		j.Logger.Info().Msgf("%d max total requests reached, shutting down server", j.TotalRequests)
 		return false
 	}
 	return true
@@ -95,7 +95,7 @@ func (j *NSpeedHTTPServer) OnRequestEnd() {
 	done := j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests
 	j.mutex.Unlock()
 	if done {
-		fmt.Printf("%d max total requests reached, shuting down server\n", j.TotalRequests)
+		j.Logger.Info().Msgf("%d max total requests reached, shutting down server", j.TotalRequests)
 		j.Cancel()
 	}
 }
