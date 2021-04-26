@@ -7,7 +7,7 @@ import (
 )
 
 // see : https://github.com/rs/zerolog/issues/150#issuecomment-676859163
-// enhancement: we add a boot ('exact'). if true only log that level, otherwise log everything higher priority
+// enhancement: we add a bool ('exact'). if true we only log that level, otherwise we log that level and above
 
 type FilteredWriter struct {
 	w     zerolog.LevelWriter
