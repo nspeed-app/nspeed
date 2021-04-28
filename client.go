@@ -11,6 +11,7 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 	"sync"
+	"text/tabwriter"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -42,6 +43,12 @@ var commandDescription = map[string]string{
 	putCommand:   "perform an HTTP POST command to measure upload speed",
 	serveCommand: "launch a standard web server supporting GET and POST commands of arbitraty sizes",
 }
+
+//
+const colorReset = "\033[0m"
+const colorRed = "\033[31m"
+const colorGreen = "\033[32m"
+const colorYellow = "\033[33m"
 
 // global options
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -324,6 +331,7 @@ func main() {
 	// Logging stuff
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	consoleLevel := zerolog.WarnLevel
+
 	if *optVerbose {
 		consoleLevel = zerolog.InfoLevel
 	}
@@ -427,7 +435,7 @@ func main() {
 	}
 
 	progressTickerChannel := make(<-chan time.Time) // forever
-	if zerolog.GlobalLevel() >= zerolog.InfoLevel {
+	if zerolog.GlobalLevel() <= zerolog.InfoLevel {
 		progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
 		progressTickerChannel = progressTicker.C
 	}
@@ -440,9 +448,17 @@ func main() {
 			pcts, _ := cpu.Percent(0, true)
 			cpuload := "|"
 			for _, pc := range pcts {
-				cpuload += fmt.Sprintf("%3v|", math.Round(pc))
+				v := math.Round(pc)
+				color := colorGreen
+				if v > 50 {
+					color = colorYellow
+				}
+				if v > 80 {
+					color = colorRed
+				}
+				cpuload += fmt.Sprintf("%s%3v%s|", color, v, colorReset)
 			}
-			log.Printf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
+			log.Info().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			for _, wm := range wcWorkers {
 				if !wm.Done && (wm.LogLevel >= zerolog.InfoLevel) {
 					wm.LogProgress(&wm.Logger)
@@ -461,25 +477,31 @@ func main() {
 	}
 	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())
 
+	// main speed report
 	var elapsedTime time.Duration = 0
 	var totalRead int64 = 0
 	var totalWrite int64 = 0
 
+	w := tabwriter.NewWriter(os.Stderr, 0, 2, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
+	nspeed.InitSpeedReport(w)
 	for _, wm := range wcWorkers {
-		wm.LogFinal(&wm.Logger)
-		totalRead += wm.TotalRead
-		totalWrite += wm.TotalWrite
-		if wm.ElapsedTime > elapsedTime {
-			elapsedTime = wm.ElapsedTime
+		if wm.Valid {
+			totalRead += wm.TotalRead
+			totalWrite += wm.TotalWrite
+			if wm.ElapsedTime > elapsedTime {
+				elapsedTime = wm.ElapsedTime
+			}
+			nspeed.SpeedReport(w, fmt.Sprintf("Job %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString())
+		} else {
+			fmt.Printf("job %d %s", wm.Index, wm.Error)
 		}
 	}
-	fmt.Println(
-		"total:",
-		"read speed =", nspeed.FormatBitperSecond(elapsedTime.Seconds(), totalRead),
-		"write speed =", nspeed.FormatBitperSecond(elapsedTime.Seconds(), totalWrite),
-		"time =", elapsedTime,
-		"read size =", totalRead, "Bytes (", nspeed.ByteCountDecimal(totalRead)+"B )",
-		"write size =", totalRead, "Bytes (", nspeed.ByteCountDecimal(totalWrite)+"B )")
+	if totalRead == 0 && totalWrite == 0 {
+		fmt.Println("nothing to report")
+	} else {
+		nspeed.SpeedReport(w, "Total", elapsedTime, totalRead, totalWrite, "")
+		w.Flush()
+	}
 
 	// todo: defer this block
 	if *optMemprofile != "" {

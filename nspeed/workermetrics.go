@@ -2,10 +2,12 @@ package nspeed
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"math/rand"
 	"net/http/httptrace"
 	"sync"
+	"text/tabwriter"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -15,6 +17,7 @@ type Job interface {
 	GetTarget() string
 	Expand([]Job) []Job
 	GoString() string
+	PrintString() string
 	Start(context.Context, *WorkerMetrics) error // todo: split this into Init & Run
 }
 
@@ -106,7 +109,22 @@ func (wm *WorkerMetrics) LogFinal(logger *zerolog.Logger) {
 			Str("url", wm.Target).
 			Send()
 	} else {
-		wm.Logger.Info().Err(wm.Error)
+		wm.Logger.Info().Err(wm.Error).Send()
+	}
+}
+
+func (wm *WorkerMetrics) PrintFinal() {
+	if wm.Valid {
+		fmt.Printf("Job %d:", wm.Index)
+		fmt.Printf("TotalRead: %d ", wm.TotalRead)
+		fmt.Printf("TotalWrite: %d ", wm.TotalWrite)
+		fmt.Printf("ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
+		fmt.Printf("WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
+		fmt.Printf("duration: %v ", wm.ElapsedTime.Seconds())
+		fmt.Printf("url: %s", wm.Target)
+
+	} else {
+		fmt.Printf("job %d error: %v\n", wm.Index, wm.Error)
 	}
 }
 
@@ -145,7 +163,7 @@ func min(x, y int64) int64 {
 	return y
 }
 
-// implement reader -
+// implement reader - (ie 'Write' metrics since a POST will call Read() here to send to http server)
 // first iteration - do nothing with the buffer
 func (wm *WorkerMetrics) Read(p []byte) (n int, err error) {
 	wm.mutex.Lock()
@@ -156,15 +174,15 @@ func (wm *WorkerMetrics) Read(p []byte) (n int, err error) {
 	if maxstep == 0 {
 		return 0, nil
 	}
-	lefttodo := wm.ContentReadSize - wm.TotalReadProcessed
+	lefttodo := wm.ContentWriteSize - wm.TotalWriteProcessed
 	if lefttodo == 0 {
 		return 0, io.EOF
 	}
 
 	todo := min(min(int64(maxstep), wm.StepSize), lefttodo)
 
-	wm.TotalRead += todo
-	wm.TotalReadProcessed += todo
+	wm.TotalWrite += todo
+	wm.TotalWriteProcessed += todo
 
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	return int(todo), nil
@@ -179,4 +197,18 @@ func InitChunk(chunkSize int64, seed int64) []byte {
 		chunk = append(chunk, byte(rng.Intn(256)))
 	}
 	return chunk
+}
+
+func InitSpeedReport(w *tabwriter.Writer) {
+	fmt.Fprintf(w, "Job\tRead\tWrite\tTime\ttarget\n")
+}
+func SpeedReport(w *tabwriter.Writer, job string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
+	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%s\n",
+		job,
+		FormatBitperSecond(elapsedTime.Seconds(), totalRead),
+		FormatBitperSecond(elapsedTime.Seconds(), totalWrite),
+		elapsedTime.Seconds(),
+		// totalRead, ByteCountDecimal(totalRead),
+		// totalWrite, ByteCountDecimal(totalWrite),
+		target))
 }

@@ -74,6 +74,10 @@ func (j *NSpeedHTTPServer) GoString() string {
 	)
 }
 
+func (j *NSpeedHTTPServer) PrintString() string {
+	return "SERVER"
+}
+
 // called each time before a request, prevent new request before actual shutdown if MaxRequest reached
 // return false if too many requests
 func (j *NSpeedHTTPServer) OnRequestStart() bool {
@@ -243,7 +247,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 
 // handle upload
 func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
-
+	h.Logger.Info().Msgf("starting Upload from %s, %d\n", r.RemoteAddr, r.ContentLength)
 	wm := WorkerMetrics{
 		Done:    false,
 		Expired: false,

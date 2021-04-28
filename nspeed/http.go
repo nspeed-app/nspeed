@@ -36,18 +36,32 @@ type HTTPjob struct {
 }
 
 func (j *HTTPjob) GoString() string {
-	return fmt.Sprintf("%s {URL: %q, IPversion: %d, Address: %s, Instance: %d, timeout: %s}",
+	s := fmt.Sprintf("{Command: %s, URL: %q, IPversion: %d, Address: %s, Instance: %d, timeout: %s",
 		j.Command,
 		j.Target,
 		j.IPversion,
 		j.Host,
 		j.Instance,
-		j.Timeout.String(),
-	)
+		j.Timeout.String())
+	if j.Command == "POST" {
+		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, ByteCountDecimal(j.ContentSize))
+	}
+	s += "}"
+	return s
 }
 
 func (j *HTTPjob) GetTarget() string {
 	return j.Target
+}
+
+func (j *HTTPjob) PrintString() string {
+	if j.Command == "GET" {
+		return "get " + j.Target
+	} else if j.Command == "POST" {
+		return "put " + j.Target + " " + ByteCountDecimal(j.ContentSize) + "B"
+	} else {
+		return "unknown command"
+	}
 }
 
 func (j *HTTPjob) Expand(jobs []Job) []Job {
@@ -236,7 +250,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	// this is where we wait
 	if j.Delay > 0 {
-		j.Logger.Info().Dur("delay", j.Delay).Msg("waiting")
+		j.Logger.Debug().Dur("delay", j.Delay).Msg("waiting")
 		time.Sleep(j.Delay)
 		j.Logger.Info().Msg("waking up")
 	}
@@ -264,31 +278,28 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		wm.Expired = true
 		j.Logger.Info().Msgf("#", wm.Index, " something expired server side")
 	} else if err != nil {
-		j.Logger.Fatal().Err(err)
+		j.Logger.Fatal().Err(err).Send()
 	}
 
-	if j.Command == "GET" && resp != nil {
-		defer func() {
-			if resp.Body != nil {
-				resp.Body.Close()
-			}
-		}()
+	if resp != nil {
 
 		protocol := resp.Proto
 		j.Logger.Info().
-			Int64("ContentLength", resp.ContentLength).
-			Str("ContentLength-B", ByteCountDecimal(resp.ContentLength)+"B").
-			Str("ContentLength-iB", ByteCountBinary(resp.ContentLength)+"B").
 			Str("protocol", protocol).
 			Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
 			Stringer("RemoteAddr", wm.ConnInfo.Conn.RemoteAddr()).
+			Send()
+		j.Logger.Debug().
+			Int64("ContentLength", resp.ContentLength).
+			Str("ContentLength-Decimal", ByteCountDecimal(resp.ContentLength)+"B").
+			Str("ContentLength-Binary", ByteCountBinary(resp.ContentLength)+"B").
 			Dur("DNSInfoTime", tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
 			Dur("ConnInfoTime", wm.ConnInfoTime.Sub(refdate)).
 			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
 			Send()
 
 		for _, a := range wm.DNSInfo.Addrs {
-			j.Logger.Info().Stringer("dnsinfo", &a)
+			j.Logger.Debug().Stringer("dnsinfo", &a)
 		}
 		if resp.TLS != nil {
 			j.Logger.Info().
@@ -296,16 +307,31 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 				Str("cipher", tls.CipherSuiteName(resp.TLS.CipherSuite)).
 				Dur("TLSDuration", wm.TLSDone.Sub(refdate))
 		}
+		// for name, headers := range resp.Header {
+		// 	for _, h := range headers {
+		// 		j.Logger.Debug().Msgf("%v: %v", name, h)
+		// 	}
+		// }
 
-		wm.ContentReadSize = resp.ContentLength
+		if resp.StatusCode != http.StatusOK {
+			wm.Error = errors.New("http status code: " + resp.Status)
+		} else {
+			if j.Command == "GET" {
+				defer func() {
+					if resp.Body != nil {
+						resp.Body.Close()
+					}
+				}()
 
-		// this is where the GET transfert happens.
-		//   iteration 1: we use io.Copy to 'null' (Discard) and
-		//   a TeeReader to do progression with the wm which has an io.Writer interface
-		//   the resp (thru req) context  will handle timeout & parent cancellation
+				wm.ContentReadSize = resp.ContentLength
 
-		if resp.StatusCode == http.StatusOK {
-			if wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm)); err != nil {
+				// this is where the GET transfert happens.
+				//   iteration 1: we use io.Copy to 'null' (Discard) and
+				//   a TeeReader to do progression with the wm which has an io.Writer interface
+				//   the resp (thru req) context  will handle timeout & parent cancellation
+
+				wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
+
 				if err == context.DeadlineExceeded {
 					wm.Expired = true
 					j.Logger.Info().Str("cause", "timer expired client side")
@@ -320,10 +346,8 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 					j.Logger.Info().Str("cause", "completed normally")
 				}
 			}
-			j.Logger.Info().Msgf("transfered %d bytes", wm.TotalReadProcessed)
+			j.Logger.Info().Msgf("processed read:%d / write: %d bytes", wm.TotalReadProcessed, wm.TotalWriteProcessed)
 			wm.Valid = true
-		} else {
-			wm.Error = errors.New("http status code: " + resp.Status)
 		}
 	}
 	wm.ResultChan <- wm

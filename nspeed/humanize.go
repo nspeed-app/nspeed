@@ -49,7 +49,7 @@ func FormatByteDecimalUnits(b int64) string {
 
 // FormatByteDecimalUnits format byte size to human readable format (decimal units)
 // suitable to be parsed by ParseByteUnits
-func FormatBinaryUnits(b int64) string {
+func FormatByteBinaryUnits(b int64) string {
 	s, u := byteCount(b, 1024, "KMGTPE")
 	return s + u
 }
