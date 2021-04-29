@@ -56,6 +56,7 @@ var OptLogOutput = flag.String("log", "", "structured logging output filename (u
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optDebug = flag.Bool("debug", false, "show more progress & details")
 var optTick = flag.Int("tick", 1, "progress interval in seconds (only used in verbose mode)")
+var optCPU = flag.Bool("cpu", false, "display cpu usage")
 
 var versionFlag = flag.Bool("version", false, "display version")
 
@@ -367,7 +368,7 @@ func main() {
 	results := make(chan *nspeed.WorkerMetrics, njobs)
 	wcWorkers := make([]*nspeed.WorkerMetrics, njobs)
 
-	IsInfinite := false
+	//IsInfinite := false
 	fmt.Println("Jobs:")
 	for idx, job := range jobs {
 		wm := nspeed.WorkerMetrics{
@@ -376,22 +377,19 @@ func main() {
 			Index:      idx,
 			Target:     job.GetTarget(),
 			ResultChan: results,
-			LogLevel:   zerolog.GlobalLevel(),
+			LogLevel:   consoleLevel, //todo
 			Logger:     log.With().Int("job", idx).Logger(),
 			Job:        job}
 		wcWorkers[idx] = &wm
 		fmt.Printf("  %d %#v\n", idx, job)
-		if job.IsInfinite() {
-			IsInfinite = true
-		}
+		// if job.IsInfinite() {
+		// 	IsInfinite = true
+		// }
 
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
 	}
-	// for _, wm := range wcWorkers {
-	// 	fmt.Printf("%v\n", wm.Target)
-	// }
 
-	// we could merge this loop with the previous one but in case we want to start sync everything we keep this separate
+	// global timeout
 	ctx := context.Background()
 	if *optTimeout > 0 {
 		newctx, cancel := context.WithTimeout(ctx, time.Duration(*optTimeout)*time.Second)
@@ -399,6 +397,7 @@ func main() {
 		ctx = newctx
 	}
 
+	// launch a go routine for each jobs
 	var wg sync.WaitGroup
 	wg.Add(njobs)
 	for _, wm := range wcWorkers {
@@ -434,6 +433,11 @@ func main() {
 	}
 
 	progressTickerChannel := make(<-chan time.Time) // forever
+	progressCPUChannel := make(<-chan time.Time)    // forever
+	if *optCPU {
+		progressCPUTicker := time.NewTicker(time.Duration(*optTick) * time.Second) // todo: pass value
+		progressCPUChannel = progressCPUTicker.C
+	}
 	if zerolog.GlobalLevel() <= zerolog.InfoLevel {
 		progressTicker := time.NewTicker(time.Duration(*optTick) * time.Second)
 		progressTickerChannel = progressTicker.C
@@ -441,16 +445,18 @@ func main() {
 
 	for !done {
 		select {
+		case <-progressCPUChannel:
+			if *optCPU {
+				cpuload := nspeed.GetCPULoad(true)
+				// we dont log.Info() this to avoid sending it to the file
+				log.Log().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
+			}
+
 		case <-progressTickerChannel:
 			// time critical: warning for overlap/backlogs if what's done here takes too long
 			// this section assumes loglevel >= info
-			cpuload := nspeed.GetCPULoad(true)
-			// we dont log.Info() this to avoid sending it to the file
-			if !IsInfinite {
-				fmt.Printf("%s, active jobs: %d / active goroutines: %d\n", cpuload, rc, runtime.NumGoroutine())
-			}
 			for _, wm := range wcWorkers {
-				if !wm.Done && (wm.LogLevel >= zerolog.InfoLevel) {
+				if !wm.Done && (wm.LogLevel == zerolog.DebugLevel) {
 					wm.LogProgress(&wm.Logger)
 				}
 			}
@@ -466,6 +472,8 @@ func main() {
 		}
 	}
 	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())
+	log.Debug().Msg("sleeping one second")
+	time.Sleep(1 * time.Second)
 
 	// main speed report
 	var elapsedTime time.Duration = 0
@@ -510,7 +518,7 @@ func main() {
 // debug stuff
 
 func PrintMemUsage(level zerolog.Level) {
-	if level < zerolog.InfoLevel {
+	if level >= zerolog.InfoLevel {
 		return
 	}
 	var m runtime.MemStats
