@@ -66,6 +66,11 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     # same as above but without sending the filename to the server
     curl -X POST --data-binary @/path/to/file http://localhost:7333/p/ | tee
 
+    # download 1 GB from the local server and stop it
+    # how it works:
+    #   - we launch a localhost server that will respond to one request then shutdown (-n 1)
+    #   - we launch a get command that will wait 1 second (-w 1) before requesting the server
+    nspeed server -n 1 get -w 1 http://localhost:7333/g/1g
 ## Installation
 
 Binary distribution available here: [dl.nspeed.app](https://dl.nspeed.app) or in the [release section](https://github.com/nspeed-app/nspeed/releases)
