@@ -176,6 +176,9 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	req.Header.Set("User-Agent", j.UserAgent)
 	req.Header.Set("Content-Type", j.ContentType)
 
+	// tracing & timing stuff
+	refdate := time.Now()
+
 	tr := &roundTripTrace{}
 
 	// todo handle redirects
@@ -184,6 +187,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			tr.start = time.Now()
+			wm.Logger.Debug().Msgf("DNSStart: %v", tr.start.Sub(refdate))
 		},
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
 			wm.mutex.Lock()
@@ -191,6 +195,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			wm.DNSInfoTime = time.Now()
 			wm.DNSInfo = dnsInfo
 			tr.dnsDone = wm.DNSInfoTime
+			wm.Logger.Debug().Msgf("DNSDone: %v", wm.DNSInfoTime.Sub(refdate))
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
 			wm.mutex.Lock()
@@ -198,12 +203,14 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			wm.ConnInfoTime = time.Now()
 			wm.ConnInfo = connInfo
 			tr.gotConn = wm.ConnInfoTime
+			wm.Logger.Debug().Msgf("GotConn: %v", wm.ConnInfoTime.Sub(refdate))
 		},
 		GotFirstResponseByte: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			wm.FirstResponseByte = time.Now()
 			tr.responseStart = wm.FirstResponseByte
+			wm.Logger.Debug().Msgf("GotFirstResponseByte: %v", wm.FirstResponseByte.Sub(refdate))
 		},
 
 		TLSHandshakeStart: func() {
@@ -232,18 +239,20 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 				tr.start = time.Now()
 				tr.dnsDone = tr.start
 			}
+			wm.Logger.Debug().Msgf("ConnectStart: %v", time.Since(refdate))
 		},
 
 		ConnectDone: func(net, addr string, err error) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			tr.connectDone = time.Now()
+			wm.Logger.Debug().Msgf("ConnectDone: %v", tr.connectDone.Sub(refdate))
 		},
 
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			j.Logger.Info().Msgf("got 1xx: %d %+v", code, header)
+			j.Logger.Debug().Msgf("got 1xx: %d %+v", code, header)
 			return nil
 		},
 	}
@@ -254,7 +263,6 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		time.Sleep(j.Delay)
 		j.Logger.Info().Msg("waking up")
 	}
-	refdate := time.Now()
 
 	// add timeout
 	if j.Timeout > 0 {
@@ -267,40 +275,50 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	wm.InitNew()
 
+	// start the main timer
+	refdate = time.Now()
 	// resp, err := client.Transport.RoundTrip(req)
 	resp, err := client.Do(req)
 	tr.end = time.Now()
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		wm.Expired = true
-		j.Logger.Info().Msgf("#", wm.Index, " timer expired client side")
+		j.Logger.Info().Msgf("timer expired client side")
 	} else if errors.Is(err, syscall.ECONNRESET) {
 		wm.Expired = true
-		j.Logger.Info().Msgf("#", wm.Index, " something expired server side")
+		j.Logger.Info().Msgf("something expired server side")
 	} else if err != nil {
 		j.Logger.Fatal().Err(err).Send()
 	}
 
-	if resp != nil {
+	j.Logger.Info().
+		Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
+		Stringer("RemoteAddr", wm.ConnInfo.Conn.RemoteAddr()).
+		Dur("DNSInfoTime", tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
+		Dur("ConnInfoTime", wm.ConnInfoTime.Sub(refdate)).
+		Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
+		Send()
 
+	if zerolog.GlobalLevel() <= zerolog.DebugLevel {
+		for _, a := range wm.DNSInfo.Addrs {
+			j.Logger.Debug().Stringer("dnsinfo", &a)
+		}
+	}
+
+	// todo: time'd out 'POST' don't have a resp so we're missing informations like protocol ,tls, etc
+	// workaround: do a HEAD before the POST but that will count has 2 requests and could mess the server stats and Maxrequests option
+	// find a way to get the missing informations elsewhere
+	if resp != nil {
 		protocol := resp.Proto
 		j.Logger.Info().
 			Str("protocol", protocol).
-			Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
-			Stringer("RemoteAddr", wm.ConnInfo.Conn.RemoteAddr()).
 			Send()
 		j.Logger.Debug().
 			Int64("ContentLength", resp.ContentLength).
 			Str("ContentLength-Decimal", ByteCountDecimal(resp.ContentLength)+"B").
 			Str("ContentLength-Binary", ByteCountBinary(resp.ContentLength)+"B").
-			Dur("DNSInfoTime", tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
-			Dur("ConnInfoTime", wm.ConnInfoTime.Sub(refdate)).
-			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
 			Send()
 
-		for _, a := range wm.DNSInfo.Addrs {
-			j.Logger.Debug().Stringer("dnsinfo", &a)
-		}
 		if resp.TLS != nil {
 			j.Logger.Info().
 				Str("crypto", TLSVersionName(resp.TLS.Version)).
