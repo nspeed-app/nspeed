@@ -1,3 +1,24 @@
+#v0.6
+## general
+ - '-a' flag now always prefers IPv6 first
+ - major overhaul of displayed messages (zerolog package)
+ - display usage if no argument
+ - all commands can now be mixed together (*)
+ - by default now nspeed outputs less messages. "-verbose" displays these messages.new option "-debug" acts like v0.5 "-verbose" option.
+ - new '-log filename' flag to write result to a structured file (not finalized)
+ - colorized cpu with the -verbose option
+ ## server
+  -"-d duration" duration after which the server shutdown (duration must have a unit: s,m or h and a combinaison : 5h20m for instance)
+  -"-n value" number of requests after which  the server shutdown
+## client
+  - "-w duration" wait delay before starting the command
+
+ (*) The new flags allow to test with a single nspeed command, for instance:
+
+    nspeed server -n 2 get -w 1 -n 2 http://localhost:7333/g/1g
+
+This will launch a server and it will answer to 2 requests then stop and a "get" client that will wait 1 second and perform 2 requests to the server.
+
 # v0.5
 ## general
  - better usage help text
