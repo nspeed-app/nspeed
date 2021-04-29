@@ -257,7 +257,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 
 // handle upload
 func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
-	h.Logger.Info().Msgf("starting Upload from %s, %d\n", r.RemoteAddr, r.ContentLength)
+	h.Logger.Info().Msgf("starting Upload from %s (%d)", r.RemoteAddr, r.ContentLength)
 	wm := WorkerMetrics{
 		Done:    false,
 		Expired: false,
