@@ -8,10 +8,10 @@
  - new '-log filename' flag to write result to a structured file (not finalized)
  - colorized cpu with the -verbose option
  ## server
-  -"-d duration" duration after which the server shutdown (duration must have a unit: s,m or h and a combinaison : 5h20m for instance)
-  -"-n value" number of requests after which  the server shutdown
+ - "-d duration" duration after which the server shutdown (duration must have a unit: s,m or h and a combinaison : 5h20m for instance)
+ - "-n value" number of requests after which  the server shutdown
 ## client
-  - "-w duration" wait delay before starting the command
+ - "-w duration" wait delay before starting the command
 
  (*) The new flags allow to test with a single nspeed command, for instance:
 
