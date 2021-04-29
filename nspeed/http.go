@@ -73,6 +73,8 @@ func (j *HTTPjob) Expand(jobs []Job) []Job {
 	return jobs
 }
 
+func (j *HTTPjob) IsInfinite() bool { return false }
+
 // roundTripTrace holds timings for a single HTTP roundtrip.
 // mostly from prometheus blackbox_exporter
 type roundTripTrace struct {

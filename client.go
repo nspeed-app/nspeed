@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -17,7 +16,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/shirou/gopsutil/v3/cpu"
 	"nspeed.app/nspeed"
 )
 
@@ -31,11 +29,17 @@ const getCommand = "get"
 const putCommand = "put"
 const serveCommand = "server"
 
+// supported commands, expand has needed
+type NSpeedCommand struct {
+	Name string
+	Set  int
+}
+
 // list of supported commands. Value is the set number. Commands in the same set can be mixed together.
-var implementedCommands = map[string]int{
-	getCommand:   1,
-	putCommand:   1,
-	serveCommand: 1,
+var implementedCommands = map[string]NSpeedCommand{
+	getCommand:   {getCommand, 1},
+	putCommand:   {putCommand, 1},
+	serveCommand: {serveCommand, 1},
 }
 
 var commandDescription = map[string]string{
@@ -43,12 +47,6 @@ var commandDescription = map[string]string{
 	putCommand:   "perform an HTTP POST command to measure upload speed",
 	serveCommand: "launch a standard web server supporting GET and POST commands of arbitraty sizes",
 }
-
-//
-const colorReset = "\033[0m"
-const colorRed = "\033[31m"
-const colorGreen = "\033[32m"
-const colorYellow = "\033[33m"
 
 // global options
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -77,14 +75,14 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	for len(args) != 0 {
 		command := args[0]
 		args = args[1:]
-		set, ok := implementedCommands[command]
+		cmd, ok := implementedCommands[command]
 		if !ok {
 			return nil, errors.New("unknown command " + command)
 		}
 		if cmdSet == 0 {
-			cmdSet = set
+			cmdSet = cmd.Set
 		}
-		if cmdSet != set {
+		if cmdSet != cmd.Set {
 			return nil, errors.New("cannot mix these commands " + command)
 		}
 		switch command {
@@ -365,16 +363,12 @@ func main() {
 
 	jobs = nspeed.ExpandJobs(jobs)
 
-	fmt.Println("Jobs:")
-	for i, j := range jobs {
-		fmt.Printf("  %d %#v\n", i, j)
-	}
-
 	njobs := len(jobs)
 	results := make(chan *nspeed.WorkerMetrics, njobs)
-
 	wcWorkers := make([]*nspeed.WorkerMetrics, njobs)
 
+	IsInfinite := false
+	fmt.Println("Jobs:")
 	for idx, job := range jobs {
 		wm := nspeed.WorkerMetrics{
 			Done:       false,
@@ -386,6 +380,11 @@ func main() {
 			Logger:     log.With().Int("job", idx).Logger(),
 			Job:        job}
 		wcWorkers[idx] = &wm
+		fmt.Printf("  %d %#v\n", idx, job)
+		if job.IsInfinite() {
+			IsInfinite = true
+		}
+
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
 	}
 	// for _, wm := range wcWorkers {
@@ -445,20 +444,11 @@ func main() {
 		case <-progressTickerChannel:
 			// time critical: warning for overlap/backlogs if what's done here takes too long
 			// this section assumes loglevel >= info
-			pcts, _ := cpu.Percent(0, true)
-			cpuload := "|"
-			for _, pc := range pcts {
-				v := math.Round(pc)
-				color := colorGreen
-				if v > 50 {
-					color = colorYellow
-				}
-				if v > 80 {
-					color = colorRed
-				}
-				cpuload += fmt.Sprintf("%s%3v%s|", color, v, colorReset)
+			cpuload := nspeed.GetCPULoad(true)
+			// we dont log.Info() this to avoid sending it to the file
+			if !IsInfinite {
+				fmt.Printf("%s, active jobs: %d / active goroutines: %d\n", cpuload, rc, runtime.NumGoroutine())
 			}
-			log.Info().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			for _, wm := range wcWorkers {
 				if !wm.Done && (wm.LogLevel >= zerolog.InfoLevel) {
 					wm.LogProgress(&wm.Logger)
@@ -493,7 +483,7 @@ func main() {
 			}
 			nspeed.SpeedReport(w, fmt.Sprintf("Job %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString())
 		} else {
-			fmt.Printf("job %d %s", wm.Index, wm.Error)
+			log.Debug().Err(wm.Error).Msgf("no report for job %d", wm.Index)
 		}
 	}
 	if totalRead == 0 && totalWrite == 0 {

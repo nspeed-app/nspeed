@@ -78,6 +78,16 @@ func (j *NSpeedHTTPServer) PrintString() string {
 	return "SERVER"
 }
 
+func (j *NSpeedHTTPServer) IsInfinite() bool {
+	if j.Parameters.MaxRequests > 0 {
+		return false
+	}
+	if j.Parameters.RunDuration > 0 {
+		return false
+	}
+	return true
+}
+
 // called each time before a request, prevent new request before actual shutdown if MaxRequest reached
 // return false if too many requests
 func (j *NSpeedHTTPServer) OnRequestStart() bool {
@@ -219,7 +229,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	for i := int64(0); i < numChunk; i++ {
 		n, err := w.Write(chunk)
 		f.Flush()
-		wm.TotalRead += int64(n)
+		wm.TotalWrite += int64(n)
 		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 		if err != nil {
 			wm.Error = err
@@ -251,7 +261,7 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	wm := WorkerMetrics{
 		Done:    false,
 		Expired: false,
-		Target:  fmt.Sprintf("upload to %s", r.RemoteAddr),
+		Target:  fmt.Sprintf("upload from %s", r.RemoteAddr),
 		Job:     h,
 	}
 	wm.FirstResponseByte = time.Now()

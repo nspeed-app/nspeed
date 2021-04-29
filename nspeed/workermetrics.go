@@ -18,6 +18,7 @@ type Job interface {
 	Expand([]Job) []Job
 	GoString() string
 	PrintString() string
+	IsInfinite() bool
 	Start(context.Context, *WorkerMetrics) error // todo: split this into Init & Run
 }
 
