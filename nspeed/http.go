@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // a HTTP command, get or post
@@ -307,6 +308,10 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		}
 	}
 
+	if wm.ConnInfo.Reused {
+		log.Debug().Msg("REUSING CONNECTION")
+	}
+
 	// todo: time'd out 'POST' don't have a resp so we're missing informations like protocol ,tls, etc
 	// workaround: do a HEAD before the POST but that will count has 2 requests and could mess the server stats and Maxrequests option
 	// find a way to get the missing informations elsewhere
@@ -366,10 +371,11 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 					j.Logger.Info().Str("cause", "completed normally")
 				}
 			}
-			j.Logger.Info().Msgf("processed read:%d / write: %d bytes", wm.TotalReadProcessed, wm.TotalWriteProcessed)
+			//j.Logger.Info().Msgf("processed read:%d / write: %d bytes", wm.TotalReadProcessed, wm.TotalWriteProcessed)
 			wm.Valid = true
 		}
 	}
+	wm.LogFinal(j.Logger)
 	wm.ResultChan <- wm
 	return nil
 }

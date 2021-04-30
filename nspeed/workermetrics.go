@@ -47,6 +47,8 @@ type WorkerMetrics struct {
 	ConnInfoTime        time.Time
 	ContentReadSize     int64
 	ContentWriteSize    int64
+	ReadCount           int64
+	WriteCount          int64
 	TotalRead           int64
 	TotalWrite          int64
 	TotalReadProcessed  int64
@@ -69,6 +71,7 @@ func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 	wm.StepSize = int64(n)
 	wm.TotalRead += wm.StepSize
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+	wm.ReadCount++
 	return n, nil
 }
 
@@ -85,6 +88,8 @@ func (wm *WorkerMetrics) LogProgress(logger *zerolog.Logger) {
 			Int64("TotalWrite", wm.TotalWrite).
 			Int64("ContentWriteSize", wm.ContentWriteSize).
 			Int64("stepsize", wm.StepSize).
+			Int64("ReadCount", wm.ReadCount).
+			Int64("WriteCount", wm.WriteCount).
 			Send()
 
 		// log.Infof("job %d | elapsed %.2f secs | %sB of %sB | %sB of %sB | buffer = %d",
@@ -101,9 +106,22 @@ func (wm *WorkerMetrics) LogFinal(logger *zerolog.Logger) {
 		return
 	}
 	if wm.Valid {
+		AverageReadSize := int64(0)
+		if wm.ReadCount > 0 {
+			AverageReadSize = wm.TotalRead / wm.ReadCount
+		}
+		AverageWriteSize := int64(0)
+		if wm.WriteCount > 0 {
+			AverageWriteSize = wm.TotalWrite / wm.WriteCount
+		}
+
 		logger.Info().
 			Int64("TotalRead", wm.TotalRead).
+			Int64("ReadCount", wm.ReadCount).
+			Int64("AverageReadSize", AverageReadSize).
 			Int64("TotalWrite", wm.TotalWrite).
+			Int64("WriteCount", wm.WriteCount).
+			Int64("AverageWriteSize", AverageWriteSize).
 			Int64("ReadBPS", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds())).
 			Int64("WriteBPS", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds())).
 			Float64("duration", wm.ElapsedTime.Seconds()).
@@ -116,7 +134,7 @@ func (wm *WorkerMetrics) LogFinal(logger *zerolog.Logger) {
 
 func (wm *WorkerMetrics) PrintFinal() {
 	if wm.Valid {
-		fmt.Printf("Job %d:", wm.Index)
+		fmt.Printf("%d:", wm.Index)
 		fmt.Printf("TotalRead: %d ", wm.TotalRead)
 		fmt.Printf("TotalWrite: %d ", wm.TotalWrite)
 		fmt.Printf("ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
@@ -170,6 +188,7 @@ func (wm *WorkerMetrics) Read(p []byte) (n int, err error) {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 
+	wm.WriteCount++
 	maxstep := len(p)
 
 	if maxstep == 0 {
