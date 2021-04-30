@@ -138,6 +138,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		DialContext:         dialer.DialContext,
 		ForceAttemptHTTP2:   true,
 		TLSHandshakeTimeout: 5 * time.Second,
+		DisableCompression:  true,
 		// WriteBufferSize:     1024 * 1024,
 		// ReadBufferSize:      1024 * 1024,
 	}
