@@ -1,12 +1,15 @@
 missing: latency
 upload: send random data instead of zero
+optimize buffer size
+ctrl-c for client
+remove delay at the end
 
 prévisions pour la v0.6: API
 - client: ajout d'une option: délais d'attente avant de lancer les transferts.
 - server: ajout d' options: durée de vie du server et nombre de requetes max (généralisation du "-1" d'iperf3)
-- api: gros morceau, il faut refactorer le code, définir une API propre. Cet étape permettra ensuite d'avoir le mode 'agent' et l'UI web.
 
-prévisions pour la v0.7: utilisation de l'API
+prévisions pour la v0.7: API &  utilisation de l'API
+- api: gros morceau, il faut refactorer le code, définir une API propre. Cet étape permettra ensuite d'avoir le mode 'agent' et l'UI web.
 - mode agent : lancer nspeed en mode agent permet a un nspeed maitre de le contrôler a distance. Ceci permettra d’effectuer des tests synchronisés et centralisés depuis machines en même temps.
 - UI web version basique: version simpliste sans chichi dans l'interface web
 

@@ -14,6 +14,7 @@ ip route get $destination_ip
     /sys/class/net/$name/statistics/tx_bytes
 type:
   investigate how `nmcli con show` works
+routing: /proc/net/route and /proc/net/ipv6_route
 
 #windows
 prereq: powershell
