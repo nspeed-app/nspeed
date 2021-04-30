@@ -236,6 +236,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 			wm.Expired = true
 			break
 		}
+		wm.WriteCount++
 	}
 
 	// send the modulo is any
