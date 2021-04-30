@@ -172,7 +172,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var chunkSize int64 = 10 * 1024 // todo: move this in a parameter/const
+	var chunkSize int64 = 10 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 
 	//danger zone
 	if r.URL.Query().Get("chunk_size") != "" {
@@ -206,7 +206,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		seed = time.Now().Unix()
 	}
 
-	chunk := InitChunk(chunkSize, seed)
+	chunk := InitChunk(chunkSize, seed) //todo: make it global to minimum mem usage (currently it's allocated for every request)
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", strconv.FormatInt(numBytes, 10))
@@ -239,7 +239,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		wm.WriteCount++
 	}
 
-	// send the modulo is any
+	// send the modulo is any or not interrupted/timed out
 	// fmt.Println("modulo :", numBytes % chunkSize)
 	if numBytes%chunkSize > 0 && !wm.Expired {
 		n, err := w.Write(chunk[:numBytes%chunkSize])
