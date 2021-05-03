@@ -62,7 +62,7 @@ func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
 }
 
 func (j *NSpeedHTTPServer) GoString() string {
-	return fmt.Sprintf("server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_request duration: %d, UseTLS: %t, maxruns: %d, max life: %v}",
+	return fmt.Sprintf("server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_request, max duration: %v, UseTLS: %t, maxruns: %d, max life: %v}",
 		j.Parameters.Host,
 		j.Parameters.Port,
 		j.Parameters.ForceIPVersion,
@@ -172,7 +172,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var chunkSize int64 = 10 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
+	var chunkSize int64 = 32 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 
 	//danger zone
 	if r.URL.Query().Get("chunk_size") != "" {
@@ -228,7 +228,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	wm.StepSize = chunkSize
 	for i := int64(0); i < numChunk; i++ {
 		n, err := w.Write(chunk)
-		f.Flush()
+		//f.Flush() -todo investigate
 		wm.TotalWrite += int64(n)
 		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 		if err != nil {

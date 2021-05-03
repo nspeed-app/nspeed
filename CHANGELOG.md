@@ -1,3 +1,14 @@
+# v0.7
+- '-color': use colors in output
+- '-cpu' : display cpu usage (every seconde for now). -debug & -verbose don't display cpu anymore
+- news debug metrics: ReadCount,WriteCount (how many Read & Write performed) and AverageReadSize,AverageWriteSize (total volume/count)
+- fix usage messages
+## server
+- bigger buffer when sending
+## client
+- disable compression
+- dns report is back in -verbose mode
+
 #v0.6
 ## general
  - '-a' flag now always prefers IPv6 first

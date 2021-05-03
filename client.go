@@ -58,6 +58,8 @@ var optDebug = flag.Bool("debug", false, "show more progress & details")
 var optTick = flag.Int("tick", 1, "progress interval in seconds (only used in verbose mode)")
 var optCPU = flag.Bool("cpu", false, "display cpu usage")
 
+var optColor = flag.Bool("color", false, "use colors")
+
 var versionFlag = flag.Bool("version", false, "display version")
 
 var optTimeout = flag.Uint("timeout", 0, "default timeout in seconds, 0 for no timeout")
@@ -94,6 +96,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 				fmt.Fprintf(fs.Output(), "  %s [options] url\n", getCommand)
 				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 				fs.PrintDefaults()
+				fmt.Fprintf(fs.Output(), "\n")
 			}
 
 			repeat := fs.Uint("n", 1, "number of times to process an item")
@@ -147,6 +150,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 				fmt.Fprintf(fs.Output(), "supported units: kmgtpe (x1000 units) and KMGTPE (x1024 units)\n")
 				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 				fs.PrintDefaults()
+				fmt.Fprintf(fs.Output(), "\n")
 			}
 			repeat := fs.Uint("n", 1, "number of times to process an item")
 			useIPv4 := fs.Bool("4", false, "use IPv4 only")
@@ -207,6 +211,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 				fmt.Fprintf(fs.Output(), "  %s [options]\n", getCommand)
 				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 				fs.PrintDefaults()
+				fmt.Fprintf(fs.Output(), "\n")
 			}
 
 			fs.StringVar(&host.Host, "a", "localhost", "Hostname or ip address to listen (use \"\" for all interfaces/all addresses)")
@@ -309,7 +314,8 @@ func main() {
 
 	jobs, err := parseJobs(flag.Args())
 	if err != nil {
-		log.Fatal().Err(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	// no command, return for now, later: check if launched from UI world (explorer, file manager, browser, etc)
@@ -340,7 +346,7 @@ func main() {
 	}
 
 	// console output, stderr, level is consoleLevel which depends on flags
-	consoleWriter := nspeed.CreateFilteredWriter(zerolog.MultiLevelWriter(zerolog.ConsoleWriter{Out: os.Stderr}), consoleLevel, false)
+	consoleWriter := nspeed.CreateFilteredWriter(zerolog.MultiLevelWriter(zerolog.ConsoleWriter{Out: os.Stderr, NoColor: !*optColor}), consoleLevel, false)
 
 	// file output, "-" = stdout or filename
 	// level is always info (for now)
@@ -447,7 +453,7 @@ func main() {
 		select {
 		case <-progressCPUChannel:
 			if *optCPU {
-				cpuload := nspeed.GetCPULoad(true)
+				cpuload := nspeed.GetCPULoad(*optColor)
 				// we dont log.Info() this to avoid sending it to the file
 				log.Log().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			}

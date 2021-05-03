@@ -2,6 +2,7 @@ package nspeed
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"math/rand"
@@ -57,7 +58,9 @@ type WorkerMetrics struct {
 	TransfertStartTime  time.Time
 	ElapsedTime         time.Duration
 	FirstResponseByte   time.Time
-	TLSDone             time.Time
+	TLSDone             bool
+	TLSTime             time.Time
+	TLS                 tls.ConnectionState
 	Logger              zerolog.Logger
 	LogLevel            zerolog.Level
 	mutex               sync.Mutex
@@ -156,6 +159,11 @@ func (wm *WorkerMetrics) InitNew() {
 	wm.TransfertStartTime = time.Now()
 	wm.ElapsedTime = 0
 	wm.TotalRead = 0
+	wm.TotalWrite = 0
+	wm.ReadCount = 0
+	wm.WriteCount = 0
+	wm.TotalReadProcessed = 0
+	wm.TotalWriteProcessed = 0
 }
 
 func (wm *WorkerMetrics) Close() error {

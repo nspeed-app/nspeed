@@ -221,6 +221,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			tr.tlsStart = time.Now()
+			wm.Logger.Debug().Msgf("TLSHandshakeStart: %v", tr.tlsStart.Sub(refdate))
 		},
 
 		TLSHandshakeDone: func(t tls.ConnectionState, err error) {
@@ -228,12 +229,15 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			defer wm.mutex.Unlock()
 			if err == nil {
 				tr.tls = true
-				wm.TLSDone = time.Now()
-				tr.tlsDone = wm.TLSDone
+				wm.TLSTime = time.Now()
+				wm.TLSDone = true
+				tr.tlsDone = wm.TLSTime
+				wm.TLS = t
 			} else {
 				tr.tls = false
 				fmt.Printf("tls: %+v \n", err)
 			}
+			wm.Logger.Debug().Msgf("TLSHandshakeDone: %v", wm.TLSTime.Sub(refdate))
 		},
 		ConnectStart: func(_, _ string) {
 			wm.mutex.Lock()
@@ -303,19 +307,24 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
 		Send()
 
-	if zerolog.GlobalLevel() <= zerolog.DebugLevel {
-		for _, a := range wm.DNSInfo.Addrs {
-			j.Logger.Debug().Stringer("dnsinfo", &a)
-		}
+	for _, a := range wm.DNSInfo.Addrs {
+		j.Logger.Info().Stringer("dnsinfo", &a).Send()
 	}
 
 	if wm.ConnInfo.Reused {
-		log.Debug().Msg("REUSING CONNECTION")
+		log.Info().Msg("REUSING CONNECTION")
+	}
+
+	if wm.TLSDone {
+		j.Logger.Info().
+			Str("crypto", TLSVersionName(wm.TLS.Version)).
+			Str("cipher", tls.CipherSuiteName(wm.TLS.CipherSuite)).
+			Dur("TLSDuration", wm.TLSTime.Sub(refdate)).Send()
 	}
 
 	// todo: time'd out 'POST' don't have a resp so we're missing informations like protocol ,tls, etc
+	// todo: find a way to get the missing informations elsewhere
 	// workaround: do a HEAD before the POST but that will count has 2 requests and could mess the server stats and Maxrequests option
-	// find a way to get the missing informations elsewhere
 	if resp != nil {
 		protocol := resp.Proto
 		j.Logger.Info().
@@ -326,18 +335,6 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			Str("ContentLength-Decimal", ByteCountDecimal(resp.ContentLength)+"B").
 			Str("ContentLength-Binary", ByteCountBinary(resp.ContentLength)+"B").
 			Send()
-
-		if resp.TLS != nil {
-			j.Logger.Info().
-				Str("crypto", TLSVersionName(resp.TLS.Version)).
-				Str("cipher", tls.CipherSuiteName(resp.TLS.CipherSuite)).
-				Dur("TLSDuration", wm.TLSDone.Sub(refdate))
-		}
-		// for name, headers := range resp.Header {
-		// 	for _, h := range headers {
-		// 		j.Logger.Debug().Msgf("%v: %v", name, h)
-		// 	}
-		// }
 
 		if resp.StatusCode != http.StatusOK {
 			wm.Error = errors.New("http status code: " + resp.Status)
