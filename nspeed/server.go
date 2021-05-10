@@ -2,6 +2,7 @@ package nspeed
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ import (
 
 var ServerVersion string
 var ServerName string
+var TLSSelfConfig *tls.Config
 
 // Default configuration values
 const (
@@ -36,6 +38,7 @@ type NSpeedHost struct {
 	MaxBodySize    int64
 	MaxDuration    time.Duration
 	ServeTLS       bool
+	TLSEmbed       bool // if true the 2 following are not filenames but data
 	TLSCertFile    string
 	TLSKeyFile     string
 	RunDuration    time.Duration
@@ -366,7 +369,16 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	var listenErr error
 	if s.Parameters.ServeTLS {
 		s.Logger.Info().Msgf("nspeed listening on https://%s", listenAddr)
-		listenErr = s.Server.ServeTLS(ln, s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
+		if s.Parameters.TLSEmbed {
+			cert, err := tls.X509KeyPair([]byte(s.Parameters.TLSCertFile), []byte(s.Parameters.TLSKeyFile))
+			if err == nil {
+				s.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+				listenErr = s.Server.ServeTLS(ln, "", "")
+			}
+
+		} else {
+			listenErr = s.Server.ServeTLS(ln, s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
+		}
 	} else {
 		s.Logger.Info().Msgf("nspeed listening on http://%s", listenAddr)
 		listenErr = s.Server.Serve(ln)

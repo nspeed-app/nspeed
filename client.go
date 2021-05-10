@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"embed"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -17,6 +17,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	_ "embed"
+
 	"nspeed.app/nspeed"
 )
 
@@ -25,14 +27,11 @@ import (
 // golang.org/issue/29814 and golang.org/issue/29228.
 var Version string
 
-//go:embed embed/static/
-var staticFiles embed.FS
-
 //go:embed embed/nspeed.pem
-var Pem string
+var TLSSelfSignedCert []byte
 
 //go:embed embed/nspeed-key.pem
-var Keypem string
+var TLSSelfSignedKey []byte
 
 // commands
 const getCommand = "get"
@@ -75,6 +74,8 @@ var versionFlag = flag.Bool("version", false, "display version")
 var optTimeout = flag.Uint("timeout", 0, "default timeout in seconds, 0 for no timeout")
 
 var optTest = flag.Bool("test", false, "just test arguments, do nothing")
+
+var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 
 // flag parsing - thx to https://github.com/artyom for hints
 // make sure global args are parsed first
@@ -262,8 +263,6 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			}
 			host.MaxBodySize = int64(ms)
 
-			// todo check cert & key & set ServeTLS
-
 			host.ServeTLS = false
 			if host.TLSCertFile != "" || host.TLSKeyFile != "" {
 				if _, err := os.Stat(host.TLSCertFile); os.IsNotExist(err) {
@@ -320,6 +319,16 @@ func main() {
 		}
 		fmt.Println("(unknown)")
 		return
+	}
+
+	// self-signed cert
+	if *optTLSSelf {
+		certificate, err := tls.X509KeyPair(TLSSelfSignedCert, TLSSelfSignedKey)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		nspeed.TLSSelfConfig = &tls.Config{Certificates: []tls.Certificate{certificate}}
 	}
 
 	jobs, err := parseJobs(flag.Args())
