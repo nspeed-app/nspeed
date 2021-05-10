@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -23,6 +24,15 @@ import (
 // which is "(devel)" when building from within the module. See
 // golang.org/issue/29814 and golang.org/issue/29228.
 var Version string
+
+//go:embed embed/static/
+var staticFiles embed.FS
+
+//go:embed embed/nspeed.pem
+var Pem string
+
+//go:embed embed/nspeed-key.pem
+var Keypem string
 
 // commands
 const getCommand = "get"
