@@ -1,8 +1,8 @@
 # v0.7
 - '-self': activate self-signed certificate for all clients (get & put)
 - '-color': use colors in output
-- '-cpu' : display cpu usage (every seconde for now). -debug & -verbose don't display cpu anymore
-- news debug metrics: ReadCount,WriteCount (how many OS level Read & Write were performed) and AverageReadSize,AverageWriteSize (total volume/count)
+- '-cpu' : display cpu usage (every second for now). -debug & -verbose don't display cpu anymore
+- news debug metrics: ReadCount,WriteCount (how many OS level Read & Write calls were performed) and AverageReadSize,AverageWriteSize (total volume/count)
 - fix some usage messages
 ## server
 - '-self': listen in https mode using a self-signed certificate

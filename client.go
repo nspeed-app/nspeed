@@ -546,7 +546,7 @@ func main() {
 	if totalRead == 0 && totalWrite == 0 {
 		fmt.Println("nothing to report")
 	} else {
-		nspeed.SpeedReport(w, "Total", elapsedTime, totalRead, totalWrite, "")
+		nspeed.SpeedReport(w, "Average", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
 	}
 
