@@ -1,13 +1,16 @@
 # v0.7
+- '-self': activate self-signed certificate for all clients (get & put)
 - '-color': use colors in output
 - '-cpu' : display cpu usage (every seconde for now). -debug & -verbose don't display cpu anymore
-- news debug metrics: ReadCount,WriteCount (how many Read & Write performed) and AverageReadSize,AverageWriteSize (total volume/count)
-- fix usage messages
+- news debug metrics: ReadCount,WriteCount (how many OS level Read & Write were performed) and AverageReadSize,AverageWriteSize (total volume/count)
+- fix some usage messages
 ## server
+- '-self': listen in https mode using a self-signed certificate
 - bigger buffer when sending
 ## client
 - disable compression
 - dns report is back in -verbose mode
+- '-self' : same as global '-self' falg
 
 #v0.6
 ## general

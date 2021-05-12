@@ -32,17 +32,17 @@ const (
 
 // parameters of aa server instance
 type NSpeedHost struct {
-	Host           string
-	Port           int
-	ForceIPVersion int // 0 (none), 4 (force IPv4)  or 6 (force IPv6)
-	MaxBodySize    int64
-	MaxDuration    time.Duration
-	ServeTLS       bool
-	TLSEmbed       bool // if true the 2 following are not filenames but data
-	TLSCertFile    string
-	TLSKeyFile     string
-	RunDuration    time.Duration
-	MaxRequests    int
+	Host             string
+	Port             int
+	ForceIPVersion   int // 0 (none), 4 (force IPv4)  or 6 (force IPv6)
+	MaxBodySize      int64
+	MaxDuration      time.Duration
+	ServeTLS         bool
+	UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
+	TLSCertFile      string
+	TLSKeyFile       string
+	RunDuration      time.Duration
+	MaxRequests      int
 }
 
 // the HTTP Server
@@ -369,11 +369,13 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	var listenErr error
 	if s.Parameters.ServeTLS {
 		s.Logger.Info().Msgf("nspeed listening on https://%s", listenAddr)
-		if s.Parameters.TLSEmbed {
-			cert, err := tls.X509KeyPair([]byte(s.Parameters.TLSCertFile), []byte(s.Parameters.TLSKeyFile))
-			if err == nil {
-				s.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+		if s.Parameters.UseTLSSelfConfig {
+			if TLSSelfConfig != nil {
+				s.Server.TLSConfig = TLSSelfConfig
 				listenErr = s.Server.ServeTLS(ln, "", "")
+			} else {
+				// this shouldn't happen if parameters check are done correctly
+				s.Logger.Fatal().Msgf("no self certificate installed", listenErr)
 			}
 
 		} else {

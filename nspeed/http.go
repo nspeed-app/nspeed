@@ -21,19 +21,20 @@ import (
 // a HTTP command, get or post
 // implement Job interface
 type HTTPjob struct {
-	Command      string
-	Repeat       int
-	IPversion    int
-	Host         string
-	Target       string
-	Instance     int
-	Timeout      time.Duration
-	UserAgent    string
-	ContentType  string
-	ContentSize  int64
-	SkipTLSCheck bool
-	Delay        time.Duration
-	Logger       *zerolog.Logger
+	Command          string
+	Repeat           int
+	IPversion        int
+	Host             string
+	Target           string
+	Instance         int
+	Timeout          time.Duration
+	UserAgent        string
+	ContentType      string
+	ContentSize      int64
+	SkipTLSCheck     bool
+	UseTLSSelfConfig bool
+	Delay            time.Duration
+	Logger           *zerolog.Logger
 }
 
 func (j *HTTPjob) GoString() string {
@@ -143,8 +144,15 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		// ReadBufferSize:      1024 * 1024,
 	}
 
+	if j.UseTLSSelfConfig {
+		netTransport.TLSClientConfig = TLSSelfConfig
+	}
 	if j.SkipTLSCheck {
 		netTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+
+	if netTransport.TLSClientConfig != nil {
+		log.Debug().Msgf("TLSConfig: defined")
 	}
 
 	// create http client

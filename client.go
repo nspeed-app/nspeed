@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"flag"
 	"fmt"
@@ -27,11 +28,14 @@ import (
 // golang.org/issue/29814 and golang.org/issue/29228.
 var Version string
 
-//go:embed embed/nspeed.pem
+//go:embed embed/localhost.pem
 var TLSSelfSignedCert []byte
 
-//go:embed embed/nspeed-key.pem
+//go:embed embed/localhost-key.pem
 var TLSSelfSignedKey []byte
+
+//go:embed embed/localhost-CA.pem
+var TLSSelfSignedCA []byte
 
 // commands
 const getCommand = "get"
@@ -118,6 +122,8 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			skipTLScert := fs.Bool("k", false, "skip certificates validation")
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			waitdelay := fs.Uint("w", 0, "delay in seconds to wait before starting the command")
+			useSelfCert := fs.Bool("self", *optTLSSelf, "use self-signed TLS certificate")
+
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
@@ -142,6 +148,9 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 				j.IPversion = 6
 			}
 			j.SkipTLSCheck = *skipTLScert
+			j.UseTLSSelfConfig = *useSelfCert
+			log.Debug().Msgf("use self TLS: %t", j.UseTLSSelfConfig)
+
 			args = fs.Args()
 			if len(args) == 0 {
 				fs.Usage()
@@ -172,7 +181,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
 			contentType := fs.String("ct", "application/octet-stream", "content type")
 			waitdelay := fs.Uint("w", 0, "delay in seconds to wait before starting the command")
-
+			useSelfCert := fs.Bool("self", *optTLSSelf, "use self-signed TLS certificate")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
@@ -197,6 +206,8 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 				j.IPversion = 6
 			}
 			j.SkipTLSCheck = *skipTLScert
+			j.UseTLSSelfConfig = *useSelfCert
+			log.Debug().Msgf("use self TLS: %t", j.UseTLSSelfConfig)
 
 			args = fs.Args()
 			if len(args) < 2 {
@@ -236,7 +247,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = infinite)")
 			fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
 			fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
-
+			fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
@@ -263,7 +274,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			}
 			host.MaxBodySize = int64(ms)
 
-			host.ServeTLS = false
+			host.ServeTLS = host.UseTLSSelfConfig
 			if host.TLSCertFile != "" || host.TLSKeyFile != "" {
 				if _, err := os.Stat(host.TLSCertFile); os.IsNotExist(err) {
 					return nil, errors.New("bad or missing TLS certificate file: " + host.TLSCertFile)
@@ -321,15 +332,28 @@ func main() {
 		return
 	}
 
-	// self-signed cert
-	if *optTLSSelf {
-		certificate, err := tls.X509KeyPair(TLSSelfSignedCert, TLSSelfSignedKey)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		nspeed.TLSSelfConfig = &tls.Config{Certificates: []tls.Certificate{certificate}}
+	// self-signed cert & CA
+	certificate, err := tls.X509KeyPair(TLSSelfSignedCert, TLSSelfSignedKey)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
+
+	// https://forfuncsake.github.io/post/2017/08/trust-extra-ca-cert-in-go-app/
+	// Get the SystemCertPool, continue with an empty pool on error
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+	// Append our cert to the system pool
+	if ok := rootCAs.AppendCertsFromPEM(TLSSelfSignedCA); !ok {
+		fmt.Println("error: couldn't happen our self-signed CA")
+		os.Exit(1)
+	}
+
+	nspeed.TLSSelfConfig = &tls.Config{
+		Certificates: []tls.Certificate{certificate},
+		RootCAs:      rootCAs}
 
 	jobs, err := parseJobs(flag.Args())
 	if err != nil {
