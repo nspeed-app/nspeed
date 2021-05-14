@@ -332,7 +332,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	go func() {
 		select {
 		case sig := <-shutdownCh:
-			s.Logger.Debug().Msgf("shutdown started by signal: %s", sig)
+			s.Logger.Warn().Msgf("shutdown started by signal: %s", sig)
 			s.Cancel()
 		case <-ctx.Done():
 			s.Logger.Debug().Msgf("shutdown started by context cancel: %s", ctx.Err())
@@ -368,7 +368,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	var listenErr error
 	if s.Parameters.ServeTLS {
-		s.Logger.Info().Msgf("nspeed listening on https://%s", listenAddr)
+		s.Logger.Warn().Msgf("nspeed listening on https://%s", listenAddr)
 		if s.Parameters.UseTLSSelfConfig {
 			if TLSSelfConfig != nil {
 				s.Server.TLSConfig = TLSSelfConfig
@@ -382,7 +382,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 			listenErr = s.Server.ServeTLS(ln, s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
 		}
 	} else {
-		s.Logger.Info().Msgf("nspeed listening on http://%s", listenAddr)
+		s.Logger.Warn().Msgf("nspeed listening on http://%s", listenAddr)
 		listenErr = s.Server.Serve(ln)
 	}
 	if listenErr != nil && listenErr != http.ErrServerClosed {
