@@ -12,7 +12,6 @@ import (
 	"os/signal"
 	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -30,6 +29,7 @@ const (
 	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 40 // bytes
 	DefaultMaxDuration       = 10 * time.Second
 	DefaultPort              = 7333
+	MaxChunkSize             = 1024 * 1024 // 1 MiB //this will be allocated
 )
 
 // parameters of aa server instance
@@ -157,8 +157,11 @@ func (h *NSpeedHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	log.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
 
 	if method == "GET" {
-		if h.StreamPathRegexp.MatchString(r.URL.Path[1:]) {
-			h.StreamBytes(w, r)
+		match := h.StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
+		log.Debug().Strs("match", match).Send()
+		// keep this test in sync with the regexp
+		if len(match) == 3 {
+			h.StreamBytes(w, r, match[1], match[2])
 			return
 		} else {
 			http.Error(w, "Not found (no regexp match)", http.StatusNotFound)
@@ -169,27 +172,23 @@ func (h *NSpeedHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		h.Upload(w, r)
 		return
 	}
+
+	// http.NotFound(w, r)
 }
 
 // mostly from https://github.com/mccutchen/go-httpbin
 // handleBytes consolidates the logic for validating input params of the Bytes
 // and StreamBytes endpoints and knows how to write the response in chunks if
 // streaming is true.
-func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
-	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) != 2 {
-		http.Error(w, "Not found (too many '/')", http.StatusNotFound)
-		return
-	}
+func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size string, extension string) {
 
-	size := parts[1]
 	n, err := ParseByteUnits(size)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	numBytes := int64(n)
-	log.Info().Msgf("streaming %s bytes (= %d bytes)", size, numBytes)
+	log.Info().Msgf("streaming %s bytes (= %d bytes) with extention: %s", size, numBytes, extension)
 
 	if numBytes < 1 {
 		numBytes = 1
@@ -214,25 +213,15 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we a new cmd line parameter for max chunk size ?
 		// since huge chunksize can overload the server memory this is not safe
-		if chunkSize > h.Parameters.MaxBodySize {
-			http.Error(w, "chunk size too big", http.StatusBadRequest)
+		if chunkSize > MaxChunkSize {
+			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", MaxChunkSize), http.StatusBadRequest)
+			return
 		}
+		log.Info().Msgf("chunk_size set to %d", chunkSize)
 	}
 	// end danger zone
 
-	var seed int64
-	rawSeed := r.URL.Query().Get("seed")
-	if rawSeed != "" {
-		seed, err = strconv.ParseInt(rawSeed, 10, 64)
-		if err != nil {
-			http.Error(w, "invalid seed", http.StatusBadRequest)
-			return
-		}
-	} else {
-		seed = time.Now().Unix()
-	}
-
-	chunk := InitChunk(chunkSize, seed) //todo: make it global to minimum mem usage (currently it's allocated for every request)
+	chunk := BigChunk[:chunkSize]
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", strconv.FormatInt(numBytes, 10))
@@ -242,7 +231,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	wm := WorkerMetrics{
 		Done:    false,
 		Expired: false,
-		Target:  fmt.Sprintf("download %s to %s", size, r.RemoteAddr),
+		Target:  fmt.Sprintf("download %s to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
 		Job:     h,
 	}
 	wm.TransfertStartTime = time.Now()
@@ -304,13 +293,15 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	//
-	s.StreamPathRegexp = regexp.MustCompile("^" + ByteUnitsRegexp + "$")
+	s.StreamPathRegexp = regexp.MustCompile("^(" + ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
 
 	s.Logger = &wm.Logger //
 
 	s.TotalRequests = 0 // just in case we reuse
 
 	host := s.Parameters.Host
+
+	InitBigChunk(time.Now().Unix())
 
 	// empty host is a special case
 

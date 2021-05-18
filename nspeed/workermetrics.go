@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http/httptrace"
 	"sync"
 	"text/tabwriter"
@@ -214,17 +213,6 @@ func (wm *WorkerMetrics) Read(p []byte) (n int, err error) {
 
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	return int(todo), nil
-}
-
-// init a buffer of random values
-func InitChunk(chunkSize int64, seed int64) []byte {
-	rng := rand.New(rand.NewSource(seed))
-	// prepare a buffer of chunkSize bytes (todo: move this out of here to not stress GC)
-	var chunk []byte
-	for i := int64(0); i < chunkSize; i++ {
-		chunk = append(chunk, byte(rng.Intn(256)))
-	}
-	return chunk
 }
 
 func InitSpeedReport(w *tabwriter.Writer) {

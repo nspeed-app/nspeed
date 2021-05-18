@@ -1,6 +1,7 @@
 package nspeed
 
 import (
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -124,4 +125,15 @@ func preflight(h http.Handler) http.Handler {
 		}
 		h.ServeHTTP(w, r)
 	})
+}
+
+var BigChunk [MaxChunkSize]byte
+
+// init a buffer of random values
+func InitBigChunk(seed int64) {
+	rng := rand.New(rand.NewSource(seed))
+	for i := int64(0); i < MaxChunkSize; i++ {
+		BigChunk[i] = byte(rng.Intn(256))
+	}
+
 }
