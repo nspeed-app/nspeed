@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var ServerVersion string
@@ -48,12 +50,13 @@ type NSpeedHost struct {
 // the HTTP Server
 // implements Job interface
 type NSpeedHTTPServer struct {
-	Parameters    *NSpeedHost
-	Server        *http.Server
-	Cancel        context.CancelFunc
-	Logger        *zerolog.Logger
-	TotalRequests int
-	mutex         sync.Mutex
+	Parameters       *NSpeedHost
+	Server           *http.Server
+	Cancel           context.CancelFunc
+	Logger           *zerolog.Logger
+	StreamPathRegexp *regexp.Regexp
+	TotalRequests    int
+	mutex            sync.Mutex
 }
 
 func (j *NSpeedHTTPServer) GetTarget() string {
@@ -125,16 +128,10 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 func (h *NSpeedHTTPServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	// mux.HandleFunc("/", serverfile)
-	mux.HandleFunc("/g/", h.StreamBytes)
-	mux.HandleFunc("/p", h.Upload)
-	mux.HandleFunc("/p/", h.Upload)
+	mux.HandleFunc("/", h.rootHandler)
 
 	// return client informations
 	mux.HandleFunc("/ip", notImplemented)
-
-	// prevent appending '/'
-	mux.HandleFunc("/g", http.NotFound)
 
 	//
 	var handler http.Handler
@@ -150,23 +147,49 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 	return handler
 }
 
+// handle '/' .. get : stream bytes, put - upload bytes
+func (h *NSpeedHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	if method == "" {
+		method = "GET"
+	}
+
+	log.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
+
+	if method == "GET" {
+		if h.StreamPathRegexp.MatchString(r.URL.Path[1:]) {
+			h.StreamBytes(w, r)
+			return
+		} else {
+			http.Error(w, "Not found (no regexp match)", http.StatusNotFound)
+		}
+	}
+
+	if method == "POST" && r.URL.Path == "/" {
+		h.Upload(w, r)
+		return
+	}
+}
+
 // mostly from https://github.com/mccutchen/go-httpbin
 // handleBytes consolidates the logic for validating input params of the Bytes
 // and StreamBytes endpoints and knows how to write the response in chunks if
 // streaming is true.
 func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
-	if len(parts) != 3 {
-		http.Error(w, "Not found", http.StatusNotFound)
+	if len(parts) != 2 {
+		http.Error(w, "Not found (too many '/')", http.StatusNotFound)
 		return
 	}
 
-	n, err := ParseByteUnits(parts[2])
+	size := parts[1]
+	n, err := ParseByteUnits(size)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	numBytes := int64(n)
+	log.Info().Msgf("streaming %s bytes (= %d bytes)", size, numBytes)
 
 	if numBytes < 1 {
 		numBytes = 1
@@ -219,7 +242,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request) {
 	wm := WorkerMetrics{
 		Done:    false,
 		Expired: false,
-		Target:  fmt.Sprintf("download %s to %s", parts[2], r.RemoteAddr),
+		Target:  fmt.Sprintf("download %s to %s", size, r.RemoteAddr),
 		Job:     h,
 	}
 	wm.TransfertStartTime = time.Now()
@@ -279,6 +302,9 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 // implements the http server
 func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
+
+	//
+	s.StreamPathRegexp = regexp.MustCompile("^" + ByteUnitsRegexp + "$")
 
 	s.Logger = &wm.Logger //
 

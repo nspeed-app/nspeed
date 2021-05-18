@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+const binaryUnits = "kmgtpe"
+const decimalUnits = "KMGTPE"
+
+// regexp
+// use https://regoio.herokuapp.com/ to test
+const ByteUnitsRegexp = "[0-9]+[kmgtpeKMGTPE]?"
+
 // shamelessly copied from : https://programming.guide/go/formatting-byte-size-to-human-readable-format.html
 func byteCount(b int64, unit int64, units string) (string, string) {
 	if b < unit {
@@ -32,7 +39,7 @@ func ByteCountDecimal(b int64) string {
 // ByteCountBinary format byte size to human readable format (binary units)
 // suitable to append the unit name after (B, bps, etc)
 func ByteCountBinary(b int64) string {
-	s, u := byteCount(b, 1024, "KMGTPE")
+	s, u := byteCount(b, 1024, decimalUnits)
 	if len(u) > 0 {
 		return s + " " + u + "i"
 	} else {
@@ -43,24 +50,22 @@ func ByteCountBinary(b int64) string {
 // FormatByteDecimalUnits format byte size to human readable format (decimal units)
 // suitable to be parsed by ParseByteUnits
 func FormatByteDecimalUnits(b int64) string {
-	s, u := byteCount(b, 1000, "kmgtpe")
+	s, u := byteCount(b, 1000, binaryUnits)
 	return s + u
 }
 
 // FormatByteDecimalUnits format byte size to human readable format (decimal units)
 // suitable to be parsed by ParseByteUnits
 func FormatByteBinaryUnits(b int64) string {
-	s, u := byteCount(b, 1024, "KMGTPE")
+	s, u := byteCount(b, 1024, decimalUnits)
 	return s + u
 }
 
 // parse bytes units - "<value>kmgtpe" powers of 2 (B), "<value>KMGTPE" powers of 10 (iB)
-const units = "kmgtpe"
-
 func ParseByteUnits(s string) (uint64, error) {
 	m := uint64(1)
 	u := s[len(s)-1:]
-	i := strings.Index(units, strings.ToLower(u))
+	i := strings.Index(binaryUnits, strings.ToLower(u))
 	if i > -1 {
 		s = s[:len(s)-1]
 		unit := uint64(1000)

@@ -7,6 +7,7 @@
 ## server
 - '-self': listen in https mode using a self-signed certificate
 - bigger buffer when sending
+- paths for upload (/p) & download (/g) removed. just use the root path '/' for both
 ## client
 - disable compression
 - dns report is back in -verbose mode
