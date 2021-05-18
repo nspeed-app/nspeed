@@ -3,7 +3,7 @@
 - global flags:
   -  `-self`: activate self-signed certificate for all clients (get & put)
   - `-color` : use colors in output (by default there will be no color at all)
-  - `-cpu` : display cpu usage (every second). -debug & -verbose don't display cpu usage anymore
+  - `-cpu` : display cpu usage (every second). `-debug` & `-verbose` don't display cpu usage anymore
 - news debug metrics: `ReadCount`,`WriteCount` (how many OS level Read & Write calls were performed) and `AverageReadSize`,`AverageWriteSize` (total volume/count)
 - fix some usage messages
 ## server
