@@ -71,6 +71,10 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     #   - we launch a localhost server that will respond to one request then shutdown (-n 1)
     #   - we launch a get command that will wait 1 second (-w 1) before requesting the server
     nspeed server -n 1 get -w 1 http://localhost:7333/1g
+
+    #download 1000 bytes as content-type "text" but with extention "jpg" from a nspeed server with curl
+    curl -o /dev/null http://localhost:7333/1k.jpg?ct=text/plain
+
 ## Installation
 
 Binary distribution available here: [dl.nspeed.app](https://dl.nspeed.app) or in the [release section](https://github.com/nspeed-app/nspeed/releases)

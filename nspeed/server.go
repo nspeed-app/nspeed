@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -223,8 +224,26 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, s
 
 	chunk := BigChunk[:chunkSize]
 
+	// content-type
 	w.Header().Set("Content-Type", "application/octet-stream")
+	ct := mime.TypeByExtension(extension)
+	if ct != "" {
+		w.Header().Set("Content-Type", ct)
+	}
+	pct := r.URL.Query().Get("ct")
+	if pct != "" {
+		_, _, err := mime.ParseMediaType(pct)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("unknown content type: %s", pct), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", pct)
+	}
+
+	// content-length
 	w.Header().Set("Content-Length", strconv.FormatInt(numBytes, 10))
+
+	// status
 	w.WriteHeader(http.StatusOK) // this could also be done by the first w.Write()
 
 	// prepare metrics handler
