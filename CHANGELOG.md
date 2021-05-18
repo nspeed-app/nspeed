@@ -1,3 +1,27 @@
+# v0.7
+## general
+- global flags:
+  -  `-self`: activate self-signed certificate for all clients (get & put)
+  - `-color` : use colors in output (by default there will be no color at all)
+  - `-cpu` : display cpu usage (every second). `-debug` & `-verbose` don't display cpu usage anymore
+- news debug metrics: `ReadCount`,`WriteCount` (how many OS level Read & Write calls were performed) and `AverageReadSize`,`AverageWriteSize` (total volume/count)
+- fix some usage messages
+## server
+- `-self` flag: listen in https mode using a self-signed certificate
+- bigger buffer when sending
+- paths in url for upload (`/p`) & download (`/g`) removed. just use the root path `/` for both (see the updated README.md examples)
+- download paths can now have an extension. For instance `/10G.iso`. The Content-Type header will be set accordingly to https://golang.org/pkg/mime/#TypeByExtension.
+- query parameters: 
+  - `ct` query parameter added: set the returned content-type header, for instance: http://localhost:7333/1k.jpg?ct=text/plain will return a content-type of `text/plain` instead of `image/jpeg` ("ct" has precedence oever the extension. With no precedence or `ct` parameter, the default content-type is `application/octet-stream` ).
+  - `chunk_size` query parameter limited to 1 MiB (it's allocated once, this will be tuned later)
+  - `seed` query parameter removed (this will return later)
+## client
+- disable compression
+- dns report is back in -verbose mode
+- `-self` : same as global '-self' flag
+## known issues / caveats
+- the self-signed cert only work for 'localhost, 127.0.0.1,::1'. Next vesion will allow test https over a LAN between trusted machines, meanwhile use `-k` flag with nspeed or curl.
+
 #v0.6
 ## general
  - '-a' flag now always prefers IPv6 first
