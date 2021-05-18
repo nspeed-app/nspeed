@@ -540,7 +540,7 @@ func main() {
 			}
 			nspeed.SpeedReport(w, fmt.Sprintf("Job %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString())
 		} else {
-			log.Debug().Err(wm.Error).Msgf("no report for job %d", wm.Index)
+			log.Warn().Err(wm.Error).Msgf("job %d", wm.Index)
 		}
 	}
 	if totalRead == 0 && totalWrite == 0 {
@@ -549,7 +549,6 @@ func main() {
 		nspeed.SpeedReport(w, "Average", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
 	}
-
 	// todo: defer this block
 	if *optMemprofile != "" {
 		f, err := os.Create(*optMemprofile)
