@@ -31,6 +31,7 @@ const (
 	DefaultMaxDuration       = 10 * time.Second
 	DefaultPort              = 7333
 	MaxChunkSize             = 1024 * 1024 // 1 MiB //this will be allocated
+	DirPath                  = "/dir/"
 )
 
 // parameters of aa server instance
@@ -46,6 +47,7 @@ type NSpeedHost struct {
 	TLSKeyFile       string
 	RunDuration      time.Duration
 	MaxRequests      int
+	Directory        string // directory to serve content from /dir url
 }
 
 // the HTTP Server
@@ -129,12 +131,17 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 func (h *NSpeedHTTPServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", h.rootHandler)
-
 	// return client informations
 	mux.HandleFunc("/ip", notImplemented)
 
-	//
+	// serve static files h.Parameters.Directory
+	if h.Parameters.Directory != "" {
+		log.Info().Msgf("serving directory '%s' at %s", h.Parameters.Directory, DirPath)
+		mux.Handle(DirPath, http.StripPrefix(DirPath, http.FileServer(http.Dir(h.Parameters.Directory))))
+	}
+
+	mux.HandleFunc("/", h.rootHandler)
+
 	var handler http.Handler
 	handler = mux
 	handler = limitRequestSize(h.Parameters.MaxBodySize, handler)

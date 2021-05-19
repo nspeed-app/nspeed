@@ -35,6 +35,7 @@ type HTTPjob struct {
 	UseTLSSelfConfig bool
 	Delay            time.Duration
 	Logger           *zerolog.Logger
+	UseHTTP11        bool
 }
 
 func (j *HTTPjob) GoString() string {
@@ -119,10 +120,10 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	}
 
 	var dialer = &net.Dialer{
-		Timeout:       5 * time.Second,
-		FallbackDelay: -1,
-		LocalAddr:     LocalAddr, // "-a" for client
-		//there should a be higher level to enforce an IP version but for now we do this here
+		Timeout:       5 * time.Second, // fail quick
+		FallbackDelay: -1,              // don't use Happy Eyeballs
+		LocalAddr:     LocalAddr,       // "-a" for client
+		// -4/-6 flags: there should a be higher level to enforce an IP version but for now we do this here
 		Control: func(network string, address string, c syscall.RawConn) error {
 			j.Logger.Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
 			if j.IPversion == 4 && network[len(network)-1] == '6' {
@@ -137,7 +138,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	var netTransport = &http.Transport{
 		DialContext:         dialer.DialContext,
-		ForceAttemptHTTP2:   true,
+		ForceAttemptHTTP2:   !j.UseHTTP11,
 		TLSHandshakeTimeout: 5 * time.Second,
 		DisableCompression:  true,
 		// WriteBufferSize:     1024 * 1024,

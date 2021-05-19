@@ -1,5 +1,12 @@
 # v0.7
 ## general
+## server
+ - 
+## client
+ - `-http11` flag to force HTTP 1.1 when connecting to HTTP/2 server
+ - new command `cyphers` to list supported cyphers with that server
+# v0.7
+## general
 - global flags:
   -  `-self`: activate self-signed certificate for all clients (get & put)
   - `-color` : use colors in output (by default there will be no color at all)

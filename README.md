@@ -103,6 +103,7 @@ other planned features:
 - Artyom Pervukhin ( https://github.com/artyom ) for hints
 - Will McCutchen ( https://github.com/mccutchen ) for go-httpbin
 - Francesc Campoy for the [JustForFunc series](https://www.youtube.com/c/JustForFunc/videos)
+- Joe Shaw for [Abusing go:linkname to customize TLS 1.3 cipher suites](https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/)
 
 [arcep]: https://arcep.fr/
 [rapport]: https://en.arcep.fr/news/press-releases/view/n/internet-ouvert.html
