@@ -140,7 +140,7 @@ func PrintCyphers(hostname string) {
 
 	u, _ := parseURL(hostname, "https")
 
-	fmt.Println("url = ", u.Hostname())
+	//fmt.Println("url = ", u.Hostname())
 
 	host := u.Hostname()
 	port := u.Port()
@@ -153,7 +153,7 @@ func PrintCyphers(hostname string) {
 		return
 	}
 
-	fmt.Println("Supported TLS 1.2 ciphers")
+	fmt.Println("Supported TLS 1.2 ciphers for", net.JoinHostPort(hostname, port))
 	for _, c := range range12 {
 		fmt.Printf("  %s\n", tls.CipherSuiteName(c))
 	}
@@ -163,7 +163,7 @@ func PrintCyphers(hostname string) {
 	if err != nil {
 		fmt.Println("error:", err)
 	}
-	fmt.Println("Supported TLS 1.3 ciphers")
+	fmt.Println("Supported TLS 1.3 ciphers for ", net.JoinHostPort(hostname, port))
 	for _, c := range range13 {
 		fmt.Printf("  %s\n", tls.CipherSuiteName(c))
 	}

@@ -37,6 +37,9 @@ var TLSSelfSignedKey []byte
 //go:embed embed/localhost-CA.pem
 var TLSSelfSignedCA []byte
 
+// hacky hack
+var ErrImmediateCommand = errors.New("immediate command executed")
+
 // commands
 const getCommand = "get"
 const putCommand = "put"
@@ -61,7 +64,7 @@ var commandDescription = map[string]string{
 	getCommand:     "perform an HTTP GET command to measure download speed",
 	putCommand:     "perform an HTTP POST command to measure upload speed",
 	serveCommand:   "launch a standard web server supporting GET and POST commands of arbitraty sizes",
-	cyphersCommand: "list ciphersuites supported by the targer server",
+	cyphersCommand: "list ciphersuites supported by the target server(s)",
 }
 
 // global options
@@ -90,8 +93,8 @@ var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	var out []nspeed.Job
 	args := rawArgs
-
 	cmdSet := 0
+	bImmediate := false
 
 	for len(args) != 0 {
 		command := args[0]
@@ -170,8 +173,8 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 		case putCommand:
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			fs.Usage = func() {
-				fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
-				fmt.Fprintf(fs.Output(), "  %s [options] url size\n", getCommand)
+				fmt.Fprintf(fs.Output(), "Usage of %s: ", putCommand)
+				fmt.Fprintf(fs.Output(), "  %s [options] url size\n", putCommand)
 				fmt.Fprintf(fs.Output(), "size is a number of bytes with an optionnal units like \"100k\" (100x1000 bytes) or \"100K\" (100x1024 bytes)\n")
 				fmt.Fprintf(fs.Output(), "supported units: kmgtpe (x1000 units) and KMGTPE (x1024 units)\n")
 				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
@@ -238,8 +241,8 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			host := &nspeed.NSpeedHost{}
 			fs.Usage = func() {
-				fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
-				fmt.Fprintf(fs.Output(), "  %s [options]\n", getCommand)
+				fmt.Fprintf(fs.Output(), "Usage of %s: ", serveCommand)
+				fmt.Fprintf(fs.Output(), "  %s [options]\n", serveCommand)
 				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 				fs.PrintDefaults()
 				fmt.Fprintf(fs.Output(), "\n")
@@ -301,19 +304,34 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 		case cyphersCommand:
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
 			fs.Usage = func() {
-				fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
-				fmt.Fprintf(fs.Output(), "  %s [httpshostname:port\n", getCommand)
-				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
+				fmt.Fprintf(fs.Output(), "Usage of %s: ", cyphersCommand)
+				fmt.Fprintf(fs.Output(), "  %s hostname[:port]\n", cyphersCommand)
+				fmt.Fprintf(fs.Output(), "argument is a hostname or an ip address with an optionnal port\n")
+				fmt.Fprintf(fs.Output(), "if no port is specified, 443 will be used\n")
+				// fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 				fs.PrintDefaults()
 				fmt.Fprintf(fs.Output(), "\n")
 			}
-
+			if err := fs.Parse(args); err != nil {
+				return nil, err
+			}
+			args = fs.Args()
+			if len(args) < 1 {
+				fs.Usage()
+				return nil, errors.New("missing target")
+			}
+			nspeed.PrintCyphers(args[0])
+			bImmediate = true
+			args = args[1:]
 		default:
 			return nil, errors.New("unknown command")
 		}
 	}
-
-	return out, nil
+	if bImmediate {
+		return out, ErrImmediateCommand
+	} else {
+		return out, nil
+	}
 }
 
 // main
@@ -375,13 +393,13 @@ func main() {
 		RootCAs:      rootCAs}
 
 	jobs, err := parseJobs(flag.Args())
-	if err != nil {
+	if err != nil && err != ErrImmediateCommand {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	// no command, return for now, later: check if launched from UI world (explorer, file manager, browser, etc)
-	if len(jobs) == 0 {
+	if len(jobs) == 0 && err != ErrImmediateCommand {
 		flag.CommandLine.Usage()
 		return
 	}
