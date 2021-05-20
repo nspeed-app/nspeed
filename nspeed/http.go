@@ -278,7 +278,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	if j.Delay > 0 {
 		j.Logger.Debug().Dur("delay", j.Delay).Msg("waiting")
 		time.Sleep(j.Delay)
-		j.Logger.Info().Msg("waking up")
+		j.Logger.Debug().Msg("waking up")
 	}
 
 	// add timeout

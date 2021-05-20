@@ -37,9 +37,6 @@ var TLSSelfSignedKey []byte
 //go:embed embed/localhost-CA.pem
 var TLSSelfSignedCA []byte
 
-// hacky hack
-var ErrImmediateCommand = errors.New("immediate command executed")
-
 // commands
 const getCommand = "get"
 const putCommand = "put"
@@ -57,7 +54,7 @@ var implementedCommands = map[string]NSpeedCommand{
 	getCommand:     {getCommand, 1},
 	putCommand:     {putCommand, 1},
 	serveCommand:   {serveCommand, 1},
-	cyphersCommand: {cyphersCommand, 2},
+	cyphersCommand: {cyphersCommand, 1},
 }
 
 var commandDescription = map[string]string{
@@ -94,7 +91,6 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	var out []nspeed.Job
 	args := rawArgs
 	cmdSet := 0
-	bImmediate := false
 
 	for len(args) != 0 {
 		command := args[0]
@@ -303,12 +299,16 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			out = append(out, &j)
 		case cyphersCommand:
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
+			j := nspeed.NSpeedCyphers{}
+
+			fs.UintVar(&j.Delay, "w", 0, "delay in seconds to wait before starting the command")
+
 			fs.Usage = func() {
 				fmt.Fprintf(fs.Output(), "Usage of %s: ", cyphersCommand)
 				fmt.Fprintf(fs.Output(), "  %s hostname[:port]\n", cyphersCommand)
 				fmt.Fprintf(fs.Output(), "argument is a hostname or an ip address with an optionnal port\n")
 				fmt.Fprintf(fs.Output(), "if no port is specified, 443 will be used\n")
-				// fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
+				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 				fs.PrintDefaults()
 				fmt.Fprintf(fs.Output(), "\n")
 			}
@@ -320,18 +320,14 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 				fs.Usage()
 				return nil, errors.New("missing target")
 			}
-			nspeed.PrintCyphers(args[0])
-			bImmediate = true
+			j.Target = args[0]
 			args = args[1:]
+			out = append(out, &j)
 		default:
 			return nil, errors.New("unknown command")
 		}
 	}
-	if bImmediate {
-		return out, ErrImmediateCommand
-	} else {
-		return out, nil
-	}
+	return out, nil
 }
 
 // main
@@ -393,13 +389,13 @@ func main() {
 		RootCAs:      rootCAs}
 
 	jobs, err := parseJobs(flag.Args())
-	if err != nil && err != ErrImmediateCommand {
+	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	// no command, return for now, later: check if launched from UI world (explorer, file manager, browser, etc)
-	if len(jobs) == 0 && err != ErrImmediateCommand {
+	if len(jobs) == 0 {
 		flag.CommandLine.Usage()
 		return
 	}
@@ -468,10 +464,6 @@ func main() {
 			Job:        job}
 		wcWorkers[idx] = &wm
 		fmt.Printf("  %d %#v\n", idx, job)
-		// if job.IsInfinite() {
-		// 	IsInfinite = true
-		// }
-
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
 	}
 
@@ -577,7 +569,7 @@ func main() {
 			}
 			nspeed.SpeedReport(w, fmt.Sprintf("Job %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString())
 		} else {
-			log.Warn().Err(wm.Error).Msgf("job %d", wm.Index)
+			log.Warn().Err(wm.Error).Msgf("job %d ended", wm.Index)
 		}
 	}
 	if totalRead == 0 && totalWrite == 0 {

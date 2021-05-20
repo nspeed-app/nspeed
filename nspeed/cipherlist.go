@@ -4,10 +4,12 @@ package nspeed
 
 // Using go:linkname requires us to import unsafe
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"net/url"
+	"time"
 	_ "unsafe"
 )
 
@@ -135,10 +137,16 @@ func parseURL(u, scheme string) (*url.URL, error) {
 	return u1, nil
 }
 
-// print the cyphers list of hostname (dial address)
-func PrintCyphers(hostname string) {
+//implement Job
+type NSpeedCyphers struct {
+	Target string
+	Delay  uint
+}
 
-	u, _ := parseURL(hostname, "https")
+// print the cyphers list of hostname (dial address)
+func (j *NSpeedCyphers) Start(ctx context.Context, wm *WorkerMetrics) error {
+
+	u, _ := parseURL(j.Target, "https")
 
 	//fmt.Println("url = ", u.Hostname())
 
@@ -147,24 +155,56 @@ func PrintCyphers(hostname string) {
 	if port == "" {
 		port = "443"
 	}
-	range12, err := supportedTLS12Ciphers(host, port)
-	if err != nil {
-		fmt.Println("error:", err)
-		return
+
+	if j.Delay > 0 {
+		wm.Logger.Debug().Uint("delay", j.Delay).Msg("waiting")
+		time.Sleep(time.Duration(j.Delay) * time.Second)
+		wm.Logger.Debug().Msg("waking up")
 	}
 
-	fmt.Println("Supported TLS 1.2 ciphers for", net.JoinHostPort(hostname, port))
-	for _, c := range range12 {
-		fmt.Printf("  %s\n", tls.CipherSuiteName(c))
+	range12, err := supportedTLS12Ciphers(host, port)
+	if err != nil {
+		return err
 	}
-	fmt.Println()
+
+	finalTarget := net.JoinHostPort(host, port)
+	for _, c := range range12 {
+		wm.Logger.Log().Msgf("%s support TLS 1.2 %s", finalTarget, tls.CipherSuiteName(c))
+	}
 
 	range13, err := supportedTLS13Ciphers(host, port)
 	if err != nil {
-		fmt.Println("error:", err)
+		return err
 	}
-	fmt.Println("Supported TLS 1.3 ciphers for ", net.JoinHostPort(hostname, port))
+
 	for _, c := range range13 {
-		fmt.Printf("  %s\n", tls.CipherSuiteName(c))
+		wm.Logger.Log().Msgf("%s support TLS 1.3 %s", finalTarget, tls.CipherSuiteName(c))
 	}
+
+	wm.ResultChan <- wm
+
+	return nil
+}
+
+func (j *NSpeedCyphers) GetTarget() string {
+	return fmt.Sprintf("cyphers %s", j.Target)
+}
+
+func (j *NSpeedCyphers) Expand(jobs []Job) []Job {
+	return append(jobs, j)
+}
+
+func (j *NSpeedCyphers) GoString() string {
+	return fmt.Sprintf("cyphers {Target: %s, delay: %d}",
+		j.Target,
+		j.Delay,
+	)
+}
+
+func (j *NSpeedCyphers) PrintString() string {
+	return fmt.Sprintf("cyphers %s", j.Target)
+}
+
+func (j *NSpeedCyphers) IsInfinite() bool {
+	return false
 }
