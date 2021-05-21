@@ -1,5 +1,7 @@
-# v0.7
+# v0.8
 ## general
+- a few typos fixes
+- added `-h2c` mode to client & server to allow HTTP/2 Cleartext (H2C)
 ## server
  - 
 ## client

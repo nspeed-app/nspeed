@@ -148,7 +148,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	}
 
 	if j.UseTLSSelfConfig {
-		netTransport.TLSClientConfig = TLSSelfConfig
+		netTransport.TLSClientConfig = TLSSelfConfig.Clone()
 	}
 	if j.SkipTLSCheck {
 		netTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
