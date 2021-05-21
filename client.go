@@ -126,7 +126,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			waitdelay := fs.Uint("w", 0, "delay in seconds to wait before starting the command")
 			useSelfCert := fs.Bool("self", *optTLSSelf, "use self-signed TLS certificate")
 			useHTTP11 := fs.Bool("http11", false, "force using HTTP 1.1")
-
+			useH2C := fs.Bool("h2c", false, "force using HTTP/2 Cleartext (H2C) mode")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
@@ -153,6 +153,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			j.SkipTLSCheck = *skipTLScert
 			j.UseTLSSelfConfig = *useSelfCert
 			j.UseHTTP11 = *useHTTP11
+			j.H2C = *useH2C
 
 			log.Debug().Msgf("use self TLS: %t", j.UseTLSSelfConfig)
 
@@ -188,6 +189,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			waitdelay := fs.Uint("w", 0, "delay in seconds to wait before starting the command")
 			useSelfCert := fs.Bool("self", *optTLSSelf, "use self-signed TLS certificate")
 			useHTTP11 := fs.Bool("http11", false, "force using HTTP 1.1")
+			useH2C := fs.Bool("h2c", false, "force using HTTP/2 Cleartext (H2C) mode")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}
@@ -214,6 +216,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			j.SkipTLSCheck = *skipTLScert
 			j.UseTLSSelfConfig = *useSelfCert
 			j.UseHTTP11 = *useHTTP11
+			j.H2C = *useH2C
 
 			log.Debug().Msgf("use self TLS: %t", j.UseTLSSelfConfig)
 

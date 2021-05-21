@@ -16,6 +16,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/http2"
 )
 
 // a HTTP command, get or post
@@ -36,6 +37,7 @@ type HTTPjob struct {
 	Delay            time.Duration
 	Logger           *zerolog.Logger
 	UseHTTP11        bool
+	H2C              bool
 }
 
 func (j *HTTPjob) GoString() string {
@@ -156,6 +158,18 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		log.Debug().Msgf("TLSConfig: defined")
 	}
 
+	var rtTransport http.RoundTripper = netTransport
+
+	if j.H2C {
+		rtTransport = &http2.Transport{
+			AllowHTTP:          true,
+			DisableCompression: netTransport.DisableCompression,
+			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+				return dialer.Dial(network, addr)
+			},
+		}
+	}
+
 	// create http client
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -165,7 +179,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 			wm.InitNew() //todo: evaluate
 			return nil   // http.ErrUseLastResponse
 		},
-		Transport: netTransport, // http.DefaultTransport,
+		Transport: rtTransport, // http.DefaultTransport,
 		// Timeout:   10 * time.Second,
 	}
 
