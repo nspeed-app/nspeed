@@ -257,6 +257,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
 			fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
 			fs.StringVar(&host.Directory, "dir", "", "directory to serve content from (url will be /dir)")
+			fs.BoolVar(&host.H2C, "h2c", false, "support also HTTP/2 Cleartext (H2C) mode")
 			if err := fs.Parse(args); err != nil {
 				return nil, err
 			}

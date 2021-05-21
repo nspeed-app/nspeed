@@ -19,6 +19,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 var ServerVersion string
@@ -42,6 +44,7 @@ type NSpeedHost struct {
 	MaxBodySize      int64
 	MaxDuration      time.Duration
 	ServeTLS         bool
+	H2C              bool
 	UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
 	TLSCertFile      string
 	TLSKeyFile       string
@@ -71,13 +74,14 @@ func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
 }
 
 func (j *NSpeedHTTPServer) GoString() string {
-	return fmt.Sprintf("server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_request, max duration: %v, UseTLS: %t, maxruns: %d, max life: %v}",
+	return fmt.Sprintf("server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_request, max duration: %v, UseTLS: %t, H2C: %t, maxruns: %d, max life: %v}",
 		j.Parameters.Host,
 		j.Parameters.Port,
 		j.Parameters.ForceIPVersion,
 		ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
 		j.Parameters.MaxDuration,
 		j.Parameters.ServeTLS,
+		j.Parameters.H2C,
 		j.Parameters.MaxRequests,
 		j.Parameters.RunDuration,
 	)
@@ -356,6 +360,9 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 		WriteTimeout: s.Parameters.MaxDuration,
 		ReadTimeout:  s.Parameters.MaxDuration,
 	}
+	if s.Parameters.H2C {
+		s.Server.Handler = h2c.NewHandler(s.Handler(), &http2.Server{})
+	}
 
 	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
 	shutdownCh := make(chan os.Signal, 1)
@@ -411,7 +418,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	var listenErr error
 	if s.Parameters.ServeTLS {
-		s.Logger.Warn().Msgf("nspeed listening on https://%s", listenAddr)
+		s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t)", listenAddr, s.Parameters.H2C)
 		if s.Parameters.UseTLSSelfConfig {
 			if TLSSelfConfig != nil {
 				s.Server.TLSConfig = TLSSelfConfig
