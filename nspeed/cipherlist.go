@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"time"
 	_ "unsafe"
+
+	"github.com/rs/zerolog"
 )
 
 // from:
@@ -138,13 +140,13 @@ func parseURL(u, scheme string) (*url.URL, error) {
 }
 
 //implement Job
-type NSpeedCyphers struct {
+type NSpeedCiphers struct {
 	Target string
 	Delay  uint
 }
 
-// print the cyphers list of hostname (dial address)
-func (j *NSpeedCyphers) Start(ctx context.Context, wm *WorkerMetrics) error {
+// print the ciphers list of hostname (dial address)
+func (j *NSpeedCiphers) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	u, _ := parseURL(j.Target, "https")
 
@@ -166,45 +168,49 @@ func (j *NSpeedCyphers) Start(ctx context.Context, wm *WorkerMetrics) error {
 	if err != nil {
 		return err
 	}
-
-	finalTarget := net.JoinHostPort(host, port)
-	for _, c := range range12 {
-		wm.Logger.Log().Msgf("%s supports TLS 1.2 %s", finalTarget, tls.CipherSuiteName(c))
-	}
+	LogCipher(host, port, TLSVersionFriendlyName(tls.VersionTLS12), range12, wm.Logger)
 
 	range13, err := supportedTLS13Ciphers(host, port)
 	if err != nil {
 		return err
 	}
-
-	for _, c := range range13 {
-		wm.Logger.Log().Msgf("%s supports TLS 1.3 %s", finalTarget, tls.CipherSuiteName(c))
-	}
+	LogCipher(host, port, TLSVersionFriendlyName(tls.VersionTLS13), range13, wm.Logger)
 
 	wm.ResultChan <- wm
 
 	return nil
 }
 
-func (j *NSpeedCyphers) GetTarget() string {
-	return fmt.Sprintf("cyphers %s", j.Target)
+func (j *NSpeedCiphers) GetTarget() string {
+	return fmt.Sprintf("ciphers %s", j.Target)
 }
 
-func (j *NSpeedCyphers) Expand(jobs []Job) []Job {
+func (j *NSpeedCiphers) Expand(jobs []Job) []Job {
 	return append(jobs, j)
 }
 
-func (j *NSpeedCyphers) GoString() string {
-	return fmt.Sprintf("cyphers {Target: %s, delay: %d}",
+func (j *NSpeedCiphers) GoString() string {
+	return fmt.Sprintf("ciphers {Target: %s, delay: %d}",
 		j.Target,
 		j.Delay,
 	)
 }
 
-func (j *NSpeedCyphers) PrintString() string {
-	return fmt.Sprintf("cyphers %s", j.Target)
+func (j *NSpeedCiphers) PrintString() string {
+	return fmt.Sprintf("ciphers %s", j.Target)
 }
 
-func (j *NSpeedCyphers) IsInfinite() bool {
+func (j *NSpeedCiphers) IsInfinite() bool {
 	return false
+}
+
+// print out the cipher list and target using a Log
+func LogCipher(host, port, tlsVersion string, ciphers []uint16, log zerolog.Logger) {
+	finalTarget := net.JoinHostPort(host, port)
+	for _, c := range ciphers {
+		log.Log().Msgf("%s supports %s %s", finalTarget, tlsVersion, tls.CipherSuiteName(c))
+	}
+	if len(ciphers) == 0 {
+		log.Log().Msgf("%s doesn't support %s", finalTarget, tlsVersion)
+	}
 }

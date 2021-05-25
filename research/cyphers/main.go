@@ -8,6 +8,6 @@ import (
 )
 
 func main() {
-	j := nspeed.NSpeedCyphers{Target: os.Args[1]}
+	j := nspeed.NSpeedCiphers{Target: os.Args[1]}
 	j.Start(context.Background(), nil)
 }

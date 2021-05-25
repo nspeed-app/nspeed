@@ -1,3 +1,6 @@
+# v0.9
+## ciphers
+- "cypher" spelling replaced with "cipher" everywhere including the `ciphers` command ("cypher" is a minority spelling so less prone to be searched for)
 # v0.8
 ## general
 - a few typos fixes

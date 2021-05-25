@@ -42,7 +42,7 @@ var TLSSelfSignedCA []byte
 const getCommand = "get"
 const putCommand = "put"
 const serveCommand = "server"
-const cyphersCommand = "cyphers"
+const ciphersCommand = "ciphers"
 
 // supported commands, expand has needed
 type NSpeedCommand struct {
@@ -55,14 +55,14 @@ var implementedCommands = map[string]NSpeedCommand{
 	getCommand:     {getCommand, 1},
 	putCommand:     {putCommand, 1},
 	serveCommand:   {serveCommand, 1},
-	cyphersCommand: {cyphersCommand, 1},
+	ciphersCommand: {ciphersCommand, 1},
 }
 
 var commandDescription = map[string]string{
 	getCommand:     "perform an HTTP GET command to measure download speed",
 	putCommand:     "perform an HTTP POST command to measure upload speed",
 	serveCommand:   "launch a standard web server supporting GET and POST commands of arbitraty sizes",
-	cyphersCommand: "list ciphersuites supported by the target server(s)",
+	ciphersCommand: "list cipher suites supported by the target server(s)",
 }
 
 // global options
@@ -302,15 +302,15 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			args = fs.Args()
 			j := nspeed.NSpeedHTTPServer{Parameters: host}
 			out = append(out, &j)
-		case cyphersCommand:
+		case ciphersCommand:
 			fs := flag.NewFlagSet(command, flag.ContinueOnError)
-			j := nspeed.NSpeedCyphers{}
+			j := nspeed.NSpeedCiphers{}
 
 			fs.UintVar(&j.Delay, "w", 0, "delay in seconds to wait before starting the command")
 
 			fs.Usage = func() {
-				fmt.Fprintf(fs.Output(), "Usage of %s: ", cyphersCommand)
-				fmt.Fprintf(fs.Output(), "  %s hostname[:port]\n", cyphersCommand)
+				fmt.Fprintf(fs.Output(), "Usage of %s: ", ciphersCommand)
+				fmt.Fprintf(fs.Output(), "  %s hostname[:port]\n", ciphersCommand)
 				fmt.Fprintf(fs.Output(), "argument is a hostname or an ip address with an optionnal port\n")
 				fmt.Fprintf(fs.Output(), "if no port is specified, 443 will be used\n")
 				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
