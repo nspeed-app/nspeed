@@ -6,7 +6,8 @@
  - 
 ## client
  - `-http11` flag to force HTTP 1.1 when connecting to HTTP/2 server
- - new command `cyphers` to list supported cyphers with that server
+## cyphers
+ - new command `cyphers` to list supported cyphers with that server (will test only TLS 1.2 and 1.3)
 # v0.7
 ## general
 - global flags:

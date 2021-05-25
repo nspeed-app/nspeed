@@ -41,13 +41,16 @@ type HTTPjob struct {
 }
 
 func (j *HTTPjob) GoString() string {
-	s := fmt.Sprintf("{Command: %s, URL: %q, IPversion: %d, Address: %s, Instance: %d, timeout: %s",
+	s := fmt.Sprintf("{Command: %s, URL: %q, IPversion: %d, Address: %s, Instance: %d, timeout: %s, h2c: %t, http1.1:%t}",
 		j.Command,
 		j.Target,
 		j.IPversion,
 		j.Host,
 		j.Instance,
-		j.Timeout.String())
+		j.Timeout.String(),
+		j.H2C,
+		j.UseHTTP11,
+	)
 	if j.Command == "POST" {
 		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, ByteCountDecimal(j.ContentSize))
 	}
@@ -61,9 +64,23 @@ func (j *HTTPjob) GetTarget() string {
 
 func (j *HTTPjob) PrintString() string {
 	if j.Command == "GET" {
-		return "get " + j.Target
+		t := "get %s" + j.Target
+		if j.H2C {
+			return fmt.Sprintf(t, "-h2c ")
+		}
+		if j.UseHTTP11 {
+			return fmt.Sprintf(t, "-http11 ")
+		}
+		return fmt.Sprintf(t, "")
 	} else if j.Command == "POST" {
-		return "put " + j.Target + " " + ByteCountDecimal(j.ContentSize) + "B"
+		t := "put %s" + j.Target + " " + ByteCountDecimal(j.ContentSize) + "B"
+		if j.H2C {
+			return fmt.Sprintf(t, "-h2c ")
+		}
+		if j.UseHTTP11 {
+			return fmt.Sprintf(t, "-http11 ")
+		}
+		return fmt.Sprintf(t, "")
 	} else {
 		return "unknown command"
 	}

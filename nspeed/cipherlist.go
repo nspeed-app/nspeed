@@ -169,7 +169,7 @@ func (j *NSpeedCyphers) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	finalTarget := net.JoinHostPort(host, port)
 	for _, c := range range12 {
-		wm.Logger.Log().Msgf("%s support TLS 1.2 %s", finalTarget, tls.CipherSuiteName(c))
+		wm.Logger.Log().Msgf("%s supports TLS 1.2 %s", finalTarget, tls.CipherSuiteName(c))
 	}
 
 	range13, err := supportedTLS13Ciphers(host, port)
@@ -178,7 +178,7 @@ func (j *NSpeedCyphers) Start(ctx context.Context, wm *WorkerMetrics) error {
 	}
 
 	for _, c := range range13 {
-		wm.Logger.Log().Msgf("%s support TLS 1.3 %s", finalTarget, tls.CipherSuiteName(c))
+		wm.Logger.Log().Msgf("%s supports TLS 1.3 %s", finalTarget, tls.CipherSuiteName(c))
 	}
 
 	wm.ResultChan <- wm

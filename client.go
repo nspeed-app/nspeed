@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
+	"strings"
 	"sync"
 	"text/tabwriter"
 	"time"
@@ -425,8 +426,26 @@ func main() {
 		consoleLevel = zerolog.DebugLevel
 	}
 
+	// remove these ugly "???" from zerolog level formatter
+
+	formatLevel := func(i interface{}) string {
+		if i == nil {
+			return ""
+		}
+		// wish we could call the default formatter but it's not exported
+		// so we lose colors for level
+		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+	}
+
 	// console output, stderr, level is consoleLevel which depends on flags
-	consoleWriter := nspeed.CreateFilteredWriter(zerolog.MultiLevelWriter(zerolog.ConsoleWriter{Out: os.Stderr, NoColor: !*optColor}), consoleLevel, false)
+	consoleWriter := nspeed.CreateFilteredWriter(
+		zerolog.MultiLevelWriter(zerolog.ConsoleWriter{
+			Out:         os.Stderr,
+			NoColor:     !*optColor,
+			FormatLevel: formatLevel,
+		}),
+		consoleLevel,
+		false)
 
 	// file output, "-" = stdout or filename
 	// level is always info (for now)

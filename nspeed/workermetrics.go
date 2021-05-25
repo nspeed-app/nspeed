@@ -216,15 +216,15 @@ func (wm *WorkerMetrics) Read(p []byte) (n int, err error) {
 }
 
 func InitSpeedReport(w *tabwriter.Writer) {
-	fmt.Fprintf(w, "Job\tRead\tWrite\tTime\ttarget\n")
+	fmt.Fprintf(w, "Job\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\ttarget\n")
 }
 func SpeedReport(w *tabwriter.Writer, job string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
-	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%s\n",
+	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
 		job,
 		FormatBitperSecond(elapsedTime.Seconds(), totalRead),
 		FormatBitperSecond(elapsedTime.Seconds(), totalWrite),
 		elapsedTime.Seconds(),
-		// totalRead, ByteCountDecimal(totalRead),
-		// totalWrite, ByteCountDecimal(totalWrite),
+		ByteCountDecimal(totalRead),
+		ByteCountDecimal(totalWrite),
 		target))
 }
