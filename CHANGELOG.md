@@ -2,8 +2,6 @@
 ## general
 - a few typos fixes
 - added `-h2c` mode to client & server to allow HTTP/2 Cleartext (H2C)
-## server
- - 
 ## client
  - `-http11` flag to force HTTP 1.1 when connecting to HTTP/2 server
 ## cyphers
