@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptrace"
@@ -160,8 +159,8 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		ForceAttemptHTTP2:   !j.UseHTTP11,
 		TLSHandshakeTimeout: 5 * time.Second,
 		DisableCompression:  true,
-		// WriteBufferSize:     1024 * 1024,
-		// ReadBufferSize:      1024 * 1024,
+		// WriteBufferSize:     10 * 1024 * 1024,
+		// ReadBufferSize:      10 * 1024 * 1024,
 	}
 
 	if j.UseTLSSelfConfig {
@@ -175,8 +174,10 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		log.Debug().Msgf("TLSConfig: defined")
 	}
 
+	// interface to the transport so we can switch if needed
 	var rtTransport http.RoundTripper = netTransport
 
+	// H2C support, beware: we're not using netTransport anymore
 	if j.H2C {
 		rtTransport = &http2.Transport{
 			AllowHTTP:          true,
@@ -191,7 +192,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			loc, err := req.Response.Location()
-			j.Logger.Info().Msgf("job %d got redirect to %s (%v)", wm.Index, loc.String(), err)
+			j.Logger.Log().Msgf("job %d got redirect to %s (%v)", wm.Index, loc.String(), err)
 
 			wm.InitNew() //todo: evaluate
 			return nil   // http.ErrUseLastResponse
@@ -389,11 +390,11 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 				wm.ContentReadSize = resp.ContentLength
 
 				// this is where the GET transfert happens.
-				//   iteration 1: we use io.Copy to 'null' (Discard) and
-				//   a TeeReader to do progression with the wm which has an io.Writer interface
+				//   iteration 2: we use io.Copy the body to 'wm' (which is a Discard) and
 				//   the resp (thru req) context  will handle timeout & parent cancellation
 
-				wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
+				//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
+				wm.TotalReadProcessed, err = io.Copy(wm, resp.Body)
 
 				if err == context.DeadlineExceeded {
 					wm.Expired = true

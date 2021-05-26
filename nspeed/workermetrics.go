@@ -77,6 +77,10 @@ func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 	return n, nil
 }
 
+// todo: since we io.Copy(WorkerMetrics, Resp.Body) and io.Copy can call a ReadFrom
+// investigate if we can implement ReadFrom instead of Write
+// func (wm *WorkerMetrics) ReadFrom(r io.Reader) (n int64, err error) { TODO }
+
 // LogProgress logs the intermediary metrics
 func (wm *WorkerMetrics) LogProgress(logger *zerolog.Logger) {
 	if logger == nil {
