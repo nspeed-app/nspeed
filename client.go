@@ -38,33 +38,6 @@ var TLSSelfSignedKey []byte
 //go:embed embed/localhost-CA.pem
 var TLSSelfSignedCA []byte
 
-// commands
-const getCommand = "get"
-const putCommand = "put"
-const serveCommand = "server"
-const ciphersCommand = "ciphers"
-
-// supported commands, expand has needed
-type NSpeedCommand struct {
-	Name string
-	Set  int
-}
-
-// list of supported commands. Value is the set number. Commands in the same set can be mixed together.
-var implementedCommands = map[string]NSpeedCommand{
-	getCommand:     {getCommand, 1},
-	putCommand:     {putCommand, 1},
-	serveCommand:   {serveCommand, 1},
-	ciphersCommand: {ciphersCommand, 1},
-}
-
-var commandDescription = map[string]string{
-	getCommand:     "perform an HTTP GET command to measure download speed",
-	putCommand:     "perform an HTTP POST command to measure upload speed",
-	serveCommand:   "launch a standard web server supporting GET and POST commands of arbitraty sizes",
-	ciphersCommand: "list cipher suites supported by the target server(s)",
-}
-
 // global options
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
@@ -96,7 +69,7 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	for len(args) != 0 {
 		command := args[0]
 		args = args[1:]
-		cmd, ok := implementedCommands[command]
+		cmd, ok := nspeed.ImplementedCommands[command]
 		if !ok {
 			return nil, errors.New("unknown command " + command)
 		}
@@ -104,233 +77,14 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 			cmdSet = cmd.Set
 		}
 		if cmdSet != cmd.Set {
-			return nil, errors.New("cannot mix these commands " + command)
+			return nil, errors.New("cannot mix this command (" + command + ") with the previous one(s)")
 		}
-		switch command {
-		case getCommand:
-			fs := flag.NewFlagSet(command, flag.ContinueOnError)
-			fs.Usage = func() {
-				fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
-				fmt.Fprintf(fs.Output(), "  %s [options] url\n", getCommand)
-				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
-				fs.PrintDefaults()
-				fmt.Fprintf(fs.Output(), "\n")
-			}
-
-			repeat := fs.Uint("n", 1, "number of times to process an item")
-			useIPv4 := fs.Bool("4", false, "use IPv4 only")
-			useIPv6 := fs.Bool("6", false, "use IPv6 only")
-			timeout := fs.Uint("t", 8, "timeout")
-			host := fs.String("a", "", "specific local address to use")
-			skipTLScert := fs.Bool("k", false, "skip certificates validation")
-			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
-			waitdelay := fs.Uint("w", 0, "delay in seconds to wait before starting the command")
-			useSelfCert := fs.Bool("self", *optTLSSelf, "use self-signed TLS certificate")
-			useHTTP11 := fs.Bool("http11", false, "force using HTTP 1.1")
-			useH2C := fs.Bool("h2c", false, "force using HTTP/2 Cleartext (H2C) mode")
-			if err := fs.Parse(args); err != nil {
-				return nil, err
-			}
-
-			j := nspeed.HTTPjob{
-				Command:   "GET",
-				Timeout:   time.Duration(*timeout) * time.Second,
-				Delay:     time.Duration(*waitdelay) * time.Second,
-				UserAgent: *useragent,
-				Repeat:    int(*repeat),
-			}
-
-			// force IPv4 or IPv6
-			if *useIPv4 && *useIPv6 {
-				fs.Usage()
-				return nil, errors.New("specify IPv4 or IPv6 but not both")
-			}
-			if *useIPv4 {
-				j.IPversion = 4
-			}
-			if *useIPv6 {
-				j.IPversion = 6
-			}
-			j.SkipTLSCheck = *skipTLScert
-			j.UseTLSSelfConfig = *useSelfCert
-			j.UseHTTP11 = *useHTTP11
-			j.H2C = *useH2C
-
-			log.Debug().Msgf("use self TLS: %t", j.UseTLSSelfConfig)
-
-			args = fs.Args()
-			if len(args) == 0 {
-				fs.Usage()
-				return nil, errors.New("missing argument")
-			}
-			j.Target = args[0]
-			j.Host = *host
-
-			args = args[1:]
-			out = append(out, &j)
-		case putCommand:
-			fs := flag.NewFlagSet(command, flag.ContinueOnError)
-			fs.Usage = func() {
-				fmt.Fprintf(fs.Output(), "Usage of %s: ", putCommand)
-				fmt.Fprintf(fs.Output(), "  %s [options] url size\n", putCommand)
-				fmt.Fprintf(fs.Output(), "size is a number of bytes with an optionnal units like \"100k\" (100x1000 bytes) or \"100K\" (100x1024 bytes)\n")
-				fmt.Fprintf(fs.Output(), "supported units: kmgtpe (x1000 units) and KMGTPE (x1024 units)\n")
-				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
-				fs.PrintDefaults()
-				fmt.Fprintf(fs.Output(), "\n")
-			}
-			repeat := fs.Uint("n", 1, "number of times to process an item")
-			useIPv4 := fs.Bool("4", false, "use IPv4 only")
-			useIPv6 := fs.Bool("6", false, "use IPv6 only")
-			timeout := fs.Uint("t", 8, "timeout")
-			host := fs.String("a", "", "specific local address to use")
-			skipTLScert := fs.Bool("k", false, "skip certificates validation")
-			useragent := fs.String("u", "nspeed.app/"+Version, "user-agent")
-			contentType := fs.String("ct", "application/octet-stream", "content type")
-			waitdelay := fs.Uint("w", 0, "delay in seconds to wait before starting the command")
-			useSelfCert := fs.Bool("self", *optTLSSelf, "use self-signed TLS certificate")
-			useHTTP11 := fs.Bool("http11", false, "force using HTTP 1.1")
-			useH2C := fs.Bool("h2c", false, "force using HTTP/2 Cleartext (H2C) mode")
-			if err := fs.Parse(args); err != nil {
-				return nil, err
-			}
-
-			j := nspeed.HTTPjob{
-				Command:     "POST",
-				Timeout:     time.Duration(*timeout) * time.Second,
-				Delay:       time.Duration(*waitdelay) * time.Second,
-				UserAgent:   *useragent,
-				ContentType: *contentType,
-				Repeat:      int(*repeat),
-			}
-			// force IPv4 or IPv6
-			if *useIPv4 && *useIPv6 {
-				fs.Usage()
-				return nil, errors.New("specify IPv4 or IPv6 but not both")
-			}
-			if *useIPv4 {
-				j.IPversion = 4
-			}
-			if *useIPv6 {
-				j.IPversion = 6
-			}
-			j.SkipTLSCheck = *skipTLScert
-			j.UseTLSSelfConfig = *useSelfCert
-			j.UseHTTP11 = *useHTTP11
-			j.H2C = *useH2C
-
-			log.Debug().Msgf("use self TLS: %t", j.UseTLSSelfConfig)
-
-			args = fs.Args()
-			if len(args) < 2 {
-				fs.Usage()
-				return nil, errors.New("missing arguments")
-			}
-
-			j.Target = args[0]
-			j.Host = *host
-
-			cs, err := nspeed.ParseByteUnits(args[1])
-			if err != nil {
-				return nil, err
-			}
-			j.ContentSize = int64(cs)
-			args = args[2:]
-			out = append(out, &j)
-		case serveCommand:
-			fs := flag.NewFlagSet(command, flag.ContinueOnError)
-			host := &nspeed.NSpeedHost{}
-			fs.Usage = func() {
-				fmt.Fprintf(fs.Output(), "Usage of %s: ", serveCommand)
-				fmt.Fprintf(fs.Output(), "  %s [options]\n", serveCommand)
-				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
-				fs.PrintDefaults()
-				fmt.Fprintf(fs.Output(), "\n")
-			}
-
-			fs.StringVar(&host.Host, "a", "localhost", "Hostname or ip address to listen (use \"\" for all interfaces/all addresses)")
-			//flag.Lookup("address").NoOptDefVal = ""
-			useIPv4 := fs.Bool("4", false, "use IPv4 only")
-			useIPv6 := fs.Bool("6", false, "use IPv6 only")
-			fs.IntVar(&host.Port, "p", nspeed.DefaultPort, "Port to listen on")
-			maxsize := fs.String("s", nspeed.FormatByteDecimalUnits(nspeed.DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
-			maxtime := fs.Uint("t", uint(nspeed.DefaultMaxDuration.Seconds()), "Maximum duration a response may take")
-			fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
-			fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = infinite)")
-			fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
-			fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
-			fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
-			fs.StringVar(&host.Directory, "dir", "", "directory to serve content from (url will be /dir)")
-			fs.BoolVar(&host.H2C, "h2c", false, "support also HTTP/2 Cleartext (H2C) mode")
-			if err := fs.Parse(args); err != nil {
-				return nil, err
-			}
-
-			//
-			host.MaxDuration = time.Duration(*maxtime) * time.Second
-
-			// force IPv4 or IPv6
-			if *useIPv4 && *useIPv6 {
-				fs.Usage()
-				return nil, errors.New("specify IPv4 or IPv6 but not both")
-			}
-			if *useIPv4 {
-				host.ForceIPVersion = 4
-			}
-			if *useIPv6 {
-				host.ForceIPVersion = 6
-			}
-
-			ms, err := nspeed.ParseByteUnits(*maxsize)
-			if err != nil {
-				fs.Usage()
-				return nil, err
-			}
-			host.MaxBodySize = int64(ms)
-
-			host.ServeTLS = host.UseTLSSelfConfig
-			if host.TLSCertFile != "" || host.TLSKeyFile != "" {
-				if _, err := os.Stat(host.TLSCertFile); os.IsNotExist(err) {
-					return nil, errors.New("bad or missing TLS certificate file: " + host.TLSCertFile)
-				}
-				if _, err := os.Stat(host.TLSKeyFile); os.IsNotExist(err) {
-					return nil, errors.New("bad or missing TLS key file: " + host.TLSKeyFile)
-				}
-				host.ServeTLS = true
-			}
-
-			args = fs.Args()
-			j := nspeed.NSpeedHTTPServer{Parameters: host}
-			out = append(out, &j)
-		case ciphersCommand:
-			fs := flag.NewFlagSet(command, flag.ContinueOnError)
-			j := nspeed.NSpeedCiphers{}
-
-			fs.UintVar(&j.Delay, "w", 0, "delay in seconds to wait before starting the command")
-
-			fs.Usage = func() {
-				fmt.Fprintf(fs.Output(), "Usage of %s: ", ciphersCommand)
-				fmt.Fprintf(fs.Output(), "  %s hostname[:port]\n", ciphersCommand)
-				fmt.Fprintf(fs.Output(), "argument is a hostname or an ip address with an optionnal port\n")
-				fmt.Fprintf(fs.Output(), "if no port is specified, 443 will be used\n")
-				fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
-				fs.PrintDefaults()
-				fmt.Fprintf(fs.Output(), "\n")
-			}
-			if err := fs.Parse(args); err != nil {
-				return nil, err
-			}
-			args = fs.Args()
-			if len(args) < 1 {
-				fs.Usage()
-				return nil, errors.New("missing target")
-			}
-			j.Target = args[0]
-			args = args[1:]
-			out = append(out, &j)
-		default:
-			return nil, errors.New("unknown command")
+		reminder, job, err := nspeed.ParseCommand(command, args)
+		if err != nil {
+			return nil, err
 		}
+		args = reminder
+		out = append(out, job)
 	}
 	return out, nil
 }
@@ -338,13 +92,15 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 // main
 func main() {
 
+	nspeed.Version = Version
+
 	flag.CommandLine.Usage = func() {
 		name := "nspeed" //todp
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s [global options] <command> ... <command>\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "Available commands:\n")
-		for c := range implementedCommands {
-			fmt.Fprintf(flag.CommandLine.Output(), "  - %-6s: %s\n", c, commandDescription[c])
+		for c := range nspeed.ImplementedCommands {
+			fmt.Fprintf(flag.CommandLine.Output(), "  - %-6s: %s\n", c, nspeed.CommandDescription[c])
 		}
 		fmt.Fprintf(flag.CommandLine.Output(), "\nuse: \"%s <command> -h\" to see each command specific arguments and options\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "Available global options:\n\n")
@@ -352,6 +108,7 @@ func main() {
 	}
 
 	flag.Parse() // parse global flags
+	nspeed.OptTLSSelf = *optTLSSelf
 
 	// todo: move this elsewhere ? use nspeed pkg version
 	nspeed.ServerVersion = Version
