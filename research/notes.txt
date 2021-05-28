@@ -30,3 +30,9 @@ Get-NetAdapterStatistics -Name $Name
 build
 
 go build -ldflags "-X main.Version=$(git describe --tags)"
+
+
+# to read
+https://blog.cloudflare.com/how-to-achieve-low-latency/
+
+https://github.com/nhooyr/websocket
