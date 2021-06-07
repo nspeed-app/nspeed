@@ -255,14 +255,24 @@ func main() {
 		ctx = newctx
 	}
 
-	// launch a go routine for each jobs
+	// create & init workers for jobs
+	for _, wm := range wcWorkers {
+		log.Debug().Msgf("creating workload %d %s %t", wm.Index, wm.Target, wm.Done)
+		err := wm.Job.Init(ctx, wm)
+		if err != nil {
+			log.Error().Msgf("error %s for %s", err, wm.Target)
+			return
+		}
+	}
+
+	// run by launching a go routine for each job
 	var wg sync.WaitGroup
 	wg.Add(njobs)
 	for _, wm := range wcWorkers {
 		log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
 		go func(w *nspeed.WorkerMetrics) {
 			defer wg.Done()
-			err := w.Job.Start(ctx, w)
+			err := w.Job.Run(ctx)
 			if err != nil {
 				log.Error().Msgf("error %s for %s", err, w.Target)
 				return

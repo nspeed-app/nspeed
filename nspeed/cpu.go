@@ -18,8 +18,7 @@ func MaxParallelism() int {
 	return numCPU
 }
 
-// global options
-//
+// global const
 const colorReset = "\033[0m"
 const colorRed = "\033[31m"
 const colorGreen = "\033[32m"

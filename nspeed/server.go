@@ -320,9 +320,8 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 // implements the http server
-func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
+func (s *NSpeedHTTPServer) Init(ctx context.Context, wm *WorkerMetrics) error {
 
-	//
 	s.StreamPathRegexp = regexp.MustCompile("^(" + ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
 
 	s.Logger = &wm.Logger //
@@ -363,6 +362,9 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 	if s.Parameters.H2C {
 		s.Server.Handler = h2c.NewHandler(s.Handler(), &http2.Server{})
 	}
+	return nil
+}
+func (s *NSpeedHTTPServer) Run(ctx context.Context) error {
 
 	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
 	shutdownCh := make(chan os.Signal, 1)
@@ -410,7 +412,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 		network = "tcp6"
 	}
 
-	ln, err := net.Listen(network, listenAddr)
+	ln, err := net.Listen(network, s.Server.Addr)
 	if err != nil {
 		return err
 	}
@@ -418,7 +420,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 
 	var listenErr error
 	if s.Parameters.ServeTLS {
-		s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t)", listenAddr, s.Parameters.H2C)
+		s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t)", s.Server.Addr, s.Parameters.H2C)
 		if s.Parameters.UseTLSSelfConfig {
 			if TLSSelfConfig != nil {
 				s.Server.TLSConfig = TLSSelfConfig
@@ -432,7 +434,7 @@ func (s *NSpeedHTTPServer) Start(ctx context.Context, wm *WorkerMetrics) error {
 			listenErr = s.Server.ServeTLS(ln, s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
 		}
 	} else {
-		s.Logger.Warn().Msgf("nspeed listening on http://%s", listenAddr)
+		s.Logger.Warn().Msgf("nspeed listening on http://%s", s.Server.Addr)
 		listenErr = s.Server.Serve(ln)
 	}
 	if listenErr != nil && listenErr != http.ErrServerClosed {

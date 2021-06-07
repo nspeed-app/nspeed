@@ -19,7 +19,9 @@ type Job interface {
 	GoString() string
 	PrintString() string
 	IsInfinite() bool
-	Start(context.Context, *WorkerMetrics) error // todo: split this into Init & Run
+	//Start(context.Context, *WorkerMetrics) error // todo: split this into Init & Run
+	Init(context.Context, *WorkerMetrics) error
+	Run(context.Context) error
 }
 
 func ExpandJobs(jobs []Job) []Job {

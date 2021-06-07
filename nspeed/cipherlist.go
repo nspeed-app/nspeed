@@ -143,40 +143,48 @@ func parseURL(u, scheme string) (*url.URL, error) {
 type NSpeedCiphers struct {
 	Target string
 	Delay  uint
+	host   string
+	port   string
+	wm     *WorkerMetrics
+}
+
+func (j *NSpeedCiphers) Init(ctx context.Context, wm *WorkerMetrics) error {
+
+	u, _ := parseURL(j.Target, "https")
+	//fmt.Println("url = ", u.Hostname())
+	j.host = u.Hostname()
+	j.port = u.Port()
+	if j.port == "" {
+		j.port = "443"
+	}
+
+	j.wm = wm
+
+	return nil
 }
 
 // print the ciphers list of hostname (dial address)
-func (j *NSpeedCiphers) Start(ctx context.Context, wm *WorkerMetrics) error {
-
-	u, _ := parseURL(j.Target, "https")
-
-	//fmt.Println("url = ", u.Hostname())
-
-	host := u.Hostname()
-	port := u.Port()
-	if port == "" {
-		port = "443"
-	}
+func (j *NSpeedCiphers) Run(ctx context.Context) error {
 
 	if j.Delay > 0 {
-		wm.Logger.Debug().Uint("delay", j.Delay).Msg("waiting")
+		j.wm.Logger.Debug().Uint("delay", j.Delay).Msg("waiting")
 		time.Sleep(time.Duration(j.Delay) * time.Second)
-		wm.Logger.Debug().Msg("waking up")
+		j.wm.Logger.Debug().Msg("waking up")
 	}
 
-	range12, err := supportedTLS12Ciphers(host, port)
+	range12, err := supportedTLS12Ciphers(j.host, j.port)
 	if err != nil {
 		return err
 	}
-	LogCipher(host, port, TLSVersionFriendlyName(tls.VersionTLS12), range12, wm.Logger)
+	LogCipher(j.host, j.port, TLSVersionFriendlyName(tls.VersionTLS12), range12, j.wm.Logger)
 
-	range13, err := supportedTLS13Ciphers(host, port)
+	range13, err := supportedTLS13Ciphers(j.host, j.port)
 	if err != nil {
 		return err
 	}
-	LogCipher(host, port, TLSVersionFriendlyName(tls.VersionTLS13), range13, wm.Logger)
+	LogCipher(j.host, j.port, TLSVersionFriendlyName(tls.VersionTLS13), range13, j.wm.Logger)
 
-	wm.ResultChan <- wm
+	j.wm.ResultChan <- j.wm
 
 	return nil
 }

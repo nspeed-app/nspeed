@@ -2,7 +2,7 @@
 ## general
 - lots of internal refactoring
 ## server
-- `-dir path`, static files server, path = directory to serve content from (url is /dir) 
+- `-dir path`, static files server, path = local directory to serve content from (url is `/dir`) 
 ## ciphers
 - "cypher" spelling replaced with "cipher" everywhere including the `ciphers` command ("cypher" is a minority spelling so less prone to be known or searched for)
 # v0.8

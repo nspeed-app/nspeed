@@ -3,6 +3,7 @@ package nspeed
 import (
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -127,13 +128,23 @@ func preflight(h http.Handler) http.Handler {
 	})
 }
 
+// BigChunk is a big array of random data
 var BigChunk [MaxChunkSize]byte
+var bigChunkInitialized bool
+var bigChunkMutex sync.Mutex
 
-// init a buffer of random values
+// init a buffer of random values - callable only once
+// thread safe
 func InitBigChunk(seed int64) {
+	if bigChunkInitialized {
+		return
+	}
+	bigChunkMutex.Lock()
+	defer bigChunkMutex.Unlock()
+
 	rng := rand.New(rand.NewSource(seed))
 	for i := int64(0); i < MaxChunkSize; i++ {
 		BigChunk[i] = byte(rng.Intn(256))
 	}
-
+	bigChunkInitialized = true
 }

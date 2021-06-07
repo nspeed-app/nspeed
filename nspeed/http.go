@@ -37,6 +37,10 @@ type HTTPjob struct {
 	Logger           *zerolog.Logger
 	UseHTTP11        bool
 	H2C              bool
+	// private
+	client *http.Client
+	req    *http.Request
+	wm     *WorkerMetrics
 }
 
 func (j *HTTPjob) GoString() string {
@@ -111,10 +115,11 @@ type roundTripTrace struct {
 	end           time.Time
 }
 
-// HTTPDownload implements HTTP GET command
-func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
+// init a HTTP Job
+func (j *HTTPjob) Init(ctx context.Context, wm *WorkerMetrics) error {
 
 	j.Logger = &wm.Logger
+	j.wm = wm
 
 	var LocalAddr net.Addr
 	if j.Host != "" {
@@ -190,7 +195,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	}
 
 	// create http client
-	client := &http.Client{
+	j.client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			loc, err := req.Response.Location()
 			j.Logger.Log().Msgf("job %d got redirect to %s (%v)", wm.Index, loc.String(), err)
@@ -217,16 +222,22 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		return err
 	}
 
+	j.req = req
 	// add more headers here
 	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("User-Agent", j.UserAgent)
 	req.Header.Set("Content-Type", j.ContentType)
 
+	wm.InitNew()
+	return nil
+}
+func (j *HTTPjob) Run(ctx context.Context) error {
+
+	wm := j.wm
 	// tracing & timing stuff
 	refdate := time.Now()
 
 	tr := &roundTripTrace{}
-
 	// todo handle redirects
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(dnsInfo httptrace.DNSStartInfo) {
@@ -307,7 +318,7 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 		},
 	}
 
-	// this is where we wait
+	// this is where we wait -todo : can we be cancelled
 	if j.Delay > 0 {
 		j.Logger.Debug().Dur("delay", j.Delay).Msg("waiting")
 		time.Sleep(j.Delay)
@@ -318,17 +329,15 @@ func (j *HTTPjob) Start(ctx context.Context, wm *WorkerMetrics) error {
 	if j.Timeout > 0 {
 		thisctx, cancel := context.WithTimeout(ctx, j.Timeout)
 		defer cancel()
-		req = req.WithContext(thisctx)
+		j.req = j.req.WithContext(thisctx)
 	}
 
-	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
-
-	wm.InitNew()
+	j.req = j.req.WithContext(httptrace.WithClientTrace(j.req.Context(), trace))
 
 	// start the main timer
 	refdate = time.Now()
 	// resp, err := client.Transport.RoundTrip(req)
-	resp, err := client.Do(req)
+	resp, err := j.client.Do(j.req)
 	tr.end = time.Now()
 
 	if errors.Is(err, context.DeadlineExceeded) {
