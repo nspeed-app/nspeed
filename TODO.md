@@ -1,12 +1,8 @@
-missing: latency
-upload: send random data instead of zero
+missing: latency, traceroute ?
+upload: send random data instead of zero 
 optimize buffer size
 ctrl-c for client
 remove delay at the end
-
-prévisions pour la v0.6: API
-- client: ajout d'une option: délais d'attente avant de lancer les transferts.
-- server: ajout d' options: durée de vie du server et nombre de requetes max (généralisation du "-1" d'iperf3)
 
 prévisions pour la v0.7: API &  utilisation de l'API
 - api: gros morceau, il faut refactorer le code, définir une API propre. Cet étape permettra ensuite d'avoir le mode 'agent' et l'UI web.

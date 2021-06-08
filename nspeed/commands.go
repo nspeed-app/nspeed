@@ -16,6 +16,8 @@ const getCommand = "get"
 const putCommand = "put"
 const serveCommand = "server"
 const ciphersCommand = "ciphers"
+const pingCommand = "ping"
+const tracerouteCommand = "tr"
 
 // supported commands, expand has needed
 type NSpeedCommand struct {
@@ -25,17 +27,21 @@ type NSpeedCommand struct {
 
 // list of supported commands. Value is the set number. Commands in the same set can be mixed together.
 var ImplementedCommands = map[string]NSpeedCommand{
-	getCommand:     {getCommand, 1},
-	putCommand:     {putCommand, 1},
-	serveCommand:   {serveCommand, 1},
-	ciphersCommand: {ciphersCommand, 1},
+	getCommand:        {getCommand, 1},
+	putCommand:        {putCommand, 1},
+	serveCommand:      {serveCommand, 1},
+	ciphersCommand:    {ciphersCommand, 1},
+	pingCommand:       {pingCommand, 1},
+	tracerouteCommand: {tracerouteCommand, 2},
 }
 
 var CommandDescription = map[string]string{
-	getCommand:     "perform an HTTP GET command to measure download speed",
-	putCommand:     "perform an HTTP POST command to measure upload speed",
-	serveCommand:   "launch a standard web server supporting GET and POST commands of arbitraty sizes",
-	ciphersCommand: "list cipher suites supported by the target server(s)",
+	getCommand:        "perform an HTTP GET command to measure download speed",
+	putCommand:        "perform an HTTP POST command to measure upload speed",
+	serveCommand:      "launch a standard web server supporting GET and POST commands of arbitraty sizes",
+	ciphersCommand:    "list cipher suites supported by the target server(s)",
+	pingCommand:       "measure latency to destination",
+	tracerouteCommand: "discover route to destination",
 }
 
 // global flags
@@ -94,6 +100,7 @@ func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *HTTPjob) err
 	return nil
 }
 
+// parse cmd line args for commands and their respective args
 func ParseCommand(command string, args []string) ([]string, Job, error) {
 	switch command {
 	case getCommand:
@@ -249,6 +256,9 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 		j.Target = args[0]
 		args = args[1:]
 		return args, &j, nil
+
+	case pingCommand, tracerouteCommand:
+		return args, nil, errors.New("not yet implemented")
 	default:
 		return args, nil, errors.New("unknown command")
 	}
