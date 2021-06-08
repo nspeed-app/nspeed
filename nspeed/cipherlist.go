@@ -148,7 +148,7 @@ type NSpeedCiphers struct {
 	wm     *WorkerMetrics
 }
 
-func (j *NSpeedCiphers) Init(ctx context.Context, wm *WorkerMetrics) error {
+func (j *NSpeedCiphers) Init(wm *WorkerMetrics) error {
 
 	u, _ := parseURL(j.Target, "https")
 	//fmt.Println("url = ", u.Hostname())

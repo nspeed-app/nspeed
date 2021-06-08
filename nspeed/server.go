@@ -320,7 +320,8 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 // implements the http server
-func (s *NSpeedHTTPServer) Init(ctx context.Context, wm *WorkerMetrics) error {
+
+func (s *NSpeedHTTPServer) Init(wm *WorkerMetrics) error {
 
 	s.StreamPathRegexp = regexp.MustCompile("^(" + ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
 

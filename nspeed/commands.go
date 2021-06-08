@@ -40,8 +40,8 @@ var CommandDescription = map[string]string{
 	putCommand:        "perform an HTTP POST command to measure upload speed",
 	serveCommand:      "launch a standard web server supporting GET and POST commands of arbitraty sizes",
 	ciphersCommand:    "list cipher suites supported by the target server(s)",
-	pingCommand:       "measure latency to destination",
-	tracerouteCommand: "discover route to destination",
+	pingCommand:       "measure latency to destination (not yet implemented)",
+	tracerouteCommand: "discover route to destination (not yet implemented)",
 }
 
 // global flags

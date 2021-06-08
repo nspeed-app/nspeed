@@ -116,7 +116,7 @@ type roundTripTrace struct {
 }
 
 // init a HTTP Job
-func (j *HTTPjob) Init(ctx context.Context, wm *WorkerMetrics) error {
+func (j *HTTPjob) Init(wm *WorkerMetrics) error {
 
 	j.Logger = &wm.Logger
 	j.wm = wm
@@ -217,7 +217,7 @@ func (j *HTTPjob) Init(ctx context.Context, wm *WorkerMetrics) error {
 		wm.TotalWriteProcessed = 0
 		body = wm
 	}
-	req, err := http.NewRequestWithContext(ctx, j.Command, wm.Target, body)
+	req, err := http.NewRequest(j.Command, wm.Target, body)
 	if err != nil {
 		return err
 	}
@@ -231,7 +231,16 @@ func (j *HTTPjob) Init(ctx context.Context, wm *WorkerMetrics) error {
 	wm.InitNew()
 	return nil
 }
+
 func (j *HTTPjob) Run(ctx context.Context) error {
+
+	if j.req == nil {
+		return errors.New("no request")
+	}
+
+	if ctx != nil {
+		j.req = j.req.WithContext(ctx)
+	}
 
 	wm := j.wm
 	// tracing & timing stuff

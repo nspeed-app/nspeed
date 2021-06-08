@@ -20,7 +20,7 @@ type Job interface {
 	PrintString() string
 	IsInfinite() bool
 	//Start(context.Context, *WorkerMetrics) error // todo: split this into Init & Run
-	Init(context.Context, *WorkerMetrics) error
+	Init(*WorkerMetrics) error
 	Run(context.Context) error
 }
 
