@@ -2,7 +2,6 @@ package nspeed
 
 /*
 - ABI
-	GetJobs()
 	AddJobs(...cb_progress )
 	Run( cb_progress )
 	Stop() / Cancel
@@ -11,10 +10,8 @@ package nspeed
 
 - Web API
 
-	GetJobs()
-	GetJob(id)
-	AddJob(...cb_progress )
-	DeleteJob(id)
+	AddJobs(...cb_progress )
 	Run( ws-progress )
-	Stop()
+	Stop() / Cancel
+	GetResults()
 */

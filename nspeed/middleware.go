@@ -136,11 +136,11 @@ var bigChunkMutex sync.Mutex
 // init a buffer of random values - callable only once
 // thread safe
 func InitBigChunk(seed int64) {
+	bigChunkMutex.Lock()
+	defer bigChunkMutex.Unlock()
 	if bigChunkInitialized {
 		return
 	}
-	bigChunkMutex.Lock()
-	defer bigChunkMutex.Unlock()
 
 	rng := rand.New(rand.NewSource(seed))
 	for i := int64(0); i < MaxChunkSize; i++ {
