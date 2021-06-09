@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -12,21 +13,23 @@ import (
 var Version string
 
 // commands
+type CommandId int
+
 const getCommand = "get"
 const putCommand = "put"
 const serveCommand = "server"
 const ciphersCommand = "ciphers"
 const pingCommand = "ping"
-const tracerouteCommand = "tr"
+const tracerouteCommand = "traceroute"
 
 // supported commands, expand has needed
-type NSpeedCommand struct {
+type Command struct {
 	Name string
 	Set  int
 }
 
 // list of supported commands. Value is the set number. Commands in the same set can be mixed together.
-var ImplementedCommands = map[string]NSpeedCommand{
+var Commands = map[string]Command{
 	getCommand:        {getCommand, 1},
 	putCommand:        {putCommand, 1},
 	serveCommand:      {serveCommand, 1},
@@ -35,7 +38,7 @@ var ImplementedCommands = map[string]NSpeedCommand{
 	tracerouteCommand: {tracerouteCommand, 2},
 }
 
-var CommandDescription = map[string]string{
+var CommandDescriptions = map[string]string{
 	getCommand:        "perform an HTTP GET command to measure download speed",
 	putCommand:        "perform an HTTP POST command to measure upload speed",
 	serveCommand:      "launch a standard web server supporting GET and POST commands of arbitraty sizes",
@@ -55,7 +58,7 @@ type httpFlags struct {
 	UseIPv6 bool
 }
 
-// declare common GET/PUT flags
+// common GET/PUT flags
 func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *HTTPjob) (*flag.FlagSet, *httpFlags) {
 	fs := flag.NewFlagSet(command, errorHandling)
 	fs.IntVar(&job.Repeat, "n", 1, "number of times to process an item")
@@ -100,7 +103,31 @@ func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *HTTPjob) err
 	return nil
 }
 
+// find command ,try full match first then partial unless ambiguous
+func IsCommand(cmd string) (Command, error) {
+	c, ok := Commands[cmd]
+	if ok {
+		return c, nil
+	}
+
+	found := ""
+	for _, v := range Commands {
+		if strings.HasPrefix(v.Name, cmd) {
+			if found != "" {
+				return Command{}, errors.New("ambiguous command name: " + cmd)
+			} else {
+				found = v.Name
+			}
+		}
+	}
+	if found != "" {
+		return IsCommand(found)
+	}
+	return Command{}, errors.New("command not found: " + cmd)
+}
+
 // parse cmd line args for commands and their respective args
+// todo: use a func for each command and put it in Commands
 func ParseCommand(command string, args []string) ([]string, Job, error) {
 	switch command {
 	case getCommand:

@@ -60,7 +60,6 @@ var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 
 // flag parsing - thx to https://github.com/artyom for hints
 // make sure global args are parsed first
-// refactor: parsing should be done per command type
 func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	var out []nspeed.Job
 	args := rawArgs
@@ -69,17 +68,17 @@ func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
 	for len(args) != 0 {
 		command := args[0]
 		args = args[1:]
-		cmd, ok := nspeed.ImplementedCommands[command]
-		if !ok {
-			return nil, errors.New("unknown command " + command)
+		cmd, err := nspeed.IsCommand(command) //todo:  refine with unambiquitous  substring 'g' instead of get'
+		if err != nil {
+			return nil, err
 		}
 		if cmdSet == 0 {
 			cmdSet = cmd.Set
 		}
 		if cmdSet != cmd.Set {
-			return nil, errors.New("cannot mix this command (" + command + ") with the previous one(s)")
+			return nil, errors.New("cannot mix this command (" + cmd.Name + ") with the previous one(s)")
 		}
-		reminder, job, err := nspeed.ParseCommand(command, args)
+		reminder, job, err := nspeed.ParseCommand(cmd.Name, args)
 		if err != nil {
 			return nil, err
 		}
@@ -99,8 +98,8 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s [global options] <command> ... <command>\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "Available commands:\n")
-		for c := range nspeed.ImplementedCommands {
-			fmt.Fprintf(flag.CommandLine.Output(), "  - %-6s: %s\n", c, nspeed.CommandDescription[c])
+		for c := range nspeed.Commands {
+			fmt.Fprintf(flag.CommandLine.Output(), "  - %-6s: %s\n", c, nspeed.CommandDescriptions[c])
 		}
 		fmt.Fprintf(flag.CommandLine.Output(), "\nuse: \"%s <command> -h\" to see each command specific arguments and options\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "Available global options:\n\n")
