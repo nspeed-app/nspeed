@@ -258,7 +258,7 @@ func main() {
 	// create & init workers for jobs
 	for _, wm := range wcWorkers {
 		log.Debug().Msgf("creating workload %d %s %t", wm.Index, wm.Target, wm.Done)
-		err := wm.Job.Init(ctx, wm)
+		err := wm.Job.Init(wm)
 		if err != nil {
 			log.Error().Msgf("error %s for %s", err, wm.Target)
 			return
