@@ -1,6 +1,7 @@
 # v0.9
 ## general
 - lots of internal refactoring
+- commands can be shortened to any prefix as long as non ambiguous. For instance `ge` or just `g` can be used for `get` because no other command starts with `g` or `ge` but `put` and `ping` can not be shortened to `p` so use `pu` and `pi` respectively.
 ## server
 - `-dir path`, static files server, path = local directory to serve content from (url is `/dir`) 
 ## ciphers
