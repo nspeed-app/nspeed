@@ -21,6 +21,7 @@ const serveCommand = "server"
 const ciphersCommand = "ciphers"
 const pingCommand = "ping"
 const tracerouteCommand = "traceroute"
+const apiCommand = "api"
 
 // supported commands, expand has needed
 type Command struct {
@@ -36,6 +37,7 @@ var Commands = map[string]Command{
 	ciphersCommand:    {ciphersCommand, 1},
 	pingCommand:       {pingCommand, 1},
 	tracerouteCommand: {tracerouteCommand, 2},
+	apiCommand:        {apiCommand, 1},
 }
 
 var CommandDescriptions = map[string]string{
@@ -45,6 +47,7 @@ var CommandDescriptions = map[string]string{
 	ciphersCommand:    "list cipher suites supported by the target server(s)",
 	pingCommand:       "measure latency to destination (not yet implemented)",
 	tracerouteCommand: "discover route to destination (not yet implemented)",
+	apiCommand:        "enable an API endpoint",
 }
 
 // global flags
@@ -283,7 +286,45 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 		j.Target = args[0]
 		args = args[1:]
 		return args, &j, nil
+	case apiCommand:
+		fs := flag.NewFlagSet(command, flag.ContinueOnError)
+		host := &NSpeedHost{}
 
+		fs.Usage = func() {
+			fmt.Fprintf(fs.Output(), "Usage of %s: ", apiCommand)
+			fmt.Fprintf(fs.Output(), "  %s [options]\n", apiCommand)
+			fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
+			fs.PrintDefaults()
+			fmt.Fprintf(fs.Output(), "\n")
+		}
+		fs.StringVar(&host.Host, "a", "localhost", "Hostname or ip address to listen (use \"\" for all interfaces/all addresses)")
+		//flag.Lookup("address").NoOptDefVal = ""
+		useIPv4 := fs.Bool("4", false, "use IPv4 only")
+		useIPv6 := fs.Bool("6", false, "use IPv6 only")
+		fs.IntVar(&host.Port, "p", DefaultPort, "Port to listen on")
+		fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
+		fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
+		fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
+
+		if err := fs.Parse(args); err != nil {
+			return args, nil, err
+		}
+
+		// force IPv4 or IPv6
+		if *useIPv4 && *useIPv6 {
+			fs.Usage()
+			return args, nil, errors.New("specify IPv4 or IPv6 but not both")
+		}
+		if *useIPv4 {
+			host.ForceIPVersion = 4
+		}
+		if *useIPv6 {
+			host.ForceIPVersion = 6
+		}
+
+		args = fs.Args()
+		j := APIHost{Parameters: host}
+		return args, &j, nil
 	case pingCommand, tracerouteCommand:
 		return args, nil, errors.New("not yet implemented")
 	default:

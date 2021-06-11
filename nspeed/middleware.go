@@ -64,6 +64,7 @@ func logger(logger *zerolog.Logger, h http.Handler) http.Handler {
 	})
 }
 
+// limit inbound request size
 func limitRequestSize(maxSize int64, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Body != nil {
@@ -104,6 +105,8 @@ func autohead(h http.Handler) http.Handler {
 	})
 }
 
+// todo: check if this is still needed,
+// todo: add a CORS setting
 func preflight(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
@@ -116,8 +119,8 @@ func preflight(h http.Handler) http.Handler {
 		respHeader.Set("Server:", ServerName+" "+ServerVersion)
 
 		if r.Method == "OPTIONS" {
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS") // , HEAD, PUT, DELETE, PATCH, ") // todo
-			w.Header().Set("Access-Control-Max-Age", "3600")                     //todo
+			w.Header().Set("Access-Control-Allow-Methods", "HEAD, GET, POST, OPTIONS") // , HEAD, PUT, DELETE, PATCH, ") // todo
+			w.Header().Set("Access-Control-Max-Age", "3600")                           //todo
 			if r.Header.Get("Access-Control-Request-Headers") != "" {
 				w.Header().Set("Access-Control-Allow-Headers", r.Header.Get("Access-Control-Request-Headers"))
 			}

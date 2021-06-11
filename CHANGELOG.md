@@ -1,9 +1,9 @@
 # v0.9
 ## general
 - lots of internal refactoring
-- commands can be shortened to any prefix as long as non ambiguous. For instance `ge` or just `g` can be used for `get` because no other command starts with `g` or `ge` but `put` and `ping` can not be shortened to `p` so use `pu` and `pi` respectively.
+- command names can be shortened as long as it is not ambiguous. For instance `ge` or just `g` can be used for `get` because no other command starts with `g` or `ge` but `put` and `ping` can not be shortened to `p` so use at least `pu` and `pi` respectively.
 ## server
-- `-dir path`, static files server, path = local directory to serve content from (url is `/dir`) 
+- `-dir path`, static files server, path = local directory to serve content from (url is `/dir`). Max duration applies (`-t`) but not max size (`-s`).
 ## ciphers
 - "cypher" spelling replaced with "cipher" everywhere including the `ciphers` command ("cypher" is a minority spelling so less prone to be known or searched for)
 # v0.8

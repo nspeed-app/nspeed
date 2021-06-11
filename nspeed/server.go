@@ -40,8 +40,8 @@ const (
 type NSpeedHost struct {
 	Host             string
 	Port             int
-	ForceIPVersion   int // 0 (none), 4 (force IPv4)  or 6 (force IPv6)
-	MaxBodySize      int64
+	ForceIPVersion   int   // 0 (none), 4 (force IPv4)  or 6 (force IPv6)
+	MaxBodySize      int64 // max inbound size and outbound size for streaming (not fileserve)- todo: split into 2 distinct settings?
 	MaxDuration      time.Duration
 	ServeTLS         bool
 	H2C              bool
