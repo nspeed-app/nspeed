@@ -19,7 +19,7 @@ const getCommand = "get"
 const putCommand = "put"
 const serveCommand = "server"
 const ciphersCommand = "ciphers"
-const pingCommand = "ping"
+const latencyCommand = "latency"
 const tracerouteCommand = "traceroute"
 const apiCommand = "api"
 
@@ -35,7 +35,7 @@ var Commands = map[string]Command{
 	putCommand:        {putCommand, 1},
 	serveCommand:      {serveCommand, 1},
 	ciphersCommand:    {ciphersCommand, 1},
-	pingCommand:       {pingCommand, 1},
+	latencyCommand:    {latencyCommand, 1},
 	tracerouteCommand: {tracerouteCommand, 2},
 	apiCommand:        {apiCommand, 1},
 }
@@ -45,7 +45,7 @@ var CommandDescriptions = map[string]string{
 	putCommand:        "perform an HTTP POST command to measure upload speed",
 	serveCommand:      "launch a standard web server supporting GET and POST commands of arbitraty sizes",
 	ciphersCommand:    "list cipher suites supported by the target server(s)",
-	pingCommand:       "measure latency to destination (not yet implemented)",
+	latencyCommand:    "measure latency to destination (not yet implemented)",
 	tracerouteCommand: "discover route to destination (not yet implemented)",
 	apiCommand:        "enable an API endpoint",
 }
@@ -62,7 +62,7 @@ type httpFlags struct {
 }
 
 // common GET/PUT flags
-func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *HTTPjob) (*flag.FlagSet, *httpFlags) {
+func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *JobHTTPClient) (*flag.FlagSet, *httpFlags) {
 	fs := flag.NewFlagSet(command, errorHandling)
 	fs.IntVar(&job.Repeat, "n", 1, "number of times to process an item")
 	fs.StringVar(&job.Host, "a", "", "specific local address to use")
@@ -82,7 +82,7 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *HT
 }
 
 // parse GET/PUT flags
-func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *HTTPjob) error {
+func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *JobHTTPClient) error {
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -134,7 +134,7 @@ func IsCommand(cmd string) (Command, error) {
 func ParseCommand(command string, args []string) ([]string, Job, error) {
 	switch command {
 	case getCommand:
-		j := HTTPjob{}
+		j := JobHTTPClient{}
 		j.Command = "GET"
 		fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j)
 		fs.Usage = func() {
@@ -160,7 +160,7 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 		return args, &j, nil
 
 	case putCommand:
-		j := HTTPjob{}
+		j := JobHTTPClient{}
 		j.Command = "POST"
 		fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j)
 		fs.Usage = func() {
@@ -196,7 +196,7 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 
 	case serveCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
-		host := &NSpeedHost{}
+		host := NewHostParameters()
 		fs.Usage = func() {
 			fmt.Fprintf(fs.Output(), "Usage of %s: ", serveCommand)
 			fmt.Fprintf(fs.Output(), "  %s [options]\n", serveCommand)
@@ -257,12 +257,12 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 		}
 
 		args = fs.Args()
-		j := NSpeedHTTPServer{Parameters: host}
+		j := JobHTTPServer{Parameters: host}
 		return args, &j, nil
 
 	case ciphersCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
-		j := NSpeedCiphers{}
+		j := JobCiphers{}
 
 		fs.UintVar(&j.Delay, "w", 0, "delay in seconds to wait before starting the command")
 
@@ -288,7 +288,7 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 		return args, &j, nil
 	case apiCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
-		host := &NSpeedHost{}
+		host := NewHostParameters()
 
 		fs.Usage = func() {
 			fmt.Fprintf(fs.Output(), "Usage of %s: ", apiCommand)
@@ -325,7 +325,7 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 		args = fs.Args()
 		j := APIHost{Parameters: host}
 		return args, &j, nil
-	case pingCommand, tracerouteCommand:
+	case latencyCommand, tracerouteCommand:
 		return args, nil, errors.New("not yet implemented")
 	default:
 		return args, nil, errors.New("unknown command")

@@ -140,15 +140,15 @@ func parseURL(u, scheme string) (*url.URL, error) {
 }
 
 //implement Job
-type NSpeedCiphers struct {
+type JobCiphers struct {
 	Target string
 	Delay  uint
 	host   string
 	port   string
-	wm     *WorkerMetrics
+	wm     *Metrics
 }
 
-func (j *NSpeedCiphers) Init(wm *WorkerMetrics) error {
+func (j *JobCiphers) Init(wm *Metrics) error {
 
 	u, _ := parseURL(j.Target, "https")
 	//fmt.Println("url = ", u.Hostname())
@@ -164,7 +164,7 @@ func (j *NSpeedCiphers) Init(wm *WorkerMetrics) error {
 }
 
 // print the ciphers list of hostname (dial address)
-func (j *NSpeedCiphers) Run(ctx context.Context) error {
+func (j *JobCiphers) Run(ctx context.Context) error {
 
 	if j.Delay > 0 {
 		j.wm.Logger.Debug().Uint("delay", j.Delay).Msg("waiting")
@@ -189,26 +189,26 @@ func (j *NSpeedCiphers) Run(ctx context.Context) error {
 	return nil
 }
 
-func (j *NSpeedCiphers) GetTarget() string {
+func (j *JobCiphers) GetTarget() string {
 	return fmt.Sprintf("ciphers %s", j.Target)
 }
 
-func (j *NSpeedCiphers) Expand(jobs []Job) []Job {
+func (j *JobCiphers) Expand(jobs []Job) []Job {
 	return append(jobs, j)
 }
 
-func (j *NSpeedCiphers) GoString() string {
+func (j *JobCiphers) GoString() string {
 	return fmt.Sprintf("ciphers {Target: %s, delay: %d}",
 		j.Target,
 		j.Delay,
 	)
 }
 
-func (j *NSpeedCiphers) PrintString() string {
+func (j *JobCiphers) PrintString() string {
 	return fmt.Sprintf("ciphers %s", j.Target)
 }
 
-func (j *NSpeedCiphers) IsInfinite() bool {
+func (j *JobCiphers) IsInfinite() bool {
 	return false
 }
 

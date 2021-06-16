@@ -8,11 +8,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
 	"strings"
 	"sync"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
@@ -141,7 +143,7 @@ func main() {
 	}
 	// Append our cert to the system pool
 	if ok := rootCAs.AppendCertsFromPEM(TLSSelfSignedCA); !ok {
-		fmt.Println("error: couldn't happen our self-signed CA")
+		fmt.Println("error: couldn't append our embedded self-signed CA")
 		os.Exit(1)
 	}
 
@@ -226,13 +228,13 @@ func main() {
 	jobs = nspeed.ExpandJobs(jobs)
 
 	njobs := len(jobs)
-	results := make(chan *nspeed.WorkerMetrics, njobs)
-	wcWorkers := make([]*nspeed.WorkerMetrics, njobs)
+	results := make(chan *nspeed.Metrics, njobs)
+	wcWorkers := make([]*nspeed.Metrics, njobs)
 
 	//IsInfinite := false
 	fmt.Println("Jobs:")
 	for idx, job := range jobs {
-		wm := nspeed.WorkerMetrics{
+		wm := nspeed.Metrics{
 			Done:       false,
 			Expired:    false,
 			Index:      idx,
@@ -246,15 +248,22 @@ func main() {
 		// todo check valid url, prefetch, do dns if needed, add context ? etc
 	}
 
-	// global timeout
-	ctx := context.Background()
+	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
+	shutdownCh := make(chan os.Signal, 1)
+	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
+
+	// Cancel will allows to shutdown everything on
+	ctx, Cancel := context.WithCancel(context.Background())
+	defer Cancel()
+
+	// add timeout
 	if *optTimeout > 0 {
 		newctx, cancel := context.WithTimeout(ctx, time.Duration(*optTimeout)*time.Second)
 		defer cancel()
 		ctx = newctx
 	}
 
-	// create & init workers for jobs
+	// create & init workers for jobs (sync one after the others)
 	for _, wm := range wcWorkers {
 		log.Debug().Msgf("creating workload %d %s %t", wm.Index, wm.Target, wm.Done)
 		err := wm.Job.Init(wm)
@@ -264,16 +273,18 @@ func main() {
 		}
 	}
 
-	// run by launching a go routine for each job
+	// run workers by launching a go routine for each one
+	//
 	var wg sync.WaitGroup
 	wg.Add(njobs)
 	for _, wm := range wcWorkers {
 		log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
-		go func(w *nspeed.WorkerMetrics) {
+		go func(w *nspeed.Metrics) {
 			defer wg.Done()
 			err := w.Job.Run(ctx)
 			if err != nil {
-				log.Error().Msgf("error %s for %s", err, w.Target)
+				log.Error().Msgf("error '%s' for '%s'", err, w.Target)
+				Cancel()
 				return
 			}
 		}(wm)
@@ -312,13 +323,15 @@ func main() {
 
 	for !done {
 		select {
+		case sig := <-shutdownCh:
+			log.Warn().Msgf("global shutdown started by signal: %s", sig)
+			Cancel()
 		case <-progressCPUChannel:
 			if *optCPU {
 				cpuload := nspeed.GetCPULoad(*optColor)
 				// we dont log.Info() this to avoid sending it to the file
 				log.Log().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			}
-
 		case <-progressTickerChannel:
 			// time critical: warning for overlap/backlogs if what's done here takes too long
 			// this section assumes loglevel >= info

@@ -20,7 +20,7 @@ import (
 
 // a HTTP command, get or post
 // implement Job interface
-type HTTPjob struct {
+type JobHTTPClient struct {
 	Command          string
 	Repeat           int
 	IPversion        int
@@ -40,10 +40,10 @@ type HTTPjob struct {
 	// private
 	client *http.Client
 	req    *http.Request
-	wm     *WorkerMetrics
+	wm     *Metrics
 }
 
-func (j *HTTPjob) GoString() string {
+func (j *JobHTTPClient) GoString() string {
 	s := fmt.Sprintf("{Command: %s, URL: %q, IPversion: %d, Address: %s, Instance: %d, timeout: %s, delay: %s, h2c: %t, http1.1:%t}",
 		j.Command,
 		j.Target,
@@ -62,11 +62,11 @@ func (j *HTTPjob) GoString() string {
 	return s
 }
 
-func (j *HTTPjob) GetTarget() string {
+func (j *JobHTTPClient) GetTarget() string {
 	return j.Target
 }
 
-func (j *HTTPjob) PrintString() string {
+func (j *JobHTTPClient) PrintString() string {
 	if j.Command == "GET" {
 		t := "get %s" + j.Target
 		if j.H2C {
@@ -90,7 +90,7 @@ func (j *HTTPjob) PrintString() string {
 	}
 }
 
-func (j *HTTPjob) Expand(jobs []Job) []Job {
+func (j *JobHTTPClient) Expand(jobs []Job) []Job {
 	for i := 0; i < j.Repeat; i++ {
 		clone := *j // use deep copy if struct change ?
 		clone.Instance = i
@@ -99,7 +99,7 @@ func (j *HTTPjob) Expand(jobs []Job) []Job {
 	return jobs
 }
 
-func (j *HTTPjob) IsInfinite() bool { return false }
+func (j *JobHTTPClient) IsInfinite() bool { return false }
 
 // roundTripTrace holds timings for a single HTTP roundtrip.
 // mostly from prometheus blackbox_exporter
@@ -116,7 +116,7 @@ type roundTripTrace struct {
 }
 
 // init a HTTP Job
-func (j *HTTPjob) Init(wm *WorkerMetrics) error {
+func (j *JobHTTPClient) Init(wm *Metrics) error {
 
 	j.Logger = &wm.Logger
 	j.wm = wm
@@ -232,7 +232,7 @@ func (j *HTTPjob) Init(wm *WorkerMetrics) error {
 	return nil
 }
 
-func (j *HTTPjob) Run(ctx context.Context) error {
+func (j *JobHTTPClient) Run(ctx context.Context) error {
 
 	if j.req == nil {
 		return errors.New("no request")
@@ -355,33 +355,38 @@ func (j *HTTPjob) Run(ctx context.Context) error {
 	} else if errors.Is(err, syscall.ECONNRESET) {
 		wm.Expired = true
 		j.Logger.Info().Msgf("something expired server side")
+	} else if errors.Is(err, context.Canceled) {
+		wm.Cancelled = true
+		j.Logger.Info().Msgf("parent got cancelled")
+
 	} else if err != nil {
 		j.Logger.Fatal().Err(err).Send()
 	}
 
-	j.Logger.Info().
-		Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
-		Stringer("RemoteAddr", wm.ConnInfo.Conn.RemoteAddr()).
-		Dur("DNSInfoTime", tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
-		Dur("ConnInfoTime", wm.ConnInfoTime.Sub(refdate)).
-		Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
-		Send()
-
-	for _, a := range wm.DNSInfo.Addrs {
-		j.Logger.Info().Stringer("dnsinfo", &a).Send()
-	}
-
-	if wm.ConnInfo.Reused {
-		log.Info().Msg("REUSING CONNECTION")
-	}
-
-	if wm.TLSDone {
+	if !wm.Cancelled {
 		j.Logger.Info().
-			Str("crypto", TLSVersionName(wm.TLS.Version)).
-			Str("cipher", tls.CipherSuiteName(wm.TLS.CipherSuite)).
-			Dur("TLSDuration", wm.TLSTime.Sub(refdate)).Send()
-	}
+			Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
+			Stringer("RemoteAddr", wm.ConnInfo.Conn.RemoteAddr()).
+			Dur("DNSInfoTime", tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
+			Dur("ConnInfoTime", wm.ConnInfoTime.Sub(refdate)).
+			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
+			Send()
 
+		for _, a := range wm.DNSInfo.Addrs {
+			j.Logger.Info().Stringer("dnsinfo", &a).Send()
+		}
+
+		if wm.ConnInfo.Reused {
+			log.Info().Msg("REUSING CONNECTION")
+		}
+
+		if wm.TLSDone {
+			j.Logger.Info().
+				Str("crypto", TLSVersionName(wm.TLS.Version)).
+				Str("cipher", tls.CipherSuiteName(wm.TLS.CipherSuite)).
+				Dur("TLSDuration", wm.TLSTime.Sub(refdate)).Send()
+		}
+	}
 	// todo: time'd out 'POST' don't have a resp so we're missing informations like protocol ,tls, etc
 	// todo: find a way to get the missing informations elsewhere
 	// workaround: do a HEAD before the POST but that will count has 2 requests and could mess the server stats and Maxrequests option

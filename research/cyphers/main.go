@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	j := nspeed.NSpeedCiphers{Target: os.Args[1]}
+	j := nspeed.JobCiphers{Target: os.Args[1]}
 	j.Init(nil)
 	j.Run(context.Background())
 }

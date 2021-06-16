@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"strconv"
 )
 
 /*
@@ -23,8 +25,8 @@ import (
 */
 
 type APIHost struct {
-	Parameters *NSpeedHost
-	Server     *NSpeedHTTPServer // underlying HTTP server
+	Parameters *HostParameters
+	Server     *JobHTTPServer // underlying HTTP server
 }
 
 func (j *APIHost) GetTarget() string {
@@ -45,16 +47,21 @@ func (j *APIHost) GoString() string {
 }
 
 func (j *APIHost) PrintString() string {
-	return "API"
+	return "API " + net.JoinHostPort(j.Parameters.Host, strconv.Itoa(j.Parameters.Port))
 }
 
 func (j *APIHost) IsInfinite() bool {
 	return true
 }
 
-func (s *APIHost) Init(wm *WorkerMetrics) error {
+func (s *APIHost) Init(wm *Metrics) error {
+	if s.Parameters == nil {
+		s.Parameters = NewHostParameters()
+		s.Parameters.APIOnly = true
+	}
 	if s.Server == nil {
-		s.Server = &NSpeedHTTPServer{Parameters: s.Parameters}
+		s.Parameters.APIOnly = true
+		s.Server = &JobHTTPServer{Parameters: s.Parameters}
 		return s.Server.Init(wm)
 	}
 	return nil

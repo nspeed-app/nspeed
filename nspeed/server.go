@@ -9,12 +9,9 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"regexp"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -37,7 +34,7 @@ const (
 )
 
 // parameters of aa server instance
-type NSpeedHost struct {
+type HostParameters struct {
 	Host             string
 	Port             int
 	ForceIPVersion   int   // 0 (none), 4 (force IPv4)  or 6 (force IPv6)
@@ -51,12 +48,25 @@ type NSpeedHost struct {
 	RunDuration      time.Duration
 	MaxRequests      int
 	Directory        string // directory to serve content from /dir url
+	APIOnly          bool
+}
+
+// initialize a new HostParameters
+func NewHostParameters() *HostParameters {
+	return &HostParameters{
+		Port:             DefaultPort,
+		MaxBodySize:      DefaultMaxBodySize,
+		MaxDuration:      DefaultMaxDuration,
+		ServeTLS:         false,
+		H2C:              false,
+		UseTLSSelfConfig: false,
+	}
 }
 
 // the HTTP Server
 // implements Job interface
-type NSpeedHTTPServer struct {
-	Parameters       *NSpeedHost
+type JobHTTPServer struct {
+	Parameters       *HostParameters
 	Server           *http.Server
 	Cancel           context.CancelFunc
 	Logger           *zerolog.Logger
@@ -65,15 +75,15 @@ type NSpeedHTTPServer struct {
 	mutex            sync.Mutex
 }
 
-func (j *NSpeedHTTPServer) GetTarget() string {
+func (j *JobHTTPServer) GetTarget() string {
 	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
 }
 
-func (j *NSpeedHTTPServer) Expand(jobs []Job) []Job {
+func (j *JobHTTPServer) Expand(jobs []Job) []Job {
 	return append(jobs, j)
 }
 
-func (j *NSpeedHTTPServer) GoString() string {
+func (j *JobHTTPServer) GoString() string {
 	return fmt.Sprintf("server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_request, max duration: %v, UseTLS: %t, H2C: %t, maxruns: %d, max life: %v}",
 		j.Parameters.Host,
 		j.Parameters.Port,
@@ -87,11 +97,11 @@ func (j *NSpeedHTTPServer) GoString() string {
 	)
 }
 
-func (j *NSpeedHTTPServer) PrintString() string {
+func (j *JobHTTPServer) PrintString() string {
 	return "SERVER"
 }
 
-func (j *NSpeedHTTPServer) IsInfinite() bool {
+func (j *JobHTTPServer) IsInfinite() bool {
 	if j.Parameters.MaxRequests > 0 {
 		return false
 	}
@@ -103,7 +113,7 @@ func (j *NSpeedHTTPServer) IsInfinite() bool {
 
 // called each time before a request, prevent new request before actual shutdown if MaxRequest reached
 // return false if too many requests
-func (j *NSpeedHTTPServer) OnRequestStart() bool {
+func (j *JobHTTPServer) OnRequestStart() bool {
 	j.mutex.Lock()
 	j.TotalRequests++
 	done := j.Parameters.MaxRequests > 0 && j.TotalRequests > j.Parameters.MaxRequests
@@ -117,7 +127,7 @@ func (j *NSpeedHTTPServer) OnRequestStart() bool {
 }
 
 // called each time a request is completed, see muxer
-func (j *NSpeedHTTPServer) OnRequestEnd() {
+func (j *JobHTTPServer) OnRequestEnd() {
 	j.mutex.Lock()
 	done := j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests
 	j.mutex.Unlock()
@@ -132,7 +142,7 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 }
 
 // Handler returns an http.Handler that exposes all the server endpoints
-func (h *NSpeedHTTPServer) Handler() http.Handler {
+func (h *JobHTTPServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	// return client informations
@@ -160,7 +170,7 @@ func (h *NSpeedHTTPServer) Handler() http.Handler {
 }
 
 // handle '/' .. get : stream bytes, put - upload bytes
-func (h *NSpeedHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
+func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	if method == "" {
 		method = "GET"
@@ -192,7 +202,7 @@ func (h *NSpeedHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 // handleBytes consolidates the logic for validating input params of the Bytes
 // and StreamBytes endpoints and knows how to write the response in chunks if
 // streaming is true.
-func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size string, extension string) {
+func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size string, extension string) {
 
 	n, err := ParseByteUnits(size)
 	if err != nil {
@@ -258,7 +268,7 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, s
 	w.WriteHeader(http.StatusOK) // this could also be done by the first w.Write()
 
 	// prepare metrics handler
-	wm := WorkerMetrics{
+	wm := Metrics{
 		Done:    false,
 		Expired: false,
 		Target:  fmt.Sprintf("download %s to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
@@ -302,9 +312,9 @@ func (h *NSpeedHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, s
 }
 
 // handle upload
-func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
+func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Info().Msgf("starting Upload from %s (%d)", r.RemoteAddr, r.ContentLength)
-	wm := WorkerMetrics{
+	wm := Metrics{
 		Done:    false,
 		Expired: false,
 		Target:  fmt.Sprintf("upload from %s", r.RemoteAddr),
@@ -321,7 +331,7 @@ func (h *NSpeedHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 // implements the http server
 
-func (s *NSpeedHTTPServer) Init(wm *WorkerMetrics) error {
+func (s *JobHTTPServer) Init(wm *Metrics) error {
 
 	s.StreamPathRegexp = regexp.MustCompile("^(" + ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
 
@@ -365,38 +375,34 @@ func (s *NSpeedHTTPServer) Init(wm *WorkerMetrics) error {
 	}
 	return nil
 }
-func (s *NSpeedHTTPServer) Run(ctx context.Context) error {
+func (s *JobHTTPServer) Run(ctx context.Context) error {
 
-	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
-	shutdownCh := make(chan os.Signal, 1)
-	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
-
-	// s.Cancel will allows to shutdown the server
-	ctx, s.Cancel = context.WithCancel(ctx)
 	// run duration is either global timeout from ctx or RunDuration parameter
 	if s.Parameters.RunDuration != 0 {
-		ctx, s.Cancel = context.WithTimeout(ctx, s.Parameters.RunDuration)
+		ctx2, cancel := context.WithTimeout(ctx, s.Parameters.RunDuration)
+		defer cancel()
+		ctx = ctx2
 		s.Logger.Debug().Msgf("server will shutdown in: %v", s.Parameters.RunDuration)
-		defer s.Cancel()
 	}
 	// exitCh will be closed when it is safe to exit, after graceful shutdown
 	exitCh := make(chan struct{})
 
 	go func() {
-		select {
-		case sig := <-shutdownCh:
-			s.Logger.Warn().Msgf("shutdown started by signal: %s", sig)
-			s.Cancel()
-		case <-ctx.Done():
-			s.Logger.Debug().Msgf("shutdown started by context cancel: %s", ctx.Err())
-		}
+		//select {
+		// case sig := <-shutdownCh:
+		// 	s.Logger.Warn().Msgf("shutdown started by signal: %s", sig)
+		// 	s.Cancel()
+		//case
+
+		<-ctx.Done()
+		s.Logger.Debug().Msgf("shutdown started by context : %s", ctx.Err())
 
 		shutdownTimeout := s.Parameters.MaxDuration + s.Parameters.MaxDuration*time.Second //todo check with global timeout too
-		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer cancel()
+		lctx, lcancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer lcancel()
 
 		s.Server.SetKeepAlivesEnabled(false)
-		if err := s.Server.Shutdown(ctx); err != nil {
+		if err := s.Server.Shutdown(lctx); err != nil {
 			s.Logger.Debug().Msgf("shutdown error: %s", err)
 		}
 		close(exitCh)

@@ -20,7 +20,7 @@ type Job interface {
 	PrintString() string
 	IsInfinite() bool
 	//Start(context.Context, *WorkerMetrics) error // todo: split this into Init & Run
-	Init(*WorkerMetrics) error
+	Init(*Metrics) error
 	Run(context.Context) error
 }
 
@@ -32,16 +32,17 @@ func ExpandJobs(jobs []Job) []Job {
 	return out
 }
 
-// WorkerMetrics - main metrics struct
+// Metrics - main metrics struct
 // implements to the io.Writer interface
 // this needs heavy refactoring
 // & check openmetrics suff
-type WorkerMetrics struct {
+type Metrics struct {
 	Index               int
 	Job                 Job
 	Done                bool // job ended
 	Expired             bool // job timed out or other side ended
-	ResultChan          chan *WorkerMetrics
+	Cancelled           bool
+	ResultChan          chan *Metrics
 	Target              string
 	DNSInfo             httptrace.DNSDoneInfo
 	DNSInfoTime         time.Time
@@ -70,7 +71,7 @@ type WorkerMetrics struct {
 }
 
 // Writer
-func (wm *WorkerMetrics) Write(p []byte) (int, error) {
+func (wm *Metrics) Write(p []byte) (int, error) {
 	n := len(p)
 	wm.StepSize = int64(n)
 	wm.TotalRead += wm.StepSize
@@ -84,7 +85,7 @@ func (wm *WorkerMetrics) Write(p []byte) (int, error) {
 // func (wm *WorkerMetrics) ReadFrom(r io.Reader) (n int64, err error) { TODO }
 
 // LogProgress logs the intermediary metrics
-func (wm *WorkerMetrics) LogProgress(logger *zerolog.Logger) {
+func (wm *Metrics) LogProgress(logger *zerolog.Logger) {
 	if logger == nil {
 		return
 	}
@@ -109,7 +110,7 @@ func (wm *WorkerMetrics) LogProgress(logger *zerolog.Logger) {
 }
 
 // LogFinal logs the final metrics
-func (wm *WorkerMetrics) LogFinal(logger *zerolog.Logger) {
+func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 	if logger == nil {
 		return
 	}
@@ -140,7 +141,7 @@ func (wm *WorkerMetrics) LogFinal(logger *zerolog.Logger) {
 	}
 }
 
-func (wm *WorkerMetrics) PrintFinal() {
+func (wm *Metrics) PrintFinal() {
 	if wm.Valid {
 		fmt.Printf("%d:", wm.Index)
 		fmt.Printf("TotalRead: %d ", wm.TotalRead)
@@ -156,7 +157,7 @@ func (wm *WorkerMetrics) PrintFinal() {
 }
 
 // initialize metrics
-func (wm *WorkerMetrics) InitNew() {
+func (wm *Metrics) InitNew() {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 
@@ -171,7 +172,7 @@ func (wm *WorkerMetrics) InitNew() {
 	wm.TotalWriteProcessed = 0
 }
 
-func (wm *WorkerMetrics) Close() error {
+func (wm *Metrics) Close() error {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
@@ -197,7 +198,7 @@ func min(x, y int64) int64 {
 
 // implement reader - (ie 'Write' metrics since a POST will call Read() here to send to http server)
 // first iteration - do nothing with the buffer
-func (wm *WorkerMetrics) Read(p []byte) (n int, err error) {
+func (wm *Metrics) Read(p []byte) (n int, err error) {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 
