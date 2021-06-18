@@ -17,6 +17,7 @@ prévision pour la v0.10: hardware & crosstalk
 - relever les compteurs hardware avant, pendant et après un test
 - éventuellement obtenir des infos de la passerelle et de son crosstalk 
 
-prévision pour la v0.11: ouverture du code en open-source
+RC - prévision pour la v0.11: ouverture du code en open-source
+
 prévision pour la v0.12: HTTP/3 & WebRTC
 prévision pour la v0.13: WebUI 2.0

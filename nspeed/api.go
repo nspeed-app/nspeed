@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
 )
 
 /*
@@ -62,8 +65,15 @@ func (s *APIHost) Init(wm *Metrics) error {
 	if s.Server == nil {
 		s.Parameters.APIOnly = true
 		s.Server = &JobHTTPServer{Parameters: s.Parameters}
-		return s.Server.Init(wm)
+		err := s.Server.Init(wm)
+		if err != nil {
+			return err
+		}
 	}
+	if s.Server.Mux == nil {
+		return errors.New("API: no Mux in server")
+	}
+	s.Server.Mux.HandleFunc("/api", s.apiHandler)
 	return nil
 }
 
@@ -72,4 +82,15 @@ func (s *APIHost) Run(ctx context.Context) error {
 		return errors.New("API: no server")
 	}
 	return s.Server.Run(ctx)
+}
+
+func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
+
+	method := r.Method
+	if method == "" {
+		method = "GET"
+	}
+
+	log.Warn().Msgf("apiHandler: %s - %s", method, r.URL.Path)
+
 }

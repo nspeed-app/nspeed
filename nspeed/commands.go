@@ -25,19 +25,20 @@ const apiCommand = "api"
 
 // supported commands, expand has needed
 type Command struct {
-	Name string
-	Set  int
+	Name    string
+	Set     int
+	FromAPI bool
 }
 
 // list of supported commands. Value is the set number. Commands in the same set can be mixed together.
 var Commands = map[string]Command{
-	getCommand:        {getCommand, 1},
-	putCommand:        {putCommand, 1},
-	serveCommand:      {serveCommand, 1},
-	ciphersCommand:    {ciphersCommand, 1},
-	latencyCommand:    {latencyCommand, 1},
-	tracerouteCommand: {tracerouteCommand, 2},
-	apiCommand:        {apiCommand, 1},
+	getCommand:        {getCommand, 1, true},
+	putCommand:        {putCommand, 1, true},
+	serveCommand:      {serveCommand, 1, true},
+	ciphersCommand:    {ciphersCommand, 1, true},
+	latencyCommand:    {latencyCommand, 1, true},
+	tracerouteCommand: {tracerouteCommand, 2, true},
+	apiCommand:        {apiCommand, 1, false},
 }
 
 var CommandDescriptions = map[string]string{
@@ -219,6 +220,7 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 		fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
 		fs.StringVar(&host.Directory, "dir", "", "directory to serve content from (url will be /dir)")
 		fs.BoolVar(&host.H2C, "h2c", false, "support also HTTP/2 Cleartext (H2C) mode")
+		fs.BoolVar(&host.API, "api", false, "enable API endpoint (/api url)")
 		if err := fs.Parse(args); err != nil {
 			return args, nil, err
 		}

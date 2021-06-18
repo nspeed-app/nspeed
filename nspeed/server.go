@@ -48,6 +48,7 @@ type HostParameters struct {
 	RunDuration      time.Duration
 	MaxRequests      int
 	Directory        string // directory to serve content from /dir url
+	API              bool
 	APIOnly          bool
 }
 
@@ -68,11 +69,13 @@ func NewHostParameters() *HostParameters {
 type JobHTTPServer struct {
 	Parameters       *HostParameters
 	Server           *http.Server
+	Mux              *http.ServeMux
 	Cancel           context.CancelFunc
 	Logger           *zerolog.Logger
 	StreamPathRegexp *regexp.Regexp
 	TotalRequests    int
 	mutex            sync.Mutex
+	api              *APIHost
 }
 
 func (j *JobHTTPServer) GetTarget() string {
@@ -144,9 +147,7 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 // Handler returns an http.Handler that exposes all the server endpoints
 func (h *JobHTTPServer) Handler() http.Handler {
 	mux := http.NewServeMux()
-
-	// return client informations
-	mux.HandleFunc("/ip", notImplemented)
+	h.Mux = mux
 
 	// serve static files h.Parameters.Directory
 	if h.Parameters.Directory != "" {
@@ -154,7 +155,11 @@ func (h *JobHTTPServer) Handler() http.Handler {
 		mux.Handle(DirPath, http.StripPrefix(DirPath, http.FileServer(http.Dir(h.Parameters.Directory))))
 	}
 
-	mux.HandleFunc("/", h.rootHandler)
+	if !h.Parameters.APIOnly {
+		mux.HandleFunc("/", h.rootHandler)
+	}
+
+	mux.HandleFunc("/ip", notImplemented)
 
 	var handler http.Handler
 	handler = mux
@@ -169,14 +174,14 @@ func (h *JobHTTPServer) Handler() http.Handler {
 	return handler
 }
 
-// handle '/' .. get : stream bytes, put - upload bytes
+// handle '/' .. get : stre am bytes, put - upload bytes
 func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	if method == "" {
 		method = "GET"
 	}
 
-	log.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
+	//log.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
 
 	if method == "GET" {
 		match := h.StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
@@ -187,6 +192,7 @@ func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		} else {
 			http.Error(w, "Not found (no regexp match)", http.StatusNotFound)
+			return
 		}
 	}
 
@@ -195,7 +201,7 @@ func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// http.NotFound(w, r)
+	//http.NotFound(w, r)
 }
 
 // mostly from https://github.com/mccutchen/go-httpbin
@@ -372,6 +378,11 @@ func (s *JobHTTPServer) Init(wm *Metrics) error {
 	}
 	if s.Parameters.H2C {
 		s.Server.Handler = h2c.NewHandler(s.Handler(), &http2.Server{})
+	}
+
+	if s.Parameters.API {
+		s.api = &APIHost{Parameters: s.Parameters, Server: s}
+		s.api.Init(wm)
 	}
 	return nil
 }

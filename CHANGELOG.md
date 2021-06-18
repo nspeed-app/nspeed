@@ -1,10 +1,15 @@
 # v0.9
 ## general
-- lots of internal refactoring
+- lots of internal refactoring (preparing the api and new internal scheduling/cancellation system)
 - command names can be shortened as long as it is not ambiguous. For instance `ge` or just `g` can be used for `get`.
-- `l[atency]` and `t[raceroute]` placeholder commands
+- added `l[atency]` and `t[raceroute]` command names (placeholder, not yet implemented)
+- new `api` command
+
+## api
+ - a new `api` command allowing nspeed to be controlled by REST. The `api` command create a new API endpoint with default value (localhost,7333). The `server` command can also hosts an API endpoint with the new `-api` flag. See API.md for more information about the API.
 
 ## server
+- `api` flag: see the `api` command
 - `-dir path`,serve static files from path. path is a local directory to serve content from (from `/dir` url ). Max duration applies (`-t`) but not max size (`-s`).
 ## ciphers
 - "cypher" spelling replaced with "cipher" everywhere including the `ciphers` command ("cypher" is a minority spelling so less prone to be known or searched for)

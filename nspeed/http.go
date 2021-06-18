@@ -356,13 +356,14 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 		wm.Expired = true
 		j.Logger.Info().Msgf("something expired server side")
 	} else if errors.Is(err, context.Canceled) {
+		wm.Expired = true
 		wm.Cancelled = true
 		j.Logger.Info().Msgf("parent got cancelled")
-
 	} else if err != nil {
 		j.Logger.Fatal().Err(err).Send()
 	}
 
+	// completed or expired (timeout)
 	if !wm.Cancelled {
 		j.Logger.Info().
 			Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
