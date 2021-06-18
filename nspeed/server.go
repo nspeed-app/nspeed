@@ -382,7 +382,7 @@ func (s *JobHTTPServer) Init(wm *Metrics) error {
 
 	if s.Parameters.API {
 		s.api = &APIHost{Parameters: s.Parameters, Server: s}
-		s.api.Init(wm)
+		return s.api.Init(wm)
 	}
 	return nil
 }
