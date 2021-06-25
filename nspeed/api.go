@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -117,6 +118,11 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	if args == "ip" {
 		fmt.Fprintf(w, "%s\n", r.RemoteAddr)
+		return
+	}
+
+	if args == "time" {
+		fmt.Fprintf(w, "The server time is: %s\n", time.Now().Format(time.RFC1123))
 		return
 	}
 

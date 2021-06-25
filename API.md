@@ -4,19 +4,19 @@ The API is a minimalist REST API above HTTP. it can use a dedicated endpoint or 
 
 the API URI are:
 
-`/api/add/`
+### `/api/add/`
 add jobs, json format below.
 
-`/api/list`
+### `/api/list`
 retrive the currently jobs status. json format below.
 
-`/api/delete`
+### `/api/delete`
 delete all jobs
 
-`/api/run/&callback`
+### `/api/run/&callback`
 run all jobs
 
-`/api/stop/`
+### `/api/stop/`
 stop all running jobs (use `list` to see current running status)
 
 json format for a job:
@@ -26,3 +26,15 @@ json format for a job:
             "flags": [{string, string}]
         }
     ]
+
+### `/api/v1/headers`
+return client headers
+
+### `/api/v1/version`
+return api & server version
+
+### `/api/v1/ip`
+return client ip address & port 
+
+### `/api/v1/time`
+return the server local time
