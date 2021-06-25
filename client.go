@@ -115,16 +115,18 @@ func main() {
 	nspeed.ServerVersion = Version
 	nspeed.ServerName = "NSpeed"
 
-	if *versionFlag {
-		if Version != "" {
-			fmt.Println(Version)
-			return
-		}
+	// set version: todo, move this in nspeed package
+	if Version == "" {
 		if buildInfo, ok := debug.ReadBuildInfo(); ok {
-			fmt.Println(buildInfo.Main.Version)
-			return
+			Version = buildInfo.Main.Version
+		} else {
+			Version = "(unknown)"
 		}
-		fmt.Println("(unknown)")
+		nspeed.Version = Version
+	}
+
+	if *versionFlag {
+		fmt.Println(Version)
 		return
 	}
 

@@ -27,6 +27,8 @@ import (
 	GetResults()
 */
 
+const APIVersion string = "1.0"
+
 type APIHost struct {
 	Parameters *HostParameters
 	Server     *JobHTTPServer // underlying HTTP server
@@ -73,7 +75,7 @@ func (s *APIHost) Init(wm *Metrics) error {
 	if s.Server.Mux == nil {
 		return errors.New("API: no Mux in server")
 	}
-	s.Server.Mux.HandleFunc("/api", s.apiHandler)
+	s.Server.Mux.Handle("/api/", http.StripPrefix("/api/", http.HandlerFunc(s.apiHandler)))
 	return nil
 }
 
@@ -90,7 +92,33 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	if method == "" {
 		method = "GET"
 	}
+	args := r.URL.Path
+	log.Warn().Msgf("apiHandler: %s - %s from %s", method, args, r.RemoteAddr)
 
-	log.Warn().Msgf("apiHandler: %s - %s", method, r.URL.Path)
+	if method != "GET" {
+		http.Error(w, "no such method", http.StatusNotImplemented)
+		return
+	}
 
+	if args == "headers" {
+		for name, headers := range r.Header {
+			for _, h := range headers {
+				fmt.Fprintf(w, "%v: %v", name, h)
+			}
+		}
+		fmt.Fprint(w, "\n")
+		return
+	}
+
+	if args == "version" {
+		fmt.Fprintf(w, "API version %s\nNSpeed version %s\n", APIVersion, Version)
+		return
+	}
+
+	if args == "ip" {
+		fmt.Fprintf(w, "%s\n", r.RemoteAddr)
+		return
+	}
+
+	http.Error(w, "unknown API command", http.StatusNotFound)
 }
