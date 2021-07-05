@@ -7,13 +7,14 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
 )
 
 /*
-- ABI
+- ABIServer
 	AddJobs(...cb_progress )
 	Run( cb_progress )
 	Stop() / Cancel
@@ -93,15 +94,21 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	if method == "" {
 		method = "GET"
 	}
-	args := r.URL.Path
-	log.Warn().Msgf("apiHandler: %s - %s from %s", method, args, r.RemoteAddr)
+	path := r.URL.Path
+	log.Warn().Msgf("apiHandler: %s - %s from %s", method, path, r.RemoteAddr)
 
 	if method != "GET" {
 		http.Error(w, "no such method", http.StatusNotImplemented)
 		return
 	}
 
-	if args == "headers" {
+	// parse the URL path, cmd is first word then everywthing after the first '/' is an array of flags
+	// "cmd/flag1/flag2/flag3"
+	args := strings.Split(path, "/")
+	cmd := args[0]
+	args = args[1:]
+
+	if cmd == "headers" {
 		for name, headers := range r.Header {
 			for _, h := range headers {
 				fmt.Fprintf(w, "%v: %v", name, h)
@@ -111,20 +118,34 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if args == "version" {
+	if cmd == "version" {
 		fmt.Fprintf(w, "API version %s\nNSpeed version %s\n", APIVersion, Version)
 		return
 	}
 
-	if args == "ip" {
-		fmt.Fprintf(w, "%s\n", r.RemoteAddr)
-		return
+	if cmd == "ip" {
+		if len(args) == 0 {
+			fmt.Fprintf(w, "%s\n", r.RemoteAddr)
+			return
+			//tod: add geoip query https://github.com/oschwald/maxminddb-golang
+		}
 	}
 
-	if args == "time" {
-		fmt.Fprintf(w, "The server time is: %s\n", time.Now().Format(time.RFC1123))
-		return
+	if cmd == "time" {
+		if len(args) == 0 {
+			fmt.Fprintf(w, "The server time is: %s\n", time.Now().Format(time.RFC1123))
+			return
+		}
+		if len(args) == 1 && args[0] == "unix" {
+			fmt.Fprintf(w, "%d", time.Now().Unix())
+			return
+
+		}
 	}
 
+	if cmd == "get" {
+		fmt.Fprintf(w, "get: %s (%d)\n", args, len(args))
+		return
+	}
 	http.Error(w, "unknown API command", http.StatusNotFound)
 }
