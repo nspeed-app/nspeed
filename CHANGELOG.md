@@ -6,7 +6,7 @@
 - new `api` command
 
 ## api
- - a new `api` command allowing nspeed to be controlled by REST. The `api` command create a new API endpoint with default value (localhost,7333). The `server` command can also hosts an API endpoint with the new `-api` flag. See API.md for more information about the API.
+ - a new `api` command allowing nspeed to be controlled by REST. The `api` command create a new API endpoint with default value (localhost,7333). The `server` command can also hosts an API endpoint with the new `-api` flag. See [API.md] for more information about the API.
 
 ## server
 - `api` flag: see the `api` command
