@@ -29,7 +29,7 @@ const (
 	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 40 // bytes
 	DefaultMaxDuration       = 10 * time.Second
 	DefaultPort              = 7333
-	MaxChunkSize             = 1024 * 1024 // 1 MiB //this will be allocated
+	MaxChunkSize             = 1024 * 1024 // warning : 1 MiB //this will be allocated in memory
 	DirPath                  = "/dir/"
 )
 
@@ -82,7 +82,7 @@ func (j *JobHTTPServer) GetTarget() string {
 	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
 }
 
-func (j *JobHTTPServer) Expand(jobs []Job) []Job {
+func (j *JobHTTPServer) Expand(jobs []Job, group int) []Job {
 	return append(jobs, j)
 }
 
@@ -132,8 +132,8 @@ func (j *JobHTTPServer) OnRequestStart() bool {
 // called each time a request is completed, see muxer
 func (j *JobHTTPServer) OnRequestEnd() {
 	j.mutex.Lock()
+	defer j.mutex.Unlock()
 	done := j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests
-	j.mutex.Unlock()
 	if done {
 		j.Logger.Info().Msgf("%d max total requests reached, shutting down server", j.TotalRequests)
 		j.Cancel()
@@ -387,6 +387,8 @@ func (s *JobHTTPServer) Init(wm *Metrics) error {
 	return nil
 }
 func (s *JobHTTPServer) Run(ctx context.Context) error {
+
+	ctx, s.Cancel = context.WithCancel(ctx)
 
 	// run duration is either global timeout from ctx or RunDuration parameter
 	if s.Parameters.RunDuration != 0 {

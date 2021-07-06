@@ -200,7 +200,7 @@ func (j *JobCiphers) GetTarget() string {
 	return fmt.Sprintf("ciphers %s", j.Target)
 }
 
-func (j *JobCiphers) Expand(jobs []Job) []Job {
+func (j *JobCiphers) Expand(jobs []Job, group int) []Job {
 	return append(jobs, j)
 }
 

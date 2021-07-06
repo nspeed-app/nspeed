@@ -333,3 +333,33 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 		return args, nil, errors.New("unknown command")
 	}
 }
+
+// flag parsing - thx to https://github.com/artyom for hints
+// make sure global args are parsed first
+func ParseCommands(rawArgs []string) ([]Job, error) {
+	var out []Job
+	args := rawArgs
+	cmdSet := 0
+
+	for len(args) != 0 {
+		command := args[0]
+		args = args[1:]
+		cmd, err := IsCommand(command) //todo:  refine with unambiquitous  substring 'g' instead of get'
+		if err != nil {
+			return nil, err
+		}
+		if cmdSet == 0 {
+			cmdSet = cmd.Set
+		}
+		if cmdSet != cmd.Set {
+			return nil, errors.New("cannot mix this command (" + cmd.Name + ") with the previous one(s)")
+		}
+		reminder, job, err := ParseCommand(cmd.Name, args)
+		if err != nil {
+			return nil, err
+		}
+		args = reminder
+		out = append(out, job)
+	}
+	return out, nil
+}

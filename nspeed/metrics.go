@@ -15,7 +15,7 @@ import (
 
 type Job interface {
 	GetTarget() string
-	Expand([]Job) []Job
+	Expand([]Job, int) []Job
 	GoString() string
 	PrintString() string
 	IsInfinite() bool
@@ -26,8 +26,8 @@ type Job interface {
 
 func ExpandJobs(jobs []Job) []Job {
 	var out []Job
-	for _, job := range jobs {
-		out = job.Expand(out)
+	for g, job := range jobs {
+		out = job.Expand(out, g)
 	}
 	return out
 }

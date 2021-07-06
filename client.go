@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -59,36 +58,6 @@ var optTimeout = flag.Uint("timeout", 0, "default timeout in seconds, 0 for no t
 var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 
 var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
-
-// flag parsing - thx to https://github.com/artyom for hints
-// make sure global args are parsed first
-func parseJobs(rawArgs []string) ([]nspeed.Job, error) {
-	var out []nspeed.Job
-	args := rawArgs
-	cmdSet := 0
-
-	for len(args) != 0 {
-		command := args[0]
-		args = args[1:]
-		cmd, err := nspeed.IsCommand(command) //todo:  refine with unambiquitous  substring 'g' instead of get'
-		if err != nil {
-			return nil, err
-		}
-		if cmdSet == 0 {
-			cmdSet = cmd.Set
-		}
-		if cmdSet != cmd.Set {
-			return nil, errors.New("cannot mix this command (" + cmd.Name + ") with the previous one(s)")
-		}
-		reminder, job, err := nspeed.ParseCommand(cmd.Name, args)
-		if err != nil {
-			return nil, err
-		}
-		args = reminder
-		out = append(out, job)
-	}
-	return out, nil
-}
 
 // main
 func main() {
@@ -153,7 +122,7 @@ func main() {
 		Certificates: []tls.Certificate{certificate},
 		RootCAs:      rootCAs}
 
-	jobs, err := parseJobs(flag.Args())
+	jobs, err := nspeed.ParseCommands(flag.Args())
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

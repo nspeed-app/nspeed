@@ -40,7 +40,7 @@ func (j *APIHost) GetTarget() string {
 	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
 }
 
-func (j *APIHost) Expand(jobs []Job) []Job {
+func (j *APIHost) Expand(jobs []Job, group int) []Job {
 	return append(jobs, j)
 }
 
@@ -127,7 +127,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		if len(args) == 0 {
 			fmt.Fprintf(w, "%s\n", r.RemoteAddr)
 			return
-			//tod: add geoip query https://github.com/oschwald/maxminddb-golang
+			//todo: add geoip query https://github.com/oschwald/maxminddb-golang
 		}
 	}
 
@@ -143,8 +143,10 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if cmd == "get" {
-		fmt.Fprintf(w, "get: %s (%d)\n", args, len(args))
+	if cmd == "run" {
+		// not great to reassemble the path
+		arg := strings.Join(args, "/")
+		fmt.Fprintf(w, "run: %s (%d)\n", arg, len(arg))
 		return
 	}
 	http.Error(w, "unknown API command", http.StatusNotFound)

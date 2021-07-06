@@ -26,7 +26,7 @@ type JobHTTPClient struct {
 	IPversion        int
 	Host             string
 	Target           string
-	Instance         int
+	Group            int
 	Timeout          time.Duration
 	UserAgent        string
 	ContentType      string
@@ -44,12 +44,12 @@ type JobHTTPClient struct {
 }
 
 func (j *JobHTTPClient) GoString() string {
-	s := fmt.Sprintf("{Command: %s, URL: %q, IPversion: %d, Address: %s, Instance: %d, timeout: %s, delay: %s, h2c: %t, http1.1:%t}",
+	s := fmt.Sprintf("{Command: %s, URL: %q, IPversion: %d, Address: %s, Group: %d, timeout: %s, delay: %s, h2c: %t, http1.1:%t}",
 		j.Command,
 		j.Target,
 		j.IPversion,
 		j.Host,
-		j.Instance,
+		j.Group,
 		j.Timeout.String(),
 		j.Delay.String(),
 		j.H2C,
@@ -90,10 +90,10 @@ func (j *JobHTTPClient) PrintString() string {
 	}
 }
 
-func (j *JobHTTPClient) Expand(jobs []Job) []Job {
+func (j *JobHTTPClient) Expand(jobs []Job, group int) []Job {
 	for i := 0; i < j.Repeat; i++ {
 		clone := *j // use deep copy if struct change ?
-		clone.Instance = i
+		clone.Group = group
 		jobs = append(jobs, &clone)
 	}
 	return jobs
