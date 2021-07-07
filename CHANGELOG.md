@@ -1,10 +1,10 @@
 # v0.9
 ## general
-- lots of internal refactoring (preparing the api and new internal scheduling/cancellation system)
+- lots of internal refactoring (for the api/ui and a new internal scheduling/cancellation system)
 - command names can be shortened as long as it is not ambiguous. For instance `ge` or just `g` can be used for `get`.
 - added `l[atency]` and `t[raceroute]` command names (placeholder, not yet implemented)
-- new `api` command
-
+- added `api` command (see api section)
+- todo: add ipv4/ipv6 in final result
 ## api
  - a new `api` command allowing nspeed to be controlled by REST. The `api` command create a new API endpoint with default value (localhost,7333). The `server` command can also hosts an API endpoint with the new `-api` flag. See [API.md] for more information about the API.
 
