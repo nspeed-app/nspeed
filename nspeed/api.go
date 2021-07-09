@@ -147,6 +147,9 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		// not great to reassemble the path
 		arg := strings.Join(args, "/")
 		fmt.Fprintf(w, "run: %s (%d)\n", arg, len(arg))
+
+		//wcWorkers, err = RunJobs(jobs, options, ctx, func(wms []*nspeed.Metrics)
+
 		return
 	}
 	http.Error(w, "unknown API command", http.StatusNotFound)

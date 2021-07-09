@@ -104,13 +104,14 @@ mainloop:
 			log.Debug().Msgf("parent cancelled us")
 			break mainloop
 		case <-progressTickerChannel:
+			progress(wcWorkers)
 			// time critical: warning for overlap/backlogs if what's done here takes too long
 			// this section assumes loglevel >= info
-			for _, wm := range wcWorkers {
-				if !wm.Done && (wm.LogLevel == zerolog.DebugLevel) {
-					wm.LogProgress(&wm.Logger)
-				}
-			}
+			// for _, wm := range wcWorkers {
+			// 	if !wm.Done && (wm.LogLevel == zerolog.DebugLevel) {
+			// 		wm.LogProgress(&wm.Logger)
+			// 	}
+			// }
 			//PrintMemUsage(zerolog.GlobalLevel())
 		case wm := <-results:
 			rc--
