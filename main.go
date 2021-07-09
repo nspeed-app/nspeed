@@ -233,6 +233,13 @@ func main() {
 		var err error = nil
 		wcWorkers, err = nspeed.RunJobs(jobs, options, ctx, func(wms []*nspeed.Metrics) {
 			wcWorkers = wms
+			if consoleLevel == zerolog.DebugLevel {
+				for _, wm := range wcWorkers {
+					if !wm.Done {
+						wm.LogProgress(&wm.Logger)
+					}
+				}
+			}
 			log.Warn().Msgf("progress called (%d)", rc)
 		})
 		if err != nil {

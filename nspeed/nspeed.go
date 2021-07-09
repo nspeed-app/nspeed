@@ -16,7 +16,6 @@ type Options struct {
 	Timeout          time.Duration
 	Test             bool
 	TLSSelf          bool
-	ConsoleLevel     zerolog.Level
 }
 
 // run all the jobs, this is a synchronous function
@@ -37,7 +36,6 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 			Index:      idx,
 			Target:     job.GetTarget(),
 			ResultChan: results,
-			LogLevel:   opt.ConsoleLevel, //todo
 			Logger:     log.With().Int("job", idx).Logger(),
 			Job:        job}
 		wcWorkers[idx] = &wm

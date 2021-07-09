@@ -64,7 +64,6 @@ type Metrics struct {
 	TLSTime             time.Time
 	TLS                 tls.ConnectionState
 	Logger              zerolog.Logger
-	LogLevel            zerolog.Level
 	mutex               sync.Mutex
 	Valid               bool
 	Error               error
@@ -89,24 +88,16 @@ func (wm *Metrics) LogProgress(logger *zerolog.Logger) {
 	if logger == nil {
 		return
 	}
-	if wm.LogLevel <= zerolog.InfoLevel {
-		logger.Info().
-			Float64("Elapsed", wm.ElapsedTime.Seconds()).
-			Int64("TotalRead", wm.TotalRead).
-			Int64("ContentReadSize", wm.ContentReadSize).
-			Int64("TotalWrite", wm.TotalWrite).
-			Int64("ContentWriteSize", wm.ContentWriteSize).
-			Int64("stepsize", wm.StepSize).
-			Int64("ReadCount", wm.ReadCount).
-			Int64("WriteCount", wm.WriteCount).
-			Send()
-
-		// log.Infof("job %d | elapsed %.2f secs | %sB of %sB | %sB of %sB | buffer = %d",
-		// 	wm.Index, wm.ElapsedTime.Seconds(),
-		// 	ByteCountBinary(wm.TotalRead), ByteCountBinary(wm.ContentReadSize),
-		// 	ByteCountBinary(wm.TotalWrite), ByteCountBinary(wm.ContentWriteSize),
-		// 	wm.StepSize)
-	}
+	logger.Info().
+		Float64("Elapsed", wm.ElapsedTime.Seconds()).
+		Int64("TotalRead", wm.TotalRead).
+		Int64("ContentReadSize", wm.ContentReadSize).
+		Int64("TotalWrite", wm.TotalWrite).
+		Int64("ContentWriteSize", wm.ContentWriteSize).
+		Int64("stepsize", wm.StepSize).
+		Int64("ReadCount", wm.ReadCount).
+		Int64("WriteCount", wm.WriteCount).
+		Send()
 }
 
 // LogFinal logs the final metrics
