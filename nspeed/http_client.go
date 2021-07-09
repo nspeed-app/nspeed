@@ -66,25 +66,42 @@ func (j *JobHTTPClient) GetTarget() string {
 	return j.Target
 }
 
+func (j *JobHTTPClient) GetConn() *httptrace.GotConnInfo {
+	if j.wm != nil {
+		return &j.wm.ConnInfo
+	}
+	return nil
+}
+
+func (j *JobHTTPClient) GetDestination() string {
+	ci := j.GetConn()
+	if ci == nil {
+		return ""
+	}
+	return ci.Conn.RemoteAddr().String()
+}
 func (j *JobHTTPClient) PrintString() string {
 	if j.Command == "GET" {
-		t := "get %s" + j.Target
+		t := "get %s " + j.Target
+		r := fmt.Sprintf(t, "")
 		if j.H2C {
-			return fmt.Sprintf(t, "-h2c ")
+			r = fmt.Sprintf(t, "-h2c ")
 		}
 		if j.UseHTTP11 {
-			return fmt.Sprintf(t, "-http11 ")
+			r = fmt.Sprintf(t, "-http11 ")
 		}
-		return fmt.Sprintf(t, "")
+		return fmt.Sprintf("%s (%s)", r, j.GetDestination())
+
 	} else if j.Command == "POST" {
 		t := "put %s" + j.Target + " " + ByteCountDecimal(j.ContentSize) + "B"
+		r := fmt.Sprintf(t, "")
 		if j.H2C {
-			return fmt.Sprintf(t, "-h2c ")
+			r = fmt.Sprintf(t, "-h2c ")
 		}
 		if j.UseHTTP11 {
-			return fmt.Sprintf(t, "-http11 ")
+			r = fmt.Sprintf(t, "-http11 ")
 		}
-		return fmt.Sprintf(t, "")
+		return fmt.Sprintf("%s (%s)", r, j.GetDestination())
 	} else {
 		return "unknown command"
 	}

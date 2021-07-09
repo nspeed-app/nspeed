@@ -6,15 +6,19 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
 	"strings"
+	"sync"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/net/context"
 
 	_ "embed"
 
@@ -191,11 +195,75 @@ func main() {
 	}
 
 	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
-
-	wcWorkers, err := nspeed.Run(jobs)
-	if err != nil {
-		log.Fatal().Msgf("error running: %v", err)
+	options := nspeed.Options{
+		ProgressInterval: *optTick,
+		Timeout:          time.Duration(*optTimeout) * time.Second,
+		Test:             *optTest,
+		TLSSelf:          false,
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
+	shutdownCh := make(chan os.Signal, 1)
+	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
+
+	//////////////////
+	// main thread loop
+	// - wait for (partial) result from workers
+	// - wait for progress tick and print results
+	// - wait for all workers to have ended or timeout'ed
+	// - handle ctrl-c & errors
+
+	progressCPUChannel := make(<-chan time.Time) // forever
+	if *optCPU {
+		progressCPUTicker := time.NewTicker(time.Duration(*optTick) * time.Second) // todo: pass value
+		progressCPUChannel = progressCPUTicker.C
+	}
+
+	rc := 0
+	var wg sync.WaitGroup
+	wg.Add(1)
+	waitChan := make(chan error)
+	var wcWorkers []*nspeed.Metrics = nil
+	// RunJobs async
+	go func() {
+		defer wg.Done()
+		var err error = nil
+		wcWorkers, err = nspeed.RunJobs(jobs, options, ctx, func(wms []*nspeed.Metrics) {
+			wcWorkers = wms
+			log.Warn().Msgf("progress called (%d)", rc)
+		})
+		if err != nil {
+			log.Warn().Msgf("error running jobs: %v", err)
+		}
+		waitChan <- err
+	}()
+
+mainloop:
+	for {
+		select {
+		case sig := <-shutdownCh:
+			log.Warn().Msgf("global shutdown started by signal: %s", sig)
+			cancel()
+			break mainloop
+		case <-progressCPUChannel:
+			if *optCPU {
+				cpuload := nspeed.GetCPULoad(*optColor)
+				// we dont log.Info() this to avoid sending it to the file
+				log.Log().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
+			}
+		case <-waitChan:
+			log.Warn().Msgf("all jobs ended:")
+			break mainloop
+		}
+	}
+	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())
+	log.Debug().Msg("sleeping one second")
+	time.Sleep(1 * time.Second)
+	/////////////////
+
 	// main speed report
 	var elapsedTime time.Duration = 0
 	var totalRead int64 = 0
