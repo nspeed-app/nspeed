@@ -195,7 +195,7 @@ func main() {
 	}
 
 	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
-	options := nspeed.Options{
+	nspeed.GlobalOptions = nspeed.Options{
 		ProgressInterval: *optTick,
 		Timeout:          time.Duration(*optTimeout) * time.Second,
 		Test:             *optTest,
@@ -231,7 +231,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		var err error = nil
-		wcWorkers, err = nspeed.RunJobs(jobs, options, ctx, func(wms []*nspeed.Metrics) {
+		wcWorkers, err = nspeed.RunJobs(jobs, nspeed.GlobalOptions, ctx, func(wms []*nspeed.Metrics) {
 			wcWorkers = wms
 			if consoleLevel == zerolog.DebugLevel {
 				for _, wm := range wcWorkers {

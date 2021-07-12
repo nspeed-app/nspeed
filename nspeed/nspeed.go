@@ -18,6 +18,8 @@ type Options struct {
 	TLSSelf          bool
 }
 
+var GlobalOptions Options
+
 // run all the jobs, this is a synchronous function
 func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metrics)) ([]*Metrics, error) {
 

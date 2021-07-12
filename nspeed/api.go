@@ -145,11 +145,25 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	if cmd == "run" {
 		// not great to reassemble the path
-		arg := strings.Join(args, "/")
-		fmt.Fprintf(w, "run: %s (%d)\n", arg, len(arg))
+		// arg := strings.Join(args, "/")
+		// fmt.Fprintf(w, "run: %s (%d)\n", arg, len(arg))
 
-		//wcWorkers, err = RunJobs(jobs, options, ctx, func(wms []*nspeed.Metrics)
+		log.Warn().Msgf("apiHandler:running: %s", args)
+		jobs, err := ParseCommands(args)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("error parsing run command: %s", err), http.StatusNotFound)
+			return
+		}
 
+		wcWorkers, err := RunJobs(jobs, GlobalOptions, r.Context(), func(wms []*Metrics) {
+			log.Warn().Msgf("api: progress called")
+			fmt.Fprintf(w, "progress %s: %d", time.Now().String(), len(wms))
+		})
+		if err != nil {
+			http.Error(w, fmt.Sprintf("error running command: %s", err), http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintf(w, "ended: %s: %d", time.Now().String(), len(wcWorkers))
 		return
 	}
 	http.Error(w, "unknown API command", http.StatusNotFound)
