@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -60,7 +61,12 @@ type httpFlags struct {
 	Delay   uint
 	UseIPv4 bool
 	UseIPv6 bool
+	Url     string
 }
+
+// flags that need a name because they're used multiple time (with isFlagPassed notabily)
+const urlFlag = "url"
+const sizeFlag = "size"
 
 // common GET/PUT flags
 func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *JobHTTPClient) (*flag.FlagSet, *httpFlags) {
@@ -78,8 +84,19 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	fs.UintVar(&hf.Delay, "w", 0, "delay in seconds to wait before starting the command")
 	fs.BoolVar(&hf.UseIPv4, "4", false, "use IPv4 only")
 	fs.BoolVar(&hf.UseIPv6, "6", false, "use IPv6 only")
-
+	fs.StringVar(&hf.Url, urlFlag, "", "target url for the command")
 	return fs, &hf
+}
+
+// c/p from somewhere
+func isFlagPassed(fs *flag.FlagSet, name string) bool {
+	found := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }
 
 // parse GET/PUT flags
@@ -132,15 +149,17 @@ func IsCommand(cmd string) (Command, error) {
 
 // parse cmd line args for commands and their respective args
 // todo: use a func for each command and put it in Commands
-func ParseCommand(command string, args []string) ([]string, Job, error) {
+func ParseCommand(command string, args []string, output io.Writer) ([]string, Job, error) {
 	switch command {
 	case getCommand:
 		j := JobHTTPClient{}
 		j.Command = "GET"
 		fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j)
+		fs.SetOutput(output)
 		fs.Usage = func() {
 			fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
-			fmt.Fprintf(fs.Output(), "  %s [options] url\n", getCommand)
+			fmt.Fprintf(fs.Output(), "  %s [options] [-url] url\n", getCommand)
+			fmt.Fprintf(fs.Output(), "(keyword '-url' can be ommmited)\n")
 			fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 			fs.PrintDefaults()
 			fmt.Fprintf(fs.Output(), "\n")
@@ -150,14 +169,23 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 			return args, nil, err
 		}
 
+		// "get target" or "get -url target"
 		args = fs.Args()
-		if len(args) == 0 {
-			fs.Usage()
-			return args, nil, errors.New("missing argument")
-		}
-		j.Target = args[0]
 
-		args = args[1:]
+		if isFlagPassed(fs, urlFlag) {
+			j.Target = hf.Url
+			if j.Target == "" {
+				return args, nil, errors.New("empty url argument")
+			}
+		} else {
+			if len(args) == 0 {
+				fs.Usage()
+				return args, nil, errors.New("missing url argument")
+			}
+			j.Target = args[0]
+			args = args[1:]
+		}
+
 		return args, &j, nil
 
 	case putCommand:
@@ -166,33 +194,58 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 		fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j)
 		fs.Usage = func() {
 			fmt.Fprintf(fs.Output(), "Usage of %s: ", putCommand)
-			fmt.Fprintf(fs.Output(), "  %s [options] url size\n", putCommand)
+			fmt.Fprintf(fs.Output(), "  %s [options] [-url] target [-size] size\n", putCommand)
 			fmt.Fprintf(fs.Output(), "size is a number of bytes with an optionnal units like \"100k\" (100x1000 bytes) or \"100K\" (100x1024 bytes)\n")
 			fmt.Fprintf(fs.Output(), "supported units: kmgtpe (x1000 units) and KMGTPE (x1024 units)\n")
+			fmt.Fprintf(fs.Output(), "keywords '-url' and '-size' can be ommmited\n")
 			fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 			fs.PrintDefaults()
 			fmt.Fprintf(fs.Output(), "\n")
 		}
 		fs.StringVar(&j.ContentType, "ct", "application/octet-stream", "content type")
+		var size string
+		fs.StringVar(&size, sizeFlag, "", "size to upload")
 
 		if err := httpParse(fs, hf, args, &j); err != nil {
 			return args, nil, err
 		}
 
+		// put [-u] url [-s] size
+		// since -u and -s are optionnal , we must check if they are here and if not advance args
 		args = fs.Args()
-		if len(args) < 2 {
-			fs.Usage()
-			return args, nil, errors.New("missing arguments")
+
+		if isFlagPassed(fs, urlFlag) {
+			j.Target = hf.Url
+			if j.Target == "" {
+				return args, nil, errors.New("empty url argument")
+			}
+		} else {
+			if len(args) == 0 {
+				fs.Usage()
+				return args, nil, errors.New("missing url")
+			}
+			j.Target = args[0]
+			args = args[1:]
 		}
 
-		j.Target = args[0]
+		if isFlagPassed(fs, sizeFlag) {
+			if size == "" {
+				return args, nil, errors.New("empty size argument")
+			}
+		} else {
+			if len(args) == 0 {
+				fs.Usage()
+				return args, nil, errors.New("missing size argument")
+			}
+			size = args[0]
+			args = args[1:]
+		}
 
-		cs, err := ParseByteUnits(args[1])
+		cs, err := ParseByteUnits(size)
 		if err != nil {
 			return args, nil, err
 		}
 		j.ContentSize = int64(cs)
-		args = args[2:]
 		return args, &j, nil
 
 	case serveCommand:
@@ -336,7 +389,7 @@ func ParseCommand(command string, args []string) ([]string, Job, error) {
 
 // flag parsing - thx to https://github.com/artyom for hints
 // make sure global args are parsed first
-func ParseCommands(rawArgs []string) ([]Job, error) {
+func ParseCommands(rawArgs []string, output io.Writer) ([]Job, error) {
 	var out []Job
 	args := rawArgs
 	cmdSet := 0
@@ -354,7 +407,7 @@ func ParseCommands(rawArgs []string) ([]Job, error) {
 		if cmdSet != cmd.Set {
 			return nil, errors.New("cannot mix this command (" + cmd.Name + ") with the previous one(s)")
 		}
-		reminder, job, err := ParseCommand(cmd.Name, args)
+		reminder, job, err := ParseCommand(cmd.Name, args, output)
 		if err != nil {
 			return nil, err
 		}

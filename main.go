@@ -122,7 +122,7 @@ func main() {
 		Certificates: []tls.Certificate{certificate},
 		RootCAs:      rootCAs}
 
-	jobs, err := nspeed.ParseCommands(flag.Args())
+	jobs, err := nspeed.ParseCommands(flag.Args(), nil)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -240,7 +240,7 @@ func main() {
 					}
 				}
 			}
-			log.Warn().Msgf("progress called (%d)", rc)
+			log.Debug().Msgf("progress called (%d)", rc)
 		})
 		if err != nil {
 			log.Warn().Msgf("error running jobs: %v", err)

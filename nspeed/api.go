@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	_ "embed"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -30,6 +32,9 @@ import (
 */
 
 const APIVersion string = "1.0"
+
+//go:embed API.md
+var APIDocumentation []byte
 
 type APIHost struct {
 	Parameters *HostParameters
@@ -77,7 +82,8 @@ func (s *APIHost) Init(wm *Metrics) error {
 	if s.Server.Mux == nil {
 		return errors.New("API: no Mux in server")
 	}
-	s.Server.Mux.Handle("/api/", http.StripPrefix("/api/", http.HandlerFunc(s.apiHandler)))
+	s.Server.Mux.Handle("/api/v1/", http.StripPrefix("/api/v1/", http.HandlerFunc(s.apiHandler)))
+	s.Server.Mux.Handle("/api/", http.HandlerFunc(s.apiHelpHandler))
 	return nil
 }
 
@@ -86,6 +92,10 @@ func (s *APIHost) Run(ctx context.Context) error {
 		return errors.New("API: no server")
 	}
 	return s.Server.Run(ctx)
+}
+
+func (h *APIHost) apiHelpHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write(APIDocumentation)
 }
 
 func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
@@ -107,6 +117,11 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	args := strings.Split(path, "/")
 	cmd := args[0]
 	args = args[1:]
+
+	if cmd == "help" || cmd == "" {
+		h.apiHelpHandler(w, r)
+		return
+	}
 
 	if cmd == "headers" {
 		for name, headers := range r.Header {
@@ -149,14 +164,19 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		// fmt.Fprintf(w, "run: %s (%d)\n", arg, len(arg))
 
 		log.Warn().Msgf("apiHandler:running: %s", args)
-		jobs, err := ParseCommands(args)
+		jobs, err := ParseCommands(args, w)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("error parsing run command: %s", err), http.StatusNotFound)
+			fmt.Fprintf(w, "error parsing run command: %s\n", err)
 			return
 		}
+		log.Warn().
+			Str("remoteAddress", r.RemoteAddr).
+			Str("command", "run").
+			Strs("args", args).
+			Send()
 
 		wcWorkers, err := RunJobs(jobs, GlobalOptions, r.Context(), func(wms []*Metrics) {
-			log.Warn().Msgf("api: progress called")
+			log.Debug().Msgf("api: progress called")
 			fmt.Fprintf(w, "progress %s: %d", time.Now().String(), len(wms))
 		})
 		if err != nil {
