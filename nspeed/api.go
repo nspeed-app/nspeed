@@ -112,8 +112,8 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// parse the URL path, cmd is first word then everywthing after the first '/' is an array of flags
-	// "cmd/flag1/flag2/flag3"
+	// parse the URL path, cmd is first word then everywthing after the first '/' is an array of parameters
+	// "cmd/param1/param1/param1"
 	args := strings.Split(path, "/")
 	cmd := args[0]
 	args = args[1:]
@@ -159,11 +159,28 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cmd == "run" {
-		// not great to reassemble the path
-		// arg := strings.Join(args, "/")
-		// fmt.Fprintf(w, "run: %s (%d)\n", arg, len(arg))
+		// /api/v1/run?cmd="...." <=> nspeed ....
 
-		log.Warn().Msgf("apiHandler:running: %s", args)
+		if len(args) != 0 {
+			http.Error(w, fmt.Sprintf("unknown 'run' subcommand: %s", args), http.StatusBadRequest)
+			return
+		}
+
+		log.Warn().Msgf("apiHandler: run: %s", args)
+
+		a, ok := r.URL.Query()["args"]
+
+		if !ok {
+			http.Error(w, "'run' command missing 'args' parameter)", http.StatusBadRequest)
+			return
+		}
+
+		var args []string
+		for i := range a {
+			log.Warn().Msgf("apiHandler: run: %d - %s", i, a[i])
+			args = append(args, strings.Fields(a[i])...)
+		}
+
 		jobs, err := ParseCommands(args, w)
 		if err != nil {
 			fmt.Fprintf(w, "error parsing run command: %s\n", err)

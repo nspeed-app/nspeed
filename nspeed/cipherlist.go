@@ -205,14 +205,15 @@ func (j *JobCiphers) Expand(jobs []Job, group int) []Job {
 }
 
 func (j *JobCiphers) GoString() string {
-	return fmt.Sprintf("ciphers {Target: %s, delay: %d}",
+	return fmt.Sprintf("ciphers {Target: %s (%s;%s), delay: %d}",
 		j.Target,
+		j.host, j.port,
 		j.Delay,
 	)
 }
 
 func (j *JobCiphers) PrintString() string {
-	return fmt.Sprintf("ciphers %s", j.Target)
+	return fmt.Sprintf("ciphers %s (%s:%s)", j.Target, j.host, j.port)
 }
 
 func (j *JobCiphers) IsInfinite() bool {
@@ -224,8 +225,10 @@ func LogCipher(host, port, tlsVersion string, ciphers []uint16, log zerolog.Logg
 	finalTarget := net.JoinHostPort(host, port)
 	for _, c := range ciphers {
 		log.Log().Msgf("%s supports %s %s", finalTarget, tlsVersion, tls.CipherSuiteName(c))
+		fmt.Printf("%s supports %s %s", finalTarget, tlsVersion, tls.CipherSuiteName(c))
 	}
 	if len(ciphers) == 0 {
 		log.Log().Msgf("%s doesn't support %s", finalTarget, tlsVersion)
+		fmt.Printf("%s doesn't support %s", finalTarget, tlsVersion)
 	}
 }

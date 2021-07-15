@@ -44,7 +44,7 @@ type JobHTTPClient struct {
 }
 
 func (j *JobHTTPClient) GoString() string {
-	s := fmt.Sprintf("{Command: %s, URL: %q, IPversion: %d, Address: %s, Group: %d, timeout: %s, delay: %s, h2c: %t, http1.1:%t}",
+	s := fmt.Sprintf("HTTP client {Methdd: %s, URL: %q, IPversion: %d, Address: %s, Group: %d, timeout: %s, delay: %s, h2c: %t, http1.1:%t}",
 		j.Command,
 		j.Target,
 		j.IPversion,
