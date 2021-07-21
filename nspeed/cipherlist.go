@@ -13,6 +13,7 @@ import (
 	_ "unsafe"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // from:
@@ -40,7 +41,7 @@ func init() {
 	realDefaultCipherSuitesTLS13 = defaultCipherSuitesTLS13()
 }
 
-func supportedTLS13Ciphers(hostname, port string) ([]uint16, error) {
+func supportedTLS13Ciphers(hostname, port string, timeout time.Duration) ([]uint16, error) {
 	var supportedCiphers []uint16
 
 	for _, c := range realDefaultCipherSuitesTLS13 {
@@ -52,7 +53,7 @@ func supportedTLS13Ciphers(hostname, port string) ([]uint16, error) {
 		// Override the internal slice!
 		varDefaultCipherSuitesTLS13 = []uint16{c}
 
-		conn, err := net.Dial("tcp", net.JoinHostPort(hostname, port))
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(hostname, port), timeout)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +77,7 @@ func supportedTLS13Ciphers(hostname, port string) ([]uint16, error) {
 	return supportedCiphers, nil
 }
 
-func supportedTLS12Ciphers(hostname, port string) ([]uint16, error) {
+func supportedTLS12Ciphers(hostname, port string, timeout time.Duration) ([]uint16, error) {
 	// Taken from https://golang.org/pkg/crypto/tls/#pkg-constants
 	var allCiphers = []uint16{
 		tls.TLS_RSA_WITH_RC4_128_SHA,
@@ -113,7 +114,8 @@ func supportedTLS12Ciphers(hostname, port string) ([]uint16, error) {
 			MaxVersion:   tls.VersionTLS12,
 		}
 
-		conn, err := net.Dial("tcp", net.JoinHostPort(hostname, port))
+		log.Debug().Msgf("dialing ...%s:%s (%s)", hostname, port, timeout.String())
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(hostname, port), timeout)
 		if err != nil {
 			return nil, err
 		}
@@ -133,12 +135,14 @@ func supportedTLS12Ciphers(hostname, port string) ([]uint16, error) {
 	return supportedCiphers, nil
 }
 
-// parse URL , happend default
+// parse URL , append default port
 func parseURL(u, scheme string) (*url.URL, error) {
 	u1, err := url.ParseRequestURI(u)
 	if err != nil || u1.Host == "" {
+		//fmt.Println("error 1")
 		u2, err := url.ParseRequestURI(scheme + "://" + u)
 		if err != nil {
+			//fmt.Println("error 2")
 			return nil, err
 		}
 		return u2, nil
@@ -148,21 +152,27 @@ func parseURL(u, scheme string) (*url.URL, error) {
 
 //implement Job
 type JobCiphers struct {
-	Target string
-	Delay  uint
-	host   string
-	port   string
-	wm     *Metrics
+	Target  string
+	Delay   uint
+	host    string
+	port    string
+	Timeout time.Duration
+	wm      *Metrics
 }
 
 func (j *JobCiphers) Init(wm *Metrics) error {
 
-	u, _ := parseURL(j.Target, "https")
-	//fmt.Println("url = ", u.Hostname())
+	u, err := parseURL(j.Target, "https")
+	fmt.Println("err = ", err)
+	fmt.Println("url = ", u.Hostname())
 	j.host = u.Hostname()
 	j.port = u.Port()
 	if j.port == "" {
 		j.port = "443"
+	}
+
+	if j.Timeout == 0 {
+		j.Timeout = 3 * time.Second
 	}
 
 	j.wm = wm
@@ -179,13 +189,13 @@ func (j *JobCiphers) Run(ctx context.Context) error {
 		j.wm.Logger.Debug().Msg("waking up")
 	}
 
-	range12, err := supportedTLS12Ciphers(j.host, j.port)
+	range12, err := supportedTLS12Ciphers(j.host, j.port, j.Timeout)
 	if err != nil {
 		return err
 	}
 	LogCipher(j.host, j.port, TLSVersionFriendlyName(tls.VersionTLS12), range12, j.wm.Logger)
 
-	range13, err := supportedTLS13Ciphers(j.host, j.port)
+	range13, err := supportedTLS13Ciphers(j.host, j.port, j.Timeout)
 	if err != nil {
 		return err
 	}
@@ -205,10 +215,11 @@ func (j *JobCiphers) Expand(jobs []Job, group int) []Job {
 }
 
 func (j *JobCiphers) GoString() string {
-	return fmt.Sprintf("ciphers {Target: %s (%s;%s), delay: %d}",
+	return fmt.Sprintf("ciphers {Target: %s (%s;%s), delay: %d, timeout:%s}",
 		j.Target,
 		j.host, j.port,
 		j.Delay,
+		j.Timeout,
 	)
 }
 
@@ -224,11 +235,11 @@ func (j *JobCiphers) IsInfinite() bool {
 func LogCipher(host, port, tlsVersion string, ciphers []uint16, log zerolog.Logger) {
 	finalTarget := net.JoinHostPort(host, port)
 	for _, c := range ciphers {
-		log.Log().Msgf("%s supports %s %s", finalTarget, tlsVersion, tls.CipherSuiteName(c))
+		log.Info().Msgf("%s supports %s %s", finalTarget, tlsVersion, tls.CipherSuiteName(c))
 		fmt.Printf("%s supports %s %s", finalTarget, tlsVersion, tls.CipherSuiteName(c))
 	}
 	if len(ciphers) == 0 {
-		log.Log().Msgf("%s doesn't support %s", finalTarget, tlsVersion)
+		log.Info().Msgf("%s doesn't support %s", finalTarget, tlsVersion)
 		fmt.Printf("%s doesn't support %s", finalTarget, tlsVersion)
 	}
 }
