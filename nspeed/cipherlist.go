@@ -59,12 +59,8 @@ func supportedTLS13Ciphers(hostname, port string, timeout time.Duration) ([]uint
 		}
 
 		client := tls.Client(conn, cfg)
-		err = client.Handshake()
+		_ = client.Handshake()
 		client.Close()
-
-		if err != nil {
-			return nil, err
-		}
 
 		if client.ConnectionState().CipherSuite == c {
 			supportedCiphers = append(supportedCiphers, c)
@@ -121,11 +117,8 @@ func supportedTLS12Ciphers(hostname, port string, timeout time.Duration) ([]uint
 		}
 
 		client := tls.Client(conn, cfg)
-		err = client.Handshake()
+		_ = client.Handshake()
 		client.Close()
-		if err != nil {
-			return nil, err
-		}
 
 		if client.ConnectionState().CipherSuite == c {
 			supportedCiphers = append(supportedCiphers, c)
@@ -236,10 +229,10 @@ func LogCipher(host, port, tlsVersion string, ciphers []uint16, log zerolog.Logg
 	finalTarget := net.JoinHostPort(host, port)
 	for _, c := range ciphers {
 		log.Info().Msgf("%s supports %s %s", finalTarget, tlsVersion, tls.CipherSuiteName(c))
-		fmt.Printf("%s supports %s %s", finalTarget, tlsVersion, tls.CipherSuiteName(c))
+		fmt.Printf("%s supports %s %s\n", finalTarget, tlsVersion, tls.CipherSuiteName(c))
 	}
 	if len(ciphers) == 0 {
 		log.Info().Msgf("%s doesn't support %s", finalTarget, tlsVersion)
-		fmt.Printf("%s doesn't support %s", finalTarget, tlsVersion)
+		fmt.Printf("%s doesn't support %s\n", finalTarget, tlsVersion)
 	}
 }
