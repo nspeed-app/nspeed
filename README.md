@@ -9,9 +9,11 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     - get
     - put
     - server
+    - ciphers
+    - api
 
     The "server" command can only be combined with itself. others commands can be mixed.
-    Each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance
+    Each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance:
 
     get [options] url 
 
@@ -30,7 +32,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     # downlaod the same target both in IPv4 and IPv6
     nspeed get -4 https://bouygues.testdebit.info/100M/100M.iso get -6 https://bouygues.testdebit.info/100M/100M.iso
 
-    # upload 2 1GB to a single target (use "1G" for 1GiB -accepted prefixes: k,m,g,t,p,e)
+    # upload two 1GB to a single target (use "1G" for 1GiB -accepted prefixes: k,m,g,t,p,e)
     nspeed put -n 2 https://bouygues.testdebit.info/ 1g
 
     # download & upload at the same time
@@ -84,18 +86,14 @@ On Unix systems make the file executable with: `chmod +x nspeed`
 
 Source code with be released before v1.0
 
-## Development
-
-"commands" with planned implementation:
-  - ping (icmp/udp/tcp latency)
-  - p2p (using webrtc over udp with STUN/ICE nat traversal)
-
-other planned features:
-  - web ui / remote control (api)
-  - formatted metrics (prometheus/openmetrics)
-  - and much more
-
-*wip: when available in Go
+## What's next?
+- [ ] web UI (local & remote)
+- [ ] remote agent
+- [ ] P2P (WebRTC)
+- [ ] QUIC & HTTP/3 (waiting on Go code)
+- [ ] formatted metrics (might be OpenMetrics ?)
+- [ ] network & hardware information (routes, pci bandwidth, NIC info, erros, etc)
+- [ ] gateway/router info & crosstalk information if available 
 
 ## Acknowledgement
 - Vivien Guéant & everyone at [lafibre.info](https://lafibre.info) for spawning the ideas and their feedback and testing.

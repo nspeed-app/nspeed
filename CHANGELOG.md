@@ -8,6 +8,7 @@
  - a new `api` command allowing NSpeed to be controlled by a simple HTTP request (REST). The `api` command create a new API endpoint with default value (localhost,7333). The `server` command can also be an API endpoint with the new `-api` flag. See [API.md](API.md) for more information about the API.
 ## client
  - `get` and `put` mandatory arguments (`-url` and `-url` and `-size` respectivly) can now be prefixed with a flag keyword allowing to change their order. for instance `nspeed get -4 http://google.com` is equivalent to `nspeed get -url http://google.com -4`
+ - IP version displayed in text results
 ## server
 - `api` flag: see the `api` command
 - `-dir path`,serve static files from path. path is a local directory to serve content from (from `/dir` url ). The max duration parameter applies (`-t`) but not the max size parameter (`-s`).
