@@ -204,6 +204,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		fmt.Fprintf(w, "ended: %s: %d", time.Now().String(), len(wcWorkers))
+		//todo: send results back
 		return
 	}
 	http.Error(w, "unknown API command", http.StatusNotFound)
