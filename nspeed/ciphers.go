@@ -156,8 +156,9 @@ type JobCiphers struct {
 func (j *JobCiphers) Init(wm *Metrics) error {
 
 	u, err := parseURL(j.Target, "https")
-	fmt.Println("err = ", err)
-	fmt.Println("url = ", u.Hostname())
+	if err != nil {
+		return err
+	}
 	j.host = u.Hostname()
 	j.port = u.Port()
 	if j.port == "" {

@@ -118,6 +118,9 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	cmd := args[0]
 	args = args[1:]
 
+	//todo: refactor using a func per command or a global array of command/func
+	//goal = allow adding new commands without editing this function
+
 	if cmd == "help" || cmd == "" {
 		h.apiHelpHandler(w, r)
 		return
@@ -126,7 +129,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	if cmd == "headers" {
 		for name, headers := range r.Header {
 			for _, h := range headers {
-				fmt.Fprintf(w, "%v: %v", name, h)
+				fmt.Fprintf(w, "%v: %v\n", name, h)
 			}
 		}
 		fmt.Fprint(w, "\n")
