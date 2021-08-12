@@ -1,12 +1,30 @@
+# v0.9
+## general
+- lots of internal refactoring (for the api/ui and a new internal scheduling/cancellation system)
+- command names can be shortened as long as it is not ambiguous. For instance `ge` or just `g` can be used instead of `get`.
+- added `l[atency]` and `t[raceroute]` command names (*placeholder, these commands are not yet implemented*)
+- added `api` command (see below and [API.md](API.md))
+## api
+ - a new `api` command allowing NSpeed to be controlled by a simple HTTP request (REST). The `api` command create a new API endpoint with default value (localhost,7333). The `server` command can also be an API endpoint with the new `-api` flag. See [API.md](API.md) for more information about the API.
+ - for now the `api` only return text strings. Later the a standard metrics format will be used.
+## client
+ - `get` and `put` mandatory arguments (`-url` and `-url` and `-size` respectivly) can now be prefixed with a flag keyword allowing to change their order. for instance `nspeed get -4 http://google.com` is equivalent to `nspeed get -url http://google.com -4`
+ - IP version displayed in text results
+## server
+- `api` flag: see the `api` command
+- `-dir path`,serve static files from path. path is a local directory to serve content from (from `/dir` url ). The max duration parameter applies (`-t`) but not the max size parameter (`-s`).
+## ciphers
+- "cypher" spelling replaced with "cipher" everywhere including the `ciphers` command ("cypher" is a minority spelling so less prone to be known or searched for)
 # v0.8
 ## general
 - a few typos fixes
 - added `-h2c` mode to client & server to allow HTTP/2 Cleartext (H2C)
+## server
+ - 
 ## client
  - `-http11` flag to force HTTP 1.1 when connecting to HTTP/2 server
 ## cyphers
  - new command `cyphers` to list supported cyphers with that server (will test only TLS 1.2 and 1.3)
-
 # v0.7
 ## general
 - global flags:
@@ -41,10 +59,10 @@
  - new '-log filename' flag to write result to a structured file (not finalized)
  - colorized cpu with the -verbose option
  ## server
- - "-d duration" duration after which the server shutdown (duration must have a unit: s,m or h and a combinaison : 5h20m for instance)
- - "-n value" number of requests after which  the server shutdown
+  -"-d duration" duration after which the server shutdown (duration must have a unit: s,m or h and or combinaison : 5h20m for instance)
+  -"-n value" number of requests after which  the server shutdown
 ## client
- - "-w duration" wait delay before starting the command
+  - "-w duration" wait delay before starting the command
 
  (*) The new flags allow to test with a single nspeed command, for instance:
 
