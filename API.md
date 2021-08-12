@@ -1,15 +1,16 @@
-# NSpeed API
+# NSpeed API (draft)
 
 The API is a minimalist "REST" API above HTTP. 
 It can use a dedicated endpoint or extend a 'server' command. In both case, the url is always '/api/v1'.
 
 The currently available API URIs are `HTTP GET` requests only and are:
 ### `/api/v1/run/command/args...`
-run job(s) , same as invoking `npeed` from the command line , pass argument in the request or in the path
+run job(s) , same as invoking `npeed` from the command line , pass arguments in the `args` query parameter.
 
-`/api/v1/run/get?url="http://google.com"&6`     
-is equivalent to  
-`nspeed get -url http://google.com -6`  
+example:  
+`/api/v1/run/get?args=get%20http://google.com`  
+is equivalent to   
+`nspeed get http://google.com`  
 
 ### `/api/v1/headers`
 return client headers
