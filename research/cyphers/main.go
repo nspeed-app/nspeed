@@ -29,5 +29,5 @@ func main() {
 	}
 	log.Warn().Msgf("done")
 	wm := <-r
-	wm.PrintFinal()
+	wm.PrintFinal(os.Stdout)
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"net/http/httptrace"
 	"sync"
 	"text/tabwriter"
@@ -44,6 +45,7 @@ type Metrics struct {
 	Cancelled           bool
 	ResultChan          chan *Metrics
 	Target              string
+	TargetAddress       net.IPAddr
 	DNSInfo             httptrace.DNSDoneInfo
 	DNSInfoTime         time.Time
 	ConnInfo            httptrace.GotConnInfo
@@ -69,10 +71,13 @@ type Metrics struct {
 	Error               error
 }
 
-// Writer
+// Writer - performance sensitive, don't do much here
 func (wm *Metrics) Write(p []byte) (int, error) {
 	n := len(p)
-	wm.StepSize = int64(n)
+	s := int64(n)
+	if s > wm.StepSize {
+		wm.StepSize = s
+	}
 	wm.TotalRead += wm.StepSize
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	wm.ReadCount++
@@ -132,18 +137,21 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 	}
 }
 
-func (wm *Metrics) PrintFinal() {
+func (wm *Metrics) PrintFinal(w io.Writer) {
 	if wm.Valid {
-		fmt.Printf("%d:", wm.Index)
-		fmt.Printf("TotalRead: %d ", wm.TotalRead)
-		fmt.Printf("TotalWrite: %d ", wm.TotalWrite)
-		fmt.Printf("ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
-		fmt.Printf("WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
-		fmt.Printf("duration: %v ", wm.ElapsedTime.Seconds())
-		fmt.Printf("url: %s", wm.Target)
+		fmt.Fprintf(w, "%d:", wm.Index)
+		fmt.Fprintf(w, "Read: %s ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead))
+		fmt.Fprintf(w, "Write: %s ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalWrite))
+		fmt.Fprintf(w, "TotalRead: %d ", wm.TotalRead)
+		fmt.Fprintf(w, "TotalWrite: %d ", wm.TotalWrite)
+		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
+		// fmt.Fprintf(w, "WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
+		fmt.Fprintf(w, "duration: %v ", wm.ElapsedTime.Seconds())
+		fmt.Fprintf(w, "url: %s (%s)", wm.Target, wm.TargetAddress)
+		fmt.Fprintf(w, "\n")
 
 	} else {
-		fmt.Printf("job %d error: %v\n", wm.Index, wm.Error)
+		fmt.Fprintf(w, "job %d error: %v\n", wm.Index, wm.Error)
 	}
 }
 

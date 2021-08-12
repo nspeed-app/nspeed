@@ -15,22 +15,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-/*
-- ABIServer
-	AddJobs(...cb_progress )
-	Run( cb_progress )
-	Stop() / Cancel
-	GetResults()
-
-
-- Web API
-
-	AddJobs(...cb_progress )
-	Run( ws-progress )
-	Stop() / Cancel
-	GetResults()
-*/
-
 const APIVersion string = "1.0"
 
 //go:embed API.md
@@ -195,15 +179,23 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			Strs("args", args).
 			Send()
 
+		f, okToFlush := w.(http.Flusher)
 		wcWorkers, err := RunJobs(jobs, GlobalOptions, r.Context(), func(wms []*Metrics) {
 			log.Debug().Msgf("api: progress called")
-			fmt.Fprintf(w, "progress %s: %d", time.Now().String(), len(wms))
+			fmt.Fprintf(w, "api @%s - progress %s: %d\n", r.Host, time.Now().String(), len(wms))
+			if okToFlush {
+				f.Flush()
+			}
 		})
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error running command: %s", err), http.StatusInternalServerError)
 			return
 		}
-		fmt.Fprintf(w, "ended: %s: %d", time.Now().String(), len(wcWorkers))
+		fmt.Fprintf(w, "api @%s - ended: %s: %d\n", r.Host, time.Now().String(), len(wcWorkers))
+		for _, wm := range wcWorkers {
+			fmt.Fprintf(w, "api @%s - result:", r.Host)
+			wm.PrintFinal(w)
+		}
 		//todo: send results back
 		return
 	}
