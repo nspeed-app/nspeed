@@ -9,9 +9,11 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     - get
     - put
     - server
+    - ciphers
+    - api
 
     The "server" command can only be combined with itself. others commands can be mixed.
-    Each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance
+    Each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance:
 
     get [options] url 
 
@@ -30,7 +32,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     # downlaod the same target both in IPv4 and IPv6
     nspeed get -4 https://bouygues.testdebit.info/100M/100M.iso get -6 https://bouygues.testdebit.info/100M/100M.iso
 
-    # upload 2 1GB to a single target (use "1G" for 1GiB -accepted prefixes: k,m,g,t,p,e)
+    # upload two 1GB to a single target (use "1G" for 1GiB -accepted prefixes: k,m,g,t,p,e)
     nspeed put -n 2 https://bouygues.testdebit.info/ 1g
 
     # download & upload at the same time
@@ -72,7 +74,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     #   - we launch a get command that will wait 1 second (-w 1) before requesting the server
     nspeed server -n 1 get -w 1 http://localhost:7333/1g
 
-    #download 1000 bytes as content-type "text" but with extention "jpg" from a nspeed server with curl
+    #download 1000 bytes as content-type "text/plain" but with extention "jpg" from a nspeed server with curl
     curl -o /dev/null http://localhost:7333/1k.jpg?ct=text/plain
 
 ## Installation
@@ -84,18 +86,14 @@ On Unix systems make the file executable with: `chmod +x nspeed`
 
 Source code with be released before v1.0
 
-## Development
-
-"commands" with planned implementation:
-  - ping (icmp/udp/tcp latency)
-  - p2p (using webrtc over udp with STUN/ICE nat traversal)
-
-other planned features:
-  - web ui / remote control (api)
-  - formatted metrics (prometheus/openmetrics)
-  - and much more
-
-*wip: when available in Go
+## What's next?
+- [ ] web UI (local & remote)
+- [ ] remote agent
+- [ ] P2P (WebRTC)
+- [ ] QUIC & HTTP/3 (waiting on Go code)
+- [ ] formatted metrics (might be OpenMetrics ?)
+- [ ] network & hardware information (routes, pci bandwidth, NIC info, erros, etc)
+- [ ] gateway/router info & crosstalk information if available 
 
 ## Acknowledgement
 - Vivien Guéant & everyone at [lafibre.info](https://lafibre.info) for spawning the ideas and their feedback and testing.
@@ -103,6 +101,7 @@ other planned features:
 - Artyom Pervukhin ( https://github.com/artyom ) for hints
 - Will McCutchen ( https://github.com/mccutchen ) for go-httpbin
 - Francesc Campoy for the [JustForFunc series](https://www.youtube.com/c/JustForFunc/videos)
+- Joe Shaw for [Abusing go:linkname to customize TLS 1.3 cipher suites](https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/)
 
 [arcep]: https://arcep.fr/
 [rapport]: https://en.arcep.fr/news/press-releases/view/n/internet-ouvert.html
