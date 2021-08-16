@@ -1,3 +1,5 @@
+# v0.10
+
 # v0.9
 ## general
 - lots of internal refactoring (for the api/ui and a new internal scheduling/cancellation system)
