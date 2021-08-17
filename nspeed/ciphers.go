@@ -9,49 +9,75 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"runtime"
 	"time"
 	_ "unsafe"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sys/cpu"
 )
 
-// from:
+// from: https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/
 
 // We bring the real defaultCipherSuitesTLS13 function from the
 // crypto/tls package into our own package.  This lets us perform
 // that lazy initialization of the cipher list when we want.
 
+// 17 aug 2021: updated for go 1.17 by jfgiorgi:
+//  - defaultCipherSuitesTLS13 func is gone and replaced by 2 arrays:
+//  	- defaultCipherSuitesTLS13
+//      - defaultCipherSuitesTLS13NoAES
+//  depending on hardware features (see hasAESGCMHardwareSupport in crypto/tls/cipher_suites.go )
+var (
+	hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+	hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+	// Keep in sync with crypto/aes/cipher_s390x.go.
+	hasGCMAsmS390X = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR &&
+		(cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)
+
+	HasAESGCMHardwareSupport = runtime.GOARCH == "amd64" && hasGCMAsmAMD64 ||
+		runtime.GOARCH == "arm64" && hasGCMAsmARM64 ||
+		runtime.GOARCH == "s390x" && hasGCMAsmS390X
+)
+
 //go:linkname defaultCipherSuitesTLS13 crypto/tls.defaultCipherSuitesTLS13
-func defaultCipherSuitesTLS13() []uint16
+var defaultCipherSuitesTLS13 []uint16
 
-// Next we bring the `varDefaultCipherSuitesTLS13` slice into our
-// package.  This is what we manipulate to get the cipher suites.
-
-//go:linkname varDefaultCipherSuitesTLS13 crypto/tls.varDefaultCipherSuitesTLS13
-var varDefaultCipherSuitesTLS13 []uint16
+//go:linkname defaultCipherSuitesTLS13NoAES crypto/tls.defaultCipherSuitesTLS13NoAES
+var defaultCipherSuitesTLS13NoAES []uint16
 
 // Also keep a variable around for the real default set, so we
 // can reset it once we're finished.
 var realDefaultCipherSuitesTLS13 []uint16
+var realDefaultCipherSuitesTLS13NoAES []uint16
 
 func init() {
-	// Initialize the TLS 1.3 ciphersuite set; this populates
-	// varDefaultCipherSuitesTLS13 under the covers
-	realDefaultCipherSuitesTLS13 = defaultCipherSuitesTLS13()
+	// backup actual real suites
+	realDefaultCipherSuitesTLS13 = defaultCipherSuitesTLS13
+	realDefaultCipherSuitesTLS13NoAES = defaultCipherSuitesTLS13NoAES
 }
 
 func supportedTLS13Ciphers(hostname, port string, timeout time.Duration) ([]uint16, error) {
-	var supportedCiphers []uint16
 
-	for _, c := range realDefaultCipherSuitesTLS13 {
+	var supportedCiphers []uint16
+	var ciphersToTest []uint16
+
+	if HasAESGCMHardwareSupport {
+		ciphersToTest = realDefaultCipherSuitesTLS13
+	} else {
+		ciphersToTest = realDefaultCipherSuitesTLS13NoAES
+	}
+
+	for _, c := range ciphersToTest {
 		cfg := &tls.Config{
 			ServerName: hostname,
 			MinVersion: tls.VersionTLS13,
 		}
 
-		// Override the internal slice!
-		varDefaultCipherSuitesTLS13 = []uint16{c}
+		// Override the internal slices!
+		defaultCipherSuitesTLS13 = []uint16{c}
+		defaultCipherSuitesTLS13NoAES = []uint16{c}
 
 		conn, err := net.DialTimeout("tcp", net.JoinHostPort(hostname, port), timeout)
 		if err != nil {
@@ -68,7 +94,8 @@ func supportedTLS13Ciphers(hostname, port string, timeout time.Duration) ([]uint
 	}
 
 	// Reset the internal slice back to the full set
-	varDefaultCipherSuitesTLS13 = realDefaultCipherSuitesTLS13
+	defaultCipherSuitesTLS13 = realDefaultCipherSuitesTLS13
+	defaultCipherSuitesTLS13NoAES = realDefaultCipherSuitesTLS13NoAES
 
 	return supportedCiphers, nil
 }
@@ -182,6 +209,9 @@ func (j *JobCiphers) Run(ctx context.Context) error {
 		time.Sleep(time.Duration(j.Delay) * time.Second)
 		j.wm.Logger.Debug().Msg("waking up")
 	}
+
+	log.Info().Bool("HardwareAES", HasAESGCMHardwareSupport).Send()
+	fmt.Printf("this client has AES hardware support: %t\n", HasAESGCMHardwareSupport)
 
 	range12, err := supportedTLS12Ciphers(j.host, j.port, j.Timeout)
 	if err != nil {

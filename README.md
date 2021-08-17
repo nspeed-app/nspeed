@@ -12,14 +12,16 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     - ciphers
     - api
 
-    The "server" command can only be combined with itself. others commands can be mixed.
-    Each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance:
+    The ciphers command can not be combined with others and can only be called once. 
+    Each "command" has its own arguments, use -h to see them. 
+    
+    Overview of commands:
 
-    get [options] url 
-
-    put [options] url size
-
-    server [options] 
+        nspeed get [options] url 
+        nspeed put [options] url size
+        nspeed server [options]
+        nspeed ciphers [options] target
+        nspeed api [options]
 
 ## Examples
 
@@ -32,7 +34,8 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     # downlaod the same target both in IPv4 and IPv6
     nspeed get -4 https://bouygues.testdebit.info/100M/100M.iso get -6 https://bouygues.testdebit.info/100M/100M.iso
 
-    # upload two 1GB to a single target (use "1G" for 1GiB -accepted prefixes: k,m,g,t,p,e)
+    # upload two 1GB to a single target (use "1g" for 1GB (1000*1000*1000 bytes) and "1G" for 1GiB (1024*1024*1024 bytes)
+    # accepted prefixes: k,m,g,t,p,e and K,M,G,T,P,E
     nspeed put -n 2 https://bouygues.testdebit.info/ 1g
 
     # download & upload at the same time

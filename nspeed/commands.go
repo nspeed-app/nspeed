@@ -25,18 +25,20 @@ const tracerouteCommand = "traceroute"
 const apiCommand = "api"
 
 // supported commands, expand has needed
+// Set is a set number. Commands in the same set can be mixed together.
+// Commands in the "0" set can only be called alone and once
 type Command struct {
 	Name    string
 	Set     int
 	FromAPI bool
 }
 
-// list of supported commands. Value is the set number. Commands in the same set can be mixed together.
+// list of supported commands.
 var Commands = map[string]Command{
 	getCommand:        {getCommand, 1, true},
 	putCommand:        {putCommand, 1, true},
 	serveCommand:      {serveCommand, 1, true},
-	ciphersCommand:    {ciphersCommand, 1, true},
+	ciphersCommand:    {ciphersCommand, 0, true},
 	latencyCommand:    {latencyCommand, 1, true},
 	tracerouteCommand: {tracerouteCommand, 2, true},
 	apiCommand:        {apiCommand, 1, false},
@@ -392,7 +394,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 func ParseCommands(rawArgs []string, output io.Writer) ([]Job, error) {
 	var out []Job
 	args := rawArgs
-	cmdSet := 0
+	cmdSet := -1 // no set yet
 
 	for len(args) != 0 {
 		command := args[0]
@@ -401,7 +403,10 @@ func ParseCommands(rawArgs []string, output io.Writer) ([]Job, error) {
 		if err != nil {
 			return nil, err
 		}
-		if cmdSet == 0 {
+		if cmd.Set == 0 && cmdSet != -1 {
+			return nil, errors.New("only one command of this type is allowed")
+		}
+		if cmdSet == -1 {
 			cmdSet = cmd.Set
 		}
 		if cmdSet != cmd.Set {

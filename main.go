@@ -11,7 +11,6 @@ import (
 	"runtime/debug"
 	"runtime/pprof"
 	"strings"
-	"sync"
 	"syscall"
 	"text/tabwriter"
 	"time"
@@ -223,13 +222,13 @@ func main() {
 	}
 
 	rc := 0
-	var wg sync.WaitGroup
-	wg.Add(1)
+	// var wg sync.WaitGroup
+	// wg.Add(1)
 	waitChan := make(chan error)
 	var wcWorkers []*nspeed.Metrics = nil
 	// RunJobs async
 	go func() {
-		defer wg.Done()
+		// defer wg.Done()
 		var err error = nil
 		wcWorkers, err = nspeed.RunJobs(jobs, nspeed.GlobalOptions, ctx, func(wms []*nspeed.Metrics) {
 			wcWorkers = wms
@@ -291,7 +290,7 @@ mainloop:
 		}
 	}
 	if totalRead == 0 && totalWrite == 0 {
-		fmt.Println("nothing to report")
+		fmt.Println("no metrics to report")
 	} else {
 		nspeed.SpeedReport(w, "Average", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
@@ -310,7 +309,7 @@ mainloop:
 	}
 }
 
-// debug stuff
+// debug stuff - todo : move this elsewhere
 
 func PrintMemUsage(level zerolog.Level) {
 	if level >= zerolog.InfoLevel {

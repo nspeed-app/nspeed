@@ -447,7 +447,7 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 				listenErr = s.Server.ServeTLS(ln, "", "")
 			} else {
 				// this shouldn't happen if parameters check are done correctly
-				s.Logger.Fatal().Msgf("no self certificate installed", listenErr)
+				s.Logger.Fatal().Err(listenErr).Msgf("no self certificate installed")
 			}
 
 		} else {

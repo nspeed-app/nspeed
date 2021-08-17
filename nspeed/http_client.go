@@ -314,7 +314,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 				wm.TLS = t
 			} else {
 				tr.tls = false
-				fmt.Printf("tls: %+v \n", err)
+				//fmt.Printf("tls: %+v \n", err)
 			}
 			wm.Logger.Debug().Msgf("TLSHandshakeDone: %v", wm.TLSTime.Sub(refdate))
 		},
