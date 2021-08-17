@@ -29,7 +29,6 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	results := make(chan *Metrics, njobs)
 	wcWorkers := make([]*Metrics, njobs)
 
-	//IsInfinite := false
 	fmt.Println("Jobs:")
 	for idx, job := range jobs {
 		wm := Metrics{
@@ -42,14 +41,13 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 			Job:        job}
 		wcWorkers[idx] = &wm
 		fmt.Printf("  %d %#v\n", idx, job)
-		// todo check valid url, prefetch, do dns if needed, add context ? etc
 	}
 
-	// Cancel will allows to shutdown everything on
-	ctx, Cancel := context.WithCancel(ctx)
-	defer Cancel()
+	// Cancel will allows to shutdown everything by calling cancel()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	// add timeout
+	// add timeout (warning: possible shadowing errors with ctx & cancel)
 	if opt.Timeout > 0 {
 		newctx, cancel := context.WithTimeout(ctx, time.Duration(opt.Timeout)*time.Second)
 		defer cancel()
@@ -58,7 +56,7 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 
 	// create & init workers for jobs (synchronously one after the others)
 	for _, wm := range wcWorkers {
-		log.Debug().Msgf("creating workload %d %s %t", wm.Index, wm.Target, wm.Done)
+		log.Debug().Msgf("creating worker %d %s %t", wm.Index, wm.Target, wm.Done)
 		err := wm.Job.Init(wm)
 		if err != nil {
 			log.Error().Msgf("error %s for %s", err, wm.Target)
@@ -67,16 +65,18 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	}
 
 	// run workers by launching a go routine for each one
+	// todo:investigate using errgroup.WithContext (update: looking at errgroup.WithContext source code, it doesn't do much else)
 	var wg sync.WaitGroup
-	wg.Add(njobs)
+
 	for _, wm := range wcWorkers {
 		log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
+		wg.Add(1)
 		go func(w *Metrics) {
 			defer wg.Done()
 			err := w.Job.Run(ctx)
 			if err != nil {
 				log.Error().Msgf("error '%s' for '%s'", err, w.Target)
-				Cancel()
+				cancel()
 				return
 			}
 		}(wm)

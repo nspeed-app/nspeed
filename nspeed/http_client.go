@@ -264,7 +264,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	refdate := time.Now()
 
 	tr := &roundTripTrace{}
-	// todo handle redirects
+	// todo handle redirects more nicely (array ?)
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(dnsInfo httptrace.DNSStartInfo) {
 			wm.mutex.Lock()
@@ -344,7 +344,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 		},
 	}
 
-	// this is where we wait -todo : can we be cancelled
+	// this is where we wait
 	if j.Delay > 0 {
 		j.Logger.Debug().Dur("delay", j.Delay).Msg("waiting")
 		time.Sleep(j.Delay)
@@ -377,11 +377,13 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 		wm.Cancelled = true
 		j.Logger.Info().Msgf("parent got cancelled")
 	} else if err != nil {
-		j.Logger.Fatal().Err(err).Send()
+		wm.Error = err
+		j.Logger.Info().Err(err).Send()
+		// todo : get body for more info ()
 	}
 
 	// completed or expired (timeout)
-	if !wm.Cancelled {
+	if wm.Error == nil && !wm.Cancelled {
 		j.Logger.Info().
 			Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
 			Stringer("RemoteAddr", wm.ConnInfo.Conn.RemoteAddr()).
@@ -407,8 +409,8 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	}
 	// todo: time'd out 'POST' don't have a resp so we're missing informations like protocol ,tls, etc
 	// todo: find a way to get the missing informations elsewhere
-	// workaround: do a HEAD before the POST but that will count has 2 requests and could mess the server stats and Maxrequests option
-	if resp != nil {
+	// possible workaround: do a HEAD before the POST but that will count has 2 requests and could mess the server stats and Maxrequests option
+	if wm.Error == nil && resp != nil {
 		protocol := resp.Proto
 		j.Logger.Info().
 			Str("protocol", protocol).

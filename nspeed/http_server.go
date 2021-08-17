@@ -221,7 +221,9 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	if numBytes < 1 {
 		numBytes = 1
 	} else if numBytes > h.Parameters.MaxBodySize {
-		http.Error(w, "too big", http.StatusBadRequest)
+		//http.Error(w, "too big", http.StatusBadRequest)
+		// we use 413 instead of 404 for now.
+		http.Error(w, "too big", http.StatusRequestEntityTooLarge)
 		return
 	}
 

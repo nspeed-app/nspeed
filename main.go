@@ -222,8 +222,6 @@ func main() {
 	}
 
 	rc := 0
-	// var wg sync.WaitGroup
-	// wg.Add(1)
 	waitChan := make(chan error)
 	var wcWorkers []*nspeed.Metrics = nil
 	// RunJobs async

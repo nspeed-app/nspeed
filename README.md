@@ -45,7 +45,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     nspeed server
     
     # start a server at port 8888 with max time of 5 seconds and 1 GB max size accepted
-    nspeed server -p 8080 -t 5s -s 1000000000
+    nspeed server -p 8080 -t 5 -s 1000000000
 
     # start a server listening on all interfaces but in IPv6 only
     nspeed server -6 -a=""
@@ -66,10 +66,10 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     curl -o /dev/null http://localhost:7333/1G
 
     # upload a local file "/path/to/file" to a nspeed server with curl (with progress and result speed)
-    curl -T @/path/to/file http://localhost:7333/ | tee
+    curl -T /path/to/file http://localhost:7333/ | tee
 
     # same as above but without sending the filename to the server
-    curl -X POST --data-binary @/path/to/file http://localhost:7333/ | tee
+    curl -X POST --data-binary /path/to/file http://localhost:7333/ | tee
 
     # download 1 GB from the local server and stop it
     # how it works:
