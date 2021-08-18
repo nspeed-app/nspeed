@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"net"
 	"net/http/httptrace"
 	"sync"
 	"text/tabwriter"
@@ -45,7 +44,6 @@ type Metrics struct {
 	Cancelled           bool
 	ResultChan          chan *Metrics
 	Target              string
-	TargetAddress       net.IPAddr
 	DNSInfo             httptrace.DNSDoneInfo
 	DNSInfoTime         time.Time
 	ConnInfo            httptrace.GotConnInfo
@@ -147,7 +145,7 @@ func (wm *Metrics) PrintFinal(w io.Writer) {
 		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
 		// fmt.Fprintf(w, "WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
 		fmt.Fprintf(w, "duration: %v ", wm.ElapsedTime.Seconds())
-		fmt.Fprintf(w, "url: %s (%s)", wm.Target, wm.TargetAddress)
+		fmt.Fprintf(w, "command: %s", wm.Job.PrintString())
 		fmt.Fprintf(w, "\n")
 
 	} else {

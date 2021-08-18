@@ -283,8 +283,8 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		Job:     h,
 	}
 	wm.TransfertStartTime = time.Now()
-	wm.FirstResponseByte = time.Now()
-	wm.ContentWriteSize = numBytes
+	wm.FirstResponseByte = wm.TransfertStartTime
+	wm.ContentWriteSize = numBytes //todo: investigate what happens when timed out
 	f := w.(http.Flusher)
 	// send the buffer as many times as needed
 	var numChunk = numBytes / chunkSize

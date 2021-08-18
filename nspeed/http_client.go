@@ -19,7 +19,7 @@ import (
 )
 
 // a HTTP command, get or post
-// implement Job interface
+// implements Job interface
 type JobHTTPClient struct {
 	Command          string
 	Repeat           int
