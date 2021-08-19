@@ -105,6 +105,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// todo: move this in a func and Once it
 	// https://forfuncsake.github.io/post/2017/08/trust-extra-ca-cert-in-go-app/
 	// Get the SystemCertPool, continue with an empty pool on error
 	rootCAs, _ := x509.SystemCertPool()
@@ -120,6 +121,7 @@ func main() {
 	nspeed.TLSSelfConfig = &tls.Config{
 		Certificates: []tls.Certificate{certificate},
 		RootCAs:      rootCAs}
+	//todo: up to here
 
 	jobs, err := nspeed.ParseCommands(flag.Args(), nil)
 	if err != nil {

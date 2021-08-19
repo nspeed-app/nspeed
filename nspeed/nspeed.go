@@ -71,6 +71,7 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	for _, wm := range wcWorkers {
 		log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
 		wg.Add(1)
+		//todo: use pprof.Do and labels ?
 		go func(w *Metrics) {
 			defer wg.Done()
 			err := w.Job.Run(ctx)
