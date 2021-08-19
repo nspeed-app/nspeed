@@ -12,14 +12,16 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     - ciphers
     - api
 
-    The "server" command can only be combined with itself. others commands can be mixed.
-    Each "command" has its own arguments, use -h to see them. `nspeed get -h` for instance:
+    The ciphers command can not be combined with others and can only be called once. 
+    Each "command" has its own arguments, use -h to see them. 
+    
+    Overview of commands:
 
-    get [options] url 
-
-    put [options] url size
-
-    server [options] 
+        nspeed get [options] url 
+        nspeed put [options] url size
+        nspeed server [options]
+        nspeed ciphers [options] target
+        nspeed api [options]
 
 ## Examples
 
@@ -32,7 +34,8 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     # downlaod the same target both in IPv4 and IPv6
     nspeed get -4 https://bouygues.testdebit.info/100M/100M.iso get -6 https://bouygues.testdebit.info/100M/100M.iso
 
-    # upload two 1GB to a single target (use "1G" for 1GiB -accepted prefixes: k,m,g,t,p,e)
+    # upload two 1GB to a single target (use "1g" for 1GB (1000*1000*1000 bytes) and "1G" for 1GiB (1024*1024*1024 bytes)
+    # accepted prefixes: k,m,g,t,p,e and K,M,G,T,P,E
     nspeed put -n 2 https://bouygues.testdebit.info/ 1g
 
     # download & upload at the same time
@@ -42,7 +45,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     nspeed server
     
     # start a server at port 8888 with max time of 5 seconds and 1 GB max size accepted
-    nspeed server -p 8080 -t 5s -s 1000000000
+    nspeed server -p 8080 -t 5 -s 1000000000
 
     # start a server listening on all interfaces but in IPv6 only
     nspeed server -6 -a=""
@@ -63,10 +66,10 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     curl -o /dev/null http://localhost:7333/1G
 
     # upload a local file "/path/to/file" to a nspeed server with curl (with progress and result speed)
-    curl -T @/path/to/file http://localhost:7333/ | tee
+    curl -T /path/to/file http://localhost:7333/ | tee
 
     # same as above but without sending the filename to the server
-    curl -X POST --data-binary @/path/to/file http://localhost:7333/ | tee
+    curl -X POST --data-binary /path/to/file http://localhost:7333/ | tee
 
     # download 1 GB from the local server and stop it
     # how it works:
