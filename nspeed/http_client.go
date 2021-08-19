@@ -18,6 +18,21 @@ import (
 	"golang.org/x/net/http2"
 )
 
+// roundTripTrace holds timings for a single HTTP roundtrip.
+// mostly from prometheus blackbox_exporter
+type roundTripTrace struct {
+	tls           bool
+	start         time.Time
+	dnsDone       time.Time
+	tlsStart      time.Time
+	tlsDone       time.Time
+	connectStart  time.Time
+	connectDone   time.Time
+	gotConn       time.Time
+	responseStart time.Time
+	end           time.Time
+}
+
 // a HTTP command, get or post
 // implements Job interface
 type JobHTTPClient struct {
@@ -38,9 +53,12 @@ type JobHTTPClient struct {
 	UseHTTP11        bool
 	H2C              bool
 	// private
-	client *http.Client
-	req    *http.Request
-	wm     *Metrics
+	client      *http.Client
+	req         *http.Request
+	tr          roundTripTrace
+	numRedirect int
+	finalTarget string
+	wm          *Metrics
 }
 
 func (j *JobHTTPClient) GoString() string {
@@ -78,11 +96,25 @@ func (j *JobHTTPClient) GetDestination() string {
 	if ci == nil {
 		return ""
 	}
+	if ci.Conn == nil {
+		return ""
+	}
 	return ci.Conn.RemoteAddr().String()
 }
+
+// Pretty print command and some infos
 func (j *JobHTTPClient) PrintString() string {
+
+	formatOut := func(r string) string {
+		ip := j.GetDestination()
+		if j.numRedirect > 0 {
+			ip = fmt.Sprintf("-%d-> %s(%s)", j.numRedirect, j.finalTarget, ip)
+		}
+		return fmt.Sprintf("%s (%s - %d ms)", r, ip, j.tr.connectDone.Sub(j.tr.connectStart).Milliseconds())
+	}
+
 	if j.Command == "GET" {
-		t := "get %s " + j.Target
+		t := "get %s" + j.Target
 		r := fmt.Sprintf(t, "")
 		if j.H2C {
 			r = fmt.Sprintf(t, "-h2c ")
@@ -90,7 +122,7 @@ func (j *JobHTTPClient) PrintString() string {
 		if j.UseHTTP11 {
 			r = fmt.Sprintf(t, "-http11 ")
 		}
-		return fmt.Sprintf("%s (%s)", r, j.GetDestination())
+		return formatOut(r)
 
 	} else if j.Command == "POST" {
 		t := "put %s" + j.Target + " " + ByteCountDecimal(j.ContentSize) + "B"
@@ -101,7 +133,7 @@ func (j *JobHTTPClient) PrintString() string {
 		if j.UseHTTP11 {
 			r = fmt.Sprintf(t, "-http11 ")
 		}
-		return fmt.Sprintf("%s (%s)", r, j.GetDestination())
+		return formatOut(r)
 	} else {
 		return "unknown command"
 	}
@@ -117,20 +149,6 @@ func (j *JobHTTPClient) Expand(jobs []Job, group int) []Job {
 }
 
 func (j *JobHTTPClient) IsInfinite() bool { return false }
-
-// roundTripTrace holds timings for a single HTTP roundtrip.
-// mostly from prometheus blackbox_exporter
-type roundTripTrace struct {
-	tls           bool
-	start         time.Time
-	dnsDone       time.Time
-	tlsStart      time.Time
-	tlsDone       time.Time
-	connectDone   time.Time
-	gotConn       time.Time
-	responseStart time.Time
-	end           time.Time
-}
 
 // init a HTTP Job
 func (j *JobHTTPClient) Init(wm *Metrics) error {
@@ -218,7 +236,9 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 			j.Logger.Log().Msgf("job %d got redirect to %s (%v)", wm.Index, loc.String(), err)
 
 			wm.InitNew() //todo: evaluate
-			return nil   // http.ErrUseLastResponse
+			j.numRedirect++
+			j.finalTarget = loc.String()
+			return nil // http.ErrUseLastResponse
 		},
 		Transport: rtTransport, // http.DefaultTransport,
 		// Timeout:   10 * time.Second,
@@ -263,21 +283,20 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	// tracing & timing stuff
 	refdate := time.Now()
 
-	tr := &roundTripTrace{}
 	// todo handle redirects more nicely (array ?)
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(dnsInfo httptrace.DNSStartInfo) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			tr.start = time.Now()
-			wm.Logger.Debug().Msgf("DNSStart: %v", tr.start.Sub(refdate))
+			j.tr.start = time.Now()
+			wm.Logger.Debug().Msgf("DNSStart: %v", j.tr.start.Sub(refdate))
 		},
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			wm.DNSInfoTime = time.Now()
 			wm.DNSInfo = dnsInfo
-			tr.dnsDone = wm.DNSInfoTime
+			j.tr.dnsDone = wm.DNSInfoTime
 			wm.Logger.Debug().Msgf("DNSDone: %v", wm.DNSInfoTime.Sub(refdate))
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
@@ -285,35 +304,35 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 			defer wm.mutex.Unlock()
 			wm.ConnInfoTime = time.Now()
 			wm.ConnInfo = connInfo
-			tr.gotConn = wm.ConnInfoTime
+			j.tr.gotConn = wm.ConnInfoTime
 			wm.Logger.Debug().Msgf("GotConn: %v", wm.ConnInfoTime.Sub(refdate))
 		},
 		GotFirstResponseByte: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			wm.FirstResponseByte = time.Now()
-			tr.responseStart = wm.FirstResponseByte
+			j.tr.responseStart = wm.FirstResponseByte
 			wm.Logger.Debug().Msgf("GotFirstResponseByte: %v", wm.FirstResponseByte.Sub(refdate))
 		},
 
 		TLSHandshakeStart: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			tr.tlsStart = time.Now()
-			wm.Logger.Debug().Msgf("TLSHandshakeStart: %v", tr.tlsStart.Sub(refdate))
+			j.tr.tlsStart = time.Now()
+			wm.Logger.Debug().Msgf("TLSHandshakeStart: %v", j.tr.tlsStart.Sub(refdate))
 		},
 
 		TLSHandshakeDone: func(t tls.ConnectionState, err error) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			if err == nil {
-				tr.tls = true
+				j.tr.tls = true
 				wm.TLSTime = time.Now()
 				wm.TLSDone = true
-				tr.tlsDone = wm.TLSTime
+				j.tr.tlsDone = wm.TLSTime
 				wm.TLS = t
 			} else {
-				tr.tls = false
+				j.tr.tls = false
 				//fmt.Printf("tls: %+v \n", err)
 			}
 			wm.Logger.Debug().Msgf("TLSHandshakeDone: %v", wm.TLSTime.Sub(refdate))
@@ -322,9 +341,10 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			// No DNS resolution means we used an IP address directly.
-			if tr.dnsDone.IsZero() {
-				tr.start = time.Now()
-				tr.dnsDone = tr.start
+			j.tr.connectStart = time.Now()
+			if j.tr.dnsDone.IsZero() {
+				j.tr.start = j.tr.connectStart
+				j.tr.dnsDone = j.tr.start
 			}
 			wm.Logger.Debug().Msgf("ConnectStart: %v", time.Since(refdate))
 		},
@@ -332,8 +352,8 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 		ConnectDone: func(net, addr string, err error) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			tr.connectDone = time.Now()
-			wm.Logger.Debug().Msgf("ConnectDone: %v", tr.connectDone.Sub(refdate))
+			j.tr.connectDone = time.Now()
+			wm.Logger.Debug().Msgf("ConnectDone: %v", j.tr.connectDone.Sub(refdate))
 		},
 
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
@@ -364,7 +384,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	refdate = time.Now()
 	// resp, err := client.Transport.RoundTrip(req)
 	resp, err := j.client.Do(j.req)
-	tr.end = time.Now()
+	j.tr.end = time.Now()
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		wm.Expired = true
@@ -387,7 +407,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 		j.Logger.Info().
 			Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
 			Stringer("RemoteAddr", wm.ConnInfo.Conn.RemoteAddr()).
-			Dur("DNSInfoTime", tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
+			Dur("DNSInfoTime", j.tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
 			Dur("ConnInfoTime", wm.ConnInfoTime.Sub(refdate)).
 			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
 			Send()
