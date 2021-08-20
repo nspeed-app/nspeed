@@ -62,7 +62,7 @@ type JobHTTPClient struct {
 }
 
 func (j *JobHTTPClient) GoString() string {
-	s := fmt.Sprintf("HTTP client {Methdd: %s, URL: %q, IPversion: %d, Address: %s, Group: %d, timeout: %s, delay: %s, h2c: %t, http1.1:%t}",
+	s := fmt.Sprintf("HTTP client {Method: %s, URL: %q, IPversion: %d, Address: %s, Group: %d, timeout: %s, delay: %s, h2c: %t, http1.1:%t}",
 		j.Command,
 		j.Target,
 		j.IPversion,
@@ -103,18 +103,20 @@ func (j *JobHTTPClient) GetDestination() string {
 }
 
 // Pretty print command and some infos
-func (j *JobHTTPClient) PrintString() string {
+func (j *JobHTTPClient) PrintString(verbose bool) string {
 
 	formatOut := func(r string) string {
-		ip := j.GetDestination()
-		if j.numRedirect > 0 {
-			ip = fmt.Sprintf("-%d-> %s(%s)", j.numRedirect, j.finalTarget, ip)
+		latency := j.tr.connectDone.Sub(j.tr.connectStart).Milliseconds()
+		latencyMicroRem := j.tr.connectDone.Sub(j.tr.connectStart).Microseconds() % 1000
+		details := fmt.Sprintf("%s (%s - %d.%d ms)", r, j.GetDestination(), latency, latencyMicroRem)
+		if j.numRedirect > 0 && verbose {
+			return fmt.Sprintf("%s from %s", details, j.Target)
 		}
-		return fmt.Sprintf("%s (%s - %d ms)", r, ip, j.tr.connectDone.Sub(j.tr.connectStart).Milliseconds())
+		return details
 	}
 
 	if j.Command == "GET" {
-		t := "get %s" + j.Target
+		t := "get %s" + j.finalTarget
 		r := fmt.Sprintf(t, "")
 		if j.H2C {
 			r = fmt.Sprintf(t, "-h2c ")
@@ -125,7 +127,7 @@ func (j *JobHTTPClient) PrintString() string {
 		return formatOut(r)
 
 	} else if j.Command == "POST" {
-		t := "put %s" + j.Target + " " + ByteCountDecimal(j.ContentSize) + "B"
+		t := "put %s" + j.finalTarget + " " + ByteCountDecimal(j.ContentSize) + "B"
 		r := fmt.Sprintf(t, "")
 		if j.H2C {
 			r = fmt.Sprintf(t, "-h2c ")
@@ -229,11 +231,16 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		}
 	}
 
+	j.finalTarget = j.Target
 	// create http client
 	j.client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			loc, err := req.Response.Location()
-			j.Logger.Log().Msgf("job %d got redirect to %s (%v)", wm.Index, loc.String(), err)
+			if err != nil {
+				j.Logger.Info().Msgf("redirected with error %v", err)
+			} else {
+				j.Logger.Info().Msgf("redirected to %s", loc.String())
+			}
 
 			wm.InitNew() //todo: evaluate
 			j.numRedirect++
@@ -254,7 +261,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		wm.TotalWriteProcessed = 0
 		body = wm
 	}
-	req, err := http.NewRequest(j.Command, wm.Target, body)
+	req, err := http.NewRequest(j.Command, j.Target, body)
 	if err != nil {
 		return err
 	}
@@ -458,6 +465,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 				//   the resp (thru req) context  will handle timeout & parent cancellation
 
 				//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
+				//todo: invesstigate why the following gives results too high
 				wm.TotalReadProcessed, err = io.Copy(wm, resp.Body)
 
 				if err == context.DeadlineExceeded {

@@ -100,7 +100,7 @@ func (j *JobHTTPServer) GoString() string {
 	)
 }
 
-func (j *JobHTTPServer) PrintString() string {
+func (j *JobHTTPServer) PrintString(verbose bool) string {
 	return "SERVER"
 }
 

@@ -42,7 +42,7 @@ func (j *APIHost) GoString() string {
 	)
 }
 
-func (j *APIHost) PrintString() string {
+func (j *APIHost) PrintString(verbose bool) string {
 	return "API " + net.JoinHostPort(j.Parameters.Host, strconv.Itoa(j.Parameters.Port))
 }
 
@@ -194,7 +194,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "api @%s - ended: %s: %d\n", r.Host, time.Now().String(), len(wcWorkers))
 		for _, wm := range wcWorkers {
 			fmt.Fprintf(w, "api @%s - result:", r.Host)
-			wm.PrintFinal(w)
+			wm.PrintFinal(w, true)
 		}
 		//todo: send results back
 		return

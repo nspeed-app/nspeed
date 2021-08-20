@@ -17,7 +17,7 @@ type Job interface {
 	GetTarget() string
 	Expand([]Job, int) []Job
 	GoString() string
-	PrintString() string
+	PrintString(bool) string
 	IsInfinite() bool
 	//Start(context.Context, *WorkerMetrics) error // todo: split this into Init & Run
 	Init(*Metrics) error
@@ -76,8 +76,11 @@ func (wm *Metrics) Write(p []byte) (int, error) {
 	if s > wm.StepSize {
 		wm.StepSize = s
 	}
-	wm.TotalRead += wm.StepSize
+
+	wm.mutex.Lock()
+	defer wm.mutex.Unlock()
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+	wm.TotalRead += s
 	wm.ReadCount++
 	return n, nil
 }
@@ -135,7 +138,7 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 	}
 }
 
-func (wm *Metrics) PrintFinal(w io.Writer) {
+func (wm *Metrics) PrintFinal(w io.Writer, verbose bool) {
 	if wm.Valid {
 		fmt.Fprintf(w, "%d:", wm.Index)
 		fmt.Fprintf(w, "Read: %s ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead))
@@ -145,7 +148,7 @@ func (wm *Metrics) PrintFinal(w io.Writer) {
 		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
 		// fmt.Fprintf(w, "WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
 		fmt.Fprintf(w, "duration: %v ", wm.ElapsedTime.Seconds())
-		fmt.Fprintf(w, "command: %s", wm.Job.PrintString())
+		fmt.Fprintf(w, "command: %s", wm.Job.PrintString(verbose))
 		fmt.Fprintf(w, "\n")
 
 	} else {
@@ -196,8 +199,10 @@ func min(x, y int64) int64 {
 // implement reader - (ie 'Write' metrics since a POST will call Read() here to send to http server)
 // first iteration - do nothing with the buffer
 func (wm *Metrics) Read(p []byte) (n int, err error) {
+
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
+	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 
 	wm.WriteCount++
 	maxstep := len(p)
@@ -205,6 +210,7 @@ func (wm *Metrics) Read(p []byte) (n int, err error) {
 	if maxstep == 0 {
 		return 0, nil
 	}
+
 	lefttodo := wm.ContentWriteSize - wm.TotalWriteProcessed
 	if lefttodo == 0 {
 		return 0, io.EOF
@@ -215,7 +221,6 @@ func (wm *Metrics) Read(p []byte) (n int, err error) {
 	wm.TotalWrite += todo
 	wm.TotalWriteProcessed += todo
 
-	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	return int(todo), nil
 }
 

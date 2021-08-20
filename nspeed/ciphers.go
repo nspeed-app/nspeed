@@ -247,7 +247,7 @@ func (j *JobCiphers) GoString() string {
 	)
 }
 
-func (j *JobCiphers) PrintString() string {
+func (j *JobCiphers) PrintString(verbose bool) string {
 	return fmt.Sprintf("ciphers %s (%s:%s)", j.Target, j.host, j.port)
 }
 
