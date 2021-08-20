@@ -73,12 +73,11 @@ type Metrics struct {
 func (wm *Metrics) Write(p []byte) (int, error) {
 	n := len(p)
 	s := int64(n)
+	wm.mutex.Lock()
+	defer wm.mutex.Unlock()
 	if s > wm.StepSize {
 		wm.StepSize = s
 	}
-
-	wm.mutex.Lock()
-	defer wm.mutex.Unlock()
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	wm.TotalRead += s
 	wm.ReadCount++

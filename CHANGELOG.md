@@ -1,9 +1,12 @@
 # v0.10
 ## general
+- using Go 1.17
 # ciphers
-- updated for go 1.17 internal changes
+- updated for Go 1.17 internal changes
 - this command can no longer be called with other commands even with itself because of global side-effect
-- displays AES support
+- displays AES hardware support
+## http client
+- console ouput displays more info about redirection , target IP and latency
 # v0.9
 ## general
 - lots of internal refactoring (for the api/ui and a new internal scheduling/cancellation system)

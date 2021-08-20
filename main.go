@@ -94,7 +94,8 @@ func main() {
 	}
 
 	if *versionFlag {
-		fmt.Println(Version)
+		fmt.Printf("NSpeed version: %s\n", Version)
+		fmt.Printf("Go version: %s\n", runtime.Version())
 		return
 	}
 
