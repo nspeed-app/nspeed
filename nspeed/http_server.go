@@ -341,6 +341,7 @@ func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 func (s *JobHTTPServer) Init(wm *Metrics) error {
 
+	// todo: this should be a global and Once
 	s.StreamPathRegexp = regexp.MustCompile("^(" + ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
 
 	s.Logger = &wm.Logger //

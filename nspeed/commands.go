@@ -20,9 +20,10 @@ const getCommand = "get"
 const putCommand = "put"
 const serveCommand = "server"
 const ciphersCommand = "ciphers"
-const latencyCommand = "latency"
-const tracerouteCommand = "traceroute"
 const apiCommand = "api"
+
+// const latencyCommand = "latency"
+// const tracerouteCommand = "traceroute"
 
 // supported commands, expand has needed
 // Set is a set number. Commands in the same set can be mixed together.
@@ -35,23 +36,23 @@ type Command struct {
 
 // list of supported commands.
 var Commands = map[string]Command{
-	getCommand:        {getCommand, 1, true},
-	putCommand:        {putCommand, 1, true},
-	serveCommand:      {serveCommand, 1, true},
-	ciphersCommand:    {ciphersCommand, 0, true},
-	latencyCommand:    {latencyCommand, 1, true},
-	tracerouteCommand: {tracerouteCommand, 2, true},
-	apiCommand:        {apiCommand, 1, false},
+	getCommand:     {getCommand, 1, true},
+	putCommand:     {putCommand, 1, true},
+	serveCommand:   {serveCommand, 1, true},
+	ciphersCommand: {ciphersCommand, 0, true},
+	// latencyCommand:    {latencyCommand, 1, true},
+	// tracerouteCommand: {tracerouteCommand, 2, true},
+	apiCommand: {apiCommand, 1, false},
 }
 
 var CommandDescriptions = map[string]string{
-	getCommand:        "perform an HTTP GET command to measure download speed",
-	putCommand:        "perform an HTTP POST command to measure upload speed",
-	serveCommand:      "launch a standard web server supporting GET and POST commands of arbitraty sizes",
-	ciphersCommand:    "list cipher suites supported by the target server(s)",
-	latencyCommand:    "measure latency to destination (not yet implemented)",
-	tracerouteCommand: "discover route to destination (not yet implemented)",
-	apiCommand:        "enable an API endpoint",
+	getCommand:     "perform an HTTP GET command to measure download speed",
+	putCommand:     "perform an HTTP POST command to measure upload speed",
+	serveCommand:   "launch a standard web server supporting GET and POST commands of arbitraty sizes",
+	ciphersCommand: "list cipher suites supported by the target server(s)",
+	// latencyCommand:    "measure latency to destination (not yet implemented)",
+	// tracerouteCommand: "discover route to destination (not yet implemented)",
+	apiCommand: "enable an API endpoint",
 }
 
 // global flags
@@ -382,8 +383,8 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		args = fs.Args()
 		j := APIHost{Parameters: host}
 		return args, &j, nil
-	case latencyCommand, tracerouteCommand:
-		return args, nil, errors.New("not yet implemented")
+	// case latencyCommand, tracerouteCommand:
+	// 	return args, nil, errors.New("not yet implemented")
 	default:
 		return args, nil, errors.New("unknown command")
 	}

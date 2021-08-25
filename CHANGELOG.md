@@ -1,6 +1,6 @@
 # v0.10
 ## general
-- using Go 1.17
+- using Go 1.17. `nspeed -version` now also displays the Go version used to build the binary.
 # ciphers
 - updated for Go 1.17 internal changes
 - this command can no longer be called with other commands even with itself because of global side-effect

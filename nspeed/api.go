@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -121,7 +122,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cmd == "version" {
-		fmt.Fprintf(w, "API version %s\nNSpeed version %s\n", APIVersion, Version)
+		fmt.Fprintf(w, "API version %s\nNSpeed version %s\nGo version: %s\n", APIVersion, Version, runtime.Version())
 		return
 	}
 
