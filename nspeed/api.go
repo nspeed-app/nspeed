@@ -146,6 +146,22 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if cmd == "stats" {
+		if len(args) >= 1 && args[0] == "info" {
+			// /stats/info
+			if len(args) == 1 {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, "%s\n", MarchineInfoJSON)
+				return
+			}
+			// stats/info/#field#
+			if len(args) == 2 {
+				http.Error(w, fmt.Sprintf("unknown sub info: %s", args[1]), http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
 	if cmd == "run" {
 		// /api/v1/run?cmd="...." <=> nspeed ....
 

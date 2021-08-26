@@ -1,6 +1,7 @@
 package nspeed
 
 import (
+	"encoding/json"
 	"os"
 	"runtime"
 	"time"
@@ -34,6 +35,7 @@ type machineStats struct {
 }
 
 var MachineInfo machineInfo = loadMachInfo()
+var MarchineInfoJSON, _ = json.MarshalIndent(MachineInfo, "", "  ")
 
 func loadMachInfo() (retmachinfo machineInfo) {
 	hostInfo, err := host.Info()
