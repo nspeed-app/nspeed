@@ -10,9 +10,6 @@ import (
 	"time"
 )
 
-// version
-var Version string
-
 // commands
 type CommandId int
 
