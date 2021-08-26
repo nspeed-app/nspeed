@@ -2,6 +2,7 @@ package nspeed
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -147,21 +148,42 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cmd == "stats" {
+		// /stats/info
 		if len(args) >= 1 && args[0] == "info" {
-			// /stats/info
 			if len(args) == 1 {
 				w.Header().Set("Content-Type", "application/json")
 				fmt.Fprintf(w, "%s\n", MarchineInfoJSON)
 				return
 			}
 			// stats/info/#field#
-			if len(args) == 2 {
+			if len(args) >= 2 {
 				http.Error(w, fmt.Sprintf("unknown sub info: %s", args[1]), http.StatusBadRequest)
 				return
 			}
 		}
-	}
+		// stats/mem
+		if len(args) >= 1 && args[0] == "mem" {
+			// /stats/mem/gc will force a GC
+			doGC := len(args) == 2 && args[1] == "gc"
 
+			if len(args) == 1 || doGC {
+				w.Header().Set("Content-Type", "application/json")
+				if doGC {
+					runtime.GC()
+				}
+				MemStats.LoadStats()
+				jw := json.NewEncoder(w)
+				jw.SetIndent("", "  ")
+				jw.Encode(MemStats)
+				return
+			}
+			// stats/mem/#field#
+			if len(args) >= 2 {
+				http.Error(w, fmt.Sprintf("unknown sub mem: %s", args[1]), http.StatusBadRequest)
+				return
+			}
+		}
+	}
 	if cmd == "run" {
 		// /api/v1/run?cmd="...." <=> nspeed ....
 

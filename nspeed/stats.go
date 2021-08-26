@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/pbnjay/memory"
@@ -26,12 +27,12 @@ type machineInfo struct {
 	Time      time.Time `json:"time"`
 }
 
-type machineStats struct {
-	CPU            float64 `json:"cpu"`
+type memStats struct {
 	MemUsedPercent float64 `json:"mempercent"`
 	GoMemory       int64   `json:"gomem"`
 	GoMemorySys    int64   `json:"gomemsys"`
 	GoRoutines     int     `json:"goroutines"`
+	Time           time.Time
 }
 
 var MachineInfo machineInfo = loadMachInfo()
@@ -58,15 +59,12 @@ func loadMachInfo() (retmachinfo machineInfo) {
 	return retmachinfo
 }
 
-var MachineStats machineStats
+var MemStats memStats
+var memStatsMu sync.Mutex // could put this in the struct
 
-func (s *machineStats) LoadStats(diskDir string, interval time.Duration) {
-	//count cpu cycles between last count
-	if cpu, err := cpu.Percent(interval, false); err == nil {
-		if len(cpu) > 0 {
-			s.CPU = cpu[0]
-		}
-	}
+func (s *memStats) LoadStats() {
+	memStatsMu.Lock()
+	defer memStatsMu.Unlock()
 	//count memory usage
 	if stat, err := mem.VirtualMemory(); err == nil {
 		s.MemUsedPercent = stat.UsedPercent
@@ -78,4 +76,5 @@ func (s *machineStats) LoadStats(diskDir string, interval time.Duration) {
 	s.GoMemorySys = int64(memStats.Sys)
 	//count current number of goroutines
 	s.GoRoutines = runtime.NumGoroutine()
+	s.Time = time.Now()
 }

@@ -309,26 +309,3 @@ mainloop:
 		}
 	}
 }
-
-// debug stuff - todo : move this elsewhere
-
-func PrintMemUsage(level zerolog.Level) {
-	if level >= zerolog.InfoLevel {
-		return
-	}
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	log.Debug().Uint64("Alloc", m.Alloc).
-		Uint64("TotalAlloc", m.TotalAlloc).
-		Uint64("Sys", m.Sys).
-		Uint64("Alloc(MiB)", bToMb(m.Alloc)).
-		Uint64("TotalAlloc(MiB)", bToMb(m.TotalAlloc)).
-		Uint64("Sys", bToMb(m.Sys)).
-		Uint32("NumGC", m.NumGC).
-		Send()
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
-}
