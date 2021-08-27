@@ -227,7 +227,8 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		return
 	}
 
-	var chunkSize int64 = 32 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
+	// keep multplt of 16384
+	var chunkSize int64 = 16384 * 2 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 
 	//danger zone
 	if r.URL.Query().Get("chunk_size") != "" {

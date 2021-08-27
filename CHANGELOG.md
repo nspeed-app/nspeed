@@ -1,9 +1,14 @@
 # v0.10
 ## general
 - using Go 1.17. `nspeed -version` now also displays the Go version used to build the binary.
+- new `-info` flag to display some os/hardware informations.
+
+## API
+- new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)
+
 # ciphers
 - updated for Go 1.17 internal changes
-- this command can no longer be called with other commands even with itself because of global side-effect
+- this command can no longer be called with other commands even with itself because of a global side-effect and this command is not available thru the API.
 - displays AES hardware support
 ## http client
 - console ouput displays more info about redirection , target IP and latency

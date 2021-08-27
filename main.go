@@ -50,7 +50,8 @@ var optCPU = flag.Bool("cpu", false, "display cpu usage")
 
 var optColor = flag.Bool("color", false, "use colors")
 
-var versionFlag = flag.Bool("version", false, "display version")
+var optVersion = flag.Bool("version", false, "display version")
+var optInfo = flag.Bool("info", false, "display some informations about the machine")
 
 var optTimeout = flag.Uint("timeout", 0, "default timeout in seconds, 0 for no timeout")
 
@@ -93,7 +94,12 @@ func main() {
 		nspeed.Version = Version
 	}
 
-	if *versionFlag {
+	if *optInfo {
+		fmt.Println(string(nspeed.MarchineInfoJSON))
+		return
+	}
+
+	if *optVersion {
 		fmt.Printf("NSpeed version: %s\n", Version)
 		fmt.Printf("Go version: %s\n", runtime.Version())
 		return
