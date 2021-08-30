@@ -95,7 +95,7 @@ func main() {
 	}
 
 	if *optInfo {
-		fmt.Println(string(nspeed.MarchineInfoJSON))
+		fmt.Println(string(nspeed.MachineInfoJSON))
 		return
 	}
 
@@ -130,7 +130,7 @@ func main() {
 		RootCAs:      rootCAs}
 	//todo: up to here
 
-	jobs, err := nspeed.ParseCommands(flag.Args(), nil)
+	jobs, err := nspeed.ParseCommands(flag.Args(), nil, false)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

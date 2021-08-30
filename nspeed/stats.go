@@ -36,27 +36,37 @@ type memStats struct {
 }
 
 var MachineInfo machineInfo = loadMachInfo()
-var MarchineInfoJSON, _ = json.MarshalIndent(MachineInfo, "", "  ")
+var MachineInfoMap map[string]interface{}
+var MachineInfoJSON, _ = StructToJson(MachineInfo, &MachineInfoMap)
 
-func loadMachInfo() (retmachinfo machineInfo) {
+func StructToJson(v interface{}, m *map[string]interface{}) ([]byte, error) {
+	z, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(z, m)
+	return z, err
+}
+
+func loadMachInfo() (r machineInfo) {
 	hostInfo, err := host.Info()
 	if err == nil && hostInfo != nil {
-		retmachinfo.OS = hostInfo.Platform + " " + hostInfo.PlatformVersion
-		retmachinfo.Platform = hostInfo.OS
+		r.OS = hostInfo.Platform + " " + hostInfo.PlatformVersion
+		r.Platform = hostInfo.OS
 	}
 
 	cpuInfo, err := cpu.Info()
 	if err == nil && len(cpuInfo) > 0 {
-		retmachinfo.CPUModel = cpuInfo[0].ModelName
+		r.CPUModel = cpuInfo[0].ModelName
 	}
 
-	retmachinfo.Hostname, _ = os.Hostname()
-	retmachinfo.GoVersion = runtime.Version()
-	retmachinfo.TotalMem = memory.TotalMemory()
-	retmachinfo.Arch = runtime.GOARCH
-	retmachinfo.NumCPU = runtime.NumCPU()
-	retmachinfo.Time = time.Now()
-	return retmachinfo
+	r.Hostname, _ = os.Hostname()
+	r.GoVersion = runtime.Version()
+	r.TotalMem = memory.TotalMemory()
+	r.Arch = runtime.GOARCH
+	r.NumCPU = runtime.NumCPU()
+	r.Time = time.Now()
+	return r
 }
 
 var MemStats memStats

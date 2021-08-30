@@ -25,6 +25,7 @@ const apiCommand = "api"
 // supported commands, expand has needed
 // Set is a set number. Commands in the same set can be mixed together.
 // Commands in the "0" set can only be called alone and once
+// FromAPI: true is command can be called using the API
 type Command struct {
 	Name    string
 	Set     int
@@ -36,7 +37,7 @@ var Commands = map[string]Command{
 	getCommand:     {getCommand, 1, true},
 	putCommand:     {putCommand, 1, true},
 	serveCommand:   {serveCommand, 1, true},
-	ciphersCommand: {ciphersCommand, 0, true},
+	ciphersCommand: {ciphersCommand, 0, false},
 	// latencyCommand:    {latencyCommand, 1, true},
 	// tracerouteCommand: {tracerouteCommand, 2, true},
 	apiCommand: {apiCommand, 1, false},
@@ -88,7 +89,7 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	return fs, &hf
 }
 
-// c/p from somewhere
+// check is a flag was passed
 func isFlagPassed(fs *flag.FlagSet, name string) bool {
 	found := false
 	fs.Visit(func(f *flag.Flag) {
@@ -148,7 +149,7 @@ func IsCommand(cmd string) (Command, error) {
 }
 
 // parse cmd line args for commands and their respective args
-// todo: use a func for each command and put it in Commands
+// todo: split this function into a func for each command and put it in Commands
 func ParseCommand(command string, args []string, output io.Writer) ([]string, Job, error) {
 	switch command {
 	case getCommand:
@@ -389,7 +390,10 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 
 // flag parsing - thx to https://github.com/artyom for hints
 // make sure global args are parsed first
-func ParseCommands(rawArgs []string, output io.Writer) ([]Job, error) {
+// this allow parsing of the form
+// program [global flags] command1 .... commandN
+// where commandX = command [local flags] [args]
+func ParseCommands(rawArgs []string, output io.Writer, fromAPI bool) ([]Job, error) {
 	var out []Job
 	args := rawArgs
 	cmdSet := -1 // no set yet
@@ -397,7 +401,7 @@ func ParseCommands(rawArgs []string, output io.Writer) ([]Job, error) {
 	for len(args) != 0 {
 		command := args[0]
 		args = args[1:]
-		cmd, err := IsCommand(command) //todo:  refine with unambiquitous  substring 'g' instead of get'
+		cmd, err := IsCommand(command)
 		if err != nil {
 			return nil, err
 		}
@@ -408,7 +412,10 @@ func ParseCommands(rawArgs []string, output io.Writer) ([]Job, error) {
 			cmdSet = cmd.Set
 		}
 		if cmdSet != cmd.Set {
-			return nil, errors.New("cannot mix this command (" + cmd.Name + ") with the previous one(s)")
+			return nil, fmt.Errorf("cannot mix this command (%s) with the previous one(s)", cmd.Name)
+		}
+		if fromAPI && !cmd.FromAPI {
+			return nil, fmt.Errorf("this command (%s) can not be called from the API", cmd.Name)
 		}
 		reminder, job, err := ParseCommand(cmd.Name, args, output)
 		if err != nil {

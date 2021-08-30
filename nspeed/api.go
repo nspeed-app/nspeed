@@ -152,12 +152,23 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		if len(args) >= 1 && args[0] == "info" {
 			if len(args) == 1 {
 				w.Header().Set("Content-Type", "application/json")
-				fmt.Fprintf(w, "%s\n", MarchineInfoJSON)
+				fmt.Fprintf(w, "%s\n", MachineInfoJSON)
 				return
 			}
-			// stats/info/#field#
+			// stats/info/#field1#[/#field2/..]
 			if len(args) >= 2 {
-				http.Error(w, fmt.Sprintf("unknown sub info: %s", args[1]), http.StatusBadRequest)
+				fieldNames := args[1:]
+				replyMap := make(map[string]interface{})
+				for _, field := range fieldNames {
+					fmt.Printf("checking field %s\n", field)
+					if val, ok := MachineInfoMap[field]; ok {
+						replyMap[field] = val
+					} else {
+						http.Error(w, fmt.Sprintf("unknown sub info: %s", field), http.StatusBadRequest)
+						return
+					}
+				}
+				json.NewEncoder(w).Encode(replyMap)
 				return
 			}
 		}
@@ -207,7 +218,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			args = append(args, strings.Fields(a[i])...)
 		}
 
-		jobs, err := ParseCommands(args, w)
+		jobs, err := ParseCommands(args, w, true)
 		if err != nil {
 			fmt.Fprintf(w, "error parsing run command: %s\n", err)
 			return

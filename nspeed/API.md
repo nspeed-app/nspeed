@@ -28,7 +28,12 @@ return the server local time in human readable format
 ### `/api/v1/time/unix` 
 return the server local time in Unix time (= the number of seconds elapsed since January 1, 1970 UTC)
 
-### `/api/v1/stats/info`
-return some os/hardware informations about the host
+### `/api/v1/stats/info[/field1[/field2[/...]]`
+return some os/hardware informations about the host. either all infos or a selection of named fields.
+for instances:  
+*  `api/v1/stats/info` return all informations.  
+* `api/v1/stats/info/os` return the OS  
+*  `api/v1/stats/info/os/platform` return the OS and the platform  
+
 ### `/api/v1/stats/mem[/gc]` 
-return some memory informations about the host. Optionnally force a Go Garbage Collection by appending '/gc'
+return some memory informations about the host. Optionnally force a Go Garbage Collection by appending `gc`
