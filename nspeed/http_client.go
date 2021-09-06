@@ -487,6 +487,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 		}
 	}
 	wm.LogFinal(j.Logger)
+	printRouteInfo(j.GetDestination())
 	wm.ResultChan <- wm
 	return nil
 }

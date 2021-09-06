@@ -2,8 +2,11 @@ package nspeed
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strings"
+
+	"github.com/google/gopacket/routing"
 )
 
 // ResolveInterfaceHostAddress returns the IP address(es) of 'host' by
@@ -116,4 +119,38 @@ func FilterAddresses(addrs []net.IPAddr, ipversion int) []net.IPAddr {
 		}
 	}
 	return fipaddrs
+}
+
+// https://engineering.qubecinema.com/2019/05/13/go-routing-package.html
+func determineRouteInterface(serverAddr string) (gateway net.IP, preferredSrc net.IP, err error) {
+	var ip net.IP
+	if ip = net.ParseIP(serverAddr); ip == nil {
+		return nil, nil, fmt.Errorf("error as non-ip target %s is passed", serverAddr)
+	}
+
+	router, err := routing.New()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error %w while creating routing object", err)
+	}
+
+	_, gatewayIP, preferredSrc, err := router.Route(ip)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error %w routing to ip: %s", err, serverAddr)
+	}
+
+	return gatewayIP, preferredSrc, nil
+}
+
+func printRouteInfo(ip string) {
+	h, _, err := net.SplitHostPort(ip)
+	if err != nil {
+		fmt.Printf("error - can't SplitHostPort the result of  %s\n", ip)
+	} else {
+		gw, int, err := determineRouteInterface(h)
+		if err == nil {
+			fmt.Printf("for dest %s - gateway %s - interface %s\n", ip, gw, int)
+		} else {
+			fmt.Printf("error get route : %s\n", err)
+		}
+	}
 }
