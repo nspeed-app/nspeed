@@ -7,7 +7,7 @@ import (
 )
 
 // ResolveInterfaceHostAddress returns the IP address(es) of 'host' by
-// resolving 'host' as, in that order,: interface name, dns name
+// resolving 'host' as, in that order,: interface name, dns name, ip address.
 // if 'host' is a valid interface name, all IPs of that interface are returned, link-local(s) are last in the result
 // if 'host' is a not valid interface, 'host' is treated as a dns name and resolved as such
 func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
@@ -93,6 +93,7 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 }
 
 // FilterAddresses
+// filters a list of IP addresses based on IP version (0 = all or 4 or 6)
 func FilterAddresses(addrs []net.IPAddr, ipversion int) []net.IPAddr {
 	var fipaddrs []net.IPAddr
 
