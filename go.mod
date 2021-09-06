@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/google/gopacket v1.1.19
+	github.com/jackpal/gateway v1.0.7 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/rs/zerolog v1.23.0
 	github.com/shirou/gopsutil v3.21.7+incompatible
