@@ -20,8 +20,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
-var ServerVersion string
-var ServerName string
+var ServerName string = "NSpeed"
 var TLSSelfConfig *tls.Config
 
 // Default configuration values

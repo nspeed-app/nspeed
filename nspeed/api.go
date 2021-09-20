@@ -208,7 +208,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		a, ok := r.URL.Query()["args"]
 
 		if !ok {
-			http.Error(w, "'run' command missing 'args' parameter)", http.StatusBadRequest)
+			http.Error(w, "'run' command missing 'args' parameter", http.StatusBadRequest)
 			return
 		}
 
