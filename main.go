@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"runtime/debug"
 	"runtime/pprof"
 	"strings"
 	"syscall"
@@ -22,6 +21,7 @@ import (
 	_ "embed"
 
 	"nspeed.app/nspeed"
+	"nspeed.app/webview"
 )
 
 // Version can be set at link time to override debug.BuildInfo.Main.Version,
@@ -59,10 +59,12 @@ var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 
 var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 
+var optStatsView = flag.Bool("webstats", false, "enable stats view at http://localhost:18066")
+
 // main
 func main() {
 
-	nspeed.Version = Version
+	Version = nspeed.Version
 
 	flag.CommandLine.Usage = func() {
 		name := "nspeed" //todp
@@ -79,20 +81,6 @@ func main() {
 
 	flag.Parse() // parse global flags
 	nspeed.OptTLSSelf = *optTLSSelf
-
-	// todo: move this elsewhere ? use nspeed pkg version
-	nspeed.ServerVersion = Version
-	nspeed.ServerName = "NSpeed"
-
-	// set version: todo, move this in nspeed package
-	if Version == "" {
-		if buildInfo, ok := debug.ReadBuildInfo(); ok {
-			Version = buildInfo.Main.Version
-		} else {
-			Version = "(unknown)"
-		}
-		nspeed.Version = Version
-	}
 
 	if *optInfo {
 		fmt.Println(string(nspeed.MachineInfoJSON))
@@ -140,6 +128,14 @@ func main() {
 	if len(jobs) == 0 {
 		flag.CommandLine.Usage()
 		return
+	}
+
+	if *optStatsView {
+		mgr := webview.New()
+		go mgr.Start()
+		defer mgr.Stop()
+		fmt.Println(" web stats wiew available at: http://localhost:18066/debug/statsview")
+		fmt.Println(" pprof wiew available at: http://localhost:18066/debug/pprof")
 	}
 
 	if *optCpuprofile != "" {
@@ -268,8 +264,10 @@ mainloop:
 				log.Log().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			}
 		case <-waitChan:
-			log.Warn().Msgf("all jobs ended:")
-			break mainloop
+			log.Warn().Msgf("all jobs ended")
+			if !*optStatsView {
+				break mainloop
+			}
 		}
 	}
 	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())
