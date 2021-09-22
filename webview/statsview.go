@@ -19,11 +19,11 @@ import (
 type ViewManager struct {
 	srv *http.Server
 
-	Smgr        *StatsMgr
-	Ctx         context.Context
-	Cancel      context.CancelFunc
-	Views       []Viewer
-	LegacyViews []viewer.Viewer
+	Smgr      *StatsMgr
+	Ctx       context.Context
+	Cancel    context.CancelFunc
+	Views     []Viewer
+	PerfViews []viewer.Viewer
 }
 
 // Register registers views to the ViewManager
@@ -31,9 +31,9 @@ func (vm *ViewManager) Register(views ...Viewer) {
 	vm.Views = append(vm.Views, views...)
 }
 
-// LegecayRegister registers legacy views to the ViewManager
-func (vm *ViewManager) LegacyRegister(views ...viewer.Viewer) {
-	vm.LegacyViews = append(vm.LegacyViews, views...)
+// PerfRegister registers perf views to the external ViewManager
+func (vm *ViewManager) PerfRegister(views ...viewer.Viewer) {
+	vm.PerfViews = append(vm.PerfViews, views...)
 }
 
 // Start runs a http server and begin to collect metrics
@@ -81,7 +81,7 @@ func New() *ViewManager {
 	}
 	mgr.Ctx, mgr.Cancel = context.WithCancel(context.Background())
 	mgr.Register(NewCPUViewer(), NewNetInterfacesViewer("rx"), NewNetInterfacesViewer("tx"))
-	mgr.LegacyRegister(
+	mgr.PerfRegister(
 		viewer.NewGoroutinesViewer(),
 		viewer.NewHeapViewer(),
 		viewer.NewStackViewer(),
@@ -95,7 +95,7 @@ func New() *ViewManager {
 	for _, v := range mgr.Views {
 		v.SetStatsMgr(smgr)
 	}
-	for _, v := range mgr.LegacyViews {
+	for _, v := range mgr.PerfViews {
 		v.SetStatsMgr(lsmgr)
 	}
 	mux := http.NewServeMux()
@@ -109,7 +109,7 @@ func New() *ViewManager {
 		page.AddCharts(v.View())
 		mux.HandleFunc("/debug/statsview/view/"+v.Name(), v.Serve)
 	}
-	for _, v := range mgr.LegacyViews {
+	for _, v := range mgr.PerfViews {
 		page.AddCharts(v.View())
 		mux.HandleFunc("/debug/statsview/view/"+v.Name(), v.Serve)
 	}

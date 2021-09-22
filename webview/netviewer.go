@@ -18,7 +18,7 @@ const (
 	VNetInterfaces = "Network Interfaces"
 )
 
-// NetInterfacesViewer collects traffic goign thru interfaces
+// NetInterfacesViewer collects network interfaces counters
 type NetInterfacesViewer struct {
 	smgr       *StatsMgr
 	graph      *charts.Line
@@ -37,7 +37,7 @@ func NewNetInterfacesViewer(dir string) Viewer {
 			Name:      dir,
 			AxisLabel: &opts.AxisLabel{Formatter: "{value}"},
 		}),
-		charts.WithLegendOpts(opts.Legend{Show: false}),
+		charts.WithLegendOpts(opts.Legend{Show: true}),
 	)
 	ifaces, err := net.Interfaces()
 	if err != nil {
