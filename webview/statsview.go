@@ -80,7 +80,7 @@ func New() *ViewManager {
 		},
 	}
 	mgr.Ctx, mgr.Cancel = context.WithCancel(context.Background())
-	mgr.Register(NewCPUViewer())
+	mgr.Register(NewCPUViewer(), NewNetInterfacesViewer("rx"), NewNetInterfacesViewer("tx"))
 	mgr.LegacyRegister(
 		viewer.NewGoroutinesViewer(),
 		viewer.NewHeapViewer(),
