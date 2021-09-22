@@ -2,7 +2,7 @@
 ## general
 - using Go 1.17. `nspeed -version` now also displays the Go version used to build the binary.
 - new `-info` flag to display some os/hardware informations.
-
+- new `-webstats` flag to enable a web view for various metrics: cpu, network interfaces and Go debug/pprof values
 ## API
 - new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)
 

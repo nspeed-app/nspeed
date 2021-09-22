@@ -16,6 +16,9 @@ type:
   investigate how `nmcli con show` works
 routing: /proc/net/route and /proc/net/ipv6_route
 
+netlink:
+https://github.com/vishvananda/netlink
+
 #windows
 prereq: powershell
  Get-NetRoute | Where-Object -FilterScript {$_.NextHop -Ne "::"} | Where-Object -FilterScript { $_.NextHop -Ne "0.0.0.0" } | Where-Object -FilterScript { ($_.NextHop.SubString(0,6) -Ne "fe80::") } | Get-NetAdapter
