@@ -33,12 +33,31 @@ type NetInterfacesViewer struct {
 func NewNetInterfacesViewer(dir string) Viewer {
 	graph := newBasicView(VNetInterfaces + dir)
 	graph.SetGlobalOptions(
+		charts.WithToolboxOpts(opts.Toolbox{
+			Show: true,
+			Feature: &opts.ToolBoxFeature{
+				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{
+					Show: true,
+				},
+				DataZoom: &opts.ToolBoxFeatureDataZoom{
+					Show: true,
+				},
+				DataView: &opts.ToolBoxFeatureDataView{
+					Show: true,
+				},
+			},
+		}),
 		charts.WithYAxisOpts(opts.YAxis{
 			Name: dir,
 			//AxisLabel: &opts.AxisLabel{Formatter: "function (value, index) { return formatBytes(value,index,2) }"},
 			AxisLabel: &opts.AxisLabel{Formatter: opts.FuncOpts("function (value, index) { return formatBytes(value,'bps',2) }")},
 		}),
 		charts.WithLegendOpts(opts.Legend{Show: true}),
+		charts.WithTooltipOpts(opts.Tooltip{
+			Show:      true,
+			Trigger:   "axis",
+			Formatter: opts.FuncOpts("function (params) {return formatTooltip(params) }"),
+		}),
 	)
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -48,9 +67,23 @@ func NewNetInterfacesViewer(dir string) Viewer {
 	for _, itf := range ifaces {
 		if itf.Flags&net.FlagUp != 0 {
 			interfaces = append(interfaces, itf.Name)
-			graph.AddSeries(itf.Name, []opts.LineData{})
+			graph.AddSeries(itf.Name,
+				[]opts.LineData{},
+				charts.WithMarkPointNameTypeItemOpts(opts.MarkPointNameTypeItem{Type: "max", Name: "Max"}),
+				// charts.WithMarkLineNameTypeItemOpts(opts.MarkLineNameTypeItem{
+				// 	Name: "Avg",
+				// 	Type: "average",
+				// }),
+				charts.WithMarkPointStyleOpts(opts.MarkPointStyle{
+					Label: &opts.Label{
+						Show:      true,
+						Formatter: opts.FuncOpts("function (params) { console.log(params) ;return formatBytes(params.value,'bps',2) }"),
+					},
+				}),
+			)
 		}
 	}
+
 	return &NetInterfacesViewer{graph: graph, direction: dir, interfaces: interfaces, lastvalues: getNetStats(interfaces, dir), lastread: time.Now()}
 }
 

@@ -125,35 +125,31 @@ func New() *ViewManager {
 		mux.HandleFunc("/debug/statsview/view/"+v.Name(), v.Serve)
 	}
 
-	mux.HandleFunc("/debug/statsview", func(w http.ResponseWriter, _ *http.Request) {
-		page.Render(w)
-	})
-
-	staticsPrev := "/debug/statsview/statics/"
-
+	staticsPath := "/debug/statsview/statics/"
 	fstatic, err := fs.Sub(staticFiles, "statics")
-
 	fs.WalkDir(fstatic, ".", func(path string, d fs.DirEntry, err error) error {
 		fmt.Println(path)
 		return nil
 	})
-
 	if err != nil {
 		panic("statsview: failed to get embeded static filesystem: " + err.Error())
 	}
+	mux.Handle(staticsPath, http.StripPrefix(staticsPath, http.FileServer(http.FS(fstatic))))
 
-	mux.Handle(staticsPrev, http.FileServer(http.FS(fstatic)))
+	mux.HandleFunc("/debug/statsview", func(w http.ResponseWriter, _ *http.Request) {
+		page.Render(w)
+	})
 
 	_, err = http.FS(fstatic).Open("jquery.min.js")
 	if err != nil {
 		panic("statsview: failed to get embeded file: " + err.Error())
 	}
 
-	mux.HandleFunc(staticsPrev+"themes/westeros.js", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc(staticsPath+"themes/westeros.js", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(statics.WesterosJS))
 	})
 
-	mux.HandleFunc(staticsPrev+"themes/macarons.js", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc(staticsPath+"themes/macarons.js", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(statics.MacaronsJS))
 	})
 
