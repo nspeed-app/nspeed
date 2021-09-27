@@ -13,6 +13,4 @@ require (
 	golang.org/x/net v0.0.0-20210903162142-ad29c8ab022f
 	golang.org/x/sys v0.0.0-20210906170528-6f6e22806c34
 	golang.org/x/text v0.3.7 // indirect
-	golang.zx2c4.com/wireguard v0.0.20200321-0.20200607075020-f28a6d244b51 // indirect
-	golang.zx2c4.com/wireguard/windows v0.4.9 // indirect
 )
