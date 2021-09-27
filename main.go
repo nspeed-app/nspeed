@@ -42,7 +42,7 @@ var TLSSelfSignedCA []byte
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
 
-var OptLogOutput = flag.String("log", "", "structured logging output filename (use - for stdout), implied -verbose")
+var optLogOutput = flag.String("log", "", "structured logging output filename (use - for stdout), implied -verbose")
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optDebug = flag.Bool("debug", false, "show more progress & details")
 var optTick = flag.Int("tick", 1, "progress interval in seconds (only used in verbose mode)")
@@ -60,6 +60,8 @@ var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 
 var optStatsView = flag.Bool("webstats", false, "enable stats view at http://localhost:18066")
+
+var optChartOutput = flag.String("filestats", "", "output stats in a html file (use - for stdout)")
 
 // main
 func main() {
@@ -142,6 +144,28 @@ func main() {
 		fmt.Println(" pprof wiew available at: http://localhost:18066/debug/pprof")
 	}
 
+	var chartFile *os.File
+	// stats html charts
+	if *optChartOutput != "" {
+		chartFile = os.Stdout
+		if *optChartOutput != "-" {
+			var err error
+			chartFile, err = os.Create(*optChartOutput)
+			if err != nil {
+				panic("error creating stats file!" + err.Error())
+			}
+		}
+	}
+	if chartFile != nil {
+		mgr := webview.New()
+		go func() {
+			errs <- mgr.Start()
+		}()
+		defer mgr.Stop()
+
+		fmt.Println("stats wiew recording to " + *optChartOutput)
+	}
+
 	if *optCpuprofile != "" {
 		f, err := os.Create(*optCpuprofile)
 		if err != nil {
@@ -187,13 +211,13 @@ func main() {
 	// file output, "-" = stdout or filename
 	// level is always info (for now)
 	// todo : remove 'level'
-	if *OptLogOutput != "" {
+	if *optLogOutput != "" {
 		f := os.Stdout
-		if *OptLogOutput != "-" {
+		if *optLogOutput != "-" {
 			var err error
-			f, err = os.Create(*OptLogOutput)
+			f, err = os.Create(*optLogOutput)
 			if err != nil {
-				panic(err)
+				panic("error creating log file!" + err.Error())
 			}
 		}
 		fileWriter := nspeed.CreateFilteredWriter(zerolog.MultiLevelWriter(f), zerolog.InfoLevel, true)
