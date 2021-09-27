@@ -15,6 +15,7 @@ func localAddresses() {
 		return
 	}
 	for _, i := range ifaces {
+		fmt.Printf("interface %d %s:\n", i.Index, i.Name)
 		addrs, err := i.Addrs()
 		if err != nil {
 			fmt.Printf("localAddresses: %+v\n", err)
@@ -23,10 +24,10 @@ func localAddresses() {
 		for _, a := range addrs {
 			switch v := a.(type) {
 			case *net.IPAddr:
-				fmt.Printf("%v : %s (%s)\n", i.Name, v, v.IP.DefaultMask())
+				fmt.Printf("  %v : %s (%s)\n", "i.Name", v, v.IP.DefaultMask())
 
 			case *net.IPNet:
-				fmt.Printf("%v : %s [%v/%v]\n", i.Name, v, v.IP, v.Mask)
+				fmt.Printf("  %v : %s [%v/%v]\n", i.Name, v, v.IP, v.Mask)
 			}
 
 		}
