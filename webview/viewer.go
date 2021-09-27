@@ -67,7 +67,8 @@ function {{ .ViewID }}_sync() {
             }
         }
     });
-}`
+}
+`
 	DefaultMaxPoints  = 30
 	DefaultTimeFormat = "15:04:05"
 	DefaultInterval   = 2000

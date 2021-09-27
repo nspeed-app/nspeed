@@ -130,10 +130,14 @@ func main() {
 		return
 	}
 
+	errs := make(chan error, 1)
 	if *optStatsView {
 		mgr := webview.New()
-		go mgr.Start()
+		go func() {
+			errs <- mgr.Start()
+		}()
 		defer mgr.Stop()
+
 		fmt.Println(" web stats wiew available at: http://localhost:18066/debug/statsview")
 		fmt.Println(" pprof wiew available at: http://localhost:18066/debug/pprof")
 	}
@@ -263,6 +267,10 @@ mainloop:
 				// we dont log.Info() this to avoid sending it to the file
 				log.Log().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			}
+		case err := <-errs:
+			log.Warn().Err(err).Msgf("error with webview")
+			cancel()
+			break mainloop
 		case <-waitChan:
 			log.Warn().Msgf("all jobs ended")
 			if !*optStatsView {

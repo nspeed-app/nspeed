@@ -2,7 +2,9 @@ package webview
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/http/pprof"
 	"time"
@@ -64,12 +66,16 @@ func init() {
 `
 }
 
+//go:embed statics
+var staticFiles embed.FS
+
 // New creates a new ViewManager instance
 func New() *ViewManager {
 	page := components.NewPage()
 	page.PageTitle = "NSpeed"
 	page.AssetsHost = fmt.Sprintf("http://%s/debug/statsview/statics/", viewer.LinkAddr())
 	page.Assets.JSAssets.Add("jquery.min.js")
+	page.Assets.JSAssets.Add("nspeed.js")
 
 	mgr := &ViewManager{
 		srv: &http.Server{
@@ -80,15 +86,20 @@ func New() *ViewManager {
 		},
 	}
 	mgr.Ctx, mgr.Cancel = context.WithCancel(context.Background())
-	mgr.Register(NewCPUViewer(), NewNetInterfacesViewer("rx"), NewNetInterfacesViewer("tx"))
-	mgr.PerfRegister(
-		viewer.NewGoroutinesViewer(),
-		viewer.NewHeapViewer(),
-		viewer.NewStackViewer(),
-		viewer.NewGCNumViewer(),
-		viewer.NewGCSizeViewer(),
-		viewer.NewGCCPUFractionViewer(),
+	mgr.Register(
+		//NewCPUViewer(),
+		NewNetInterfacesViewer("rx"),
+		//NewNetInterfacesViewer("tx"),
 	)
+	// todo: put these in a new tab
+	// mgr.PerfRegister(
+	// 	viewer.NewGoroutinesViewer(),
+	// 	viewer.NewHeapViewer(),
+	// 	viewer.NewStackViewer(),
+	// 	viewer.NewGCNumViewer(),
+	// 	viewer.NewGCSizeViewer(),
+	// 	viewer.NewGCCPUFractionViewer(),
+	// )
 
 	smgr := NewStatsMgr(mgr.Ctx)
 	lsmgr := viewer.NewStatsMgr(mgr.Ctx)
@@ -119,13 +130,24 @@ func New() *ViewManager {
 	})
 
 	staticsPrev := "/debug/statsview/statics/"
-	mux.HandleFunc(staticsPrev+"echarts.min.js", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte(statics.EchartJS))
+
+	fstatic, err := fs.Sub(staticFiles, "statics")
+
+	fs.WalkDir(fstatic, ".", func(path string, d fs.DirEntry, err error) error {
+		fmt.Println(path)
+		return nil
 	})
 
-	mux.HandleFunc(staticsPrev+"jquery.min.js", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte(statics.JqueryJS))
-	})
+	if err != nil {
+		panic("statsview: failed to get embeded static filesystem: " + err.Error())
+	}
+
+	mux.Handle(staticsPrev, http.FileServer(http.FS(fstatic)))
+
+	_, err = http.FS(fstatic).Open("jquery.min.js")
+	if err != nil {
+		panic("statsview: failed to get embeded file: " + err.Error())
+	}
 
 	mux.HandleFunc(staticsPrev+"themes/westeros.js", func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(statics.WesterosJS))

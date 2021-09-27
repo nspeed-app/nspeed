@@ -34,8 +34,9 @@ func NewNetInterfacesViewer(dir string) Viewer {
 	graph := newBasicView(VNetInterfaces + dir)
 	graph.SetGlobalOptions(
 		charts.WithYAxisOpts(opts.YAxis{
-			Name:      dir,
-			AxisLabel: &opts.AxisLabel{Formatter: "{value}"},
+			Name: dir,
+			//AxisLabel: &opts.AxisLabel{Formatter: "function (value, index) { return formatBytes(value,index,2) }"},
+			AxisLabel: &opts.AxisLabel{Formatter: opts.FuncOpts("function (value, index) { return formatBytes(value,'bps',2) }")},
 		}),
 		charts.WithLegendOpts(opts.Legend{Show: true}),
 	)
