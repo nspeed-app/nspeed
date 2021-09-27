@@ -18,6 +18,11 @@ const (
 	VNetInterfaces = "Network Interfaces"
 )
 
+var ChartNames = map[string]string{
+	"rx": "download",
+	"tx": "upload",
+}
+
 // NetInterfacesViewer collects network interfaces counters
 type NetInterfacesViewer struct {
 	smgr       *StatsMgr
@@ -48,7 +53,7 @@ func NewNetInterfacesViewer(dir string) Viewer {
 			},
 		}),
 		charts.WithYAxisOpts(opts.YAxis{
-			Name: dir,
+			Name: ChartNames[dir],
 			//AxisLabel: &opts.AxisLabel{Formatter: "function (value, index) { return formatBytes(value,index,2) }"},
 			AxisLabel: &opts.AxisLabel{Formatter: opts.FuncOpts("function (value, index) { return formatBytes(value,'bps',2) }")},
 		}),

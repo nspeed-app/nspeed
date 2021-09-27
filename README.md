@@ -101,10 +101,13 @@ Source code with be released before v1.0
 ## Acknowledgement
 - Vivien Guéant & everyone at [lafibre.info](https://lafibre.info) for spawning the ideas and their feedback and testing.
 - Vivien Guéant & [L'ARCEP][arcep] for the ['2020 Open Internet' publication][rapport]
+
 - Artyom Pervukhin ( https://github.com/artyom ) for hints
 - Will McCutchen ( https://github.com/mccutchen ) for go-httpbin
 - Francesc Campoy for the [JustForFunc series](https://www.youtube.com/c/JustForFunc/videos)
 - Joe Shaw for [Abusing go:linkname to customize TLS 1.3 cipher suites](https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/)
+
+- [Apache Echarts](https://echarts.apache.org/en/index.html)
 
 [arcep]: https://arcep.fr/
 [rapport]: https://en.arcep.fr/news/press-releases/view/n/internet-ouvert.html

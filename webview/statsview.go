@@ -87,9 +87,9 @@ func New() *ViewManager {
 	}
 	mgr.Ctx, mgr.Cancel = context.WithCancel(context.Background())
 	mgr.Register(
-		//NewCPUViewer(),
 		NewNetInterfacesViewer("rx"),
-		//NewNetInterfacesViewer("tx"),
+		NewNetInterfacesViewer("tx"),
+		NewCPUViewer(),
 	)
 	// todo: put these in a new tab
 	// mgr.PerfRegister(
