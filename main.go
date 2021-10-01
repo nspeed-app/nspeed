@@ -45,7 +45,7 @@ var optMemprofile = flag.String("memprofile", "", "write memory profile to file"
 var optLogOutput = flag.String("log", "", "structured logging output filename (use - for stdout), implied -verbose")
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optDebug = flag.Bool("debug", false, "show more progress & details")
-var optTick = flag.Int("tick", 1, "progress interval in seconds (only used in verbose mode)")
+var optTick = flag.Int("tick", 1, "sampling/progress interval in seconds (used for -debug, -cpu and webstats and filestats)")
 var optCPU = flag.Bool("cpu", false, "display cpu usage")
 
 var optColor = flag.Bool("color", false, "use colors")

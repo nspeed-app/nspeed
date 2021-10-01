@@ -349,8 +349,8 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
 
 		fs.Usage = func() {
-			fmt.Fprintf(fs.Output(), "Usage of %s: ", apiCommand)
-			fmt.Fprintf(fs.Output(), "  %s\n", apiCommand)
+			fmt.Fprintf(fs.Output(), "Usage of %s: ", nopeCommand)
+			fmt.Fprintf(fs.Output(), "  %s\n", nopeCommand)
 			fmt.Fprintf(fs.Output(), "\nno option\n")
 			fs.PrintDefaults()
 			fmt.Fprintf(fs.Output(), "\n")
@@ -359,7 +359,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			return args, nil, err
 		}
 		args = fs.Args()
-		j := Nope{}
+		j := NopeJob{}
 		return args, &j, nil
 
 	case apiCommand:

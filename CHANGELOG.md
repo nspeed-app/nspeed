@@ -1,11 +1,12 @@
 # v0.10
 ## general
 - using Go 1.17. `nspeed -version` now also displays the Go version used to build the binary.
-- new `-info` flag to display some os/hardware informations.
-- new `-webstats` flag to enable a web view for various metrics: cpu, network interfaces and Go debug/pprof values
-- new `nope` command. does nothing and wait forever (use ctrl-c to stop). Main usage is to wait forever after some commands so that webstats remains active.
 - new `-pre duration` option: wait `duration` before starting command(s)
 - new `-post duration` option: wait `duration` after all commands have ended
+- new `-info` flag to display some os/hardware informations.
+- new `-webstats` flag to enable a web view for various metrics: cpu & network interfaces and Go debug/pprof values when (with -debug)
+- new `-filestats filename` flag to record a web view to a html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
+- new `nope` command. does nothing and wait forever (use ctrl-c to stop). Main usage is to wait forever after some commands so that webstats remains active.
 
 ## API
 - new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)

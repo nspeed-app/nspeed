@@ -5,35 +5,35 @@ import (
 )
 
 // implements the "nope" command which doesn't nothing and wait for ever
-type Nope struct {
+type NopeJob struct {
 }
 
-func (j *Nope) GetTarget() string {
+func (j *NopeJob) GetTarget() string {
 	return "Nope"
 }
 
-func (j *Nope) Expand(jobs []Job, group int) []Job {
+func (j *NopeJob) Expand(jobs []Job, group int) []Job {
 	return append(jobs, j)
 }
 
-func (j *Nope) GoString() string {
+func (j *NopeJob) GoString() string {
 	return "Nope"
 }
 
-func (j *Nope) PrintString(verbose bool) string {
+func (j *NopeJob) PrintString(verbose bool) string {
 	return "Nope"
 }
 
-func (j *Nope) IsInfinite() bool {
+func (j *NopeJob) IsInfinite() bool {
 	return true
 }
 
-func (s *Nope) Init(wm *Metrics) error {
+func (s *NopeJob) Init(wm *Metrics) error {
 	return nil
 }
 
 // just wait for the context
-func (s *Nope) Run(ctx context.Context) error {
+func (s *NopeJob) Run(ctx context.Context) error {
 	<-ctx.Done()
 	return nil
 }

@@ -75,16 +75,16 @@ CPU:
  -data: procinfo
  -series: time,core num, %(0-100)
  HTTP GET/PUT:
- -data : target (url, method, final ip, connections info, tls/crypto)
- -series: time,read, write, duration
+ -data : target (url, group, method, final ip, connections info, tls/crypto)
+ -series: time, read, write, duration
 HTTP SERVER:
  -data : request (url, method, remote ip, connections info, tls/crypto)
- -series: time,read, write, duration
+ -series: time, read, write, duration
  LATENCY:
  -data : target
- -series: time, latency
-
+ -series: time, latency (ms)
 */
+
 // Writer - performance sensitive, don't do much here
 func (wm *Metrics) Write(p []byte) (int, error) {
 	n := len(p)
