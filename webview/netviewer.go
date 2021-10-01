@@ -35,8 +35,8 @@ type NetInterfacesViewer struct {
 
 // NewNetInterfacesViewer returns the NetInterfacesViewer instance
 // Series: net interfaces
-func NewNetInterfacesViewer(dir string) Viewer {
-	graph := newBasicView(VNetInterfaces + dir)
+func NewNetInterfacesViewer(tick time.Duration, dir string) Viewer {
+	graph := newBasicView(tick, VNetInterfaces+dir)
 	graph.SetGlobalOptions(
 		charts.WithToolboxOpts(opts.Toolbox{
 			Show: true,

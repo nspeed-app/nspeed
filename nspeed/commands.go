@@ -18,6 +18,7 @@ const putCommand = "put"
 const serveCommand = "server"
 const ciphersCommand = "ciphers"
 const apiCommand = "api"
+const nopeCommand = "nope"
 
 // const latencyCommand = "latency"
 // const tracerouteCommand = "traceroute"
@@ -40,7 +41,8 @@ var Commands = map[string]Command{
 	ciphersCommand: {ciphersCommand, 0, false},
 	// latencyCommand:    {latencyCommand, 1, true},
 	// tracerouteCommand: {tracerouteCommand, 2, true},
-	apiCommand: {apiCommand, 1, false},
+	nopeCommand: {nopeCommand, 1, false},
+	apiCommand:  {apiCommand, 1, false},
 }
 
 var CommandDescriptions = map[string]string{
@@ -50,7 +52,8 @@ var CommandDescriptions = map[string]string{
 	ciphersCommand: "list cipher suites supported by the target server(s)",
 	// latencyCommand:    "measure latency to destination (not yet implemented)",
 	// tracerouteCommand: "discover route to destination (not yet implemented)",
-	apiCommand: "enable an API endpoint",
+	nopeCommand: "do nothing and wait forever",
+	apiCommand:  "enable an API endpoint",
 }
 
 // global flags
@@ -342,6 +345,23 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		j.Target = args[0]
 		args = args[1:]
 		return args, &j, nil
+	case nopeCommand:
+		fs := flag.NewFlagSet(command, flag.ContinueOnError)
+
+		fs.Usage = func() {
+			fmt.Fprintf(fs.Output(), "Usage of %s: ", apiCommand)
+			fmt.Fprintf(fs.Output(), "  %s\n", apiCommand)
+			fmt.Fprintf(fs.Output(), "\nno option\n")
+			fs.PrintDefaults()
+			fmt.Fprintf(fs.Output(), "\n")
+		}
+		if err := fs.Parse(args); err != nil {
+			return args, nil, err
+		}
+		args = fs.Args()
+		j := Nope{}
+		return args, &j, nil
+
 	case apiCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
 		host := NewHostParameters()

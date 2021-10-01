@@ -177,40 +177,23 @@ type Viewer interface {
 
 type StatsMgr struct {
 	last   int64
+	tick   time.Duration
 	Ctx    context.Context
 	Cancel context.CancelFunc
 }
 
-func NewStatsMgr(ctx context.Context) *StatsMgr {
-	s := &StatsMgr{}
+func NewStatsMgr(ctx context.Context, tick time.Duration) *StatsMgr {
+	s := &StatsMgr{tick: tick}
 	s.Ctx, s.Cancel = context.WithCancel(ctx)
-	//go s.polling()
 
 	return s
 }
 
 func (s *StatsMgr) Tick() {
-	s.last = time.Now().Unix() + int64(float64(Interval())/1000.0)*2
+	s.last = time.Now().Unix() + int64(float64(Interval())/1000.0)*int64(s.tick)
 }
 
-// func (s *StatsMgr) polling() {
-// 	// ticker := time.NewTicker(time.Duration(Interval()) * time.Millisecond)
-// 	// defer ticker.Stop()
-
-// 	for {
-// 		select {
-// 		// case <-ticker.C:
-// 		// if s.last > time.Now().Unix() {
-// 		// 	runtime.ReadMemStats(memstats.Stats)
-// 		// 	memstats.T = time.Now().Format(defaultCfg.TimeFormat)
-// 		// }
-// 		case <-s.Ctx.Done():
-// 			return
-// 		}
-// 	}
-// }
-
-func genViewTemplate(vid, route string) string {
+func genViewTemplate(tick time.Duration, vid, route string) string {
 	tpl, err := template.New("view").Parse(defaultCfg.Template)
 	if err != nil {
 		panic("statsview: failed to parse template " + err.Error())
@@ -223,7 +206,7 @@ func genViewTemplate(vid, route string) string {
 		Route     string
 		ViewID    string
 	}{
-		Interval:  defaultCfg.Interval,
+		Interval:  int(tick.Milliseconds()),
 		MaxPoints: defaultCfg.MaxPoints,
 		Addr:      defaultCfg.LinkAddr,
 		Route:     route,
@@ -249,19 +232,19 @@ func fixedPrecision(n float64, p int) float64 {
 	return r
 }
 
-func newBasicView(route string) *charts.Line {
+func newBasicView(tick time.Duration, route string) *charts.Line {
 	graph := charts.NewLine()
 	graph.SetGlobalOptions(
 		charts.WithLegendOpts(opts.Legend{Show: true}),
 		charts.WithTooltipOpts(opts.Tooltip{Show: true, Trigger: "axis"}),
 		charts.WithXAxisOpts(opts.XAxis{Name: "Time"}),
 		charts.WithInitializationOpts(opts.Initialization{
-			Width:  "600px",
+			Width:  "800px",
 			Height: "400px",
 			Theme:  string(defaultCfg.Theme),
 		}),
 	)
 	graph.SetXAxis([]string{}).SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{Smooth: true}))
-	graph.AddJSFuncs(genViewTemplate(graph.ChartID, route))
+	graph.AddJSFuncs(genViewTemplate(tick, graph.ChartID, route))
 	return graph
 }

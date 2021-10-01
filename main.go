@@ -61,7 +61,10 @@ var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 
 var optStatsView = flag.Bool("webstats", false, "enable stats view at http://localhost:18066")
 
-var optChartOutput = flag.String("filestats", "", "output stats in a html file (use - for stdout)")
+var optStatsFile = flag.String("filestats", "", "output stats in a html file (use - for stdout)")
+
+var optPreDelay = flag.Duration("pre", 0, "duration to wait before starting commands")
+var optPostDelay = flag.Duration("post", 0, "duration to wait after all commands ended")
 
 // main
 func main() {
@@ -130,40 +133,6 @@ func main() {
 	if len(jobs) == 0 {
 		flag.CommandLine.Usage()
 		return
-	}
-
-	errs := make(chan error, 1)
-	if *optStatsView {
-		mgr := webview.New()
-		go func() {
-			errs <- mgr.Start()
-		}()
-		defer mgr.Stop()
-
-		fmt.Println(" web stats wiew available at: http://localhost:18066/debug/statsview")
-		fmt.Println(" pprof wiew available at: http://localhost:18066/debug/pprof")
-	}
-
-	var chartFile *os.File
-	// stats html charts
-	if *optChartOutput != "" {
-		chartFile = os.Stdout
-		if *optChartOutput != "-" {
-			var err error
-			chartFile, err = os.Create(*optChartOutput)
-			if err != nil {
-				panic("error creating stats file!" + err.Error())
-			}
-		}
-	}
-	if chartFile != nil {
-		mgr := webview.New()
-		go func() {
-			errs <- mgr.Start()
-		}()
-		defer mgr.Stop()
-
-		fmt.Println("stats wiew recording to " + *optChartOutput)
 	}
 
 	if *optCpuprofile != "" {
@@ -248,10 +217,50 @@ func main() {
 	// - wait for all workers to have ended or timeout'ed
 	// - handle ctrl-c & errors
 
+	errs := make(chan error, 1)
+
+	if *optStatsView {
+		mgr := webview.NewViewManager(time.Duration(nspeed.GlobalOptions.ProgressInterval)*time.Second, *optDebug)
+		defer mgr.Stop()
+		go func() {
+			errs <- mgr.Start()
+		}()
+	}
+
+	// file charting:
+	if *optStatsFile != "" {
+		//		mgr, err := webview.NewFileViewManager(*optCpuprofile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		// add 2 seconds before  and 2 seconds after unless pre/post flags are set
+		if *optPreDelay == 0 {
+			*optPreDelay = 2 * time.Second
+		}
+		if *optPostDelay == 0 {
+			*optPostDelay = 2 * time.Second
+		}
+		// launch the manager
+		// go func() {
+		// 	errs <- mgr.Start(ctx)
+		// }()
+	}
+
 	progressCPUChannel := make(<-chan time.Time) // forever
 	if *optCPU {
 		progressCPUTicker := time.NewTicker(time.Duration(*optTick) * time.Second) // todo: pass value
 		progressCPUChannel = progressCPUTicker.C
+	}
+
+	// pre delay
+	if *optPreDelay != 0 {
+		log.Warn().Msgf("pre-delay started - sleeping %s", *optPreDelay)
+		select {
+		case <-ctx.Done():
+		case <-time.After(*optPreDelay):
+		}
+		log.Warn().Msgf("pre-delay ended")
 	}
 
 	rc := 0
@@ -303,9 +312,22 @@ mainloop:
 		}
 	}
 	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())
-	log.Debug().Msg("sleeping one second")
-	time.Sleep(1 * time.Second)
-	/////////////////
+
+	// pre delay
+	if *optPostDelay != 0 && ctx.Err() == nil {
+		log.Warn().Msgf("post-delay started - sleeping %s", *optPostDelay)
+		select {
+		case <-time.After(*optPostDelay):
+		case sig := <-shutdownCh:
+			log.Warn().Msgf("global shutdown started by signal: %s", sig)
+			cancel()
+		}
+		log.Warn().Msgf("pre-delay ended")
+	}
+
+	if *optPostDelay != 0 && ctx.Err() != nil {
+		log.Debug().Msgf("post-delay skipped because ctx.Err = %s", ctx.Err())
+	}
 
 	// main speed report
 	var elapsedTime time.Duration = 0

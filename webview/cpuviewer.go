@@ -25,8 +25,8 @@ type CPUViewer struct {
 
 // NewCPUViewer returns the CPUViewer instance
 // Series: CPUCores
-func NewCPUViewer() Viewer {
-	graph := newBasicView(VCPU)
+func NewCPUViewer(tick time.Duration) Viewer {
+	graph := newBasicView(tick, VCPU)
 	graph.SetGlobalOptions(
 		charts.WithYAxisOpts(opts.YAxis{
 			Name:        "Load",

@@ -19,7 +19,8 @@ import (
 
 // ViewManager
 type ViewManager struct {
-	srv *http.Server
+	srv  *http.Server
+	tick time.Duration
 
 	Smgr      *StatsMgr
 	Ctx       context.Context
@@ -40,6 +41,8 @@ func (vm *ViewManager) PerfRegister(views ...viewer.Viewer) {
 
 // Start runs a http server and begin to collect metrics
 func (vm *ViewManager) Start() error {
+	fmt.Println(" web stats wiew available at: " + vm.srv.Addr) //http://localhost:18066/debug/statsview")
+	fmt.Println(" pprof wiew available at: " + vm.srv.Addr)     //localhost:18066/debug/pprof")
 	return vm.srv.ListenAndServe()
 }
 
@@ -70,7 +73,7 @@ func init() {
 var staticFiles embed.FS
 
 // New creates a new ViewManager instance
-func New() *ViewManager {
+func NewViewManager(tick time.Duration, debug bool) *ViewManager {
 	page := components.NewPage()
 	page.PageTitle = "NSpeed"
 	page.AssetsHost = fmt.Sprintf("http://%s/debug/statsview/statics/", viewer.LinkAddr())
@@ -84,24 +87,25 @@ func New() *ViewManager {
 			WriteTimeout:   time.Minute,
 			MaxHeaderBytes: 1 << 20,
 		},
+		tick: tick,
 	}
 	mgr.Ctx, mgr.Cancel = context.WithCancel(context.Background())
 	mgr.Register(
-		NewNetInterfacesViewer("rx"),
-		NewNetInterfacesViewer("tx"),
-		NewCPUViewer(),
+		NewNetInterfacesViewer(tick, "rx"),
+		NewNetInterfacesViewer(tick, "tx"),
+		NewCPUViewer(tick),
 	)
-	// todo: put these in a new tab
-	// mgr.PerfRegister(
-	// 	viewer.NewGoroutinesViewer(),
-	// 	viewer.NewHeapViewer(),
-	// 	viewer.NewStackViewer(),
-	// 	viewer.NewGCNumViewer(),
-	// 	viewer.NewGCSizeViewer(),
-	// 	viewer.NewGCCPUFractionViewer(),
-	// )
-
-	smgr := NewStatsMgr(mgr.Ctx)
+	if debug {
+		mgr.PerfRegister(
+			viewer.NewGoroutinesViewer(),
+			viewer.NewHeapViewer(),
+			viewer.NewStackViewer(),
+			viewer.NewGCNumViewer(),
+			viewer.NewGCSizeViewer(),
+			viewer.NewGCCPUFractionViewer(),
+		)
+	}
+	smgr := NewStatsMgr(mgr.Ctx, tick)
 	lsmgr := viewer.NewStatsMgr(mgr.Ctx)
 	for _, v := range mgr.Views {
 		v.SetStatsMgr(smgr)
