@@ -41,8 +41,8 @@ func (vm *ViewManager) PerfRegister(views ...viewer.Viewer) {
 
 // Start runs a http server and begin to collect metrics
 func (vm *ViewManager) Start() error {
-	fmt.Println(" web stats wiew available at: " + vm.srv.Addr) //http://localhost:18066/debug/statsview")
-	fmt.Println(" pprof wiew available at: " + vm.srv.Addr)     //localhost:18066/debug/pprof")
+	fmt.Printf("web stats wiew available at: http://%s/debug/statsview\n", vm.srv.Addr) //http://localhost:18066/debug/statsview")
+	fmt.Printf("pprof wiew available at: http://%s/debug/pprof\n", vm.srv.Addr)         //localhost:18066/debug/pprof")
 	return vm.srv.ListenAndServe()
 }
 
