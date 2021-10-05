@@ -1,11 +1,17 @@
 package webview
 
+import (
+	"fmt"
+	"net"
+	"os"
+)
+
 // return rx/tx counters for interfaces - Linux version
-func GetNetStats(interfaces []string, dir string) []float64 {
+func GetNetStats(interfaces []net.Interface, dir string) []float64 {
 	var values []float64
 	for _, itf := range interfaces {
 		var value int
-		file, err := os.Open(fmt.Sprintf("/sys/class/net/%s/statistics/%s_bytes", itf, dir))
+		file, err := os.Open(fmt.Sprintf("/sys/class/net/%s/statistics/%s_bytes", itf.Name, dir))
 		if err != nil {
 			value = -1
 		} else {
