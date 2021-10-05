@@ -2,6 +2,7 @@ package webview
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
 )
+
+var ErrNotImplementedError = errors.New("not implemented yet")
 
 const (
 	//

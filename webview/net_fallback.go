@@ -1,12 +1,13 @@
 //go:build !linux && !windows
-// +build !linux,!windows
 
 package webview
 
-import "net"
+import (
+	"net"
+)
 
 func HasNetStats() error {
-	return common.ErrNotImplementedError
+	return ErrNotImplementedError
 }
 
 func GetNetStats(interfaces []net.Interface, dir string) []float64 {
