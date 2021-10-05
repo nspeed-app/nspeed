@@ -5,10 +5,10 @@ package webview
 
 import "net"
 
-func HasNetStats() {
+func HasNetStats() error {
 	return common.ErrNotImplementedError
 }
 
 func GetNetStats(interfaces []net.Interface, dir string) []float64 {
-	return []
+	return make([]float64, len(interfaces))
 }
