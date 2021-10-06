@@ -7,7 +7,7 @@ import (
 )
 
 func HasNetStats() error {
-	return ErrNotImplementedError
+	return ErrNotImplemented
 }
 
 func GetNetStats(interfaces []net.Interface, dir string) []float64 {

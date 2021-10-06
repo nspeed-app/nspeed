@@ -6,6 +6,10 @@ import (
 	"os"
 )
 
+func HasNetStats() error {
+	return nil
+}
+
 // return rx/tx counters for interfaces - Linux version
 func GetNetStats(interfaces []net.Interface, dir string) []float64 {
 	var values []float64

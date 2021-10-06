@@ -6,6 +6,10 @@ import (
 	"golang.zx2c4.com/wireguard/windows/tunnel/winipcfg"
 )
 
+func HasNetStats() error {
+	return nil
+}
+
 type MibIfEntryLevel = winipcfg.MibIfEntryLevel
 type MibIfRow2 = winipcfg.MibIfRow2
 
