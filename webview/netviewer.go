@@ -30,6 +30,7 @@ type NetInterfacesViewer struct {
 	smgr       *StatsMgr
 	graph      *charts.Line
 	direction  string
+	name       string
 	interfaces []net.Interface
 	lastvalues []float64
 	lastread   time.Time
@@ -37,8 +38,8 @@ type NetInterfacesViewer struct {
 
 // NewNetInterfacesViewer returns the NetInterfacesViewer instance
 // Series: net interfaces
-func NewNetInterfacesViewer(tick time.Duration, dir string) Viewer {
-	graph := newBasicView(tick, VNetInterfaces+dir)
+func NewNetInterfacesViewer(tick time.Duration, dir string, path string) Viewer {
+	graph := newBasicView(tick, VNetInterfaces+dir, path)
 	graph.SetGlobalOptions(
 		charts.WithToolboxOpts(opts.Toolbox{
 			Show: true,
@@ -91,7 +92,14 @@ func NewNetInterfacesViewer(tick time.Duration, dir string) Viewer {
 		}
 	}
 
-	return &NetInterfacesViewer{graph: graph, direction: dir, interfaces: interfaces, lastvalues: GetNetStats(interfaces, dir), lastread: time.Now()}
+	return &NetInterfacesViewer{
+		graph:      graph,
+		direction:  dir,
+		name:       VNetInterfaces + dir,
+		interfaces: interfaces,
+		lastvalues: GetNetStats(interfaces, dir),
+		lastread:   time.Now(),
+	}
 }
 
 func (vr *NetInterfacesViewer) SetStatsMgr(smgr *StatsMgr) {
@@ -99,7 +107,7 @@ func (vr *NetInterfacesViewer) SetStatsMgr(smgr *StatsMgr) {
 }
 
 func (vr *NetInterfacesViewer) Name() string {
-	return VNetInterfaces + vr.direction
+	return vr.name
 }
 
 func (vr *NetInterfacesViewer) View() *charts.Line {
@@ -111,8 +119,9 @@ func (vr *NetInterfacesViewer) Serve(w http.ResponseWriter, _ *http.Request) {
 
 	now := time.Now()
 	values := GetNetStats(vr.interfaces, vr.direction)
+	elapsed := float64(now.Sub(vr.lastread).Milliseconds())
 	for idx, value := range values {
-		values[idx] = (value - vr.lastvalues[idx]) * 8 / now.Sub(vr.lastread).Seconds() // convert to bits then to bps
+		values[idx] = (value - vr.lastvalues[idx]) * 8.0 * 1000.0 / elapsed // convert to bits then to bps (using millisecs precision)
 		vr.lastvalues[idx] = value
 	}
 	vr.lastread = now

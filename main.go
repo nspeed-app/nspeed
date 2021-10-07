@@ -59,7 +59,7 @@ var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 
 var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 
-var optStatsView = flag.Bool("webstats", false, "enable stats view at http://localhost:18066")
+var optStatsView = flag.Bool("webstats", false, "enable stats live webview")
 
 var optStatsFile = flag.String("filestats", "", "output stats in a html file (use - for stdout)")
 
@@ -220,7 +220,7 @@ func main() {
 	errs := make(chan error, 1)
 
 	if *optStatsView {
-		mgr := webview.NewViewManager(time.Duration(nspeed.GlobalOptions.ProgressInterval)*time.Second, *optDebug)
+		mgr := webview.NewViewManager(time.Duration(nspeed.GlobalOptions.ProgressInterval)*time.Second, "/rt", *optDebug)
 		defer mgr.Stop()
 		go func() {
 			errs <- mgr.Start()

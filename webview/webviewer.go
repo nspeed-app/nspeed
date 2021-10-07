@@ -7,11 +7,13 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/pprof"
+	"reflect"
+	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/templates"
-	"github.com/rs/cors"
 
 	"github.com/go-echarts/statsview/statics"
 	"github.com/go-echarts/statsview/viewer"
@@ -19,8 +21,10 @@ import (
 
 // ViewManager
 type ViewManager struct {
-	srv  *http.Server
-	tick time.Duration
+	srv   *http.Server
+	path  string
+	tick  time.Duration
+	debug bool
 
 	Smgr      *StatsMgr
 	Ctx       context.Context
@@ -41,8 +45,10 @@ func (vm *ViewManager) PerfRegister(views ...viewer.Viewer) {
 
 // Start runs a http server and begin to collect metrics
 func (vm *ViewManager) Start() error {
-	fmt.Printf("web stats wiew available at: http://%s/debug/statsview\n", vm.srv.Addr) //http://localhost:18066/debug/statsview")
-	fmt.Printf("pprof wiew available at: http://%s/debug/pprof\n", vm.srv.Addr)         //localhost:18066/debug/pprof")
+	fmt.Printf("web stats wiew available at: http://%s/%s\n", vm.srv.Addr, vm.path) //http://localhost:18066/statsview")
+	if vm.debug {
+		fmt.Printf("pprof wiew available at: http://%s/debug/pprof\n", vm.srv.Addr) //localhost:18066/debug/pprof")
+	}
 	return vm.srv.ListenAndServe()
 }
 
@@ -73,10 +79,14 @@ func init() {
 var staticFiles embed.FS
 
 // New creates a new ViewManager instance
-func NewViewManager(tick time.Duration, debug bool) *ViewManager {
+func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
+
+	path = strings.TrimSuffix(path, "/")
+	path = strings.TrimPrefix(path, "/")
+
 	page := components.NewPage()
-	page.PageTitle = "NSpeed"
-	page.AssetsHost = fmt.Sprintf("http://%s/debug/statsview/statics/", viewer.LinkAddr())
+	page.PageTitle = "NSpeed Webview"
+	page.AssetsHost = fmt.Sprintf("http://%s/%s/statics/", viewer.LinkAddr(), path)
 	page.Assets.JSAssets.Add("jquery.min.js")
 	page.Assets.JSAssets.Add("nspeed.js")
 
@@ -87,13 +97,20 @@ func NewViewManager(tick time.Duration, debug bool) *ViewManager {
 			WriteTimeout:   time.Minute,
 			MaxHeaderBytes: 1 << 20,
 		},
-		tick: tick,
+		tick:  tick,
+		path:  path,
+		debug: debug,
 	}
 	mgr.Ctx, mgr.Cancel = context.WithCancel(context.Background())
+	//todo : may be add a message  if no support
+	if HasNetStats() == nil {
+		mgr.Register(
+			NewNetInterfacesViewer(tick, "tx", mgr.path),
+			NewNetInterfacesViewer(tick, "rx", mgr.path),
+		)
+	}
 	mgr.Register(
-		NewNetInterfacesViewer(tick, "rx"),
-		NewNetInterfacesViewer(tick, "tx"),
-		NewCPUViewer(tick),
+		NewCPUViewer(tick, mgr.path),
 	)
 	if debug {
 		mgr.PerfRegister(
@@ -105,42 +122,47 @@ func NewViewManager(tick time.Duration, debug bool) *ViewManager {
 			viewer.NewGCCPUFractionViewer(),
 		)
 	}
+	mux := http.NewServeMux()
+
 	smgr := NewStatsMgr(mgr.Ctx, tick)
-	lsmgr := viewer.NewStatsMgr(mgr.Ctx)
 	for _, v := range mgr.Views {
 		v.SetStatsMgr(smgr)
 	}
-	for _, v := range mgr.PerfViews {
-		v.SetStatsMgr(lsmgr)
+	if debug {
+		lsmgr := viewer.NewStatsMgr(mgr.Ctx)
+		for _, v := range mgr.PerfViews {
+			v.SetStatsMgr(lsmgr)
+		}
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-
 	for _, v := range mgr.Views {
 		page.AddCharts(v.View())
-		mux.HandleFunc("/debug/statsview/view/"+v.Name(), v.Serve)
+		fmt.Println("registering:" + v.Name())
+		mux.HandleFunc("/"+path+"/"+v.Name(), v.Serve)
 	}
-	for _, v := range mgr.PerfViews {
-		page.AddCharts(v.View())
-		mux.HandleFunc("/debug/statsview/view/"+v.Name(), v.Serve)
+	if debug {
+		for _, v := range mgr.PerfViews {
+			page.AddCharts(v.View())
+			mux.HandleFunc("/"+path+v.Name(), v.Serve)
+		}
 	}
 
-	staticsPath := "/debug/statsview/statics/"
+	staticsPath := "/" + path + "/statics/"
 	fstatic, err := fs.Sub(staticFiles, "statics")
-	fs.WalkDir(fstatic, ".", func(path string, d fs.DirEntry, err error) error {
-		fmt.Println(path)
-		return nil
-	})
+	// fs.WalkDir(fstatic, ".", func(path string, d fs.DirEntry, err error) error {
+	// 	fmt.Println(path)
+	// 	return nil
+	// })
 	if err != nil {
 		panic("statsview: failed to get embeded static filesystem: " + err.Error())
 	}
 	mux.Handle(staticsPath, http.StripPrefix(staticsPath, http.FileServer(http.FS(fstatic))))
 
-	mux.HandleFunc("/debug/statsview", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/"+path, func(w http.ResponseWriter, r *http.Request) {
 		page.Render(w)
 	})
 
@@ -157,6 +179,10 @@ func NewViewManager(tick time.Duration, debug bool) *ViewManager {
 		w.Write([]byte(statics.MacaronsJS))
 	})
 
-	mgr.srv.Handler = cors.AllowAll().Handler(mux)
+	mgr.srv.Handler = mux //cors.AllowAll().Handler(mux)
+
+	v := reflect.ValueOf(mux).Elem()
+	spew.Dump(v.FieldByName("m").MapKeys())
+
 	return mgr
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"text/template"
 	"time"
@@ -43,7 +44,7 @@ $(function () { setInterval({{ .ViewID }}_sync, {{ .Interval }}); });
 function {{ .ViewID }}_sync() {
     $.ajax({
         type: "GET",
-        url: "http://{{ .Addr }}/debug/statsview/view/{{ .Route }}",
+        url: "http://{{ .Addr }}/{{ .Route }}",
         dataType: "json",
         success: function (result) {
             let opt = goecharts_{{ .ViewID }}.getOption();
@@ -193,7 +194,7 @@ func (s *StatsMgr) Tick() {
 	s.last = time.Now().Unix() + int64(float64(Interval())/1000.0)*int64(s.tick)
 }
 
-func genViewTemplate(tick time.Duration, vid, route string) string {
+func genViewTemplate(tick time.Duration, vid, route string, path string) string {
 	tpl, err := template.New("view").Parse(defaultCfg.Template)
 	if err != nil {
 		panic("statsview: failed to parse template " + err.Error())
@@ -204,12 +205,13 @@ func genViewTemplate(tick time.Duration, vid, route string) string {
 		MaxPoints int
 		Addr      string
 		Route     string
+		Path      string
 		ViewID    string
 	}{
 		Interval:  int(tick.Milliseconds()),
 		MaxPoints: defaultCfg.MaxPoints,
 		Addr:      defaultCfg.LinkAddr,
-		Route:     route,
+		Route:     url.PathEscape(path + "/" + route),
 		ViewID:    vid,
 	}
 
@@ -232,7 +234,7 @@ func fixedPrecision(n float64, p int) float64 {
 	return r
 }
 
-func newBasicView(tick time.Duration, route string) *charts.Line {
+func newBasicView(tick time.Duration, route string, path string) *charts.Line {
 	graph := charts.NewLine()
 	graph.SetGlobalOptions(
 		charts.WithLegendOpts(opts.Legend{Show: true}),
@@ -245,6 +247,6 @@ func newBasicView(tick time.Duration, route string) *charts.Line {
 		}),
 	)
 	graph.SetXAxis([]string{}).SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{Smooth: true}))
-	graph.AddJSFuncs(genViewTemplate(tick, graph.ChartID, route))
+	graph.AddJSFuncs(genViewTemplate(tick, graph.ChartID, route, path))
 	return graph
 }
