@@ -11,7 +11,6 @@ import (
 	"runtime/pprof"
 	"strings"
 	"syscall"
-	"text/tabwriter"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -61,7 +60,8 @@ var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 
 var optStatsView = flag.Bool("webstats", false, "enable stats live webview")
 
-var optStatsFile = flag.String("filestats", "", "output stats in a html file (use - for stdout)")
+var optHTMLReport = flag.String("html", "", "output stats in a html file (use - for stdout)")
+var optTextReport = flag.String("text", "-", "output stats as text (use - for stdout)")
 
 var optPreDelay = flag.Duration("pre", 0, "duration to wait before starting commands")
 var optPostDelay = flag.Duration("post", 0, "duration to wait after all commands ended")
@@ -72,7 +72,7 @@ func main() {
 	Version = nspeed.Version
 
 	flag.CommandLine.Usage = func() {
-		name := "nspeed" //todp
+		name := "nspeed" //todo
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s [global options] <command> ... <command>\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "Available commands:\n")
@@ -181,18 +181,25 @@ func main() {
 	// level is always info (for now)
 	// todo : remove 'level'
 	if *optLogOutput != "" {
-		f := os.Stdout
-		if *optLogOutput != "-" {
-			var err error
-			f, err = os.Create(*optLogOutput)
-			if err != nil {
-				panic("error creating log file!" + err.Error())
-			}
+		f, err := nspeed.FileCreate(*optLogOutput)
+		if err != nil {
+			panic("error creating log file!" + err.Error())
 		}
 		fileWriter := nspeed.CreateFilteredWriter(zerolog.MultiLevelWriter(f), zerolog.InfoLevel, true)
 		log.Logger = log.Output(zerolog.MultiLevelWriter(fileWriter, consoleWriter))
 	} else {
 		log.Logger = log.Output(consoleWriter)
+	}
+
+	// html report: by default, add delays before & after
+	if *optHTMLReport != "" {
+		// add 2 seconds before  and 2 seconds after unless pre/post flags are set
+		if *optPreDelay == 0 {
+			*optPreDelay = 2 * time.Second
+		}
+		if *optPostDelay == 0 {
+			*optPostDelay = 2 * time.Second
+		}
 	}
 
 	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
@@ -225,26 +232,6 @@ func main() {
 		go func() {
 			errs <- mgr.Start()
 		}()
-	}
-
-	// file charting:
-	if *optStatsFile != "" {
-		//		mgr, err := webview.NewFileViewManager(*optCpuprofile)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		// add 2 seconds before  and 2 seconds after unless pre/post flags are set
-		if *optPreDelay == 0 {
-			*optPreDelay = 2 * time.Second
-		}
-		if *optPostDelay == 0 {
-			*optPostDelay = 2 * time.Second
-		}
-		// launch the manager
-		// go func() {
-		// 	errs <- mgr.Start(ctx)
-		// }()
 	}
 
 	progressCPUChannel := make(<-chan time.Time) // forever
@@ -329,31 +316,20 @@ mainloop:
 		log.Debug().Msgf("post-delay skipped because ctx.Err = %s", ctx.Err())
 	}
 
-	// main speed report
-	var elapsedTime time.Duration = 0
-	var totalRead int64 = 0
-	var totalWrite int64 = 0
-
-	w := tabwriter.NewWriter(os.Stderr, 0, 2, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
-	nspeed.InitSpeedReport(w)
-	for _, wm := range wcWorkers {
-		if wm.Valid {
-			totalRead += wm.TotalRead
-			totalWrite += wm.TotalWrite
-			if wm.ElapsedTime > elapsedTime {
-				elapsedTime = wm.ElapsedTime
-			}
-			nspeed.SpeedReport(w, fmt.Sprintf("Job %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(consoleLevel <= zerolog.InfoLevel))
-		} else {
-			log.Warn().Err(wm.Error).Msgf("job %d ended", wm.Index)
+	// text report:
+	if *optTextReport != "" {
+		f, err := nspeed.FileCreate(*optTextReport)
+		if err != nil {
+			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
+		nspeed.GenerateTextReport(f, wcWorkers, consoleLevel <= zerolog.InfoLevel)
 	}
-	if totalRead == 0 && totalWrite == 0 {
-		fmt.Println("no metrics to report")
-	} else {
-		nspeed.SpeedReport(w, "Total", elapsedTime, totalRead, totalWrite, "")
-		w.Flush()
+
+	// html report:
+	if *optHTMLReport != "" {
+		// todo: generate report
 	}
+
 	// todo: defer this block
 	if *optMemprofile != "" {
 		f, err := os.Create(*optMemprofile)

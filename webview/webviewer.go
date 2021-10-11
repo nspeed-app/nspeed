@@ -7,11 +7,9 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/pprof"
-	"reflect"
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/templates"
 	"github.com/rs/cors"
@@ -80,7 +78,7 @@ func init() {
 var staticFiles embed.FS
 
 // New creates a new ViewManager instance
-func NewViewManager(srv *http.Server, tick time.Duration, path string, debug bool) *ViewManager {
+func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
 
 	path = strings.TrimSuffix(path, "/")
 	path = strings.TrimPrefix(path, "/")
@@ -92,13 +90,12 @@ func NewViewManager(srv *http.Server, tick time.Duration, path string, debug boo
 	page.Assets.JSAssets.Add("nspeed.js")
 
 	mgr := &ViewManager{
-		srv: srv,
-		// &http.Server{
-		// 	Addr:           viewer.Addr(),
-		// 	ReadTimeout:    time.Minute,
-		// 	WriteTimeout:   time.Minute,
-		// 	MaxHeaderBytes: 1 << 20,
-		// },
+		srv: &http.Server{
+			Addr:           viewer.Addr(),
+			ReadTimeout:    time.Minute,
+			WriteTimeout:   time.Minute,
+			MaxHeaderBytes: 1 << 20,
+		},
 		tick:  tick,
 		path:  path,
 		debug: debug,
@@ -124,14 +121,9 @@ func NewViewManager(srv *http.Server, tick time.Duration, path string, debug boo
 			viewer.NewGCCPUFractionViewer(),
 		)
 	}
-	mux, ok := srv.Handler.(*http.ServeMux)
-	if !ok {
-		panic("can't mux this server!")
-	}
-	if mux == nil {
-		mux = http.NewServeMux()
-		srv.Handler = mux
-	}
+
+	mux := http.NewServeMux()
+	mgr.srv.Handler = mux
 
 	smgr := NewStatsMgr(mgr.Ctx, tick)
 	for _, v := range mgr.Views {
@@ -190,8 +182,8 @@ func NewViewManager(srv *http.Server, tick time.Duration, path string, debug boo
 
 	mgr.srv.Handler = cors.AllowAll().Handler(mux)
 
-	v := reflect.ValueOf(mux).Elem()
-	spew.Dump(v.FieldByName("m").MapKeys())
+	// v := reflect.ValueOf(mux).Elem()
+	// spew.Dump(v.FieldByName("m").MapKeys())
 
 	return mgr
 }

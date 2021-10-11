@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type Job interface {
@@ -239,10 +240,10 @@ func (wm *Metrics) Read(p []byte) (n int, err error) {
 	return int(todo), nil
 }
 
-func InitSpeedReport(w *tabwriter.Writer) {
+func initSpeedReport(w *tabwriter.Writer) {
 	fmt.Fprintf(w, "Job\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\tcommand\n")
 }
-func SpeedReport(w *tabwriter.Writer, job string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
+func speedReport(w *tabwriter.Writer, job string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
 	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
 		job,
 		FormatBitperSecond(elapsedTime.Seconds(), totalRead),
@@ -251,4 +252,33 @@ func SpeedReport(w *tabwriter.Writer, job string, elapsedTime time.Duration, tot
 		ByteCountDecimal(totalRead),
 		ByteCountDecimal(totalWrite),
 		target))
+}
+
+// generate a tabular formatted text report
+func GenerateTextReport(out io.Writer, wcWorkers []*Metrics, verbose bool) {
+	// main speed report - todo: refactor in a function
+	var elapsedTime time.Duration = 0
+	var totalRead int64 = 0
+	var totalWrite int64 = 0
+
+	w := tabwriter.NewWriter(out, 0, 2, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
+	initSpeedReport(w)
+	for _, wm := range wcWorkers {
+		if wm.Valid {
+			totalRead += wm.TotalRead
+			totalWrite += wm.TotalWrite
+			if wm.ElapsedTime > elapsedTime {
+				elapsedTime = wm.ElapsedTime
+			}
+			speedReport(w, fmt.Sprintf("Job %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose))
+		} else {
+			log.Warn().Err(wm.Error).Msgf("job %d ended", wm.Index)
+		}
+	}
+	if totalRead == 0 && totalWrite == 0 {
+		fmt.Println("no metrics to report")
+	} else {
+		speedReport(w, "Total", elapsedTime, totalRead, totalWrite, "")
+		w.Flush()
+	}
 }
