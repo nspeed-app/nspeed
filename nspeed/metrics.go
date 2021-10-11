@@ -70,7 +70,12 @@ type Metrics struct {
 	Error               error
 }
 
-// normalized metrics
+type baseMetric struct {
+	Timestamp time.Time
+	Values    []float64
+}
+
+// serialized metrics
 /*
 CPU:
  -data: procinfo
@@ -281,4 +286,8 @@ func GenerateTextReport(out io.Writer, wcWorkers []*Metrics, verbose bool) {
 		speedReport(w, "Total", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
 	}
+}
+
+func GenerateHTMLReport(out io.Writer, wcWorkers []*Metrics) {
+	//todo
 }
