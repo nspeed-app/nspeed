@@ -20,7 +20,6 @@ import (
 	_ "embed"
 
 	"nspeed.app/nspeed"
-	"nspeed.app/webview"
 )
 
 // Version can be set at link time to override debug.BuildInfo.Main.Version,
@@ -57,8 +56,6 @@ var optTimeout = flag.Uint("timeout", 0, "default timeout in seconds, 0 for no t
 var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 
 var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
-
-var optStatsView = flag.Bool("webstats", false, "enable stats live webview")
 
 var optHTMLReport = flag.String("html", "", "output stats in a html file (use - for stdout)")
 var optTextReport = flag.String("text", "-", "output stats as text (use - for stdout)")
@@ -226,14 +223,6 @@ func main() {
 
 	errs := make(chan error, 1)
 
-	if *optStatsView {
-		mgr := webview.NewViewManager(time.Duration(nspeed.GlobalOptions.ProgressInterval)*time.Second, "/rt", *optDebug)
-		defer mgr.Stop()
-		go func() {
-			errs <- mgr.Start()
-		}()
-	}
-
 	progressCPUChannel := make(<-chan time.Time) // forever
 	if *optCPU {
 		progressCPUTicker := time.NewTicker(time.Duration(*optTick) * time.Second) // todo: pass value
@@ -293,9 +282,6 @@ mainloop:
 			break mainloop
 		case <-waitChan:
 			log.Warn().Msgf("all jobs ended")
-			if !*optStatsView {
-				break mainloop
-			}
 		}
 	}
 	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())

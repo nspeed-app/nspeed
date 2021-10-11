@@ -4,13 +4,13 @@
 - new `-pre duration` option: wait `duration` before starting command(s)
 - new `-post duration` option: wait `duration` after all commands have ended
 - new `-info` flag to display some os/hardware informations.
-- new `-webstats` flag to enable a web view for various metrics: cpu & network interfaces and Go debug/pprof values when (with -debug)
-- new `-text filename` flag to report the results to a text file (use `-` for stdout which is the default)
-- new `-html filename` flag to record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
-- new `nope` command. does nothing and wait forever (use ctrl-c to stop). Main usage is to wait forever after some commands so that webstats remains active.
+- new `-text filename` flag: report the results to a text file (use `-` for stdout which is the default)
+- new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
+- new `nope` command: does nothing and wait forever (use ctrl-c to stop). Main usage is to wait forever after some commands so that webstats remains active.
 
 ## API
 - new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)
+- new flags: `-stats`, `-statsonly` and `-statsdebug`. Enable real time stats view at `/rl` url path. 'only' disable all other api routes. 'debug' adds Go specifics stats at url path: `/debug/pprof`
 
 # ciphers
 - updated for Go 1.17 internal changes

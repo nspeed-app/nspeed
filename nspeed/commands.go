@@ -365,6 +365,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 	case apiCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
 		host := NewHostParameters()
+		j := APIHost{Parameters: host}
 
 		fs.Usage = func() {
 			fmt.Fprintf(fs.Output(), "Usage of %s: ", apiCommand)
@@ -373,6 +374,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			fs.PrintDefaults()
 			fmt.Fprintf(fs.Output(), "\n")
 		}
+
 		fs.StringVar(&host.Host, "a", "localhost", "Hostname or ip address to listen (use \"\" for all interfaces/all addresses)")
 		//flag.Lookup("address").NoOptDefVal = ""
 		useIPv4 := fs.Bool("4", false, "use IPv4 only")
@@ -381,9 +383,16 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
 		fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
 		fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
+		fs.BoolVar(&j.WebStats, "stats", false, "enable web stats at /rt url")
+		fs.BoolVar(&j.WebStatsOnly, "statsonly", false, "enable web stats only (implies -stats)")
+		fs.BoolVar(&j.WebStatsDebug, "statsdebug", false, "enable web stats debug (url is /debug/pprof/, GO specifics info, implies -stats)")
 
 		if err := fs.Parse(args); err != nil {
 			return args, nil, err
+		}
+
+		if j.WebStatsOnly || j.WebStatsDebug {
+			j.WebStats = true
 		}
 
 		// force IPv4 or IPv6
@@ -399,7 +408,6 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		}
 
 		args = fs.Args()
-		j := APIHost{Parameters: host}
 		return args, &j, nil
 	// case latencyCommand, tracerouteCommand:
 	// 	return args, nil, errors.New("not yet implemented")

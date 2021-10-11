@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/templates"
-	"github.com/rs/cors"
 
 	"github.com/go-echarts/statsview/statics"
 	"github.com/go-echarts/statsview/viewer"
@@ -20,10 +19,11 @@ import (
 
 // ViewManager
 type ViewManager struct {
-	srv   *http.Server
+	//srv   *http.Server
 	path  string
 	tick  time.Duration
 	debug bool
+	page  *components.Page
 
 	Smgr      *StatsMgr
 	Ctx       context.Context
@@ -42,22 +42,22 @@ func (vm *ViewManager) PerfRegister(views ...viewer.Viewer) {
 	vm.PerfViews = append(vm.PerfViews, views...)
 }
 
-// Start runs a http server and begin to collect metrics
-func (vm *ViewManager) Start() error {
-	fmt.Printf("web stats wiew available at: http://%s/%s\n", vm.srv.Addr, vm.path) //http://localhost:18066/statsview")
-	if vm.debug {
-		fmt.Printf("pprof wiew available at: http://%s/debug/pprof\n", vm.srv.Addr) //localhost:18066/debug/pprof")
-	}
-	return vm.srv.ListenAndServe()
-}
+// // Start runs a http server and begin to collect metrics
+// func (vm *ViewManager) Start() error {
+// 	fmt.Printf("web stats wiew available at: http://%s/%s\n", vm.srv.Addr, vm.path) //http://localhost:18066/statsview")
+// 	if vm.debug {
+// 		fmt.Printf("pprof wiew available at: http://%s/debug/pprof\n", vm.srv.Addr) //localhost:18066/debug/pprof")
+// 	}
+// 	return vm.srv.ListenAndServe()
+// }
 
-// Stop shutdown the http server gracefully
-func (vm *ViewManager) Stop() {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	vm.srv.Shutdown(ctx)
-	vm.Cancel()
-}
+// // Stop shutdown the http server gracefully
+// func (vm *ViewManager) Stop() {
+// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+// 	defer cancel()
+// 	vm.srv.Shutdown(ctx)
+// 	vm.Cancel()
+// }
 
 func init() {
 	templates.PageTpl = `
@@ -85,20 +85,21 @@ func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
 
 	page := components.NewPage()
 	page.PageTitle = "NSpeed Webview"
-	page.AssetsHost = fmt.Sprintf("http://%s/%s/statics/", viewer.LinkAddr(), path)
+	page.AssetsHost = fmt.Sprintf("/%s/statics/", path)
 	page.Assets.JSAssets.Add("jquery.min.js")
 	page.Assets.JSAssets.Add("nspeed.js")
 
 	mgr := &ViewManager{
-		srv: &http.Server{
-			Addr:           viewer.Addr(),
-			ReadTimeout:    time.Minute,
-			WriteTimeout:   time.Minute,
-			MaxHeaderBytes: 1 << 20,
-		},
+		// srv: &http.Server{
+		// 	Addr:           viewer.Addr(),
+		// 	ReadTimeout:    time.Minute,
+		// 	WriteTimeout:   time.Minute,
+		// 	MaxHeaderBytes: 1 << 20,
+		// },
 		tick:  tick,
 		path:  path,
 		debug: debug,
+		page:  page,
 	}
 	mgr.Ctx, mgr.Cancel = context.WithCancel(context.Background())
 	//todo : may be add a message  if no support
@@ -121,10 +122,6 @@ func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
 			viewer.NewGCCPUFractionViewer(),
 		)
 	}
-
-	mux := http.NewServeMux()
-	mgr.srv.Handler = mux
-
 	smgr := NewStatsMgr(mgr.Ctx, tick)
 	for _, v := range mgr.Views {
 		v.SetStatsMgr(smgr)
@@ -134,25 +131,45 @@ func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
 		for _, v := range mgr.PerfViews {
 			v.SetStatsMgr(lsmgr)
 		}
+	}
+
+	for _, v := range mgr.Views {
+		page.AddCharts(v.View())
+	}
+	if debug {
+		for _, v := range mgr.PerfViews {
+			page.AddCharts(v.View())
+		}
+	}
+
+	return mgr
+}
+
+func (vm *ViewManager) RegisterRoutes(mux *http.ServeMux) {
+
+	if mux == nil {
+		panic("internal error: nil mux!")
+	}
+
+	if vm.debug {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
-	for _, v := range mgr.Views {
-		page.AddCharts(v.View())
-		fmt.Println("registering:" + v.Name())
-		mux.HandleFunc("/"+path+"/"+v.Name(), v.Serve)
+	for _, v := range vm.Views {
+		//fmt.Println("registering:" + v.Name())
+		mux.HandleFunc("/"+vm.path+"/"+v.Name(), v.Serve)
 	}
-	if debug {
-		for _, v := range mgr.PerfViews {
-			page.AddCharts(v.View())
-			mux.HandleFunc("/"+path+v.Name(), v.Serve)
+	if vm.debug {
+		for _, v := range vm.PerfViews {
+			//fmt.Println("registering:" + v.Name())
+			mux.HandleFunc("/"+vm.path+v.Name(), v.Serve)
 		}
 	}
 
-	staticsPath := "/" + path + "/statics/"
+	staticsPath := "/" + vm.path + "/statics/"
 	fstatic, err := fs.Sub(staticFiles, "statics")
 	// fs.WalkDir(fstatic, ".", func(path string, d fs.DirEntry, err error) error {
 	// 	fmt.Println(path)
@@ -163,8 +180,8 @@ func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
 	}
 	mux.Handle(staticsPath, http.StripPrefix(staticsPath, http.FileServer(http.FS(fstatic))))
 
-	mux.HandleFunc("/"+path, func(w http.ResponseWriter, r *http.Request) {
-		page.Render(w)
+	mux.HandleFunc("/"+vm.path, func(w http.ResponseWriter, r *http.Request) {
+		vm.page.Render(w)
 	})
 
 	_, err = http.FS(fstatic).Open("jquery.min.js")
@@ -180,10 +197,5 @@ func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
 		w.Write([]byte(statics.MacaronsJS))
 	})
 
-	mgr.srv.Handler = cors.AllowAll().Handler(mux)
-
-	// v := reflect.ValueOf(mux).Elem()
-	// spew.Dump(v.FieldByName("m").MapKeys())
-
-	return mgr
+	// -> cors.AllowAll().Handler(mux)
 }

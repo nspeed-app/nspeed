@@ -44,7 +44,7 @@ $(function () { setInterval({{ .ViewID }}_sync, {{ .Interval }}); });
 function {{ .ViewID }}_sync() {
     $.ajax({
         type: "GET",
-        url: "http://{{ .Addr }}/{{ .Route }}",
+        url: "{{ .Route }}",
         dataType: "json",
         success: function (result) {
             let opt = goecharts_{{ .ViewID }}.getOption();
@@ -203,14 +203,14 @@ func genViewTemplate(tick time.Duration, vid, route string, path string) string 
 	var c = struct {
 		Interval  int
 		MaxPoints int
-		Addr      string
+		Url       string
 		Route     string
 		Path      string
 		ViewID    string
 	}{
 		Interval:  int(tick.Milliseconds()),
 		MaxPoints: defaultCfg.MaxPoints,
-		Addr:      defaultCfg.LinkAddr,
+		Url:       defaultCfg.LinkAddr,
 		Route:     url.PathEscape(path + "/" + route),
 		ViewID:    vid,
 	}
