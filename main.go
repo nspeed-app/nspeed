@@ -272,7 +272,7 @@ mainloop:
 			break mainloop
 		case <-progressCPUChannel:
 			if *optCPU {
-				cpuload := nspeed.GetCPULoad(*optColor)
+				cpuload := nspeed.GetCPULoad(0, *optColor)
 				// we dont log.Info() this to avoid sending it to the file
 				log.Log().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			}

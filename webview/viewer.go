@@ -3,10 +3,8 @@ package webview
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"text/template"
 	"time"
 
@@ -223,16 +221,16 @@ func genViewTemplate(tick time.Duration, vid, route string, path string) string 
 	return buf.String()
 }
 
-func fixedPrecision(n float64, p int) float64 {
-	var r float64
-	switch p {
-	case 2:
-		r, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", n), 64)
-	case 6:
-		r, _ = strconv.ParseFloat(fmt.Sprintf("%.6f", n), 64)
-	}
-	return r
-}
+// func fixedPrecision(n float64, p int) float64 {
+// 	var r float64
+// 	switch p {
+// 	case 2:
+// 		r, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", n), 64)
+// 	case 6:
+// 		r, _ = strconv.ParseFloat(fmt.Sprintf("%.6f", n), 64)
+// 	}
+// 	return r
+// }
 
 func newBasicView(tick time.Duration, route string, path string) *charts.Line {
 	graph := charts.NewLine()

@@ -70,11 +70,6 @@ type Metrics struct {
 	Error               error
 }
 
-type baseMetric struct {
-	Timestamp time.Time
-	Values    []float64
-}
-
 // serialized metrics
 /*
 CPU:
