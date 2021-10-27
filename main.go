@@ -92,6 +92,8 @@ func main() {
 	if *optVersion {
 		fmt.Printf("NSpeed version: %s\n", Version)
 		fmt.Printf("Go version: %s\n", runtime.Version())
+		fmt.Printf("OS Version: %s\n", runtime.GOOS)
+		fmt.Printf("Arch Version: %s\n", runtime.GOARCH)
 		return
 	}
 
@@ -272,7 +274,10 @@ mainloop:
 			break mainloop
 		case <-progressCPUChannel:
 			if *optCPU {
-				cpuload := nspeed.GetCPULoad(0, *optColor)
+				cpuload, err := nspeed.GetCPULoad(0, *optColor)
+				if err != nil {
+					log.Log().Err(err).Msgf("failed to get cpu load")
+				}
 				// we dont log.Info() this to avoid sending it to the file
 				log.Log().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
 			}
