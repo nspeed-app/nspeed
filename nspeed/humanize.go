@@ -73,7 +73,7 @@ func ParseByteUnits(s string) (uint64, error) {
 			unit = uint64(1024)
 		}
 		for x := 0; x <= i; x++ {
-			m = m * unit
+			m *= unit
 		}
 	}
 	val, err := strconv.ParseFloat(s, 64)
