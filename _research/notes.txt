@@ -34,6 +34,8 @@ build
 
 go build -ldflags "-X main.Version=$(git describe --tags)"
 
+remove debug stuff:
+go build -ldflags "-s -w" -v -o output main.go
 
 # to read
 https://blog.cloudflare.com/how-to-achieve-low-latency/
