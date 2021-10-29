@@ -10,7 +10,7 @@
 - switch to psutil v3
 ## API
 - new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)
-- new flags: `-stats`, `-statsonly` and `-statsdebug`. Enable real time stats view at `/rl` url path. 'only' disable all other api routes. 'debug' adds Go specifics stats at url path: `/debug/pprof`
+- new flags: `-stats`, `-statsonly` and `-statsdebug`. Enable real time stats view at `/rl` url path. `statsonly` disable all other api routes. `statsdebug` adds Go runtime specifics stats at url path: `/debug/pprof`
 
 # ciphers
 - updated for Go 1.17 internal changes

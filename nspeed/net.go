@@ -6,9 +6,38 @@ import (
 	"strings"
 )
 
+// ResolveHostAddress resolves host as a dns name or an ip address
+// works with ipv6%zone link-local address
+func ResolveHostAddress(host string) ([]net.IPAddr, error) {
+	var ipaddrs []net.IPAddr
+
+	// special case, "ipv6%zone"
+	hi := strings.SplitN(host, "%", 2)
+	if len(hi) == 2 {
+		ip := net.ParseIP(hi[0])
+		if ip == nil {
+			return nil, errors.New("bad IP format")
+		}
+		return append(ipaddrs, net.IPAddr{IP: ip, Zone: hi[1]}), nil
+	}
+
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return nil, err
+	}
+	for _, ip := range ips {
+		if ip == nil {
+			continue
+		}
+		ipaddr := net.IPAddr{IP: ip}
+		ipaddrs = append(ipaddrs, ipaddr)
+	}
+	return ipaddrs, nil
+}
+
 // ResolveInterfaceHostAddress returns the IP address(es) of 'host' by
 // resolving 'host' as, in that order,: interface name, dns name, ip address.
-// if 'host' is a valid interface name, all IPs of that interface are returned, link-local(s) are last in the result
+// if 'host' is a valid interface name, all IPs of that interface are returned, ipv6 link-local(s) are always last in the result
 // if 'host' is a not valid interface, 'host' is treated as a dns name and resolved as such
 func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 
@@ -16,33 +45,10 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 
 	// this is not a valid interface name, do dns
 	if err != nil {
-		var ipaddrs []net.IPAddr
-
-		// special case, "ipv6%zone"
-		hi := strings.SplitN(host, "%", 2)
-		if len(hi) == 2 {
-			ip := net.ParseIP(hi[0])
-			if ip == nil {
-				return nil, errors.New("bad IP format")
-			}
-			return append(ipaddrs, net.IPAddr{IP: ip, Zone: hi[1]}), nil
-		}
-
-		ips, err := net.LookupIP(host)
-		if err != nil {
-			return nil, err
-		}
-		for _, ip := range ips {
-			if ip == nil {
-				continue
-			}
-			ipaddr := net.IPAddr{IP: ip}
-			ipaddrs = append(ipaddrs, ipaddr)
-		}
-		return ipaddrs, nil
+		return ResolveHostAddress(host)
 	}
 
-	// host is a valid interface name
+	// fails if  interface is not up
 	if itf.Flags&net.FlagUp == 0 {
 		return nil, errors.New("interface is down: " + itf.Name)
 	}

@@ -287,6 +287,7 @@ mainloop:
 			break mainloop
 		case <-waitChan:
 			log.Warn().Msgf("all jobs ended")
+			break mainloop
 		}
 	}
 	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())

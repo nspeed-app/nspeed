@@ -26,16 +26,10 @@ const colorRed = "\033[31m"
 const colorGreen = "\033[32m"
 const colorYellow = "\033[33m"
 
-// todo: get cpu values from a unique goroutine/Once
-func GetCPULoad(interval time.Duration, colorize bool) (string, error) {
+func FormatCPULoad(pcts []float64, colorize bool) string {
 	red, green, yellow, reset := colorRed, colorGreen, colorYellow, colorReset
 	if !colorize {
 		red, green, yellow, reset = "", "", "", ""
-	}
-
-	pcts, err := cpu.Percent(interval, true)
-	if err != nil {
-		return "", err
 	}
 
 	cpuload := "|"
@@ -50,5 +44,14 @@ func GetCPULoad(interval time.Duration, colorize bool) (string, error) {
 		}
 		cpuload += fmt.Sprintf("%s%3v%s|", color, v, reset)
 	}
-	return cpuload, nil
+	return cpuload
+}
+
+// todo: get cpu values from a unique goroutine/Once
+func GetCPULoad(interval time.Duration, colorize bool) (string, error) {
+	pcts, err := cpu.Percent(interval, true)
+	if err != nil {
+		return "", err
+	}
+	return FormatCPULoad(pcts, colorize), nil
 }
