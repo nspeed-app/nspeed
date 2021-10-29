@@ -8,14 +8,14 @@ before:
     - go generate ./...
 builds:
   - env:
-      - CGO_ENABLED=1
-      - CC=o64-clang
-      - CXX=o64-clang++
+      - CGO_ENABLED=0
     goos:
-      - darwin
-    ignore:
-      - goos: darwin
-        goarch: arm64      
+      - linux
+      - windows
+    flags:
+      - -mod=readonly
+    ldflags:
+      - -s -w -X main.version={{.Version}}
 archives:
   - replacements:
       darwin: Darwin
