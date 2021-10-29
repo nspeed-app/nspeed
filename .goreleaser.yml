@@ -12,10 +12,11 @@ builds:
     goos:
       - linux
       - windows
-    flags:
-      - -mod=readonly
     ldflags:
       - -s -w -X main.version={{.Version}}
+    ignore:
+      - goos: windows
+        goarch: arm64
 archives:
   - replacements:
       darwin: Darwin
