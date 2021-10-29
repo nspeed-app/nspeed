@@ -139,7 +139,7 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err)
 		}
-		pprof.StartCPUProfile(f)
+		_ = pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
 
@@ -247,7 +247,7 @@ func main() {
 	// RunJobs async
 	go func() {
 		// defer wg.Done()
-		var err error = nil
+		var err error
 		wcWorkers, err = nspeed.RunJobs(jobs, nspeed.GlobalOptions, ctx, func(wms []*nspeed.Metrics) {
 			wcWorkers = wms
 			if consoleLevel == zerolog.DebugLevel {

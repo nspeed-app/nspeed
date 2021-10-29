@@ -92,7 +92,7 @@ func (s *APIHost) Run(ctx context.Context) error {
 }
 
 func (h *APIHost) apiHelpHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write(APIDocumentation)
+	_, _ = w.Write(APIDocumentation)
 }
 
 func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
@@ -179,7 +179,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 						return
 					}
 				}
-				json.NewEncoder(w).Encode(replyMap)
+				_ = json.NewEncoder(w).Encode(replyMap)
 				return
 			}
 		}
@@ -196,7 +196,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 				MemStats.LoadStats()
 				jw := json.NewEncoder(w)
 				jw.SetIndent("", "  ")
-				jw.Encode(MemStats)
+				_ = jw.Encode(MemStats)
 				return
 			}
 			// stats/mem/#field#

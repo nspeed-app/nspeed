@@ -181,7 +181,7 @@ func (vm *ViewManager) RegisterRoutes(mux *http.ServeMux) {
 	mux.Handle(staticsPath, http.StripPrefix(staticsPath, http.FileServer(http.FS(fstatic))))
 
 	mux.HandleFunc("/"+vm.path, func(w http.ResponseWriter, r *http.Request) {
-		vm.page.Render(w)
+		_ = vm.page.Render(w)
 	})
 
 	_, err = http.FS(fstatic).Open("jquery.min.js")
@@ -190,11 +190,11 @@ func (vm *ViewManager) RegisterRoutes(mux *http.ServeMux) {
 	}
 
 	mux.HandleFunc(staticsPath+"themes/westeros.js", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte(statics.WesterosJS))
+		_, _ = w.Write([]byte(statics.WesterosJS))
 	})
 
 	mux.HandleFunc(staticsPath+"themes/macarons.js", func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte(statics.MacaronsJS))
+		_, _ = w.Write([]byte(statics.MacaronsJS))
 	})
 
 	// -> cors.AllowAll().Handler(mux)

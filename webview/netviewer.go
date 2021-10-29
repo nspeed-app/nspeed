@@ -130,5 +130,5 @@ func (vr *NetInterfacesViewer) Serve(w http.ResponseWriter, _ *http.Request) {
 		Time:   time.Now().Format(defaultCfg.TimeFormat),
 	}
 	bs, _ := json.Marshal(metrics)
-	w.Write(bs)
+	_, _ = w.Write(bs)
 }
