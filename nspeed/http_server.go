@@ -203,10 +203,7 @@ func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	//http.NotFound(w, r)
 }
 
-// mostly from https://github.com/mccutchen/go-httpbin
-// handleBytes consolidates the logic for validating input params of the Bytes
-// and StreamBytes endpoints and knows how to write the response in chunks if
-// streaming is true.
+// StreamBytes sends 'size' bytes using streaming (io level streaming not HTTP level).
 func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size string, extension string) {
 
 	n, err := ParseByteUnits(size)
@@ -286,7 +283,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	wm.FirstResponseByte = wm.TransfertStartTime
 	wm.ContentWriteSize = numBytes //todo: investigate what happens when timed out
 	f := w.(http.Flusher)
-	// send the buffer as many times as needed
+	// send the buffer as many times as needed --> todo: why don't we io.copy to a wm like the client ?
 	var numChunk = numBytes / chunkSize
 	wm.StepSize = chunkSize
 	for i := int64(0); i < numChunk; i++ {

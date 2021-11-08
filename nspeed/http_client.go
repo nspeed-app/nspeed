@@ -325,9 +325,9 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 		GotFirstResponseByte: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			wm.FirstResponseByte = time.Now()
-			j.tr.responseStart = wm.FirstResponseByte
-			wm.Logger.Debug().Msgf("GotFirstResponseByte: %v", wm.FirstResponseByte.Sub(refdate))
+			j.tr.responseStart = time.Now()
+			wm.FirstResponseByte = j.tr.responseStart // todo: does this belong here ?
+			wm.Logger.Debug().Msgf("GotFirstResponseByte: %v", j.tr.responseStart.Sub(refdate))
 		},
 
 		TLSHandshakeStart: func() {
@@ -413,7 +413,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	} else if err != nil {
 		wm.Error = err
 		j.Logger.Info().Err(err).Send()
-		// todo : get body for more info ()
+		// todo: get body for more info ()
 	}
 
 	// completed or expired (timeout)

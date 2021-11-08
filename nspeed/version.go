@@ -7,7 +7,7 @@ var Version string = ""
 var ServerVersion string = ""
 
 func init() {
-	// set version: todo, move this in nspeed package
+	// set version: todo: move this in nspeed package
 	if Version == "" {
 		if buildInfo, ok := debug.ReadBuildInfo(); ok {
 			Version = buildInfo.Main.Version

@@ -79,7 +79,6 @@ func ParseByteUnits(s string) (uint64, error) {
 	val, err := strconv.ParseFloat(s, 64)
 	if err == nil {
 		if val < 0.0 {
-			fmt.Println("NEG")
 			return 0, strconv.ErrSyntax
 		}
 		return uint64(float64(m) * val), err

@@ -274,5 +274,5 @@ func GenerateTextReport(out io.Writer, wcWorkers []*Metrics, verbose bool) {
 }
 
 func GenerateHTMLReport(out io.Writer, wcWorkers []*Metrics) {
-	//todo
+	//todo:
 }
