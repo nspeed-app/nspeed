@@ -2,10 +2,8 @@ package nspeed
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
-	"net/http/httptrace"
 	"sync"
 	"text/tabwriter"
 	"time"
@@ -37,36 +35,27 @@ func ExpandJobs(jobs []Job) []Job {
 // this needs heavy refactoring
 // & check openmetrics suff
 type Metrics struct {
-	Index               int
-	Job                 Job
-	Done                bool // job ended
-	Expired             bool // job timed out or other side ended
-	Cancelled           bool
-	ResultChan          chan *Metrics
-	Target              string
-	DNSInfo             httptrace.DNSDoneInfo
-	DNSInfoTime         time.Time
-	ConnInfo            httptrace.GotConnInfo
-	ConnInfoTime        time.Time
-	ContentReadSize     int64
-	ContentWriteSize    int64
-	ReadCount           int64
-	WriteCount          int64
-	TotalRead           int64
-	TotalWrite          int64
-	TotalReadProcessed  int64
-	TotalWriteProcessed int64
-	StepSize            int64
-	TransfertStartTime  time.Time
-	ElapsedTime         time.Duration
-	FirstResponseByte   time.Time
-	TLSDone             bool
-	TLSTime             time.Time
-	TLS                 tls.ConnectionState
-	Logger              zerolog.Logger
-	mutex               sync.Mutex
-	Valid               bool
-	Error               error
+	Index              int
+	Job                Job
+	Done               bool // job ended
+	Expired            bool // job timed out or other side ended
+	Cancelled          bool
+	ResultChan         chan *Metrics
+	Target             string
+	ContentReadSize    int64
+	ContentWriteSize   int64
+	ReadCount          int64
+	WriteCount         int64
+	TotalRead          int64
+	TotalWrite         int64
+	StepSize           int64
+	TransfertStartTime time.Time
+	ElapsedTime        time.Duration
+	FirstResponseByte  time.Time
+	Logger             zerolog.Logger
+	mutex              sync.Mutex
+	Valid              bool
+	Error              error
 }
 
 // serialized metrics
@@ -74,7 +63,12 @@ type Metrics struct {
 CPU:
  -data: procinfo
  -series: time,core num, %(0-100)
- HTTP GET/PUT:
+INTERFACES:
+ - name, idx, type, max speed, etc
+ - rx bytes, tx bytes
+ - rx pkts, tx pkts
+ - others stats (errors, etc)
+HTTP GET/PUT:
  -data : target (url, group, method, final ip, connections info, tls/crypto)
  -series: time, read, write, duration
 HTTP SERVER:
@@ -183,8 +177,6 @@ func (wm *Metrics) InitNew() {
 	wm.TotalWrite = 0
 	wm.ReadCount = 0
 	wm.WriteCount = 0
-	wm.TotalReadProcessed = 0
-	wm.TotalWriteProcessed = 0
 }
 
 func (wm *Metrics) Close() error {
@@ -193,10 +185,10 @@ func (wm *Metrics) Close() error {
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	// assert wm.Done == false
 	wm.Done = true
-	if wm.TotalWriteProcessed < wm.ContentWriteSize {
+	if wm.TotalWrite < wm.ContentWriteSize {
 		wm.Expired = true
 	}
-	if wm.TotalReadProcessed < wm.ContentReadSize {
+	if wm.TotalRead < wm.ContentReadSize {
 		wm.Expired = true
 	}
 	wm.Valid = true
@@ -211,8 +203,8 @@ func min(x, y int64) int64 {
 	return y
 }
 
-// implement reader - (ie 'Write' metrics since a POST will call Read() here to send to http server)
-// first iteration - do nothing with the buffer
+// Implement io.Reader - (it's a 'Write' metrics since a POST will call this Read() here to send to http server)
+// Read <- golang http client -> POST --> network --> server upload
 func (wm *Metrics) Read(p []byte) (n int, err error) {
 
 	wm.mutex.Lock()
@@ -226,7 +218,7 @@ func (wm *Metrics) Read(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	lefttodo := wm.ContentWriteSize - wm.TotalWriteProcessed
+	lefttodo := wm.ContentWriteSize - wm.TotalWrite
 	if lefttodo == 0 {
 		return 0, io.EOF
 	}
@@ -234,7 +226,6 @@ func (wm *Metrics) Read(p []byte) (n int, err error) {
 	todo := min(min(int64(maxstep), wm.StepSize), lefttodo)
 
 	wm.TotalWrite += todo
-	wm.TotalWriteProcessed += todo
 
 	return int(todo), nil
 }

@@ -32,6 +32,10 @@ type roundTripTrace struct {
 	gotConn       time.Time
 	responseStart time.Time
 	end           time.Time
+	ConnInfo      httptrace.GotConnInfo
+	DNSInfo       httptrace.DNSDoneInfo
+	TLSDone       bool
+	TLS           tls.ConnectionState
 }
 
 // a HTTP command, get or post
@@ -87,7 +91,7 @@ func (j *JobHTTPClient) GetTarget() string {
 
 func (j *JobHTTPClient) GetConn() *httptrace.GotConnInfo {
 	if j.wm != nil {
-		return &j.wm.ConnInfo
+		return &j.tr.ConnInfo
 	}
 	return nil
 }
@@ -265,7 +269,6 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		wm.ContentReadSize = 0
 		wm.StepSize = 1024 * 1024 // todo
 		wm.TotalWrite = 0
-		wm.TotalWriteProcessed = 0
 		body = wm
 	}
 	req, err := http.NewRequest(j.Command, j.Target, body)
@@ -308,18 +311,16 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			wm.DNSInfoTime = time.Now()
-			wm.DNSInfo = dnsInfo
-			j.tr.dnsDone = wm.DNSInfoTime
-			wm.Logger.Debug().Msgf("DNSDone: %v", wm.DNSInfoTime.Sub(refdate))
+			j.tr.dnsDone = time.Now()
+			j.tr.DNSInfo = dnsInfo
+			wm.Logger.Debug().Msgf("DNSDone: %v", j.tr.dnsDone.Sub(refdate))
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			wm.ConnInfoTime = time.Now()
-			wm.ConnInfo = connInfo
-			j.tr.gotConn = wm.ConnInfoTime
-			wm.Logger.Debug().Msgf("GotConn: %v", wm.ConnInfoTime.Sub(refdate))
+			j.tr.gotConn = time.Now()
+			j.tr.ConnInfo = connInfo
+			wm.Logger.Debug().Msgf("GotConn: %v", j.tr.gotConn.Sub(refdate))
 		},
 		GotFirstResponseByte: func() {
 			wm.mutex.Lock()
@@ -341,15 +342,14 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 			defer wm.mutex.Unlock()
 			if err == nil {
 				j.tr.tls = true
-				wm.TLSTime = time.Now()
-				wm.TLSDone = true
-				j.tr.tlsDone = wm.TLSTime
-				wm.TLS = t
+				j.tr.tlsDone = time.Now()
+				j.tr.TLSDone = true
+				j.tr.TLS = t
 			} else {
 				j.tr.tls = false
 				//fmt.Printf("tls: %+v \n", err)
 			}
-			wm.Logger.Debug().Msgf("TLSHandshakeDone: %v", wm.TLSTime.Sub(refdate))
+			wm.Logger.Debug().Msgf("TLSHandshakeDone: %v", j.tr.tlsDone.Sub(refdate))
 		},
 		ConnectStart: func(_, _ string) {
 			wm.mutex.Lock()
@@ -419,26 +419,26 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	// completed or expired (timeout)
 	if wm.Error == nil && !wm.Cancelled {
 		j.Logger.Info().
-			Stringer("LocalAddr", wm.ConnInfo.Conn.LocalAddr()).
-			Stringer("RemoteAddr", wm.ConnInfo.Conn.RemoteAddr()).
+			Stringer("LocalAddr", j.tr.ConnInfo.Conn.LocalAddr()).
+			Stringer("RemoteAddr", j.tr.ConnInfo.Conn.RemoteAddr()).
 			Dur("DNSInfoTime", j.tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
-			Dur("ConnInfoTime", wm.ConnInfoTime.Sub(refdate)).
+			Dur("ConnInfoTime", j.tr.gotConn.Sub(refdate)).
 			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
 			Send()
 
-		for _, a := range wm.DNSInfo.Addrs {
+		for _, a := range j.tr.DNSInfo.Addrs {
 			j.Logger.Info().Stringer("dnsinfo", &a).Send()
 		}
 
-		if wm.ConnInfo.Reused {
+		if j.tr.ConnInfo.Reused {
 			log.Info().Msg("REUSING CONNECTION")
 		}
 
-		if wm.TLSDone {
+		if j.tr.TLSDone {
 			j.Logger.Info().
-				Str("crypto", TLSVersionName(wm.TLS.Version)).
-				Str("cipher", tls.CipherSuiteName(wm.TLS.CipherSuite)).
-				Dur("TLSDuration", wm.TLSTime.Sub(refdate)).Send()
+				Str("crypto", TLSVersionName(j.tr.TLS.Version)).
+				Str("cipher", tls.CipherSuiteName(j.tr.TLS.CipherSuite)).
+				Dur("TLSDuration", j.tr.tlsDone.Sub(refdate)).Send()
 		}
 	}
 	// todo: time'd out 'POST' don't have a resp so we're missing informations like protocol ,tls, etc
@@ -473,7 +473,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 
 				//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 				//todo: invesstigate why the following gives results too high
-				wm.TotalReadProcessed, err = io.Copy(wm, resp.Body)
+				totalread, err := io.Copy(wm, resp.Body)
 
 				if err == context.DeadlineExceeded {
 					wm.Expired = true
@@ -487,9 +487,11 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 					wm.Error = err
 				} else {
 					j.Logger.Info().Str("cause", "completed normally")
+					if totalread != wm.TotalRead {
+						j.Logger.Warn().Msgf("iocopy result differs from interface: %d - %d", totalread, wm.TotalRead)
+					}
 				}
 			}
-			//j.Logger.Info().Msgf("processed read:%d / write: %d bytes", wm.TotalReadProcessed, wm.TotalWriteProcessed)
 			wm.Valid = true
 		}
 	}

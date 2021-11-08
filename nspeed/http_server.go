@@ -331,7 +331,7 @@ func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	wm.FirstResponseByte = time.Now()
 	n, err := io.Copy(io.Discard, io.TeeReader(r.Body, &wm))
 	wm.ElapsedTime = time.Since(wm.FirstResponseByte)
-	wm.TotalReadProcessed = n
+	wm.TotalRead = n
 	wm.Error = err
 	wm.Valid = true
 	wm.LogFinal(h.Logger)
