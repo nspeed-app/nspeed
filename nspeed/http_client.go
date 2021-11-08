@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/textproto"
+	"strings"
 	"syscall"
 	"time"
 
@@ -158,6 +159,13 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	j.Logger = &wm.Logger
 	j.wm = wm
 
+	// prepend http scheme if no scheme
+	if !strings.Contains(j.Target, "://") {
+		j.Target = "http://" + j.Target
+	}
+	j.finalTarget = j.Target
+	j.Logger.Debug().Msgf("target parsed to: %s", j.Target)
+
 	var LocalAddr net.Addr
 	if j.Host != "" {
 		la, err := ResolveInterfaceHostAddress(j.Host)
@@ -231,7 +239,6 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		}
 	}
 
-	j.finalTarget = j.Target
 	// create http client
 	j.client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
