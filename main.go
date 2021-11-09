@@ -40,18 +40,18 @@ var TLSSelfSignedCA []byte
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
 
-var optLogOutput = flag.String("log", "", "structured logging output filename (use - for stdout), implied -verbose")
+var optLogOutput = flag.String("log", "", "structured logging output filename (use - for stdout), imply -verbose")
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
-var optDebug = flag.Bool("debug", false, "show more progress & details")
+var optDebug = flag.Bool("debug", false, "show even more progress & details")
 var optTick = flag.Int("tick", 1, "sampling/progress interval in seconds (used for -debug, -cpu and webstats and filestats)")
 var optCPU = flag.Bool("cpu", false, "display cpu usage")
 
-var optColor = flag.Bool("color", false, "use colors")
+var optColor = flag.Bool("color", false, "use colors in text output")
 
 var optVersion = flag.Bool("version", false, "display version")
-var optInfo = flag.Bool("info", false, "display some informations about the machine")
+var optInfo = flag.Bool("info", false, "display informations about the host")
 
-var optTimeout = flag.Uint("timeout", 0, "default timeout in seconds, 0 for no timeout")
+var optTimeout = flag.Uint("timeout", 0, "default global timeout in seconds, 0 for no timeout")
 
 var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 
