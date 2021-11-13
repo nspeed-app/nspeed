@@ -214,8 +214,6 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	netTransport.ForceAttemptHTTP2 = !j.UseHTTP11
 	netTransport.TLSHandshakeTimeout = 5 * time.Second
 	netTransport.DisableCompression = true
-	//netTransport.WriteBufferSize = 1 * 1024 * 1024
-	//netTransport.ReadBufferSize = 1 * 1024 * 1024
 
 	if j.UseTLSSelfConfig {
 		netTransport.TLSClientConfig = TLSSelfConfig.Clone()
@@ -231,19 +229,20 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	// // interface to the transport so we can switch if needed
 	var rtTransport http.RoundTripper = netTransport
 
-	// get a http2 transport
-	rt2, err := http2.ConfigureTransports(netTransport)
-	if err != nil {
-		log.Warn().Msgf("something bad happened that shouldn't : %s", err)
-		return err
-	}
-	rt2.MaxFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
+	if !j.UseHTTP11 {
+		// get a http2 transport
+		rt2, err := http2.ConfigureTransports(netTransport)
+		if err != nil {
+			log.Warn().Msgf("something bad happened that shouldn't : %s", err)
+			return err
+		}
+		rt2.MaxFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
 
-	// H2C support
-	if j.H2C {
-		rt2.AllowHTTP = true
+		// H2C support
+		if j.H2C {
+			rt2.AllowHTTP = true
+		}
 	}
-
 	// create http client
 	j.client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -268,7 +267,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	if j.Command == "POST" {
 		wm.ContentWriteSize = j.ContentSize
 		wm.ContentReadSize = 0
-		wm.StepSize = 1024 * 1024 // todo:
+		wm.StepSize = 256 * 1024 // todo:
 		wm.TotalWrite = 0
 		body = wm
 	}
