@@ -224,7 +224,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	}
 
 	// keep multplt of 16384
-	var chunkSize int64 = 16384 * 2 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
+	var chunkSize int64 = MaxChunkSize // 16384 * 2 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 
 	//danger zone
 	if r.URL.Query().Get("chunk_size") != "" {
@@ -326,7 +326,7 @@ func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 		Job:     h,
 	}
 	wm.FirstResponseByte = time.Now()
-	n, err := io.Copy(io.Discard, io.TeeReader(r.Body, &wm))
+	n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, &wm), BigBuffer)
 	wm.ElapsedTime = time.Since(wm.FirstResponseByte)
 	wm.TotalRead = n
 	wm.Error = err

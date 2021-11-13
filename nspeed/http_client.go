@@ -113,7 +113,7 @@ func (j *JobHTTPClient) PrintString(verbose bool) string {
 	formatOut := func(r string) string {
 		latency := j.tr.connectDone.Sub(j.tr.connectStart).Milliseconds()
 		latencyMicroRem := j.tr.connectDone.Sub(j.tr.connectStart).Microseconds() % 1000
-		details := fmt.Sprintf("%s (%s - %d.%d ms)", r, j.GetDestination(), latency, latencyMicroRem)
+		details := fmt.Sprintf("%s (%s - %d.%d ms - %s)", r, j.GetDestination(), latency, latencyMicroRem, j.wm.Protocol)
 		if j.numRedirect > 0 && verbose {
 			return fmt.Sprintf("%s from %s", details, j.Target)
 		}
@@ -209,14 +209,13 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		},
 	}
 
-	var netTransport = &http.Transport{
-		DialContext:         dialer.DialContext,
-		ForceAttemptHTTP2:   !j.UseHTTP11,
-		TLSHandshakeTimeout: 5 * time.Second,
-		DisableCompression:  true,
-		// WriteBufferSize:     10 * 1024 * 1024,
-		// ReadBufferSize:      10 * 1024 * 1024,
-	}
+	var netTransport = http.DefaultTransport.(*http.Transport)
+	netTransport.DialContext = dialer.DialContext
+	netTransport.ForceAttemptHTTP2 = !j.UseHTTP11
+	netTransport.TLSHandshakeTimeout = 5 * time.Second
+	netTransport.DisableCompression = true
+	//netTransport.WriteBufferSize = 1 * 1024 * 1024
+	//netTransport.ReadBufferSize = 1 * 1024 * 1024
 
 	if j.UseTLSSelfConfig {
 		netTransport.TLSClientConfig = TLSSelfConfig.Clone()
@@ -229,18 +228,20 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		log.Debug().Msgf("TLSConfig: defined")
 	}
 
-	// interface to the transport so we can switch if needed
+	// // interface to the transport so we can switch if needed
 	var rtTransport http.RoundTripper = netTransport
 
-	// H2C support, beware: we're not using netTransport anymore
+	// get a http2 transport
+	rt2, err := http2.ConfigureTransports(netTransport)
+	if err != nil {
+		log.Warn().Msgf("something bad happened that shouldn't : %s", err)
+		return err
+	}
+	rt2.MaxFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
+
+	// H2C support
 	if j.H2C {
-		rtTransport = &http2.Transport{
-			AllowHTTP:          true,
-			DisableCompression: netTransport.DisableCompression,
-			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-				return dialer.Dial(network, addr)
-			},
-		}
+		rt2.AllowHTTP = true
 	}
 
 	// create http client
@@ -258,7 +259,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 			j.finalTarget = loc.String()
 			return nil // http.ErrUseLastResponse
 		},
-		Transport: rtTransport, // http.DefaultTransport,
+		Transport: rtTransport,
 		// Timeout:   10 * time.Second,
 	}
 
@@ -445,9 +446,9 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	// todo: find a way to get the missing informations elsewhere
 	// possible workaround: do a HEAD before the POST but that will count has 2 requests and could mess the server stats and Maxrequests option
 	if wm.Error == nil && resp != nil {
-		protocol := resp.Proto
+		wm.Protocol = resp.Proto
 		j.Logger.Info().
-			Str("protocol", protocol).
+			Str("protocol", wm.Protocol).
 			Send()
 		j.Logger.Debug().
 			Int64("ContentLength", resp.ContentLength).
@@ -468,12 +469,12 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 				wm.ContentReadSize = resp.ContentLength
 
 				// this is where the GET transfert happens.
-				//   iteration 2: we use io.Copy the body to 'wm' (which is a Discard) and
-				//   the resp (thru req) context  will handle timeout & parent cancellation
+				//   iteration 3: we use io.CopyBuffer the body to 'wm' (which is a Discard) and
+				//   the resp (thru req) context will handle timeout & parent cancellation
 
 				//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 				//todo: invesstigate why the following gives results too high
-				totalread, err := io.Copy(wm, resp.Body)
+				totalread, err := io.CopyBuffer(wm, resp.Body, BigBuffer)
 
 				if err == context.DeadlineExceeded {
 					wm.Expired = true

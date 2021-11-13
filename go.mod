@@ -20,3 +20,5 @@ require (
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	golang.org/x/text v0.3.8-0.20211004125949-5bd84dd9b33b // indirect
 )
+
+replace golang.org/x/net => ../golang-net

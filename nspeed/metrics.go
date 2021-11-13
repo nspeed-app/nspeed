@@ -55,6 +55,7 @@ type Metrics struct {
 	Logger             zerolog.Logger
 	mutex              sync.Mutex
 	Valid              bool
+	Protocol           string
 	Error              error
 }
 
