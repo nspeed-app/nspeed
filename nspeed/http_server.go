@@ -117,12 +117,13 @@ func (j *JobHTTPServer) IsInfinite() bool {
 // return false if too many requests
 func (j *JobHTTPServer) OnRequestStart() bool {
 	j.mutex.Lock()
-	j.TotalRequests++
-	done := j.Parameters.MaxRequests > 0 && j.TotalRequests > j.Parameters.MaxRequests
 	defer j.mutex.Unlock()
 
+	j.TotalRequests++
+	done := j.Parameters.MaxRequests > 0 && j.TotalRequests > j.Parameters.MaxRequests
+
 	if done {
-		j.Logger.Info().Msgf("%d max total requests reached, shutting down server", j.TotalRequests)
+		j.Logger.Info().Msgf("%d max total requests reached", j.TotalRequests)
 		return false
 	}
 	return true
@@ -134,7 +135,7 @@ func (j *JobHTTPServer) OnRequestEnd() {
 	defer j.mutex.Unlock()
 	done := j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests
 	if done {
-		j.Logger.Info().Msgf("%d max total requests reached, shutting down server", j.TotalRequests)
+		j.Logger.Info().Msgf("%d max total requests reached", j.TotalRequests)
 		j.Cancel()
 	}
 }
@@ -160,6 +161,7 @@ func (h *JobHTTPServer) Handler() http.Handler {
 
 	mux.HandleFunc("/ip", notImplemented)
 
+	// mux and chain of middlewares (see http_middleware.go)
 	var handler http.Handler
 	handler = mux
 	handler = limitRequestSize(h.Parameters.MaxBodySize, handler)
