@@ -1,5 +1,6 @@
 # v0.10
 ## general
+- internal optimization to buffer sizes and http/2 issues
 - using Go 1.17. `nspeed -version` now also displays the Go version used to build the binary as well as OS/Arch informations
 - new `-pre duration` option: wait `duration` before starting command(s)
 - new `-post duration` option: wait `duration` after all commands have ended
@@ -16,7 +17,7 @@
 - this command can no longer be called with other commands even with itself because of a global side-effect. This command is not available thru the API.
 - displays AES hardware support
 ## http client
-- console ouput displays more info like final target IP and latency
+- console ouput displays more info like final target IP, latency and protocol
 - default to `http://` if no scheme provided (`nspeed get google.com` => `nspeed get http://google.com`)
 # v0.9
 ## general

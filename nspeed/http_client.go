@@ -209,7 +209,8 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		},
 	}
 
-	var netTransport = http.DefaultTransport.(*http.Transport)
+	// we clone to avoid ConfigureTransports to crash
+	var netTransport = http.DefaultTransport.(*http.Transport).Clone()
 	netTransport.DialContext = dialer.DialContext
 	netTransport.ForceAttemptHTTP2 = !j.UseHTTP11
 	netTransport.TLSHandshakeTimeout = 5 * time.Second
@@ -241,6 +242,14 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		// H2C support
 		if j.H2C {
 			rt2.AllowHTTP = true
+			rtTransport = &http2.Transport{
+				DialTLS: func(network string, addr string, cfg *tls.Config) (net.Conn, error) {
+					return dialer.Dial(network, addr)
+				},
+				DisableCompression: true,
+				AllowHTTP:          true,
+				MaxFrameSize:       256 * 1024,
+			}
 		}
 	}
 	// create http client
