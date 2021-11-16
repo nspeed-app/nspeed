@@ -29,7 +29,7 @@ func GetIfEntry2Ex(ifIndex uint32, level MibIfEntryLevel) (*MibIfRow2, error) {
 	return &tab, nil
 }
 
-// return rx/tx counters for interfaces - Linux version
+// return rx/tx counters for interfaces - Windows version
 func GetNetStats(itfs []net.Interface, dir string) []float64 {
 	var values []float64
 	for i := range itfs {
