@@ -28,7 +28,6 @@ const (
 	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 40 // bytes
 	DefaultMaxDuration       = 10 * time.Second
 	DefaultPort              = 7333
-	MaxChunkSize             = 1024 * 1024 // warning : 1 MiB //this will be allocated in memory
 	DirPath                  = "/dir/"
 )
 
@@ -226,7 +225,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	}
 
 	// keep multplt of 16384
-	var chunkSize int64 = MaxChunkSize // 16384 * 2 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
+	var chunkSize int64 = 256 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 
 	//danger zone
 	if r.URL.Query().Get("chunk_size") != "" {
@@ -284,13 +283,12 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	wm.TransfertStartTime = time.Now()
 	wm.FirstResponseByte = wm.TransfertStartTime
 	wm.ContentWriteSize = numBytes //todo: investigate what happens when timed out
-	f := w.(http.Flusher)
+	//f := w.(http.Flusher)
 	// send the buffer as many times as needed --> todo: why don't we io.copy to a wm like the client ?
 	var numChunk = numBytes / chunkSize
 	wm.StepSize = chunkSize
 	for i := int64(0); i < numChunk; i++ {
 		n, err := w.Write(chunk)
-		//f.Flush() -todo investigate
 		wm.TotalWrite += int64(n)
 		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 		if err != nil {
@@ -305,7 +303,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	// fmt.Println("modulo :", numBytes % chunkSize)
 	if numBytes%chunkSize > 0 && !wm.Expired {
 		n, err := w.Write(chunk[:numBytes%chunkSize])
-		f.Flush()
+		//f.Flush()
 		wm.TotalWrite += int64(n)
 		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 		if err != nil {
@@ -348,8 +346,6 @@ func (s *JobHTTPServer) Init(wm *Metrics) error {
 	s.TotalRequests = 0 // just in case we reuse
 
 	host := s.Parameters.Host
-
-	InitBigChunk(time.Now().Unix())
 
 	// empty host is a special case
 

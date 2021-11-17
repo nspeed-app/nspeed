@@ -3,7 +3,6 @@ package nspeed
 import (
 	"math/rand"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -139,22 +138,19 @@ var bigBuffer [4 * 1024 * 1024]byte
 var BigBuffer = bigBuffer[:]
 
 // BigChunk is a big array of random data
+const MaxChunkSize = 1024 * 1024 // warning : 1 MiB //this will be allocated in memory
 var BigChunk [MaxChunkSize]byte
-var bigChunkInitialized bool
-var bigChunkMutex sync.Mutex
 
 // init a buffer of random values - callable only once
 // thread safe
 func InitBigChunk(seed int64) {
-	bigChunkMutex.Lock()
-	defer bigChunkMutex.Unlock()
-	if bigChunkInitialized {
-		return
-	}
-
 	rng := rand.New(rand.NewSource(seed))
 	for i := int64(0); i < MaxChunkSize; i++ {
 		BigChunk[i] = byte(rng.Intn(256))
 	}
-	bigChunkInitialized = true
+}
+
+// called once
+func init() {
+	InitBigChunk(time.Now().Unix())
 }

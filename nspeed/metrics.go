@@ -97,7 +97,33 @@ func (wm *Metrics) Write(p []byte) (int, error) {
 
 // todo: since we io.Copy(WorkerMetrics, Resp.Body) and io.Copy can call a ReadFrom
 // investigate if we can implement ReadFrom instead of Write
-// func (wm *WorkerMetrics) ReadFrom(r io.Reader) (n int64, err error) { TODO }
+// ReadFrom version- performance sensitive, don't do much here
+// it's basically a io.Discard with some metrics stored
+func (wm *Metrics) ReadFrom(r io.Reader) (n int64, err error) {
+	wm.mutex.Lock()
+	wm.TotalRead = 0
+	wm.ReadCount = 0
+	wm.StepSize = 0
+	wm.TransfertStartTime = time.Now()
+	wm.mutex.Unlock()
+	for {
+		read, err := r.Read(BigBuffer)
+		s := int64(read)
+		wm.mutex.Lock()
+		wm.ReadCount++
+		wm.TotalRead += s
+		if wm.StepSize < s {
+			wm.StepSize = s
+		}
+		wm.mutex.Unlock()
+		if err != nil {
+			break
+		}
+	}
+	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+	fmt.Printf("ReadFrom used with %d Read and %d max buff\n", wm.ReadCount, wm.StepSize)
+	return wm.TotalRead, nil
+}
 
 // LogProgress logs the intermediary metrics
 func (wm *Metrics) LogProgress(logger *zerolog.Logger) {
@@ -210,7 +236,12 @@ func (wm *Metrics) Read(p []byte) (n int, err error) {
 
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
-	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+	if wm.TotalWrite == 0 {
+		wm.TransfertStartTime = time.Now()
+		wm.ElapsedTime = 0
+	} else {
+		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+	}
 
 	wm.WriteCount++
 	maxstep := len(p)
@@ -229,6 +260,41 @@ func (wm *Metrics) Read(p []byte) (n int, err error) {
 	wm.TotalWrite += todo
 
 	return int(todo), nil
+}
+
+// WriteTo - implement io.WriterTo interface - optimized Read
+func (wm *Metrics) WriteTo(w io.Writer) (n int64, err error) {
+	wm.mutex.Lock()
+	wm.TransfertStartTime = time.Now()
+	wm.TotalWrite = 0
+	wm.StepSize = 0
+	wm.WriteCount = 0
+	wm.ElapsedTime = 0
+	wm.mutex.Unlock()
+
+	buflen := int64(len(BigBuffer))
+
+	for {
+		todo := min(wm.ContentWriteSize-wm.TotalWrite, buflen)
+		if todo == 0 {
+			break
+		}
+		n, err := w.Write(BigBuffer[:todo])
+		written := int64(n)
+		wm.mutex.Lock()
+		if written > wm.StepSize {
+			wm.StepSize = written
+		}
+		wm.TotalWrite = wm.TotalWrite + written
+		wm.WriteCount++
+		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+		wm.mutex.Unlock()
+		if err != nil {
+			break
+		}
+	}
+	fmt.Printf("WriteTo used with %d Write and %d max buff\n", wm.WriteCount, wm.StepSize)
+	return wm.TotalWrite, nil
 }
 
 func initSpeedReport(w *tabwriter.Writer) {

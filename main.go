@@ -144,16 +144,15 @@ func main() {
 	}
 
 	// Logging stuff
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	consoleLevel := zerolog.WarnLevel
 
 	if *optVerbose {
 		consoleLevel = zerolog.InfoLevel
 	}
-
 	if *optDebug {
 		consoleLevel = zerolog.DebugLevel
 	}
+	zerolog.SetGlobalLevel(consoleLevel)
 
 	// remove these ugly "???" from zerolog level formatter
 
@@ -213,6 +212,7 @@ func main() {
 	defer cancel()
 
 	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
+	// todo: use signal.NotifyContext  ?
 	shutdownCh := make(chan os.Signal, 1)
 	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
 

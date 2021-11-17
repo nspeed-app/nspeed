@@ -291,7 +291,6 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	req.Header.Set("User-Agent", j.UserAgent)
 	req.Header.Set("Content-Type", j.ContentType)
 
-	wm.InitNew()
 	return nil
 }
 
@@ -406,6 +405,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	// start the main timer
 	refdate = time.Now()
 	// resp, err := client.Transport.RoundTrip(req)
+	wm.InitNew()
 	resp, err := j.client.Do(j.req)
 	j.tr.end = time.Now()
 

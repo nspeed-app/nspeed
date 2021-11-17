@@ -92,8 +92,10 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	}()
 
 	progressTickerChannel := make(<-chan time.Time) // forever
+	//fmt.Printf("zerolog.GlobalLevel = %d\n", zerolog.GlobalLevel())
 	if zerolog.GlobalLevel() <= zerolog.InfoLevel {
 		progressTicker := time.NewTicker(time.Duration(opt.ProgressInterval) * time.Second)
+		fmt.Printf("setting progress ticker of %d seconds\n", opt.ProgressInterval)
 		progressTickerChannel = progressTicker.C
 	}
 
@@ -106,14 +108,6 @@ mainloop:
 			break mainloop
 		case <-progressTickerChannel:
 			progress(wcWorkers)
-			// time critical: warning for overlap/backlogs if what's done here takes too long
-			// this section assumes loglevel >= info
-			// for _, wm := range wcWorkers {
-			// 	if !wm.Done && (wm.LogLevel == zerolog.DebugLevel) {
-			// 		wm.LogProgress(&wm.Logger)
-			// 	}
-			// }
-			//PrintMemUsage(zerolog.GlobalLevel())
 		case wm := <-results:
 			rc--
 			if wm.Done {
