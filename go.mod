@@ -16,11 +16,6 @@ require (
 require (
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/go-ole/go-ole v1.2.5 // indirect
-	github.com/google/go-cmp v0.5.6 // indirect
-	github.com/josharian/native v0.0.0-20200817173448-b6b71def0850 // indirect
-	github.com/jsimonetti/rtnetlink v0.0.0-20211022192332-93da33804786 // indirect
-	github.com/mdlayher/netlink v1.4.1 // indirect
-	github.com/mdlayher/socket v0.0.0-20210307095302-262dc9984e00 // indirect
 	github.com/tklauser/go-sysconf v0.3.9 // indirect
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	golang.org/x/text v0.3.8-0.20211004125949-5bd84dd9b33b // indirect

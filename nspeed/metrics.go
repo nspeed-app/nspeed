@@ -70,8 +70,9 @@ INTERFACES:
  - rx pkts, tx pkts
  - others stats (errors, etc)
 HTTP GET/PUT:
- -data : target (url, group, method, final ip, connections info, tls/crypto)
- -series: time, read, write, duration
+ -data : target (url, group, method, target/final ip:port, connections info, tls/crypto)
+ -series: time, read, write, duration, counts, average buff size,
+ -status: completed/time'd out
 HTTP SERVER:
  -data : request (url, method, remote ip, connections info, tls/crypto)
  -series: time, read, write, duration
