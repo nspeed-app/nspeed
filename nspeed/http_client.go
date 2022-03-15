@@ -237,7 +237,8 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 			log.Warn().Msgf("something bad happened that shouldn't : %s", err)
 			return err
 		}
-		rt2.MaxFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
+		// when https://go-review.googlesource.com/c/net/+/362834
+		// rt2.MaxFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
 
 		// H2C support
 		if j.H2C {
@@ -248,7 +249,8 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 				},
 				DisableCompression: true,
 				AllowHTTP:          true,
-				MaxFrameSize:       256 * 1024,
+				// when https://go-review.googlesource.com/c/net/+/362834/
+				// MaxFrameSize:       256 * 1024,
 			}
 		}
 	}
