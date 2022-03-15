@@ -15,3 +15,5 @@ https://dl.google.com/android/repository/sys-img/google_apis_playstore/x86-30_r0
 
 https://speedtest.1fichier.com/default.dat
 (https://1fichier.com/network.html)
+
+https://speed.hetzner.de/10GB.bin
