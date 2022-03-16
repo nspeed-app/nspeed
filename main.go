@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"strings"
 	"syscall"
@@ -90,7 +91,14 @@ func main() {
 	}
 
 	if *optVersion {
-		fmt.Printf("NSpeed version: %s\n", Version)
+		bi, ok := debug.ReadBuildInfo()
+		if !ok {
+			fmt.Println("no build info found!")
+			os.Exit(1)
+		}
+		fmt.Printf("NSpeed version: %s\n", bi.Main.Version)
+
+		fmt.Printf("NSpeed version: %s\n", bi.String())
 		fmt.Printf("Go version: %s\n", runtime.Version())
 		fmt.Printf("OS Version: %s\n", runtime.GOOS)
 		fmt.Printf("Arch Version: %s\n", runtime.GOARCH)
