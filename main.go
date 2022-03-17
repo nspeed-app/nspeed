@@ -98,6 +98,12 @@ func main() {
 		}
 		fmt.Printf("NSpeed version: %s\n", bi.Main.Version)
 
+		for _, v := range bi.Settings {
+			if v.Key == "vcs.tag" {
+				fmt.Println("vcs.tag found: ", v.Value)
+			}
+		}
+
 		fmt.Printf("NSpeed version: %s\n", bi.String())
 		fmt.Printf("Go version: %s\n", runtime.Version())
 		fmt.Printf("OS Version: %s\n", runtime.GOOS)

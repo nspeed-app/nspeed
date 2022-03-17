@@ -1,7 +1,7 @@
 # v0.10
 ## general
 - internal optimization to buffer sizes and http/2 issues
-- using Go 1.17. `nspeed -version` now also displays the Go version used to build the binary as well as OS/Arch informations
+- using Go 1.18. `nspeed -version` now also displays the Go version used to build the binary as well as OS/Arch informations
 - new `-pre duration` option: wait `duration` before starting command(s)
 - new `-post duration` option: wait `duration` after all commands have ended
 - new `-info` flag to display some os/hardware informations.
