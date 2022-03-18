@@ -1,0 +1,11 @@
+pkg.go in /home/user/sdk/gotip/src/cmd/go/internal
+
+in setBuildInfo()
+
+		// add tags
+		tags, err := vcsCmd.Tags(repoDir)
+		if err == nil {
+			if len(tags) > 0 {
+				appendSetting("vcs.tags", tags[len(tags)-1])
+			}
+		}

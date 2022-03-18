@@ -101,6 +101,8 @@ func main() {
 		for _, v := range bi.Settings {
 			if v.Key == "vcs.tag" {
 				fmt.Println("vcs.tag found: ", v.Value)
+				bi.Main.Version = v.Value
+				break
 			}
 		}
 
