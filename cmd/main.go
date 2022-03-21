@@ -21,11 +21,6 @@ import (
 	"nspeed.app/nspeed"
 )
 
-// Version can be set at link time to override debug.BuildInfo.Main.Version,
-// which is "(devel)" when building from within the module. See
-// golang.org/issue/29814 and golang.org/issue/29228.
-var Version string
-
 // global options
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
@@ -56,8 +51,6 @@ var optPostDelay = flag.Duration("post", 0, "duration to wait after all commands
 // main
 func Main() {
 
-	Version = nspeed.Version
-
 	flag.CommandLine.Usage = func() {
 		name := "nspeed" //todo
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n\n", name)
@@ -85,7 +78,8 @@ func Main() {
 			fmt.Println("no build info found!")
 			os.Exit(1)
 		}
-		fmt.Printf("NSpeed version: %s\n", bi.Main.Version)
+		fmt.Printf("NSpeed buildinfo version: %s\n", bi.Main.Version)
+		fmt.Printf("NSpeed local version: %s\n", nspeed.Version)
 
 		for _, v := range bi.Settings {
 			if v.Key == "vcs.tag" {

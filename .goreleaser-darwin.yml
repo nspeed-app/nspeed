@@ -18,7 +18,7 @@ builds:
       - goos: darwin
         goarch: arm64
     ldflags:
-      - -s -w -X main.version={{.Version}}
+      - -s -w -X cli.version={{.Version}}
 archives:
   - replacements:
       darwin: Darwin

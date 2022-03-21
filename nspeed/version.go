@@ -2,12 +2,14 @@ package nspeed
 
 import "runtime/debug"
 
-// version
+// Version can be set at link time to override debug.BuildInfo.Main.Version,
+// which is "(devel)" when building from within the module. See
+// golang.org/issue/29814 and golang.org/issue/29228.
 var Version string = ""
+
 var ServerVersion string = ""
 
 func init() {
-	// set version: todo: move this in nspeed package
 	if Version == "" {
 		if buildInfo, ok := debug.ReadBuildInfo(); ok {
 			Version = buildInfo.Main.Version
