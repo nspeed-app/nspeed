@@ -1,4 +1,4 @@
-package main
+package nspeed
 
 import (
 	"crypto/tls"
@@ -18,8 +18,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/context"
 
-	_ "embed"
-
 	"nspeed.app/nspeed"
 )
 
@@ -27,15 +25,6 @@ import (
 // which is "(devel)" when building from within the module. See
 // golang.org/issue/29814 and golang.org/issue/29228.
 var Version string
-
-//go:embed embed/localhost.pem
-var TLSSelfSignedCert []byte
-
-//go:embed embed/localhost-key.pem
-var TLSSelfSignedKey []byte
-
-//go:embed embed/localhost-CA.pem
-var TLSSelfSignedCA []byte
 
 // global options
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -65,7 +54,7 @@ var optPreDelay = flag.Duration("pre", 0, "duration to wait before starting comm
 var optPostDelay = flag.Duration("post", 0, "duration to wait after all commands ended")
 
 // main
-func main() {
+func Main() {
 
 	Version = nspeed.Version
 
@@ -114,7 +103,7 @@ func main() {
 	}
 
 	// self-signed cert & CA
-	certificate, err := tls.X509KeyPair(TLSSelfSignedCert, TLSSelfSignedKey)
+	certificate, err := tls.X509KeyPair(nspeed.TLSSelfSignedCert, nspeed.TLSSelfSignedKey)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -128,7 +117,7 @@ func main() {
 		rootCAs = x509.NewCertPool()
 	}
 	// Append our cert to the system pool
-	if ok := rootCAs.AppendCertsFromPEM(TLSSelfSignedCA); !ok {
+	if ok := rootCAs.AppendCertsFromPEM(nspeed.TLSSelfSignedCA); !ok {
 		fmt.Println("error: couldn't append our embedded self-signed CA")
 		os.Exit(1)
 	}
