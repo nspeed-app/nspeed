@@ -223,14 +223,6 @@ func (wm *Metrics) Close() error {
 	return nil
 }
 
-// not in std lib...
-func min(x, y int64) int64 {
-	if x < y {
-		return x
-	}
-	return y
-}
-
 // Implement io.Reader - (it's a 'Write' metrics since a POST will call this Read() here to send to http server)
 // Read <- golang http client -> POST --> network --> server upload
 func (wm *Metrics) Read(p []byte) (n int, err error) {
@@ -256,7 +248,7 @@ func (wm *Metrics) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	todo := min(min(int64(maxstep), wm.StepSize), lefttodo)
+	todo := Min(Min(int64(maxstep), wm.StepSize), lefttodo)
 
 	wm.TotalWrite += todo
 
@@ -276,7 +268,7 @@ func (wm *Metrics) WriteTo(w io.Writer) (n int64, err error) {
 	buflen := int64(len(BigBuffer))
 
 	for {
-		todo := min(wm.ContentWriteSize-wm.TotalWrite, buflen)
+		todo := Min(wm.ContentWriteSize-wm.TotalWrite, buflen)
 		if todo == 0 {
 			break
 		}

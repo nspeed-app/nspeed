@@ -1,4 +1,4 @@
-package nspeed
+package cli
 
 import (
 	"crypto/tls"
