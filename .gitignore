@@ -5,6 +5,7 @@
 *.so
 *.dylib
 nspeed.app
+main
 
 # test/ folder
 test/
