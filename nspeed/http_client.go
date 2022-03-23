@@ -20,7 +20,7 @@ import (
 )
 
 // roundTripTrace holds timings for a single HTTP roundtrip.
-// mostly from prometheus blackbox_exporter
+// greatly inspired by Prometheus blackbox_exporter
 type roundTripTrace struct {
 	tls           bool
 	start         time.Time
