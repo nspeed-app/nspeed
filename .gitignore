@@ -25,6 +25,5 @@ dist/
 dist/
 
 #js stuff
-yarn.lock
 .parcel-cache/
 node_modules/
