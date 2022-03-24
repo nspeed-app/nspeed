@@ -169,7 +169,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			// stats/info/#field1#[/#field2/..]
 			if len(args) >= 2 {
 				fieldNames := args[1:]
-				replyMap := make(map[string]interface{})
+				replyMap := make(map[string]any)
 				for _, field := range fieldNames {
 					fmt.Printf("checking field %s\n", field)
 					if val, ok := MachineInfoMap[field]; ok {

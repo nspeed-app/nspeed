@@ -36,10 +36,10 @@ type memStats struct {
 }
 
 var MachineInfo machineInfo = loadMachInfo()
-var MachineInfoMap map[string]interface{}
+var MachineInfoMap map[string]any
 var MachineInfoJSON, _ = StructToJson(MachineInfo, &MachineInfoMap)
 
-func StructToJson(v interface{}, m *map[string]interface{}) ([]byte, error) {
+func StructToJson(v any, m *map[string]any) ([]byte, error) {
 	z, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return nil, err

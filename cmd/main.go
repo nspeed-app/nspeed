@@ -155,7 +155,7 @@ func Main() {
 
 	// remove these ugly "???" from zerolog level formatter
 
-	formatLevel := func(i interface{}) string {
+	formatLevel := func(i any) string {
 		if i == nil {
 			return ""
 		}
