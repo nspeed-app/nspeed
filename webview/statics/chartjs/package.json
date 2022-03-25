@@ -1,0 +1,10 @@
+{
+  "name": "chartjs",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chart.js": "^2.9.35",
+    "chartjs": "^0.3.24"
+  }
+}
