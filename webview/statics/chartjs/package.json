@@ -5,6 +5,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/chart.js": "^2.9.35",
-    "chartjs": "^0.3.24"
+    "chartjs": "^0.3.24",
+    "chartjs-plugin-crosshair": "^1.2.0"
   }
 }

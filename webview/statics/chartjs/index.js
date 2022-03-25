@@ -1,5 +1,5 @@
-import {} from "../chart.min.js";
-
+import {} from "./chart.min.js";
+import {} from "./chartjs-plugin-crosshair.min.js";
 
 const labels = [
   'January',
@@ -30,30 +30,14 @@ const data2 = {
   }]
 };
 
-const footer = (tooltipItems) => {
-  let sum = 0;
-
-  tooltipItems.forEach(function(tooltipItem) {
-    sum += tooltipItem.parsed.y;
-  });
-  return 'Sum: ' + sum;
-};
-
 const config1 = {
   type: 'line',
   data: data1,
   options: {
     interaction: {
       intersect: false,
-      mode: 'index',
+      mode: 'x',
     },
-    plugins: {
-      tooltip: {
-        callbacks: {
-          footer: footer,
-        }
-      }
-    }
   }
 };
 
@@ -63,23 +47,21 @@ const config2 = {
   options: {
     interaction: {
       intersect: false,
-      mode: 'index',
+      mode: 'x',
     },
-    plugins: {
-      tooltip: {
-        callbacks: {
-          footer: footer,
-        }
-      }
-    }
   }
 };
 
+
+
 const myChart1 = new Chart(
-  document.getElementById('myChart1'),
+  document.getElementById('myChart1').getContext("2d"),
   config1
 );
 const myChart2 = new Chart(
-  document.getElementById('myChart2'),
+  document.getElementById('myChart2').getContext("2d"),
   config2
 );
+
+
+
