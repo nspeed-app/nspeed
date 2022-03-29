@@ -1,67 +1,76 @@
-import {} from "./chart.min.js";
-import {} from "./chartjs-plugin-crosshair.min.js";
+import { } from "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js";
+import { } from "https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair@1.1.6/dist/chartjs-plugin-crosshair.min.js";
 
-const labels = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-];
+function generateDataset(shift, label, color) {
+  var data = [];
+  var x = 0;
 
-const data1 = {
-  labels: labels,
-  datasets: [{
-    label: 'dataset 1',
-    backgroundColor: 'rgb(255, 99, 132)',
-    borderColor: 'rgb(255, 99, 132)',
-    data: [0, 10, 5, 2, 20, 30, 45],
-  }]
-};
-
-const data2 = {
-  labels: labels,
-  datasets: [{
-    label: 'dataset 2',
-    backgroundColor: 'rgb(255, 99, 132)',
-    borderColor: 'rgb(0, 99, 132)',
-    data: [0, 3, 5, 20, 1, 3, 5],
-  }]
-};
-
-const config1 = {
-  type: 'line',
-  data: data1,
-  options: {
-    interaction: {
-      intersect: false,
-      mode: 'x',
-    },
+  while (x < 30) {
+    data.push({ x: x, y: Math.sin(shift + x / 3) });
+    x += Math.random();
   }
-};
 
-const config2 = {
-  type: 'line',
-  data: data2,
-  options: {
-    interaction: {
-      intersect: false,
-      mode: 'x',
-    },
+  var dataset = {
+    backgroundColor: color,
+    borderColor: color,
+    showLine: true,
+    fill: false,
+    pointRadius: 2,
+    label: label,
+    data: data,
+    lineTension: 0,
+    interpolate: true
+  };
+  return dataset;
+}
+
+const options = {
+  plugins: {
+    crosshair: {
+      sync: {
+        enabled: true
+      }
+    }
+  },
+
+  tooltips: {
+    mode: "interpolate",
+    intersect: false,
+    callbacks: {
+      title: function (a, d) {
+        return a[0].xLabel.toFixed(2);
+      },
+      label: function (i, d) {
+        return d.datasets[i.datasetIndex].label + ": " + i.yLabel.toFixed(2);
+      }
+    }
   }
 };
 
 
+var chart1 = new Chart(document.getElementById("chart1").getContext("2d"), {
+  type: "scatter",
+  options,
+  data: {
+    datasets: [
+      generateDataset(0, "A", "red"),
+      generateDataset(1, "B", "green"),
+      generateDataset(2, "C", "blue")
+    ]
+  }
+});
 
-const myChart1 = new Chart(
-  document.getElementById('myChart1').getContext("2d"),
-  config1
-);
-const myChart2 = new Chart(
-  document.getElementById('myChart2').getContext("2d"),
-  config2
-);
+var chart2 = new Chart(document.getElementById('chart2').getContext("2d"), {
+  type: "scatter",
+  options,
+  data: {
+    datasets: [
+      generateDataset(4, "G", "cyan"),
+      generateDataset(2, "H", "orange"),
+      generateDataset(1, "I", "teal")
+    ]
+  }
+});
 
 
 
