@@ -1,5 +1,6 @@
-import { } from "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js";
-import { } from "https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair@1.1.6/dist/chartjs-plugin-crosshair.min.js";
+import { } from "./chart.min.js";
+import { } from "./chartjs-plugin-crosshair.min.js";
+
 
 function generateDataset(shift, label, color) {
   var data = [];
@@ -26,22 +27,24 @@ function generateDataset(shift, label, color) {
 
 const options = {
   plugins: {
+    tooltip: {
+      animation: false,
+      mode: "interpolate",
+      intersect: false,
+      callbacks: {
+        title: function(a, d) {
+          return a[0].element.x.toFixed(2);
+        },
+        label: function(d) {
+          return (
+            d.chart.data.datasets[d.datasetIndex].label + ": " + d.element.y.toFixed(2)
+          );
+        }
+      }
+    },
     crosshair: {
       sync: {
         enabled: true
-      }
-    }
-  },
-
-  tooltips: {
-    mode: "interpolate",
-    intersect: false,
-    callbacks: {
-      title: function (a, d) {
-        return a[0].xLabel.toFixed(2);
-      },
-      label: function (i, d) {
-        return d.datasets[i.datasetIndex].label + ": " + i.yLabel.toFixed(2);
       }
     }
   }
