@@ -1,5 +1,8 @@
 import { } from "./chart.min.js";
 import { } from "./chartjs-plugin-crosshair.min.js";
+import { } from "./chartjs-plugin-autocolors.js";
+
+const autocolors = window['chartjs-plugin-autocolors'];
 
 
 function generateDataset(shift, label, color) {
@@ -12,8 +15,8 @@ function generateDataset(shift, label, color) {
   }
 
   var dataset = {
-    backgroundColor: color,
-    borderColor: color,
+    // backgroundColor: color,
+    // borderColor: color,
     showLine: true,
     fill: false,
     pointRadius: 2,
@@ -46,10 +49,14 @@ const options = {
       sync: {
         enabled: true
       }
+    },
+    autocolors: {
+      mode: 'dataset'
     }
   }
 };
 
+Chart.register(autocolors);
 
 var chart1 = new Chart(document.getElementById("chart1").getContext("2d"), {
   type: "scatter",
