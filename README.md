@@ -31,11 +31,11 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     # download 2 different targets
     nspeed get https://bouygues.testdebit.info/10G/10G.iso get https://scaleway.testdebit.info/10G/10G.iso
 
-    # downlaod the same target both in IPv4 and IPv6
+    # downlaod the same target in IPv4 and IPv6 at the same time
     nspeed get -4 https://bouygues.testdebit.info/100M/100M.iso get -6 https://bouygues.testdebit.info/100M/100M.iso
 
     # upload two 1GB to a single target (use "1g" for 1GB (1000*1000*1000 bytes) and "1G" for 1GiB (1024*1024*1024 bytes)
-    # accepted prefixes: k,m,g,t,p,e and K,M,G,T,P,E
+    # accepted units: k,m,g,t,p,e and K,M,G,T,P,E
     nspeed put -n 2 https://bouygues.testdebit.info/ 1g
 
     # download & upload at the same time
@@ -45,7 +45,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     nspeed server
     
     # start a server at port 8888 with max time of 5 seconds and 1 GB max size accepted
-    nspeed server -p 8080 -t 5 -s 1000000000
+    nspeed server -p 8080 -t 5 -s 1g
 
     # start a server listening on all interfaces but in IPv6 only
     nspeed server -6 -a=""
@@ -56,7 +56,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     # start two instances of server, one listening on a specific IPv6 address and one on a specific IPv4 address
     nspeed server -a 2001:1234:5678::3 server -a 192.168.1.3
 
-    # download 1GB from a nspeed server
+    # download 1GB from a nspeed server (the server generate content based on the url path: format is "/size[.ext][?ct=content-type]")
     nspeed get http://localhost:7333/1g
 
     # download 20 x 100MiB from a nspeed server
@@ -108,6 +108,7 @@ Source code with be released before v1.0
 - Joe Shaw for [Abusing go:linkname to customize TLS 1.3 cipher suites](https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/)
 
 - [Apache Echarts](https://echarts.apache.org/en/index.html)
+- [Chart.js](https://www.chartjs.org/)
 
 [arcep]: https://arcep.fr/
 [rapport]: https://en.arcep.fr/news/press-releases/view/n/internet-ouvert.html
