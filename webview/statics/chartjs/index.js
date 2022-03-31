@@ -1,6 +1,7 @@
 import { } from "./chart.min.js";
 import { } from "./chartjs-plugin-crosshair.min.js";
 import { } from "./chartjs-plugin-autocolors.js";
+import { }  from "https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0";
 
 const autocolors = window['chartjs-plugin-autocolors'];
 
@@ -57,6 +58,7 @@ const options = {
 };
 
 Chart.register(autocolors);
+//Chart.register(ChartDataLabels);
 
 var chart1 = new Chart(document.getElementById("chart1").getContext("2d"), {
   type: "scatter",
