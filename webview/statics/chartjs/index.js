@@ -1,6 +1,7 @@
-import { } from "./chart.min.js";
-import { } from "./chartjs-plugin-crosshair.min.js";
-import { } from "./chartjs-plugin-autocolors.js";
+//@ts-check
+import { } from "./chart.min.js"; // 3.5.1 is latest working with linked crosshair
+import { } from "./chartjs-plugin-crosshair.js";
+//import { } from "./chartjs-plugin-autocolors.js";
 //import { }  from "https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0";
 
 const autocolors = window['chartjs-plugin-autocolors'];
@@ -22,7 +23,7 @@ for (var i = 0; tt < minutes * 60; i++) {
 var labels = times
 //console.log(times);
 
-function generateDataset(shift, label, color) {
+function generateDataset(label, color) {
   var data = [];
   var x = 0;
 
@@ -83,31 +84,33 @@ const options = {
   }
 };
 
-Chart.register(autocolors);
-//Chart.register(ChartDataLabels);
+// Chart.register(autocolors);
+// Chart.register(ChartDataLabels);
 
+// @ts-ignore
 var chart1 = new Chart(document.getElementById("chart1").getContext("2d"), {
   type: "line",
   options,
   data: {
     labels: labels,
     datasets: [
-      generateDataset(0, "A", "red"),
-      generateDataset(1, "B", "green"),
-      generateDataset(2, "C", "blue")
+      generateDataset("A", "red"),
+      generateDataset("B", "green"),
+      generateDataset("C", "blue")
     ]
   }
 });
 
+// @ts-ignore
 var chart2 = new Chart(document.getElementById('chart2').getContext("2d"), {
   type: "line",
   options,
   data: {
     labels: labels,
     datasets: [
-      generateDataset(4, "G", "cyan"),
-      generateDataset(2, "H", "orange"),
-      generateDataset(1, "I", "teal")
+      generateDataset("G", "cyan"),
+      generateDataset("H", "orange"),
+      generateDataset("I", "teal")
     ]
   }
 });
