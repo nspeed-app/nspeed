@@ -28,7 +28,7 @@ function generateDataset(label, color) {
   var x = 0;
 
   for (let y in labels) {
-    data.push(Math.random())
+    data.push(Math.random()*1000)
   }
 
   var dataset = {
@@ -94,13 +94,14 @@ var chart1 = new Chart(document.getElementById("chart1").getContext("2d"), {
   data: {
     labels: labels,
     datasets: [
-      generateDataset("A", "red"),
-      generateDataset("B", "green"),
-      generateDataset("C", "blue")
+      generateDataset("Download", "red"),
+      generateDataset("Upload", "green"),
+      generateDataset("Latency", "blue")
     ]
   }
 });
 
+console.log(chart1.data.datasets)
 // @ts-ignore
 var chart2 = new Chart(document.getElementById('chart2').getContext("2d"), {
   type: "line",
@@ -108,9 +109,9 @@ var chart2 = new Chart(document.getElementById('chart2').getContext("2d"), {
   data: {
     labels: labels,
     datasets: [
-      generateDataset("G", "cyan"),
-      generateDataset("H", "orange"),
-      generateDataset("I", "teal")
+      generateDataset("eth0", "cyan"),
+      generateDataset("eth0", "orange"),
+      generateDataset("localhost", "teal")
     ]
   }
 });
