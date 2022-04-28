@@ -95,7 +95,7 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	//fmt.Printf("zerolog.GlobalLevel = %d\n", zerolog.GlobalLevel())
 	if zerolog.GlobalLevel() <= zerolog.InfoLevel {
 		progressTicker := time.NewTicker(time.Duration(opt.ProgressInterval) * time.Second)
-		fmt.Printf("setting progress ticker of %d seconds\n", opt.ProgressInterval)
+		//fmt.Printf("setting progress ticker of %d seconds\n", opt.ProgressInterval)
 		progressTickerChannel = progressTicker.C
 	}
 

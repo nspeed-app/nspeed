@@ -286,7 +286,7 @@ func (wm *Metrics) WriteTo(w io.Writer) (n int64, err error) {
 			break
 		}
 	}
-	fmt.Printf("WriteTo used with %d Write and %d max buff\n", wm.WriteCount, wm.StepSize)
+	//fmt.Printf("WriteTo used with %d Write and %d max buff\n", wm.WriteCount, wm.StepSize)
 	return wm.TotalWrite, nil
 }
 

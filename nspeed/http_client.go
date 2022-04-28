@@ -293,6 +293,14 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	req.Header.Set("User-Agent", j.UserAgent)
 	req.Header.Set("Content-Type", j.ContentType)
 
+	// investigate
+	req.TransferEncoding = []string{"identity"}
+
+	// curl works with 100-continue but Go HTTP client doesn't ... investigate more
+	// if j.Command == "POST" || j.Command == "PUT" {
+	// 	req.Header.Set("Expect", "100-continue")
+	// }
+
 	return nil
 }
 
@@ -409,6 +417,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	// resp, err := client.Transport.RoundTrip(req)
 	wm.InitNew()
 	resp, err := j.client.Do(j.req)
+	j.Logger.Debug().Msgf("client.Do: %v", err)
 	j.tr.end = time.Now()
 
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -466,8 +475,17 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 			Str("ContentLength-Binary", ByteCountBinary(resp.ContentLength)+"B").
 			Send()
 
+		// if j.Logger.GetLevel() <= zerolog.DebugLevel {
+		// 	dump, err := httputil.DumpResponse(resp, true)
+		// 	if err != nil {
+		// 		log.Fatal().Err(err).Send()
+		// 	}
+		// 	fmt.Printf("Response:\n%s", dump)
+		// }
+
 		if resp.StatusCode != http.StatusOK {
 			wm.Error = errors.New("http status code: " + resp.Status)
+
 		} else {
 			if j.Command == "GET" {
 				defer func() {

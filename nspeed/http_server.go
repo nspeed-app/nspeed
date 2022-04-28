@@ -174,14 +174,14 @@ func (h *JobHTTPServer) Handler() http.Handler {
 	return handler
 }
 
-// handle '/' .. get : stre am bytes, put - upload bytes
+// handle '/' .. get : stream bytes, post/put - upload bytes
 func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	if method == "" {
 		method = "GET"
 	}
 
-	//log.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
+	log.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
 
 	if method == "GET" {
 		match := h.StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
@@ -200,7 +200,8 @@ func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		h.Upload(w, r)
 		return
 	}
-	if method == "PUT" && r.URL.Path == "/" {
+	//todo: may be only accept some specific path.
+	if method == "PUT" {
 		h.Upload(w, r)
 		return
 	}
@@ -321,7 +322,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 
 // handle upload
 func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
-	h.Logger.Info().Msgf("starting Upload from %s (%d)", r.RemoteAddr, r.ContentLength)
+	h.Logger.Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
 	wm := Metrics{
 		Done:    false,
 		Expired: false,

@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 )
@@ -217,7 +219,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			return args, nil, err
 		}
 
-		// put [-u] url [-s] size
+		// put/post [-u] url [-s] size
 		// since -u and -s are optionnal , we must check if they are here and if not advance args
 		args = fs.Args()
 
@@ -253,6 +255,15 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			return args, nil, err
 		}
 		j.ContentSize = int64(cs)
+
+		u, err := url.Parse(j.Target)
+		if err != nil {
+			return args, nil, errors.New("bad url")
+		}
+		if command == putCommand {
+			u.Path = path.Join(u.Path, FormatByteDecimalUnits(j.ContentSize))
+			j.Target = u.String()
+		}
 		return args, &j, nil
 
 	case serveCommand:
