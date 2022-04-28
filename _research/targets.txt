@@ -17,3 +17,12 @@ https://speedtest.1fichier.com/default.dat
 (https://1fichier.com/network.html)
 
 https://speed.hetzner.de/10GB.bin
+
+https://kb.leaseweb.com/network/link-speeds
+
+http://test-debit.free.fr/
+https://proof.ovh.net/files/
+https://speed.hetzner.de/
+http://ping.online.net/
+
+http://speedtest.milkywan.fr/
