@@ -1,6 +1,6 @@
 # doesn't work yet
 export MACOS_MIN_VER=10.14
-export MACOS_SDK_PATH="../MacOSX11.3.sdk"
+export MACOS_SDK_PATH="$(pwd)/../MacOSX11.3.sdk"
 
 # create dist dir
 mkdir -p dist/darwin-amd64

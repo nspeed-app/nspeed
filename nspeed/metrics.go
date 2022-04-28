@@ -223,8 +223,8 @@ func (wm *Metrics) Close() error {
 	return nil
 }
 
-// Implement io.Reader - (it's a 'Write' metrics since a POST will call this Read() here to send to http server)
-// Read <- golang http client -> POST --> network --> server upload
+// Implement io.Reader - (it's a 'Write' metrics since a PUT/POST will call this Read() here to send to http server)
+// Read <- golang http client -> PUT/POST --> network --> server upload
 func (wm *Metrics) Read(p []byte) (n int, err error) {
 
 	wm.mutex.Lock()

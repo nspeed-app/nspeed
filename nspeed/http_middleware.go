@@ -118,8 +118,8 @@ func preflight(h http.Handler) http.Handler {
 		respHeader.Set("Server:", ServerName+" "+ServerVersion)
 
 		if r.Method == "OPTIONS" {
-			w.Header().Set("Access-Control-Allow-Methods", "HEAD, GET, POST, OPTIONS") // , HEAD, PUT, DELETE, PATCH, ") // todo
-			w.Header().Set("Access-Control-Max-Age", "3600")                           //todo
+			w.Header().Set("Access-Control-Allow-Methods", "HEAD, GET, POST, PUT, OPTIONS") // , HEAD, PUT, DELETE, PATCH, ") // todo
+			w.Header().Set("Access-Control-Max-Age", "3600")                                //todo
 			if r.Header.Get("Access-Control-Request-Headers") != "" {
 				w.Header().Set("Access-Control-Allow-Headers", r.Header.Get("Access-Control-Request-Headers"))
 			}

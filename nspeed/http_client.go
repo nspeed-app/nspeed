@@ -78,7 +78,7 @@ func (j *JobHTTPClient) GoString() string {
 		j.H2C,
 		j.UseHTTP11,
 	)
-	if j.Command == "POST" {
+	if j.Command == "POST" || j.Command == "PUT" {
 		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, ByteCountDecimal(j.ContentSize))
 	}
 	s += "}"
@@ -131,8 +131,8 @@ func (j *JobHTTPClient) PrintString(verbose bool) string {
 		}
 		return formatOut(r)
 
-	} else if j.Command == "POST" {
-		t := "put %s" + j.finalTarget + " " + ByteCountDecimal(j.ContentSize) + "B"
+	} else if j.Command == "POST" || j.Command == "PUT" {
+		t := strings.ToLower(j.Command) + " %s" + j.finalTarget + " " + ByteCountDecimal(j.ContentSize) + "B" //todo
 		r := fmt.Sprintf(t, "")
 		if j.H2C {
 			r = fmt.Sprintf(t, "-h2c ")
@@ -275,7 +275,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 
 	var body io.ReadCloser
 	body = http.NoBody
-	if j.Command == "POST" {
+	if j.Command == "POST" || j.Command == "PUT" {
 		wm.ContentWriteSize = j.ContentSize
 		wm.ContentReadSize = 0
 		wm.StepSize = 256 * 1024 // todo:
@@ -452,9 +452,9 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 				Dur("TLSDuration", j.tr.tlsDone.Sub(refdate)).Send()
 		}
 	}
-	// todo: time'd out 'POST' don't have a resp so we're missing informations like protocol ,tls, etc
+	// todo: time'd out 'POST/PUT' don't have a resp so we're missing informations like protocol ,tls, etc
 	// todo: find a way to get the missing informations elsewhere
-	// possible workaround: do a HEAD before the POST but that will count has 2 requests and could mess the server stats and Maxrequests option
+	// possible workaround: do a HEAD before the POST/PUT but that will count has 2 requests and could mess the server stats and Maxrequests option
 	if wm.Error == nil && resp != nil {
 		wm.Protocol = resp.Proto
 		j.Logger.Info().

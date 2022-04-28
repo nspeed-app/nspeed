@@ -200,7 +200,10 @@ func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		h.Upload(w, r)
 		return
 	}
-
+	if method == "PUT" && r.URL.Path == "/" {
+		h.Upload(w, r)
+		return
+	}
 	//http.NotFound(w, r)
 }
 

@@ -12,6 +12,9 @@
 - new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)
 - new flags: `-stats`, `-statsonly` and `-statsdebug`: enable real time stats view at `/rl` url path. `statsonly` disable all other api routes. `statsdebug` adds Go runtime specifics stats at url path: `/debug/pprof`
 
+## Client
+- breaking change: HTTP client can now do PUT or POST with corresponding matching command names. A new `post` command was added to do POST and the previously `put` command does now 'PUT' instead of POST
+
 # ciphers
 - updated for Go 1.17 internal changes
 - this command can no longer be called with other commands even with itself because of a global side-effect. This command is not available thru the API.
@@ -111,7 +114,7 @@ This will launch a server and it will answer to 2 requests then stop and a "get"
 
 ## known issues / caveats
   - server: the default host is now 'localhost' which leads to bind only to IPv4 (Go bug: https://github.com/golang/go/issues/9334). A temporary workaround is to launch a second server instance with the -6 flag: `nspeed server server -6` will listen to localhost on IPv4 and IPv6. A fix will be implemented soon. Some OS can fail to resolve 'localhost' to ::1 even if they have IPv6 configured. In that case use "-a ::1" explicitly (`nspeed server server -a ::1`)
-  - put: redirect(s) happen after the upload which normal behavior for a HTTP POST.
+  - put/post: redirect(s) happen after the upload which normal behavior for a HTTP POST/PUT.
   - performance inconsistencies on Windows
   - '-a "" ' doesn't parse on Windows, workaround: use '-a=""' 
   - server: '-a interface_name' bind to the first candidate address (ipv6/ipv4/link-local) found for that interface. It's not the same behavior as a bind with SO_BINDTODEVICE (which is platform specific).

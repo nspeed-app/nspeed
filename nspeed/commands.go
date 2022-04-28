@@ -15,6 +15,7 @@ type CommandId int
 
 const getCommand = "get"
 const putCommand = "put"
+const postCommand = "post"
 const serveCommand = "server"
 const ciphersCommand = "ciphers"
 const apiCommand = "api"
@@ -36,6 +37,7 @@ type Command struct {
 var Commands = map[string]Command{
 	getCommand:     {getCommand, 1, true},
 	putCommand:     {putCommand, 1, true},
+	postCommand:    {postCommand, 1, true},
 	serveCommand:   {serveCommand, 1, true},
 	ciphersCommand: {ciphersCommand, 0, false},
 	// latencyCommand:    {latencyCommand, 1, true},
@@ -45,7 +47,8 @@ var Commands = map[string]Command{
 
 var CommandDescriptions = map[string]string{
 	getCommand:     "perform an HTTP GET command to measure download speed",
-	putCommand:     "perform an HTTP POST command to measure upload speed",
+	putCommand:     "perform an HTTP PUT command to measure upload speed",
+	postCommand:    "perform an HTTP POST command to measure upload speed",
 	serveCommand:   "launch a standard web server supporting GET and POST commands of arbitraty sizes",
 	ciphersCommand: "list cipher suites supported by the target server(s)",
 	// latencyCommand:    "measure latency to destination (not yet implemented)",
@@ -100,7 +103,7 @@ func isFlagPassed(fs *flag.FlagSet, name string) bool {
 	return found
 }
 
-// parse GET/PUT flags
+// parse GET/PUT/POST flags
 func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *JobHTTPClient) error {
 
 	if err := fs.Parse(args); err != nil {
@@ -189,13 +192,16 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 
 		return args, &j, nil
 
-	case putCommand:
+	case putCommand, postCommand:
 		j := JobHTTPClient{}
-		j.Command = "POST"
+		j.Command = "PUT"
+		if command == postCommand {
+			j.Command = "POST"
+		}
 		fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j)
 		fs.Usage = func() {
-			fmt.Fprintf(fs.Output(), "Usage of %s: ", putCommand)
-			fmt.Fprintf(fs.Output(), "  %s [options] [-url] target [-size] size\n", putCommand)
+			fmt.Fprintf(fs.Output(), "Usage of %s: ", command)
+			fmt.Fprintf(fs.Output(), "  %s [options] [-url] target [-size] size\n", command)
 			fmt.Fprintf(fs.Output(), "size is a number of bytes with an optionnal units like \"100k\" (100x1000 bytes) or \"100K\" (100x1024 bytes)\n")
 			fmt.Fprintf(fs.Output(), "supported units: kmgtpe (x1000 units) and KMGTPE (x1024 units)\n")
 			fmt.Fprintf(fs.Output(), "keywords '-url' and '-size' can be ommmited\n")
