@@ -37,8 +37,8 @@ func ResolveHostAddress(host string) ([]net.IPAddr, error) {
 
 // ResolveInterfaceHostAddress returns the IP address(es) of 'host' by
 // resolving 'host' as, in that order,: interface name, dns name, ip address.
-// if 'host' is a valid interface name, all IPs of that interface are returned, ipv6 link-local(s) are always last in the result
-// if 'host' is a not valid interface, 'host' is treated as a dns name and resolved as such
+// if 'host' is a valid interface name, all IPs of that interface are returned, ipv6 link-local(s) are always last in the result.
+// if 'host' is a not valid interface, 'host' is treated as a dns name and resolved as such.
 func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 
 	itf, err := net.InterfaceByName(host)

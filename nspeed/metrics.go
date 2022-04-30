@@ -100,7 +100,7 @@ func (wm *Metrics) Write(p []byte) (int, error) {
 // investigate if we can implement ReadFrom instead of Write
 // ReadFrom version- performance sensitive, don't do much here
 // it's basically a io.Discard with some metrics stored
-func (wm *Metrics) ReadFrom(r io.Reader) (n int64, err error) {
+func (wm *Metrics) FixMeReadFrom(r io.Reader) (n int64, err error) {
 	wm.mutex.Lock()
 	wm.TotalRead = 0
 	wm.ReadCount = 0
@@ -226,7 +226,11 @@ func (wm *Metrics) Close() error {
 // Implement io.Reader - (it's a 'Write' metrics since a PUT/POST will call this Read() here to send to http server)
 // Read <- golang http client -> PUT/POST --> network --> server upload
 func (wm *Metrics) Read(p []byte) (n int, err error) {
-
+	n, err = wm.read(p)
+	//fmt.Println("READ:", n, err)
+	return n, err
+}
+func (wm *Metrics) read(p []byte) (n int, err error) {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 	if wm.TotalWrite == 0 {
@@ -269,11 +273,14 @@ func (wm *Metrics) WriteTo(w io.Writer) (n int64, err error) {
 
 	for {
 		todo := Min(wm.ContentWriteSize-wm.TotalWrite, buflen)
-		if todo == 0 {
+		if todo <= 0 {
 			break
 		}
 		n, err := w.Write(BigBuffer[:todo])
 		written := int64(n)
+		if err != nil {
+			return wm.TotalWrite + written, err
+		}
 		wm.mutex.Lock()
 		if written > wm.StepSize {
 			wm.StepSize = written
@@ -286,7 +293,7 @@ func (wm *Metrics) WriteTo(w io.Writer) (n int64, err error) {
 			break
 		}
 	}
-	//fmt.Printf("WriteTo used with %d Write and %d max buff\n", wm.WriteCount, wm.StepSize)
+	fmt.Printf("WriteTo used with %d Write ops and %d max buff for a total of %d\n", wm.WriteCount, wm.StepSize, wm.TotalWrite)
 	return wm.TotalWrite, nil
 }
 

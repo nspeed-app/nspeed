@@ -1,8 +1,13 @@
 package nspeed
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httputil"
 	"os"
+	"runtime"
 
+	"github.com/rs/zerolog/log"
 	"golang.org/x/exp/constraints"
 )
 
@@ -29,4 +34,23 @@ func Max[T constraints.Ordered](x, y T) T {
 		return x
 	}
 	return y
+}
+
+func DumpRequest(req *http.Request, body bool) {
+	dump, err := httputil.DumpRequestOut(req, body)
+	if err != nil {
+		log.Fatal().Err(err).Msg("DumpRequestOut failed")
+	}
+
+	fmt.Printf("%s", dump)
+}
+
+func PrintMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("Alloc = %v B", FormatByteDecimalUnits(int64(m.Alloc)))
+	fmt.Printf("\tTotalAlloc = %v B", FormatByteDecimalUnits(int64(m.TotalAlloc)))
+	fmt.Printf("\tSys = %v B", FormatByteDecimalUnits(int64(m.Sys)))
+	fmt.Printf("\tNumGC = %v\n", m.NumGC)
 }

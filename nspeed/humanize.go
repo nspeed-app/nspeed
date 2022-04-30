@@ -54,7 +54,7 @@ func FormatByteDecimalUnits(b int64) string {
 	return s + u
 }
 
-// FormatByteDecimalUnits format byte size to human readable format (decimal units)
+// FormatByteDecimalUnits format byte size to human readable format (binary units)
 // suitable to be parsed by ParseByteUnits
 func FormatByteBinaryUnits(b int64) string {
 	s, u := byteCount(b, 1024, decimalUnits)

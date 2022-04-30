@@ -168,8 +168,9 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		j.Target = "http://" + j.Target
 	}
 	j.finalTarget = j.Target
-	j.Logger.Debug().Msgf("target parsed to: %s", j.Target)
+	j.Logger.Debug().Msgf("target is: %s", j.Target)
 
+	// source address
 	var LocalAddr net.Addr
 	if j.Host != "" {
 		la, err := ResolveInterfaceHostAddress(j.Host)
@@ -192,6 +193,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		}
 	}
 
+	// dialer
 	var dialer = &net.Dialer{
 		Timeout:       5 * time.Second, // fail quick
 		FallbackDelay: -1,              // don't use Happy Eyeballs
@@ -227,7 +229,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		log.Debug().Msgf("TLSConfig: defined")
 	}
 
-	// // interface to the transport so we can switch if needed
+	// interface to the transport so we can switch if needed
 	var rtTransport http.RoundTripper = netTransport
 
 	if !j.UseHTTP11 {
@@ -264,7 +266,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 				j.Logger.Info().Msgf("redirected to %s", loc.String())
 			}
 
-			wm.InitNew() //todo: evaluate
+			wm.InitNew() //todo: evaluate - Body rewind may interactions (redirection happends afte consuming the body?)?
 			j.numRedirect++
 			j.finalTarget = loc.String()
 			return nil // http.ErrUseLastResponse
@@ -282,25 +284,25 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		wm.TotalWrite = 0
 		body = wm
 	}
+
 	req, err := http.NewRequest(j.Command, j.Target, body)
 	if err != nil {
 		return err
 	}
 
-	j.req = req
 	// add more headers here
 	req.Header.Set("Accept-Encoding", "identity")
 	req.Header.Set("User-Agent", j.UserAgent)
 	req.Header.Set("Content-Type", j.ContentType)
 
-	// investigate
-	req.TransferEncoding = []string{"identity"}
+	// post,put: avoid chunked transfert which is default net/http client behavior.
+	if j.Command == "POST" || j.Command == "PUT" {
+		req.Header.Set("Expect", "100-continue")
+		req.TransferEncoding = nil
+		req.ContentLength = j.ContentSize
+	}
 
-	// curl works with 100-continue but Go HTTP client doesn't ... investigate more
-	// if j.Command == "POST" || j.Command == "PUT" {
-	// 	req.Header.Set("Expect", "100-continue")
-	// }
-
+	j.req = req
 	return nil
 }
 
@@ -394,6 +396,19 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 			j.Logger.Debug().Msgf("got 1xx: %d %+v", code, header)
 			return nil
 		},
+
+		WroteHeaderField: func(key string, value []string) {
+			j.Logger.Debug().Msgf("WroteHeaderField %s = %v", key, value)
+		},
+		WroteHeaders: func() {
+			j.Logger.Debug().Msgf("WroteHeaders")
+		},
+		Wait100Continue: func() {
+			j.Logger.Debug().Msgf("Wait100Continue")
+		},
+		WroteRequest: func(wri httptrace.WroteRequestInfo) {
+			j.wm.Logger.Debug().Err(wri.Err).Msgf("WroteRequest")
+		},
 	}
 
 	// this is where we wait
@@ -416,7 +431,11 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	refdate = time.Now()
 	// resp, err := client.Transport.RoundTrip(req)
 	wm.InitNew()
+
+	PrintMemUsage()
 	resp, err := j.client.Do(j.req)
+	PrintMemUsage()
+
 	j.Logger.Debug().Msgf("client.Do: %v", err)
 	j.tr.end = time.Now()
 
