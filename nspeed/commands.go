@@ -83,6 +83,7 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	fs.BoolVar(&job.UseTLSSelfConfig, "self", OptTLSSelf, "use self-signed TLS certificate")
 	fs.BoolVar(&job.UseHTTP11, "http11", false, "force using HTTP 1.1")
 	fs.BoolVar(&job.H2C, "h2c", false, "force using HTTP/2 Cleartext (H2C) mode")
+	fs.BoolVar(&job.HTTP3, "http3", false, "use HTTP3")
 	fs.StringVar(&job.UserAgent, "u", "nspeed.app/"+Version, "user-agent")
 
 	hf := httpFlags{}
@@ -291,6 +292,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
 		fs.StringVar(&host.Directory, "dir", "", "directory to serve content from (url will be /dir)")
 		fs.BoolVar(&host.H2C, "h2c", false, "support also HTTP/2 Cleartext (H2C) mode")
+		fs.BoolVar(&host.HTTP3, "http3", false, "use HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
 		fs.BoolVar(&host.API, "api", false, "enable API endpoint (/api url)")
 		if err := fs.Parse(args); err != nil {
 			return args, nil, err
@@ -326,6 +328,12 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			if _, err := os.Stat(host.TLSKeyFile); os.IsNotExist(err) {
 				return args, nil, errors.New("bad or missing TLS key file: " + host.TLSKeyFile)
 			}
+			host.ServeTLS = true
+		}
+
+		// force -self if http3 and no tls files
+		if host.HTTP3 && !host.ServeTLS {
+			host.UseTLSSelfConfig = true
 			host.ServeTLS = true
 		}
 

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
@@ -40,6 +41,7 @@ type HostParameters struct {
 	MaxDuration      time.Duration
 	ServeTLS         bool
 	H2C              bool
+	HTTP3            bool
 	UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
 	TLSCertFile      string
 	TLSKeyFile       string
@@ -58,6 +60,7 @@ func NewHostParameters() *HostParameters {
 		MaxDuration:      DefaultMaxDuration,
 		ServeTLS:         false,
 		H2C:              false,
+		HTTP3:            false,
 		UseTLSSelfConfig: false,
 	}
 }
@@ -423,41 +426,50 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 		close(exitCh)
 	}()
 
+	// TLS stuff
+	if s.Parameters.UseTLSSelfConfig {
+		if TLSSelfConfig != nil {
+			s.Server.TLSConfig = TLSSelfConfig
+		} else {
+			// this shouldn't happen if parameters check are done correctly
+			s.Logger.Fatal().Msgf("no self certificate installed")
+		}
+	} else if s.Parameters.ServeTLS {
+		// todo: this should be done earlier may be ?
+		cer, err := tls.LoadX509KeyPair(s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
+		if err != nil {
+			s.Logger.Fatal().Err(err).Msgf("error loading cert/key files")
+		}
+		s.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
+
+	}
+
 	// "tcp4" for IPv4 only
 	// "tcp6" or IPv6 only
 	// "tcp" (default) for both
-	network := "tcp"
+	networkTcp := "tcp"
+	networkUdp := "udp"
 	if s.Parameters.ForceIPVersion == 4 {
-		network = "tcp4"
+		networkTcp = "tcp4"
+		networkUdp = "udp4"
 	}
 	if s.Parameters.ForceIPVersion == 6 {
-		network = "tcp6"
+		networkTcp = "tcp6"
+		networkUdp = "udp6"
 	}
-
-	ln, err := net.Listen(network, s.Server.Addr)
-	if err != nil {
-		return err
-	}
-	defer ln.Close()
 
 	var listenErr error
 	if s.Parameters.ServeTLS {
-		s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t)", s.Server.Addr, s.Parameters.H2C)
-		if s.Parameters.UseTLSSelfConfig {
-			if TLSSelfConfig != nil {
-				s.Server.TLSConfig = TLSSelfConfig
-				listenErr = s.Server.ServeTLS(ln, "", "")
-			} else {
-				// this shouldn't happen if parameters check are done correctly
-				s.Logger.Fatal().Err(listenErr).Msgf("no self certificate installed")
-			}
-
+		if s.Parameters.HTTP3 {
+			s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t) (http3 on udp)", s.Server.Addr, s.Parameters.H2C)
+			listenErr = HTTP3ListenAndServe(s.Server.Addr, networkTcp, networkUdp, s.Server)
 		} else {
-			listenErr = s.Server.ServeTLS(ln, s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
+			s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t)", s.Server.Addr, s.Parameters.H2C)
+			listenErr = s.Server.ListenAndServeTLS("", "")
 		}
 	} else {
 		s.Logger.Warn().Msgf("nspeed listening on http://%s", s.Server.Addr)
-		listenErr = s.Server.Serve(ln)
+		listenErr = s.Server.ListenAndServe()
 	}
 	if listenErr != nil && listenErr != http.ErrServerClosed {
 		s.Logger.Fatal().Msgf("failed to listen: %s", listenErr)
@@ -466,4 +478,66 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 	<-exitCh
 	s.Logger.Info().Msgf("shutdown finished")
 	return nil
+}
+
+// ListenAndServe listens on the given network addresses for both, TLS and QUIC
+// connections in parallel. It returns if one of the two returns an error.
+// http.DefaultServeMux is used when handler is nil.
+// The correct Alt-Svc headers for QUIC are set.
+func HTTP3ListenAndServe(addr, tcpnet, udpnet string, httpServer *http.Server) error {
+
+	if httpServer == nil {
+		return errors.New("no server")
+	}
+	// Open the listeners
+	udpAddr, err := net.ResolveUDPAddr(udpnet, addr)
+	if err != nil {
+		return err
+	}
+	udpConn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		return err
+	}
+	defer udpConn.Close()
+
+	tcpAddr, err := net.ResolveTCPAddr(tcpnet, addr)
+	if err != nil {
+		return err
+	}
+	tcpConn, err := net.ListenTCP("tcp", tcpAddr)
+	if err != nil {
+		return err
+	}
+	defer tcpConn.Close()
+
+	tlsConn := tls.NewListener(tcpConn, httpServer.TLSConfig)
+	defer tlsConn.Close()
+
+	quicServer := &http3.Server{
+		Server: httpServer,
+	}
+
+	h := httpServer.Handler
+	httpServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		quicServer.SetQuicHeaders(w.Header())
+		h.ServeHTTP(w, r)
+	})
+
+	hErr := make(chan error)
+	qErr := make(chan error)
+	go func() {
+		hErr <- httpServer.Serve(tlsConn)
+	}()
+	go func() {
+		qErr <- quicServer.Serve(udpConn)
+	}()
+
+	select {
+	case err := <-hErr:
+		quicServer.Close()
+		return err
+	case err := <-qErr:
+		// Cannot close the HTTP server or wait for requests to complete properly :/
+		return err
+	}
 }

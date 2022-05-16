@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lucas-clemente/quic-go"
+	"github.com/lucas-clemente/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
@@ -57,6 +59,7 @@ type JobHTTPClient struct {
 	Logger           *zerolog.Logger
 	UseHTTP11        bool
 	H2C              bool
+	HTTP3            bool
 	// private
 	client      *http.Client
 	req         *http.Request
@@ -255,6 +258,19 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 				// MaxFrameSize:       256 * 1024,
 			}
 		}
+		if j.HTTP3 {
+			rtTransport = &http3.RoundTripper{
+				DisableCompression: true,
+				TLSClientConfig:    netTransport.TLSClientConfig,
+				QuicConfig:         &quic.Config{},
+				//EnableDatagrams:    false,
+				Dial: func(ctx context.Context, network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+					log.Debug().Msgf("HTTP3: %s,%s,%v", network, addr, cfg)
+					return quic.DialAddrEarlyContext(ctx, addr, tlsCfg, cfg)
+				},
+				//MaxResponseHeaderBytes: 0,
+			}
+		}
 	}
 	// create http client
 	j.client = &http.Client{
@@ -326,35 +342,35 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.start = time.Now()
-			wm.Logger.Debug().Msgf("DNSStart: %v", j.tr.start.Sub(refdate))
+			wm.Logger.Debug().Msgf("ClientTrace-DNSStart: %v", j.tr.start.Sub(refdate))
 		},
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.dnsDone = time.Now()
 			j.tr.DNSInfo = dnsInfo
-			wm.Logger.Debug().Msgf("DNSDone: %v", j.tr.dnsDone.Sub(refdate))
+			wm.Logger.Debug().Msgf("ClientTrace-DNSDone: %v", j.tr.dnsDone.Sub(refdate))
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.gotConn = time.Now()
 			j.tr.ConnInfo = connInfo
-			wm.Logger.Debug().Msgf("GotConn: %v", j.tr.gotConn.Sub(refdate))
+			wm.Logger.Debug().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
 		},
 		GotFirstResponseByte: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.responseStart = time.Now()
 			wm.FirstResponseByte = j.tr.responseStart // todo: does this belong here ?
-			wm.Logger.Debug().Msgf("GotFirstResponseByte: %v", j.tr.responseStart.Sub(refdate))
+			wm.Logger.Debug().Msgf("ClientTrace-GotFirstResponseByte: %v", j.tr.responseStart.Sub(refdate))
 		},
 
 		TLSHandshakeStart: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.tlsStart = time.Now()
-			wm.Logger.Debug().Msgf("TLSHandshakeStart: %v", j.tr.tlsStart.Sub(refdate))
+			wm.Logger.Debug().Msgf("ClientTrace-TLSHandshakeStart: %v", j.tr.tlsStart.Sub(refdate))
 		},
 
 		TLSHandshakeDone: func(t tls.ConnectionState, err error) {
@@ -369,7 +385,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 				j.tr.tls = false
 				//fmt.Printf("tls: %+v \n", err)
 			}
-			wm.Logger.Debug().Msgf("TLSHandshakeDone: %v", j.tr.tlsDone.Sub(refdate))
+			wm.Logger.Debug().Msgf("ClientTrace-TLSHandshakeDone: %v", j.tr.tlsDone.Sub(refdate))
 		},
 		ConnectStart: func(_, _ string) {
 			wm.mutex.Lock()
@@ -380,34 +396,34 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 				j.tr.start = j.tr.connectStart
 				j.tr.dnsDone = j.tr.start
 			}
-			wm.Logger.Debug().Msgf("ConnectStart: %v", time.Since(refdate))
+			wm.Logger.Debug().Msgf("ClientTrace-onnectStart: %v", time.Since(refdate))
 		},
 
 		ConnectDone: func(net, addr string, err error) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.connectDone = time.Now()
-			wm.Logger.Debug().Msgf("ConnectDone: %v", j.tr.connectDone.Sub(refdate))
+			wm.Logger.Debug().Msgf("ClientTrace-ConnectDone: %v", j.tr.connectDone.Sub(refdate))
 		},
 
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			j.Logger.Debug().Msgf("got 1xx: %d %+v", code, header)
+			j.Logger.Debug().Msgf("ClientTrace-got 1xx: %d %+v", code, header)
 			return nil
 		},
 
 		WroteHeaderField: func(key string, value []string) {
-			j.Logger.Debug().Msgf("WroteHeaderField %s = %v", key, value)
+			j.Logger.Debug().Msgf("ClientTrace-WroteHeaderField %s = %v", key, value)
 		},
 		WroteHeaders: func() {
-			j.Logger.Debug().Msgf("WroteHeaders")
+			j.Logger.Debug().Msgf("ClientTrace-WroteHeaders")
 		},
 		Wait100Continue: func() {
-			j.Logger.Debug().Msgf("Wait100Continue")
+			j.Logger.Debug().Msgf("ClientTrace-Wait100Continue")
 		},
 		WroteRequest: func(wri httptrace.WroteRequestInfo) {
-			j.wm.Logger.Debug().Err(wri.Err).Msgf("WroteRequest")
+			j.wm.Logger.Debug().Err(wri.Err).Msgf("ClientTrace-WroteRequest")
 		},
 	}
 
@@ -457,9 +473,13 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 
 	// completed or expired (timeout)
 	if wm.Error == nil && !wm.Cancelled {
+		//fmt.Printf("TR: j.tr %+v\n", j.tr)
+		if j.tr.ConnInfo.Conn != nil {
+			j.Logger.Info().
+				Stringer("LocalAddr", j.tr.ConnInfo.Conn.LocalAddr()).
+				Stringer("RemoteAddr", j.tr.ConnInfo.Conn.RemoteAddr()).Send()
+		}
 		j.Logger.Info().
-			Stringer("LocalAddr", j.tr.ConnInfo.Conn.LocalAddr()).
-			Stringer("RemoteAddr", j.tr.ConnInfo.Conn.RemoteAddr()).
 			Dur("DNSInfoTime", j.tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
 			Dur("ConnInfoTime", j.tr.gotConn.Sub(refdate)).
 			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
