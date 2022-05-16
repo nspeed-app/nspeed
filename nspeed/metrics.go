@@ -260,7 +260,7 @@ func (wm *Metrics) read(p []byte) (n int, err error) {
 }
 
 // WriteTo - implement io.WriterTo interface - optimized Read
-func (wm *Metrics) WriteTo(w io.Writer) (n int64, err error) {
+func (wm *Metrics) FixWriteTo(w io.Writer) (n int64, err error) {
 	wm.mutex.Lock()
 	wm.TransfertStartTime = time.Now()
 	wm.TotalWrite = 0
