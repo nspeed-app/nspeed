@@ -41,3 +41,8 @@ go build -ldflags "-s -w" -v -o output main.go
 https://blog.cloudflare.com/how-to-achieve-low-latency/
 
 https://github.com/nhooyr/websocket
+
+QUIC/HTTP3:
+
+https://www.http3check.net/
+

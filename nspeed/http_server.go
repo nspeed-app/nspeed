@@ -1,6 +1,7 @@
 package nspeed
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -9,16 +10,21 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/lucas-clemente/quic-go/logging"
+	"github.com/lucas-clemente/quic-go/qlog"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"nspeed.app/nspeed/internal/utils"
 )
 
 var ServerName string = "NSpeed"
@@ -461,8 +467,21 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 	var listenErr error
 	if s.Parameters.ServeTLS {
 		if s.Parameters.HTTP3 {
+			// setup debug logger
+			quicConf := &quic.Config{}
+			if s.Logger.GetLevel() <= zerolog.DebugLevel {
+				quicConf.Tracer = qlog.NewTracer(func(_ logging.Perspective, connID []byte) io.WriteCloser {
+					filename := fmt.Sprintf("server_%x.qlog", connID)
+					f, err := os.Create(filename)
+					if err != nil {
+						s.Logger.Fatal().Err(err).Send()
+					}
+					log.Printf("Creating qlog file %s.\n", filename)
+					return utils.NewBufferedWriteCloser(bufio.NewWriter(f), f)
+				})
+			}
 			s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t) (http3 on udp)", s.Server.Addr, s.Parameters.H2C)
-			listenErr = HTTP3ListenAndServe(s.Server.Addr, networkTcp, networkUdp, s.Server)
+			listenErr = HTTP3ListenAndServe(s.Server.Addr, networkTcp, networkUdp, s.Server, quicConf)
 		} else {
 			s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t)", s.Server.Addr, s.Parameters.H2C)
 			listenErr = s.Server.ListenAndServeTLS("", "")
@@ -484,7 +503,7 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 // connections in parallel. It returns if one of the two returns an error.
 // http.DefaultServeMux is used when handler is nil.
 // The correct Alt-Svc headers for QUIC are set.
-func HTTP3ListenAndServe(addr, tcpnet, udpnet string, httpServer *http.Server) error {
+func HTTP3ListenAndServe(addr, tcpnet, udpnet string, httpServer *http.Server, quicConf *quic.Config) error {
 
 	if httpServer == nil {
 		return errors.New("no server")
@@ -514,7 +533,8 @@ func HTTP3ListenAndServe(addr, tcpnet, udpnet string, httpServer *http.Server) e
 	defer tlsConn.Close()
 
 	quicServer := &http3.Server{
-		Server: httpServer,
+		Server:     httpServer,
+		QuicConfig: quicConf,
 	}
 
 	h := httpServer.Handler
