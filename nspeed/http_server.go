@@ -528,7 +528,10 @@ func HTTP3ListenAndServe(addr, tcpnet, udpnet string, httpServer *http.Server, q
 
 	h := httpServer.Handler
 	httpServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		quicServer.SetQuicHeaders(w.Header())
+		err := quicServer.SetQuicHeaders(w.Header())
+		if err != nil {
+			log.Fatal().Err(err)
+		}
 		h.ServeHTTP(w, r)
 	})
 
