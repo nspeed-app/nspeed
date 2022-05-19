@@ -28,6 +28,8 @@ var optMemprofile = flag.String("memprofile", "", "write memory profile to file"
 var optLogOutput = flag.String("log", "", "structured logging output filename (use - for stdout), imply -verbose")
 var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optDebug = flag.Bool("debug", false, "show even more progress & details")
+var optTrace = flag.Bool("trace", false, "maximum debug and tracing informations")
+
 var optTick = flag.Int("tick", 1, "sampling/progress interval in seconds (used for -debug, -cpu and webstats and filestats)")
 var optCPU = flag.Bool("cpu", false, "display cpu usage")
 
@@ -150,6 +152,9 @@ func Main() {
 	}
 	if *optDebug {
 		consoleLevel = zerolog.DebugLevel
+	}
+	if *optTrace {
+		consoleLevel = zerolog.TraceLevel
 	}
 	zerolog.SetGlobalLevel(consoleLevel)
 

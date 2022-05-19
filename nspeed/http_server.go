@@ -1,7 +1,6 @@
 package nspeed
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -10,7 +9,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"sync"
@@ -18,7 +16,6 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
-	"github.com/lucas-clemente/quic-go/logging"
 	"github.com/lucas-clemente/quic-go/qlog"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -469,16 +466,8 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 		if s.Parameters.HTTP3 {
 			// setup debug logger
 			quicConf := &quic.Config{}
-			if s.Logger.GetLevel() <= zerolog.DebugLevel {
-				quicConf.Tracer = qlog.NewTracer(func(_ logging.Perspective, connID []byte) io.WriteCloser {
-					filename := fmt.Sprintf("server_%x.qlog", connID)
-					f, err := os.Create(filename)
-					if err != nil {
-						s.Logger.Fatal().Err(err).Send()
-					}
-					log.Printf("Creating qlog file %s.\n", filename)
-					return utils.NewBufferedWriteCloser(bufio.NewWriter(f), f)
-				})
+			if zerolog.GlobalLevel() <= zerolog.TraceLevel {
+				quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(s.Logger))
 			}
 			s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t) (http3 on udp)", s.Server.Addr, s.Parameters.H2C)
 			listenErr = HTTP3ListenAndServe(s.Server.Addr, networkTcp, networkUdp, s.Server, quicConf)

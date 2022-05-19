@@ -16,9 +16,11 @@ import (
 
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/http3"
+	"github.com/lucas-clemente/quic-go/qlog"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
+	"nspeed.app/nspeed/internal/utils"
 )
 
 // roundTripTrace holds timings for a single HTTP roundtrip.
@@ -259,10 +261,14 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 			}
 		}
 		if j.HTTP3 {
+			quicConf := &quic.Config{}
+			if zerolog.GlobalLevel() <= zerolog.TraceLevel {
+				quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(j.Logger))
+			}
 			rtTransport = &http3.RoundTripper{
 				DisableCompression: true,
 				TLSClientConfig:    netTransport.TLSClientConfig,
-				QuicConfig:         &quic.Config{},
+				QuicConfig:         quicConf,
 				//EnableDatagrams:    false,
 				Dial: func(ctx context.Context, network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
 					log.Debug().Msgf("HTTP3: %s,%s,%v", network, addr, cfg)
@@ -514,7 +520,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 			Str("ContentLength-Binary", ByteCountBinary(resp.ContentLength)+"B").
 			Send()
 
-		// if j.Logger.GetLevel() <= zerolog.DebugLevel {
+		// if zerolog.GlobalLevel <= zerolog.DebugLevel {
 		// 	dump, err := httputil.DumpResponse(resp, true)
 		// 	if err != nil {
 		// 		log.Fatal().Err(err).Send()

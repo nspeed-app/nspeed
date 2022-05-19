@@ -1,27 +1,37 @@
 # v0.10
 ## general
-- internal optimization to buffer sizes and http/2 issues
+- experimental support of HTTP/3 using quic-go ( see HTTP/3 section )
+- internal optimization to buffer sizes and http/2 issues (tracking )
 - using Go 1.18. `nspeed -version` now also displays the Go version used to build the binary as well as OS/Arch informations
 - new `-pre duration` option: wait `duration` before starting command(s)
 - new `-post duration` option: wait `duration` after all commands have ended
 - new `-info` flag to display some os/hardware informations.
 - new `-text filename` flag: report the results to a text file (use `-` for stdout which is the default)
 - new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
+- new `-trace` flag: display lot of debug/trace informations (wip)
 - switch to psutil v3
 ## API
 - new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)
 - new flags: `-stats`, `-statsonly` and `-statsdebug`: enable real time stats view at `/rl` url path. `statsonly` disable all other api routes. `statsdebug` adds Go runtime specifics stats at url path: `/debug/pprof`
 
-## Client
-- breaking change: HTTP client can now do PUT or POST with corresponding matching command names. A new `post` command was added to do POST and the previously `put` command does now 'PUT' instead of POST
+## server
+ - new option `-http3` to enable HTTP/3. Implies `-self` if not TLS cert & key files are provided.
 
-# ciphers
+## Client
+- breaking change: HTTP client can now do `PUT` or `POST` with corresponding matching command names. A new `post` command was added to do POST method and the previously `put` command does now a 'PUT' method instead of POST
+- new option `-http3` to enable HTTP/3 (this will force HTTP/3 if the server support it and fallback to HTTP/2 or HTTP/1.1 if not).
+- console ouput displays news information per job: final target IP, latency and protocol
+- default to `http://` if no scheme provided (`nspeed get google.com` => `nspeed get http://google.com`)
+
+## ciphers
 - updated for Go 1.17 internal changes
 - this command can no longer be called with other commands even with itself because of a global side-effect. This command is not available thru the API.
 - displays AES hardware support
-## http client
-- console ouput displays more info like final target IP, latency and protocol
-- default to `http://` if no scheme provided (`nspeed get google.com` => `nspeed get http://google.com`)
+
+## HTTP/3
+The implementation used is https://github.com/lucas-clemente/quic-go . In trace mode (`-trace`) qlog trace files are generated in the current directory. They can be analized with https://qvis.quictools.info/
+Performance is subpar for now as `quic-go` is still in developement.
+
 # v0.9
 ## general
 - lots of internal refactoring (for the api/ui and a new internal scheduling/cancellation system)

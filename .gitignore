@@ -27,3 +27,6 @@ dist/
 #js stuff
 .parcel-cache/
 node_modules/
+
+#qlog
+#*.glog
