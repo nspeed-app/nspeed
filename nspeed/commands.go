@@ -391,6 +391,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		fs.BoolVar(&j.WebStats, "stats", false, "enable web stats at /rt url")
 		fs.BoolVar(&j.WebStatsOnly, "statsonly", false, "enable web stats only (implies -stats)")
 		fs.BoolVar(&j.WebStatsDebug, "statsdebug", false, "enable web stats debug (url is /debug/pprof/, GO specifics info, implies -stats)")
+		fs.BoolVar(&j.OpenBrowser, "browse", false, "open browser (implies -stats) - work for localhost only for now (wip)")
 
 		if err := fs.Parse(args); err != nil {
 			return args, nil, err

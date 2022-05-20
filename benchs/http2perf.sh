@@ -5,9 +5,9 @@ nspeed='go run cmd/nspeed/main.go'
 #     nspeed=$1
 #     shift
 # fi
-//opts=$@
+#opts=$@
 # echo "$nspeed" - "$opts"
-test="crypto"
+test="nocrypto"
 
 count=1
 test $1 && {

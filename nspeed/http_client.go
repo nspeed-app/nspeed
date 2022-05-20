@@ -225,6 +225,8 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 
 	if j.UseTLSSelfConfig {
 		netTransport.TLSClientConfig = TLSSelfConfig.Clone()
+		// netTransport.TLSClientConfig.CipherSuites = []uint16{tls.TLS_CHACHA20_POLY1305_SHA256}
+		// netTransport.TLSClientConfig.MinVersion = tls.VersionTLS13
 	}
 	if j.SkipTLSCheck {
 		netTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
@@ -245,7 +247,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 			return err
 		}
 		// when https://go-review.googlesource.com/c/net/+/362834
-		// rt2.MaxFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
+		rt2.MaxReadFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
 
 		// H2C support
 		if j.H2C {
@@ -257,7 +259,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 				DisableCompression: true,
 				AllowHTTP:          true,
 				// when https://go-review.googlesource.com/c/net/+/362834/
-				// MaxFrameSize:       256 * 1024,
+				MaxReadFrameSize: 256 * 1024,
 			}
 		}
 		if j.HTTP3 {

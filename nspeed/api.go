@@ -14,6 +14,7 @@ import (
 
 	_ "embed"
 
+	"github.com/pkg/browser"
 	"github.com/rs/zerolog/log"
 	"nspeed.app/webview"
 )
@@ -29,6 +30,7 @@ type APIHost struct {
 	WebStats      bool
 	WebStatsOnly  bool
 	WebStatsDebug bool
+	OpenBrowser   bool
 }
 
 func (j *APIHost) GetTarget() string {
@@ -87,6 +89,13 @@ func (s *APIHost) Init(wm *Metrics) error {
 func (s *APIHost) Run(ctx context.Context) error {
 	if s.Server == nil {
 		return errors.New("API: no server")
+	}
+	// wait 1 sonde and open a browser
+	if s.OpenBrowser {
+		go func() {
+			time.Sleep(1 * time.Second)
+			browser.OpenURL(fmt.Sprintf("http://localhost:%d/rt", s.Parameters.Port))
+		}()
 	}
 	return s.Server.Run(ctx)
 }
