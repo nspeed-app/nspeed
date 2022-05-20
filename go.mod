@@ -7,10 +7,11 @@ require (
 	github.com/go-echarts/statsview v0.3.4
 	github.com/lucas-clemente/quic-go v0.27.0
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/rs/zerolog v1.26.1
 	github.com/shirou/gopsutil/v3 v3.22.4
 	golang.org/x/exp v0.0.0-20220518171630-0b5c67f07fdf
-	golang.org/x/net v0.0.0-20220517181318-183a9ca12b87
+	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
 	golang.org/x/sys v0.0.0-20220519141025-dcacdad47464
 	golang.zx2c4.com/wireguard/windows v0.5.3
 )
@@ -40,4 +41,4 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
 
-// replace golang.org/x/net => ../golang-net
+replace golang.org/x/net => ../golang-net
