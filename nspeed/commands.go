@@ -397,7 +397,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			return args, nil, err
 		}
 
-		if j.WebStatsOnly || j.WebStatsDebug {
+		if j.WebStatsOnly || j.WebStatsDebug || j.OpenBrowser {
 			j.WebStats = true
 		}
 
