@@ -21,7 +21,7 @@ import (
 	"nspeed.app/nspeed"
 )
 
-// global options
+// global flags
 var optCpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 var optMemprofile = flag.String("memprofile", "", "write memory profile to file")
 
