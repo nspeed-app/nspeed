@@ -46,3 +46,7 @@ QUIC/HTTP3:
 
 https://www.http3check.net/
 
+
+debugging Go:
+https://www.youtube.com/watch?v=35eIxI_n5ZM&t=4161s
+https://www.youtube.com/watch?v=ZPIPPRjwg7Q
