@@ -110,7 +110,7 @@ var chart2 = new Chart(document.getElementById('chart2').getContext("2d"), {
     labels: labels,
     datasets: [
       generateDataset("eth0", "cyan"),
-      generateDataset("eth0", "orange"),
+      generateDataset("eth1", "orange"),
       generateDataset("localhost", "teal")
     ]
   }

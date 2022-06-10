@@ -343,3 +343,19 @@ func GenerateTextReport(out io.Writer, wcWorkers []*Metrics, verbose bool) {
 func GenerateHTMLReport(out io.Writer, wcWorkers []*Metrics) {
 	//todo:
 }
+
+// normalized metrics:
+
+// one test summary:
+// download_speed_bps	Download speed (bit/s)
+// upload_speed_bps	Upload speed (bit/s)
+// ping_ms	Latency (ms)
+// bytes_received	Bytes received during test
+// bytes_sent	Bytes sent during test
+
+// one test every tick:
+// tick id (index value starting from 0 or 1)
+// tick_timestamp absolute datetime ?
+// bytes_received	Bytes received since last tick
+// bytes_sent	Bytes sent since last tick
+// latency (optionnal)
