@@ -19,6 +19,7 @@ func TestParseByteUnits(t *testing.T) {
 		{"1g", 1000 * 1000 * 1000, false},
 		{"1G", 1024 * 1024 * 1024, false},
 		{"1.2k", 1200, false},
+		{"1.2K", 1228, false},
 	} // todo : add more tests
 
 	for _, table := range tables {

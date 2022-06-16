@@ -58,6 +58,10 @@ func (j *APIHost) IsInfinite() bool {
 	return true
 }
 
+func (j *APIHost) GetMetric() (NetMetric, error) {
+	return NetMetric{}, fmt.Errorf("not yet implemented")
+}
+
 func (s *APIHost) Init(wm *Metrics) error {
 	if s.Parameters == nil {
 		s.Parameters = NewHostParameters()

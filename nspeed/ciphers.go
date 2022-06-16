@@ -234,6 +234,10 @@ func (j *JobCiphers) GetTarget() string {
 	return fmt.Sprintf("ciphers %s", j.Target)
 }
 
+func (j *JobCiphers) GetMetric() (NetMetric, error) {
+	return NetMetric{}, fmt.Errorf("not yet implemented")
+}
+
 func (j *JobCiphers) Expand(jobs []Job, group int) []Job {
 	return append(jobs, j)
 }

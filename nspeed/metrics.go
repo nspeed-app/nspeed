@@ -7,7 +7,7 @@ import (
 	"sync"
 	"text/tabwriter"
 	"time"
- 
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -20,6 +20,7 @@ type Job interface {
 	IsInfinite() bool
 	Init(*Metrics) error
 	Run(context.Context) error
+	GetMetric() (NetMetric, error)
 }
 
 // ExpandJobs maps Expand to each job and merge them
@@ -348,6 +349,11 @@ func GenerateHTMLReport(out io.Writer, wcWorkers []*Metrics) {
 // normalized metrics:
 
 // one test summary:
+// target/description
+// group id
+// date/time
+// protocol, version, etc (http, crypto)
+// endpoints: ip,ip, hardware specs?
 // download_speed_bps	Download speed (bit/s)
 // upload_speed_bps	Upload speed (bit/s)
 // ping_ms	Latency (ms)
@@ -360,3 +366,28 @@ func GenerateHTMLReport(out io.Writer, wcWorkers []*Metrics) {
 // bytes_received	Bytes received since last tick
 // bytes_sent	Bytes sent since last tick
 // latency (optionnal)
+
+/* Job -> Run -> final metrics
+   Job -> Tick(..) -> real time metrics
+
+   -store metrics in each job or outside ?
+     -> format all metrics in same data struct or use interfaces ?
+*/
+
+type NetMetric struct {
+	Description    string        `json:"description"`
+	Group          int           `json:"group"`
+	Date           time.Time     `json:"date"`
+	TXBytes        uint64        `json:"txbytes"`
+	RXBytes        uint64        `json:"rxbytes"`
+	AverageLatency uint64        `json:"latency"`
+	Duration       time.Duration `json:"duration"`
+}
+
+type NetMetricSample struct {
+	Offset   time.Duration `json:"index"`
+	TXBytes  uint64        `json:"txbytes"`
+	RXBytes  uint64        `json:"rxbytes"`
+	Latency  uint64        `json:"latency"`
+	Duration uint64        `json:"duration"` // keep?
+}

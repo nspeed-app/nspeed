@@ -108,6 +108,10 @@ func (j *JobHTTPServer) PrintString(verbose bool) string {
 	return "SERVER"
 }
 
+func (j *JobHTTPServer) GetMetric() (NetMetric, error) {
+	return NetMetric{}, fmt.Errorf("not yet implemented")
+}
+
 func (j *JobHTTPServer) IsInfinite() bool {
 	if j.Parameters.MaxRequests > 0 {
 		return false

@@ -10,9 +10,9 @@ require (
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/rs/zerolog v1.27.0
 	github.com/shirou/gopsutil/v3 v3.22.5
-	golang.org/x/exp v0.0.0-20220609121020-a51bd0440498
-	golang.org/x/net v0.0.0-20220607020251-c690dde0001d
-	golang.org/x/sys v0.0.0-20220608164250-635b8c9b7f68
+	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d
+	golang.org/x/net v0.0.0-20220615171555-694bf12d69de
+	golang.org/x/sys v0.0.0-20220615213510-4f61da869c0c
 	golang.zx2c4.com/wireguard/windows v0.5.3
 )
 
@@ -39,7 +39,6 @@ require (
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
 	golang.org/x/text v0.3.8-0.20211105212822-18b340fc7af2 // indirect
 	golang.org/x/tools v0.1.11 // indirect
-	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 )
 

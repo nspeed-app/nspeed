@@ -162,6 +162,10 @@ func (j *JobHTTPClient) Expand(jobs []Job, group int) []Job {
 
 func (j *JobHTTPClient) IsInfinite() bool { return false }
 
+func (j *JobHTTPClient) GetMetric() (NetMetric, error) {
+	return NetMetric{}, fmt.Errorf("not yet implemented")
+}
+
 // init a HTTP Job
 func (j *JobHTTPClient) Init(wm *Metrics) error {
 
