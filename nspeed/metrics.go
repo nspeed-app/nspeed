@@ -7,7 +7,7 @@ import (
 	"sync"
 	"text/tabwriter"
 	"time"
-
+ 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -22,6 +22,7 @@ type Job interface {
 	Run(context.Context) error
 }
 
+// ExpandJobs maps Expand to each job and merge them
 func ExpandJobs(jobs []Job) []Job {
 	var out []Job
 	for g, job := range jobs {

@@ -571,6 +571,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 			wm.Valid = true
 		}
 	}
+	PrintMemUsage()
 	wm.LogFinal(j.Logger)
 	wm.ResultChan <- wm
 	return nil
