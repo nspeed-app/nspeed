@@ -433,7 +433,7 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 		close(exitCh)
 	}()
 
-	// TLS stuff
+	// TLS stuff (todo move this in Init ?)
 	if s.Parameters.UseTLSSelfConfig {
 		if TLSSelfConfig != nil {
 			s.Server.TLSConfig = TLSSelfConfig
@@ -451,30 +451,10 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 
 	}
 
-	// "tcp4" for IPv4 only
-	// "tcp6" or IPv6 only
-	// "tcp" (default) for both
-	networkTcp := "tcp"
-	networkUdp := "udp"
-	if s.Parameters.ForceIPVersion == 4 {
-		networkTcp = "tcp4"
-		networkUdp = "udp4"
-	}
-	if s.Parameters.ForceIPVersion == 6 {
-		networkTcp = "tcp6"
-		networkUdp = "udp6"
-	}
-
 	var listenErr error
 	if s.Parameters.ServeTLS {
 		if s.Parameters.HTTP3 {
-			// setup debug logger
-			quicConf := &quic.Config{}
-			if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-				quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(s.Logger))
-			}
-			s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t) (http3 on udp)", s.Server.Addr, s.Parameters.H2C)
-			listenErr = HTTP3ListenAndServe(s.Server.Addr, networkTcp, networkUdp, s.Server, quicConf)
+			listenErr = s.HTTP3ListenAndServe()
 		} else {
 			s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t)", s.Server.Addr, s.Parameters.H2C)
 			listenErr = s.Server.ListenAndServeTLS("", "")
@@ -492,17 +472,35 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 	return nil
 }
 
-// ListenAndServe listens on the given network addresses for both, TLS and QUIC
-// connections in parallel. It returns if one of the two returns an error.
-// http.DefaultServeMux is used when handler is nil.
-// The correct Alt-Svc headers for QUIC are set.
-func HTTP3ListenAndServe(addr, tcpnet, udpnet string, httpServer *http.Server, quicConf *quic.Config) error {
+// HTTP3ListenAndServe  serves HTTP3 over UDP QUIC
+func (s *JobHTTPServer) HTTP3ListenAndServe() error {
 
-	if httpServer == nil {
-		return errors.New("no server")
+	if s.Server == nil {
+		return errors.New("no HTTP server")
 	}
+	quicConf := &quic.Config{}
+
+	// setup debug trace
+	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
+		quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(s.Logger))
+	}
+
+	// "tcp4" for IPv4 only
+	// "tcp6" or IPv6 only
+	// "tcp" (default) for both
+	//networkTcp := "tcp"
+	networkUdp := "udp"
+	if s.Parameters.ForceIPVersion == 4 {
+		//networkTcp = "tcp4"
+		networkUdp = "udp4"
+	}
+	if s.Parameters.ForceIPVersion == 6 {
+		//networkTcp = "tcp6"
+		networkUdp = "udp6"
+	}
+
 	// Open the listeners
-	udpAddr, err := net.ResolveUDPAddr(udpnet, addr)
+	udpAddr, err := net.ResolveUDPAddr(networkUdp, s.Server.Addr)
 	if err != nil {
 		return err
 	}
@@ -512,48 +510,25 @@ func HTTP3ListenAndServe(addr, tcpnet, udpnet string, httpServer *http.Server, q
 	}
 	defer udpConn.Close()
 
-	tcpAddr, err := net.ResolveTCPAddr(tcpnet, addr)
-	if err != nil {
-		return err
-	}
-	tcpConn, err := net.ListenTCP("tcp", tcpAddr)
-	if err != nil {
-		return err
-	}
-	defer tcpConn.Close()
-
-	tlsConn := tls.NewListener(tcpConn, httpServer.TLSConfig)
-	defer tlsConn.Close()
-
 	quicServer := &http3.Server{
-		Server:     httpServer,
+		Addr:       s.Server.Addr,
+		TLSConfig:  s.Server.TLSConfig,
 		QuicConfig: quicConf,
+		Handler:    s.Server.Handler,
 	}
 
-	h := httpServer.Handler
-	httpServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := s.Server.Handler
+	s.Server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := quicServer.SetQuicHeaders(w.Header())
+		s.Logger.Debug().Msgf("SetQuicHeaders called")
 		if err != nil {
 			log.Fatal().Err(err)
 		}
 		h.ServeHTTP(w, r)
 	})
 
-	hErr := make(chan error)
-	qErr := make(chan error)
-	go func() {
-		hErr <- httpServer.Serve(tlsConn)
-	}()
-	go func() {
-		qErr <- quicServer.Serve(udpConn)
-	}()
+	// this blocks or fail
+	s.Logger.Warn().Msgf("nspeed listening on https://%s (http3 on udp)", s.Server.Addr)
 
-	select {
-	case err := <-hErr:
-		quicServer.Close()
-		return err
-	case err := <-qErr:
-		// Cannot close the HTTP server or wait for requests to complete properly :/
-		return err
-	}
+	return quicServer.Serve(udpConn)
 }

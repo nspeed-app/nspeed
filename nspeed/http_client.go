@@ -276,8 +276,8 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 				TLSClientConfig:    netTransport.TLSClientConfig,
 				QuicConfig:         quicConf,
 				//EnableDatagrams:    false,
-				Dial: func(ctx context.Context, network, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-					log.Debug().Msgf("HTTP3: %s,%s,%v", network, addr, cfg)
+				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+					log.Debug().Msgf("HTTP3: %s,%v", addr, cfg)
 					return quic.DialAddrEarlyContext(ctx, addr, tlsCfg, cfg)
 				},
 				//MaxResponseHeaderBytes: 0,
