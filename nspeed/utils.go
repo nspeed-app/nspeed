@@ -45,10 +45,11 @@ func DumpRequest(req *http.Request, body bool) {
 	fmt.Printf("%s", dump)
 }
 
-func PrintMemUsage() {
+func PrintMemUsage(mess string) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("%s: ", mess)
 	fmt.Printf("Alloc = %v B", FormatByteDecimalUnits(int64(m.Alloc)))
 	fmt.Printf("\tTotalAlloc = %v B", FormatByteDecimalUnits(int64(m.TotalAlloc)))
 	fmt.Printf("\tSys = %v B", FormatByteDecimalUnits(int64(m.Sys)))

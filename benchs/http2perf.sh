@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/sh -x
 # if [ $# -eq 0 ]; then
 nspeed='go run cmd/nspeed/main.go'
 # else
@@ -7,7 +7,7 @@ nspeed='go run cmd/nspeed/main.go'
 # fi
 #opts=$@
 # echo "$nspeed" - "$opts"
-test="nocrypto"
+test="crypto"
 
 count=1
 test $1 && {

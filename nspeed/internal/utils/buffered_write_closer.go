@@ -27,6 +27,7 @@ func NewBufferedWriteCloser(writer *bufio.Writer, closer io.Closer) io.WriteClos
 }
 
 func (h bufferedWriteCloser) Close() error {
+	//assert(h.Write := nil)
 	if err := h.Writer.Flush(); err != nil {
 		return err
 	}

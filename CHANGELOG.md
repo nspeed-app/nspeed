@@ -2,7 +2,7 @@
 ## general
 - experimental support of HTTP/3 using quic-go ( see HTTP/3 section )
 - internal optimization to buffer sizes and http/2 issues (tracking a Go performance issue)
-- using Go 1.18. `nspeed -version` now also displays the Go version used to build the binary as well as OS/Arch informations
+- using Go 1.19. `nspeed -version` now also displays the Go version used to build the binary as well as OS/Arch informations
 - new `-pre duration` option: wait `duration` before starting command(s) (`duration` uses Go syntax: "2s" for 2 seconds for instance)
 - new `-post duration` option: wait `duration` after all commands have ended
 - new `-info` flag to display some os/hardware informations.
@@ -10,6 +10,7 @@
 - new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
 - new `-trace` flag: display lot of debug/trace informations (wip - mainly used for quic/http3 tracing)
 - switch to psutil v3
+- fix global timeout
 ## API
 - new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)
 - new flags: `-stats`, `-statsonly` and `-statsdebug`: enable real time stats view at `/rl` url path. `statsonly` disable all other api routes. `statsdebug` adds Go runtime specifics stats at url path: `/debug/pprof`

@@ -49,7 +49,8 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 
 	// add timeout (warning: possible shadowing errors with ctx & cancel)
 	if opt.Timeout > 0 {
-		newctx, cancel := context.WithTimeout(ctx, time.Duration(opt.Timeout)*time.Second)
+		log.Debug().Dur("global_timeout", opt.Timeout).Msgf("setting global  timeout to %s", opt.Timeout)
+		newctx, cancel := context.WithTimeout(ctx, opt.Timeout)
 		defer cancel()
 		ctx = newctx
 	}

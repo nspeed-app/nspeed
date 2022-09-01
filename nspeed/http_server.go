@@ -75,6 +75,7 @@ type JobHTTPServer struct {
 	Server           *http.Server
 	Mux              *http.ServeMux
 	Cancel           context.CancelFunc
+	Close            func(t time.Duration)
 	Logger           *zerolog.Logger
 	StreamPathRegexp *regexp.Regexp
 	TotalRequests    int
@@ -412,6 +413,17 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 	// exitCh will be closed when it is safe to exit, after graceful shutdown
 	exitCh := make(chan struct{})
 
+	// call this to shutdown server (net.http version)
+	s.Close = func(shutdownTimeout time.Duration) {
+		lctx, lcancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer lcancel()
+
+		s.Server.SetKeepAlivesEnabled(false)
+		if err := s.Server.Shutdown(lctx); err != nil {
+			s.Logger.Debug().Msgf("shutdown error: %s", err)
+		}
+	}
+
 	go func() {
 		//select {
 		// case sig := <-shutdownCh:
@@ -422,14 +434,8 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 		<-ctx.Done()
 		s.Logger.Debug().Msgf("shutdown started by context : %s", ctx.Err())
 
-		shutdownTimeout := s.Parameters.MaxDuration + s.Parameters.MaxDuration*time.Second //todo check with global timeout too
-		lctx, lcancel := context.WithTimeout(context.Background(), shutdownTimeout)
-		defer lcancel()
+		s.Close(s.Parameters.MaxDuration + s.Parameters.MaxDuration*time.Second) //todo check with global timeout too
 
-		s.Server.SetKeepAlivesEnabled(false)
-		if err := s.Server.Shutdown(lctx); err != nil {
-			s.Logger.Debug().Msgf("shutdown error: %s", err)
-		}
 		close(exitCh)
 	}()
 
@@ -454,6 +460,7 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 	var listenErr error
 	if s.Parameters.ServeTLS {
 		if s.Parameters.HTTP3 {
+			s.Logger.Warn().Msgf("nspeed listening on https://%s (HTTP/3, UDP, H2C = %t)", s.Server.Addr, s.Parameters.H2C)
 			listenErr = s.HTTP3ListenAndServe()
 		} else {
 			s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t)", s.Server.Addr, s.Parameters.H2C)
@@ -530,5 +537,11 @@ func (s *JobHTTPServer) HTTP3ListenAndServe() error {
 	// this blocks or fail
 	s.Logger.Warn().Msgf("nspeed listening on https://%s (http3 on udp)", s.Server.Addr)
 
+	s.Close = func(shutdownTimeout time.Duration) {
+		s.Logger.Warn().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")
+		// nyi: quicServer.CloseGracefully(shutdownTimeout)
+		err := quicServer.Close()
+		log.Info().Err(err).Msg("quicServer Close called")
+	}
 	return quicServer.Serve(udpConn)
 }
