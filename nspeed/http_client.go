@@ -221,11 +221,17 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	}
 
 	// we clone to avoid ConfigureTransports to crash
-	var netTransport = http.DefaultTransport.(*http.Transport).Clone()
-	netTransport.DialContext = dialer.DialContext
-	netTransport.ForceAttemptHTTP2 = !j.UseHTTP11
-	netTransport.TLSHandshakeTimeout = 5 * time.Second
-	netTransport.DisableCompression = true
+	//var netTransport = http.DefaultTransport.(*http.Transport).Clone()
+	var netTransport = &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		ForceAttemptHTTP2:     !j.UseHTTP11,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		DialContext:           dialer.DialContext,
+		DisableCompression:    true,
+	}
 
 	if j.UseTLSSelfConfig {
 		netTransport.TLSClientConfig = TLSSelfConfig.Clone()
@@ -257,8 +263,8 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		if j.H2C {
 			rt2.AllowHTTP = true
 			rtTransport = &http2.Transport{
-				DialTLS: func(network string, addr string, cfg *tls.Config) (net.Conn, error) {
-					return dialer.Dial(network, addr)
+				DialTLSContext: func(ctx context.Context, network string, addr string, cfg *tls.Config) (net.Conn, error) {
+					return dialer.DialContext(ctx, network, addr)
 				},
 				DisableCompression: true,
 				AllowHTTP:          true,
@@ -284,6 +290,12 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 			}
 		}
 	}
+
+	if j.UseHTTP11 {
+		// force HTTP1.1 as per https://pkg.go.dev/net/http#pkg-overview
+		netTransport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
+	}
+
 	// create http client
 	j.client = &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
