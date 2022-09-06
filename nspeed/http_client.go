@@ -172,9 +172,9 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	j.Logger = &wm.Logger
 	j.wm = wm
 
-	// prepend http scheme if no scheme
+	// prepend https scheme if no scheme
 	if !strings.Contains(j.Target, "://") {
-		j.Target = "http://" + j.Target
+		j.Target = "https://" + j.Target
 	}
 	j.finalTarget = j.Target
 	j.Logger.Debug().Msgf("target is: %s", j.Target)

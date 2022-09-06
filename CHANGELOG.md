@@ -19,10 +19,10 @@
  - new option `-http3` to enable HTTP/3. Implies `-self` if no TLS cert & key files are provided.
 
 ## Client
-- breaking change: HTTP client can now do `PUT` or `POST` with corresponding matching command names. A new `post` command was added to do the POST HTTP method and the previously `put` command does now a 'PUT' method instead of POST
+- breaking change: HTTP client can now do `PUT` or `POST` with corresponding matching command names. A new `post` command was added to do the POST HTTP method and the previously `put` command does now a 'PUT' method instead of a POST
 - new option `-http3` to enable HTTP/3 (this will force HTTP/3 if the server support it and fallback to HTTP/2 or HTTP/1.1 if not). Implies `-self` if no TLS cert & key files are provided.
 - console ouput displays news information per job: final target IP, latency and protocol
-- default to `http://` if no scheme provided (`nspeed get google.com` is the same as `nspeed get http://google.com`)
+- default to `https://` if no scheme provided (`nspeed get google.com` is the same as `nspeed get https://google.com`)
 
 ## ciphers
 - updated for Go 1.17+ internal changes
@@ -31,7 +31,6 @@
 
 ## HTTP/3
 The implementation used is https://github.com/lucas-clemente/quic-go . In trace mode (`-trace`) qlog trace files are generated in the current directory. They can be analized with https://qvis.quictools.info/
-Performance is subpar for now as `quic-go` is still in developement.
 
 # v0.9
 ## general
