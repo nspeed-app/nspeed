@@ -105,7 +105,7 @@ func Main() {
 		os.Exit(1)
 	}
 
-	// todo: move this in a func and Once it
+	// todo: move this in a func and Once it or 'init' it
 	// https://forfuncsake.github.io/post/2017/08/trust-extra-ca-cert-in-go-app/
 	// Get the SystemCertPool, continue with an empty pool on error
 	rootCAs, _ := x509.SystemCertPool()

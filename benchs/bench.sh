@@ -14,3 +14,4 @@ echo HTTP/2 without encryption
 $1 server -h2c -n 1 get -w 1 -h2c  http://localhost:7333/10g
 $1 server -h2c -n 1 & sleep 1 ; curl --http2-prior-knowledge -s -o /dev/null -w "%{speed_download} * 8 \n" http://localhost:7333/10g  | sed 's/,[0-9]*//' | bc | numfmt --to=si --suffix=bps
 
+echo HTTP/3 NYI because of https://github.com/lucas-clemente/quic-go/issues/153
