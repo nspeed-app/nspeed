@@ -25,10 +25,10 @@ import (
 // that lazy initialization of the cipher list when we want.
 
 // 17 aug 2021: updated for go 1.17 by jfgiorgi:
-//  - defaultCipherSuitesTLS13 func is gone and replaced by 2 arrays:
-//  	- defaultCipherSuitesTLS13
-//      - defaultCipherSuitesTLS13NoAES
-//  depending on hardware features (see hasAESGCMHardwareSupport in crypto/tls/cipher_suites.go )
+//   - defaultCipherSuitesTLS13 func is gone and replaced by 2 arrays:
+//   - defaultCipherSuitesTLS13
+//   - defaultCipherSuitesTLS13NoAES
+//     depending on hardware features (see hasAESGCMHardwareSupport in crypto/tls/cipher_suites.go )
 var (
 	hasGCMAsmAMD64 = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
 	hasGCMAsmARM64 = cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
@@ -170,7 +170,7 @@ func parseURL(u, scheme string) (*url.URL, error) {
 	return u1, nil
 }
 
-//implement Job
+// implement Job
 type JobCiphers struct {
 	Target  string
 	Delay   uint
@@ -259,7 +259,7 @@ func (j *JobCiphers) IsInfinite() bool {
 	return false
 }
 
-// print out the cipher list and target using a Log
+// print out the cipher list and target using a Logger
 func LogCipher(host, port, tlsVersion string, ciphers []uint16, log zerolog.Logger) {
 	finalTarget := net.JoinHostPort(host, port)
 	for _, c := range ciphers {

@@ -13,7 +13,7 @@
 - fix global timeout
 ## API
 - new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)
-- new flags: `-stats`, `-statsonly` and `-statsdebug`: enable real time stats view at `/rl` url path. `statsonly` disable all other api routes. `statsdebug` adds Go runtime specifics stats at url path: `/debug/pprof`
+- new flags: `-stats`, `-statsonly` and `-statsdebug`: enable real time stats view at `/rl` url path. `statsonly` disable all other api routes. `statsdebug` adds Go runtime specifics stats at url path: `/debug/statsviz`
 
 ## server
  - new option `-http3` to enable HTTP/3. Implies `-self` if no TLS cert & key files are provided.

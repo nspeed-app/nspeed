@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
-	"net/http/pprof"
 	"strings"
 	"time"
 
+	"github.com/arl/statsviz"
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/templates"
 
@@ -112,35 +112,35 @@ func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
 	mgr.Register(
 		NewCPUViewer(tick, mgr.path),
 	)
-	if debug {
-		mgr.PerfRegister(
-			viewer.NewGoroutinesViewer(),
-			viewer.NewHeapViewer(),
-			viewer.NewStackViewer(),
-			viewer.NewGCNumViewer(),
-			viewer.NewGCSizeViewer(),
-			viewer.NewGCCPUFractionViewer(),
-		)
-	}
+	// if debug {
+	// 	mgr.PerfRegister(
+	// 		viewer.NewGoroutinesViewer(),
+	// 		viewer.NewHeapViewer(),
+	// 		viewer.NewStackViewer(),
+	// 		viewer.NewGCNumViewer(),
+	// 		viewer.NewGCSizeViewer(),
+	// 		viewer.NewGCCPUFractionViewer(),
+	// 	)
+	// }
 	smgr := NewStatsMgr(mgr.Ctx, tick)
 	for _, v := range mgr.Views {
 		v.SetStatsMgr(smgr)
 	}
-	if debug {
-		lsmgr := viewer.NewStatsMgr(mgr.Ctx)
-		for _, v := range mgr.PerfViews {
-			v.SetStatsMgr(lsmgr)
-		}
-	}
+	// if debug {
+	// 	lsmgr := viewer.NewStatsMgr(mgr.Ctx)
+	// 	for _, v := range mgr.PerfViews {
+	// 		v.SetStatsMgr(lsmgr)
+	// 	}
+	// }
 
 	for _, v := range mgr.Views {
 		page.AddCharts(v.View())
 	}
-	if debug {
-		for _, v := range mgr.PerfViews {
-			page.AddCharts(v.View())
-		}
-	}
+	// if debug {
+	// 	for _, v := range mgr.PerfViews {
+	// 		page.AddCharts(v.View())
+	// 	}
+	// }
 
 	return mgr
 }
@@ -152,11 +152,12 @@ func (vm *ViewManager) RegisterRoutes(mux *http.ServeMux) {
 	}
 
 	if vm.debug {
-		mux.HandleFunc("/debug/pprof/", pprof.Index)
-		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		statsviz.Register(mux)
+		// mux.HandleFunc("/debug/pprof/", pprof.Index)
+		// mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		// mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		// mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		// mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 	for _, v := range vm.Views {
 		//fmt.Println("registering:" + v.Name())

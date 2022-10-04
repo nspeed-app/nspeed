@@ -154,8 +154,8 @@ func notImplemented(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
-// Handler returns an http.Handler that exposes all the server endpoints
-func (h *JobHTTPServer) Handler() http.Handler {
+// CreateHandler returns an http.Handler that exposes all the server endpoints
+func (h *JobHTTPServer) CreateHandler() http.Handler {
 	mux := http.NewServeMux()
 	h.Mux = mux
 
@@ -176,7 +176,6 @@ func (h *JobHTTPServer) Handler() http.Handler {
 	handler = mux
 	handler = limitRequestSize(h.Parameters.MaxBodySize, handler)
 	handler = preflight(handler)
-	handler = autohead(handler)
 	handler = limitNumRequests(h.OnRequestStart, h.OnRequestEnd, handler)
 	if h.Logger != nil {
 		handler = logger(h.Logger, handler)
@@ -385,12 +384,12 @@ func (s *JobHTTPServer) Init(wm *Metrics) error {
 	listenAddr := net.JoinHostPort(host, strconv.Itoa(s.Parameters.Port))
 	s.Server = &http.Server{
 		Addr:         listenAddr,
-		Handler:      s.Handler(),
+		Handler:      s.CreateHandler(),
 		WriteTimeout: s.Parameters.MaxDuration,
 		ReadTimeout:  s.Parameters.MaxDuration,
 	}
 	if s.Parameters.H2C {
-		s.Server.Handler = h2c.NewHandler(s.Handler(), &http2.Server{})
+		s.Server.Handler = h2c.NewHandler(s.Server.Handler, &http2.Server{})
 	}
 
 	if s.Parameters.API {
