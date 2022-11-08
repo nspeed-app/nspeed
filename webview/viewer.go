@@ -38,6 +38,7 @@ const (
 
 const (
 	DefaultTemplate = `
+goecharts_{{ .ViewID }}.group = "group1";
 $(function () { setInterval({{ .ViewID }}_sync, {{ .Interval }}); });
 function {{ .ViewID }}_sync() {
     $.ajax({

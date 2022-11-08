@@ -55,6 +55,8 @@ func NewNetInterfacesViewer(tick time.Duration, dir string, path string) Viewer 
 				},
 			},
 		}),
+		// charts.WithXAxisOpts(
+		// )
 		charts.WithYAxisOpts(opts.YAxis{
 			Name: ChartNames[dir],
 			//AxisLabel: &opts.AxisLabel{Formatter: "function (value, index) { return formatBytes(value,index,2) }"},

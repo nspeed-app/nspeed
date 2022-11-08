@@ -68,6 +68,10 @@ func init() {
 <body>
 <style> .box { justify-content:center; display:flex; flex-wrap:wrap } </style>
 <div class="box"> {{- range .Charts }} {{ template "base" . }} {{- end }} </div>
+<script type="text/javascript">
+    "use strict";
+	echarts.connect('group1');
+</script>
 </body>
 </html>
 {{ end }}
