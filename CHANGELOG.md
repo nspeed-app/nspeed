@@ -1,3 +1,37 @@
+# v0.10
+## general
+- experimental support of HTTP/3 using quic-go ( see HTTP/3 section )
+- internal optimization to buffer sizes and http/2 issues (tracking various Go HTTP/2 performance issue being addressed by the Go team)
+- using Go 1.19. `nspeed -version` now also displays the Go version used to build the binary as well as OS/Arch informations
+- new `-pre duration` option: wait `duration` before starting command(s) (`duration` uses Go syntax: "2s" for 2 seconds for instance)
+- new `-post duration` option: wait `duration` after all commands have ended
+- new `-info` flag to display some os/hardware informations.
+- new `-text filename` flag: report the results to a text file (use `-` for stdout which is the default)
+- new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
+- new `-trace` flag: display lot of debug/trace informations (wip - mainly used for quic/http3 tracing)
+- switch to psutil v3
+- fix global timeout
+## API
+- new endpoints: `/stats/info` and `/stats/mem` , see [API.md](API.md)
+- new flags: `-stats`, `-statsonly` and `-statsdebug`: enable real time web UI stats view at `/rl` url path. `statsonly` disable all other api routes. `statsdebug` adds Go runtime specifics stats at url path: `/debug/statsviz`
+
+## server
+ - new option `-http3` to enable HTTP/3. Implies `-self` if no TLS cert & key files are provided.
+
+## Client
+- **breaking change**: HTTP client can now do `PUT` or `POST` with corresponding matching command names. A new `post` command was added to do the POST HTTP method and the previously `put` command does now a 'PUT' method instead of a POST
+- new option `-http3` to enable HTTP/3 (this will force HTTP/3 if the server support it and fallback to HTTP/2 or HTTP/1.1 if not). Implies `-self` if no TLS cert & key files are provided.
+- console ouput displays news information per job: final target IP, latency and protocol
+- default to `https://` if no scheme provided (`nspeed get google.com` is the same as `nspeed get https://google.com`)
+
+## ciphers
+- updated for Go 1.17+ internal changes
+- **this command can no longer be called with other commands even with itself because of a global side-effect/trick**. This command is not available thru the API.
+- displays AES hardware support
+
+## HTTP/3
+The implementation used is https://github.com/lucas-clemente/quic-go . In trace mode (`-trace`) qlog trace files are generated in the current directory. They can be analized with https://qvis.quictools.info/
+
 # v0.9
 ## general
 - lots of internal refactoring (for the api/ui and a new internal scheduling/cancellation system)
