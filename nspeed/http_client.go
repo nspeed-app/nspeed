@@ -257,7 +257,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 			return err
 		}
 		// when https://go-review.googlesource.com/c/net/+/362834
-		rt2.MaxReadFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
+		//rt2.MaxReadFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
 
 		// H2C support
 		if j.H2C {
@@ -269,7 +269,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 				DisableCompression: true,
 				AllowHTTP:          true,
 				// when https://go-review.googlesource.com/c/net/+/362834/
-				MaxReadFrameSize: 256 * 1024,
+				//MaxReadFrameSize: 256 * 1024,
 			}
 		}
 		if j.HTTP3 {

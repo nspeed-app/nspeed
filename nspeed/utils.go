@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/exp/constraints"
 )
@@ -46,6 +47,9 @@ func DumpRequest(req *http.Request, body bool) {
 }
 
 func PrintMemUsage(mess string) {
+	if zerolog.GlobalLevel() > zerolog.InfoLevel {
+		return
+	}
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
