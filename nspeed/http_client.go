@@ -584,6 +584,14 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 					}
 				}
 			}
+			if j.Command == "PUT" || j.Command == "POST" {
+				b, err := io.ReadAll(resp.Body)
+				if err != nil {
+					log.Error().Err(err).Msg("read response.Body")
+				}
+				fmt.Println(string(b[:1000]))
+			}
+
 			wm.Valid = true
 		}
 	}
