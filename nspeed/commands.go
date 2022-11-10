@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"path"
 	"strings"
 	"time"
 )
@@ -257,14 +256,17 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		}
 		j.ContentSize = int64(cs)
 
-		u, err := url.Parse(j.Target)
+		// check target is url
+		_, err = url.Parse(j.Target)
 		if err != nil {
 			return args, nil, errors.New("bad url")
 		}
-		if command == putCommand {
-			u.Path = path.Join(u.Path, FormatByteDecimalUnits(j.ContentSize))
-			j.Target = u.String()
-		}
+
+		// PUT command special treatment. the 'path' is the size argument
+		// if command == putCommand {
+		// 	u.Path = path.Join(u.Path, FormatByteDecimalUnits(j.ContentSize))
+		// 	j.Target = u.String()
+		// }
 		return args, &j, nil
 
 	case serveCommand:

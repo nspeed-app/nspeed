@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptrace"
+	"net/http/httputil"
 	"net/textproto"
 	"strings"
 	"syscall"
@@ -448,6 +449,9 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 		},
 		WroteRequest: func(wri httptrace.WroteRequestInfo) {
 			j.wm.Logger.Debug().Err(wri.Err).Msgf("ClientTrace-WroteRequest")
+			if wri.Err != nil {
+				j.wm.Error = wri.Err
+			}
 		},
 	}
 
@@ -476,7 +480,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	resp, err := j.client.Do(j.req)
 	PrintMemUsage("after Do")
 
-	j.Logger.Debug().Msgf("client.Do: %v", err)
+	j.Logger.Debug().Msgf("client.Do: %v - %v", err, wm.Error)
 	j.tr.end = time.Now()
 
 	if errors.Is(err, context.DeadlineExceeded) {
@@ -527,6 +531,7 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 	// todo: time'd out 'POST/PUT' don't have a resp so we're missing informations like protocol ,tls, etc
 	// todo: find a way to get the missing informations elsewhere
 	// possible workaround: do a HEAD before the POST/PUT but that will count has 2 requests and could mess the server stats and Maxrequests option
+	// or HEAD shouldn't count as a request server side ?
 	if wm.Error == nil && resp != nil {
 		wm.Protocol = resp.Proto
 		j.Logger.Info().
@@ -538,17 +543,19 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 			Str("ContentLength-Binary", ByteCountBinary(resp.ContentLength)+"B").
 			Send()
 
-		// if zerolog.GlobalLevel <= zerolog.DebugLevel {
-		// 	dump, err := httputil.DumpResponse(resp, true)
-		// 	if err != nil {
-		// 		log.Fatal().Err(err).Send()
-		// 	}
-		// 	fmt.Printf("Response:\n%s", dump)
-		// }
+		// dump resp if trace on
+		if ShouldLog(j.Logger, zerolog.TraceLevel) {
+			dump, err := httputil.DumpResponse(resp, false)
+			if err != nil {
+				log.Fatal().Err(err).Send()
+			}
+			j.Logger.Debug().Msgf("Response:\n%s", dump)
+		}
 
 		if resp.StatusCode != http.StatusOK {
 			wm.Error = errors.New("http status code: " + resp.Status)
-
+			j.Logger.Debug().Msg(resp.Status)
+			wm.Valid = false
 		} else {
 			if j.Command == "GET" {
 				defer func() {
@@ -584,13 +591,21 @@ func (j *JobHTTPClient) Run(ctx context.Context) error {
 					}
 				}
 			}
-			if j.Command == "PUT" || j.Command == "POST" {
-				b, err := io.ReadAll(resp.Body)
-				if err != nil {
-					log.Error().Err(err).Msg("read response.Body")
-				}
-				fmt.Println(string(b[:1000]))
-			}
+			// if (j.Command == "PUT" || j.Command == "POST") && j.Logger.GetLevel() <= zerolog.TraceLevel {
+
+			// 	b, err := io.ReadAll(resp.Body)
+			// 	if err != nil {
+			// 		log.Error().Err(err).Msg("read response.Body")
+			// 	}
+			// 	n := len(b)
+			// 	if n == 0 {
+			// 		log.Error().Msg("empty body")
+			// 	} else {
+			// 		fmt.Println("HEAD OF BOBY----------------------------------------------------------------")
+			// 		fmt.Println(string(b[:Min(1000, len(b)-1)]))
+			// 		fmt.Println("----------------------------------------------------------------------------")
+			// 	}
+			// }
 
 			wm.Valid = true
 		}

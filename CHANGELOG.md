@@ -1,3 +1,7 @@
+# v0.11
+
+- new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
+
 # v0.10
 ## general
 - experimental support of HTTP/3 using quic-go ( see HTTP/3 section )
@@ -7,7 +11,6 @@
 - new `-post duration` option: wait `duration` after all commands have ended
 - new `-info` flag to display some os/hardware informations.
 - new `-text filename` flag: report the results to a text file (use `-` for stdout which is the default)
-- new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
 - new `-trace` flag: display lot of debug/trace informations (wip - mainly used for quic/http3 tracing)
 - switch to psutil v3
 - fix global timeout

@@ -8,6 +8,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     available commands:
     - get
     - put
+    - post
     - server
     - ciphers
     - api
@@ -19,6 +20,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
 
         nspeed get [options] url 
         nspeed put [options] url size
+        nspeed post [options] url size
         nspeed server [options]
         nspeed ciphers [options] target
         nspeed api [options]
@@ -99,6 +101,7 @@ Source code with be released with v1.0
 - [ ] gateway/router info & crosstalk information if available 
 
 ## Acknowledgement
+- All the authors of dependencies used (see go.mod)
 - Vivien Guéant & everyone at [lafibre.info](https://lafibre.info) for spawning the ideas and their feedback and testing.
 - Vivien Guéant & [L'ARCEP][arcep] for the ['2020 Open Internet' publication][rapport]
 

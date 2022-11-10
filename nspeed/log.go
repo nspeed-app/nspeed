@@ -29,3 +29,11 @@ func (w *FilteredWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err e
 func CreateFilteredWriter(w zerolog.LevelWriter, level zerolog.Level, exact bool) io.Writer {
 	return &FilteredWriter{w: zerolog.MultiLevelWriter(w), level: level, exact: exact}
 }
+
+// should returns true if this logged would log at this lvl
+func ShouldLog(l *zerolog.Logger, lvl zerolog.Level) bool {
+	if l == nil {
+		return false
+	}
+	return !(lvl < l.GetLevel() || lvl < zerolog.GlobalLevel())
+}

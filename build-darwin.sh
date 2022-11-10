@@ -1,5 +1,6 @@
-# darwin 
-docker run -it --rm \
--v $(pwd):/go/src/nspeed \
--w /go/src/nspeed \
-neilotoole/xcgo:latest goreleaser build -f .goreleaser-darwin.yml --snapshot --rm-dist
+#! /bin/bash
+#set +o xtrace
+COMMONARGS="-buildmode=pie -trimpath"
+COMMONARGS2="-trimpath"
+
+GOOS=darwin GOARCH=amd64  go build -o distrib/nspeed_$GOOS_$GOARCH -ldflags "-X nspeed.app/nspeed.Version=$(git describe --tags)" $COMMONARGS cmd/nspeed/main.go
