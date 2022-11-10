@@ -7,16 +7,20 @@ before:
     # you may remove this if you don't need go generate
     - go generate ./...
 builds:
-  - env:
+  - id: nspeed
+    binary: nspeed
+    main: cmd/nspeed/main.go
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
       - windows
     ldflags:
-      - -s -w -X main.version={{.Version}}
+      - -s -w -X nspeed.app/nspeed.Version={{.Summary}}
     ignore:
       - goos: windows
         goarch: arm64
+      - goarch: 386
 archives:
   - replacements:
       darwin: Darwin
