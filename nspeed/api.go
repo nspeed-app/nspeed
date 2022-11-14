@@ -85,7 +85,11 @@ func (s *APIHost) Init(wm *Metrics) error {
 	if s.WebStats {
 		mgr := webview.NewViewManager(time.Duration(GlobalOptions.ProgressInterval)*time.Second, "/rt", s.WebStatsDebug)
 		mgr.RegisterRoutes(s.Server.Mux)
-		fmt.Printf("real time web stats at http://%s/rt \n", s.Server.Server.Addr)
+		fmt.Printf("real time web stats at http://%s/rt\n", s.Server.Server.Addr)
+		if s.WebStatsDebug {
+			// we should get the route from wher it's defined
+			fmt.Printf("Go runtime stats at http://%s/%s\n", s.Server.Server.Addr, webview.GoStatsRoute)
+		}
 	}
 	return nil
 }

@@ -17,6 +17,12 @@ import (
 	"github.com/go-echarts/statsview/viewer"
 )
 
+// the path for Go stats
+var GoStatsRoute = "/rt/gostats"
+
+// the defaut frequency for Go stats.
+var GoStatsFrequency = 250 * time.Millisecond
+
 // ViewManager
 type ViewManager struct {
 	//srv   *http.Server
@@ -156,7 +162,10 @@ func (vm *ViewManager) RegisterRoutes(mux *http.ServeMux) {
 	}
 
 	if vm.debug {
-		statsviz.Register(mux)
+		statsviz.Register(mux,
+			statsviz.Root(GoStatsRoute),
+			statsviz.SendFrequency(GoStatsFrequency))
+
 		// mux.HandleFunc("/debug/pprof/", pprof.Index)
 		// mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		// mux.HandleFunc("/debug/pprof/profile", pprof.Profile)

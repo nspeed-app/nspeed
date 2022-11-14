@@ -5,14 +5,6 @@ import (
 	"io"
 )
 
-// type Perspective int
-
-// // the perspectives
-// const (
-// 	PerspectiveServer Perspective = 1
-// 	PerspectiveClient Perspective = 2
-// )
-
 type bufferedWriteCloser struct {
 	*bufio.Writer
 	io.Closer

@@ -378,16 +378,36 @@ type NetMetric struct {
 	Description    string        `json:"description"`
 	Group          int           `json:"group"`
 	Date           time.Time     `json:"date"`
-	TXBytes        uint64        `json:"txbytes"`
 	RXBytes        uint64        `json:"rxbytes"`
+	TXBytes        uint64        `json:"txbytes"`
 	AverageLatency uint64        `json:"latency"`
 	Duration       time.Duration `json:"duration"`
+	Samples        []NetMetricSample
 }
 
 type NetMetricSample struct {
 	Offset   time.Duration `json:"index"`
-	TXBytes  uint64        `json:"txbytes"`
 	RXBytes  uint64        `json:"rxbytes"`
+	TXBytes  uint64        `json:"txbytes"`
 	Latency  uint64        `json:"latency"`
-	Duration uint64        `json:"duration"` // keep?
+	Duration uint64        `json:"duration"` // in ms or ns ? - should be constant - keep?
 }
+
+/*  echarts.apache.org
+
+option = {
+  xAxis: {
+    type: 'value', // or time?
+    data: [1,2,3,4,5,6,7,8]
+  },
+  yAxis: {
+    type: 'value'
+  },
+  series: [
+    {
+      data: [150, 230, 224, 218, 135, 147, 260, 500],
+      type: 'line'
+    }
+  ]
+};
+*/
