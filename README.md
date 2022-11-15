@@ -95,10 +95,10 @@ Source code with be released with v1.0
 - [x] web UI (local & remote) - partitally implemented
 - [x] remote agent
 - [ ] P2P (WebRTC)
-- [x] QUIC & HTTP/3 (waiting on Go code)
-- [ ] formatted metrics (might be OpenMetrics ?)
+- [x] QUIC & HTTP/3 (preview - depends on https://github.com/lucas-clemente/quic-go )
+- [ ] formatted metrics (might be OpenTelemetry)
 - [ ] network & hardware information (routes, pci bandwidth, NIC info, erros, etc)
-- [ ] gateway/router info & crosstalk information if available 
+- [ ] gateway/router info & crosstalk information if available (ARCEP box API may be)
 
 ## Acknowledgement
 - All the authors of dependencies used (see go.mod)
@@ -106,7 +106,6 @@ Source code with be released with v1.0
 - Vivien Guéant & [L'ARCEP][arcep] for the ['2020 Open Internet' publication][rapport]
 
 - Artyom Pervukhin ( https://github.com/artyom ) for hints
-- Will McCutchen ( https://github.com/mccutchen ) for go-httpbin
 - Francesc Campoy for the [JustForFunc series](https://www.youtube.com/c/JustForFunc/videos)
 - Joe Shaw for [Abusing go:linkname to customize TLS 1.3 cipher suites](https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/)
 

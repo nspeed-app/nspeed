@@ -107,7 +107,7 @@ func (s *APIHost) Run(ctx context.Context) error {
 		go func() {
 			// todo: change this sleep to a signal or test of the url  ?
 			time.Sleep(1 * time.Second)
-			browser.OpenURL(fmt.Sprintf("http://localhost:%d/rt", s.Parameters.Port))
+			_ = browser.OpenURL(fmt.Sprintf("http://localhost:%d/rt", s.Parameters.Port))
 		}()
 	}
 	return s.Server.Run(ctx)
