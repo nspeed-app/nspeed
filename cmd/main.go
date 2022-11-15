@@ -35,7 +35,7 @@ var optCPU = flag.Bool("cpu", false, "display cpu usage")
 
 var optColor = flag.Bool("color", false, "use colors in text output")
 
-var optVersion = flag.Bool("version", false, "display version")
+var optVersion = flag.Bool("version", false, "display version (add \"all\" for more build and runtime informations)")
 var optInfo = flag.Bool("info", false, "display informations about the host")
 
 var optTimeout = flag.Uint("timeout", 0, "default global timeout in seconds, 0 for no timeout")
@@ -80,21 +80,23 @@ func Main() {
 			fmt.Println("no build info found!")
 			os.Exit(1)
 		}
-		fmt.Printf("NSpeed buildinfo version: %s\n", bi.Main.Version)
-		fmt.Printf("NSpeed local version: %s\n", nspeed.Version)
-
-		for _, v := range bi.Settings {
-			if v.Key == "vcs.tag" {
-				fmt.Println("vcs.tag found: ", v.Value)
-				bi.Main.Version = v.Value
-				break
-			}
+		fmt.Printf("NSpeed version: %s\n", nspeed.Version)
+		// this is a bit dirty since we don't use the flag package to parse '-version all'
+		if flag.Arg(0) != "all" {
+			return
 		}
 
-		fmt.Printf("NSpeed version: %s\n", bi.String())
 		fmt.Printf("Go version: %s\n", runtime.Version())
 		fmt.Printf("OS Version: %s\n", runtime.GOOS)
 		fmt.Printf("Arch Version: %s\n", runtime.GOARCH)
+		fmt.Printf("BuildInfo:\n%s\n", bi.String())
+		// for _, v := range bi.Settings {
+		// 	if v.Key == "vcs.tag" {
+		// 		fmt.Println("vcs.tag found: ", v.Value)
+		// 		bi.Main.Version = v.Value
+		// 		break
+		// 	}
+		// }
 		return
 	}
 
@@ -308,7 +310,7 @@ mainloop:
 			log.Warn().Msgf("global shutdown started by signal: %s", sig)
 			cancel()
 		}
-		log.Warn().Msgf("pre-delay ended")
+		log.Warn().Msgf("post-delay ended")
 	}
 
 	if *optPostDelay != 0 && ctx.Err() != nil {

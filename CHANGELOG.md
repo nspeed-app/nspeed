@@ -2,7 +2,7 @@
 - using semantic version
 - using goreleaser
 - using GOAMD64 levels: (see https://github.com/golang/go/wiki/MinimumRequirements#amd64 ). for now only level1 (_v1) is built.
-
+- less info displayed with `-version`. Use `-version full` for more infos.
 - new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
 
 # v0.10

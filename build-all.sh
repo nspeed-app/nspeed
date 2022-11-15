@@ -1,5 +1,8 @@
 #! /bin/bash
 #set +o xtrace
+goreleaser release --snapshot --rm-dist
+exit
+
 
 COMMONARGS="-buildmode=pie -trimpath"
 COMMONARGS2="-trimpath"
