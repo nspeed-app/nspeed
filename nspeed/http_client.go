@@ -209,12 +209,17 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		FallbackDelay: -1,              // don't use Happy Eyeballs
 		LocalAddr:     LocalAddr,       // "-a" for client
 		// -4/-6 flags: there should a be higher level to enforce an IP version but for now we do this here
+		// todo: use network (tcp4, tcp6, udp4, udp6) at the dialer level ?
 		Control: func(network string, address string, c syscall.RawConn) error {
 			j.Logger.Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
-			if j.IPversion == 4 && network[len(network)-1] == '6' {
+			if len(network) == 0 {
+				return nil
+			}
+			v := network[len(network)-1]
+			if j.IPversion == 4 && v == '6' {
 				return errors.New("bad IP version: want IPv4 got " + network)
 			}
-			if j.IPversion == 6 && network[len(network)-1] == '4' {
+			if j.IPversion == 6 && v == '4' {
 				return errors.New("bad IP version: want IPv6 got " + network)
 			}
 			return nil
