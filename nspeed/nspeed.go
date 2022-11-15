@@ -40,7 +40,7 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 			Logger:     log.With().Int("job", idx).Logger(),
 			Job:        job}
 		wcWorkers[idx] = &wm
-		fmt.Printf("  %d %#v\n", idx, job)
+		fmt.Printf("  %d-%#v\n", idx, job)
 	}
 
 	// Cancel will allows to shutdown everything by calling cancel()

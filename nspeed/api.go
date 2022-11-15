@@ -15,6 +15,7 @@ import (
 	_ "embed"
 
 	"github.com/pkg/browser"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"nspeed.app/webview"
 )
@@ -42,6 +43,9 @@ func (j *APIHost) Expand(jobs []Job, group int) []Job {
 }
 
 func (j *APIHost) GoString() string {
+	if zerolog.GlobalLevel() > zerolog.InfoLevel {
+		return fmt.Sprintf("API server port: %d", j.Parameters.Port)
+	}
 	return fmt.Sprintf("API {Address: %q, port: %d, IPversion: %d, UseTLS: %t}",
 		j.Parameters.Host,
 		j.Parameters.Port,

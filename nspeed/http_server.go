@@ -92,6 +92,9 @@ func (j *JobHTTPServer) Expand(jobs []Job, group int) []Job {
 }
 
 func (j *JobHTTPServer) GoString() string {
+	if zerolog.GlobalLevel() > zerolog.InfoLevel {
+		return fmt.Sprintf("HTTP server %s:%d", j.Parameters.Host, j.Parameters.Port)
+	}
 	return fmt.Sprintf("HTTP server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_request, max duration: %v, UseTLS: %t, H2C: %t, maxruns: %d, max life: %v}",
 		j.Parameters.Host,
 		j.Parameters.Port,
@@ -459,14 +462,14 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 	var listenErr error
 	if s.Parameters.ServeTLS {
 		if s.Parameters.HTTP3 {
-			s.Logger.Warn().Msgf("nspeed listening on https://%s (HTTP/3, UDP, H2C = %t)", s.Server.Addr, s.Parameters.H2C)
+			s.Logger.Info().Msgf("nspeed listening on https://%s (HTTP/3, UDP, H2C = %t)", s.Server.Addr, s.Parameters.H2C)
 			listenErr = s.HTTP3ListenAndServe()
 		} else {
-			s.Logger.Warn().Msgf("nspeed listening on https://%s (H2C = %t)", s.Server.Addr, s.Parameters.H2C)
+			s.Logger.Info().Msgf("nspeed listening on https://%s (H2C = %t)", s.Server.Addr, s.Parameters.H2C)
 			listenErr = s.Server.ListenAndServeTLS("", "")
 		}
 	} else {
-		s.Logger.Warn().Msgf("nspeed listening on http://%s", s.Server.Addr)
+		s.Logger.Info().Msgf("nspeed listening on http://%s", s.Server.Addr)
 		listenErr = s.Server.ListenAndServe()
 	}
 	if listenErr != nil && listenErr != http.ErrServerClosed {
@@ -534,7 +537,7 @@ func (s *JobHTTPServer) HTTP3ListenAndServe() error {
 	})
 
 	// this blocks or fail
-	s.Logger.Warn().Msgf("nspeed listening on https://%s (http3 on udp)", s.Server.Addr)
+	s.Logger.Info().Msgf("nspeed listening on https://%s (http3 on udp)", s.Server.Addr)
 
 	s.Close = func(shutdownTimeout time.Duration) {
 		s.Logger.Warn().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")

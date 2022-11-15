@@ -11,6 +11,7 @@ import (
 	"net/http/httptrace"
 	"net/http/httputil"
 	"net/textproto"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -73,6 +74,9 @@ type JobHTTPClient struct {
 }
 
 func (j *JobHTTPClient) GoString() string {
+	if zerolog.GlobalLevel() > zerolog.InfoLevel {
+		return fmt.Sprintf("HTTP %s %s", j.Command, j.Target)
+	}
 	s := fmt.Sprintf("HTTP client {Method: %s, URL: %q, IPversion: %d, Address: %s, Group: %d, timeout: %s, delay: %s, h2c: %t, http1.1:%t}",
 		j.Command,
 		j.Target,
@@ -208,20 +212,20 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		Timeout:       5 * time.Second, // fail quick
 		FallbackDelay: -1,              // don't use Happy Eyeballs
 		LocalAddr:     LocalAddr,       // "-a" for client
-		// -4/-6 flags: there should a be higher level to enforce an IP version but for now we do this here
-		// todo: use network (tcp4, tcp6, udp4, udp6) at the dialer level ?
+		// TODO: remove later
 		Control: func(network string, address string, c syscall.RawConn) error {
 			j.Logger.Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
-			if len(network) == 0 {
-				return nil
-			}
-			v := network[len(network)-1]
-			if j.IPversion == 4 && v == '6' {
-				return errors.New("bad IP version: want IPv4 got " + network)
-			}
-			if j.IPversion == 6 && v == '4' {
-				return errors.New("bad IP version: want IPv6 got " + network)
-			}
+			// old code, moved to transport.DialContext
+			// if len(network) == 0 {
+			// 	return nil
+			// }
+			// v := network[len(network)-1]
+			// if j.IPversion == 4 && v == '6' {
+			// 	return errors.New("bad IP version: want IPv4 got " + network)
+			// }
+			// if j.IPversion == 6 && v == '4' {
+			// 	return errors.New("bad IP version: want IPv6 got " + network)
+			// }
 			return nil
 		},
 	}
@@ -235,8 +239,18 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   5 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
-		DialContext:           dialer.DialContext,
 		DisableCompression:    true,
+		DialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
+			j.Logger.Info().Msgf("DialContext %s %s %d ", network, address, j.IPversion)
+			if network == "udp" || network == "tcp" {
+				// dont assume j.IPversion  is sanitized
+				if j.IPversion == 6 || j.IPversion == 4 {
+					network = network + strconv.Itoa(j.IPversion)
+				}
+				// else should fatal ?
+			}
+			return dialer.DialContext(ctx, network, address)
+		},
 	}
 
 	if j.UseTLSSelfConfig {
