@@ -22,7 +22,7 @@ func FileCreate(filename string) (*os.File, error) {
 }
 
 // min/max with generics
-// not in std lib...
+// since not YET in std lib...
 func Min[T constraints.Ordered](x, y T) T {
 	if x < y {
 		return x
@@ -58,4 +58,16 @@ func PrintMemUsage(mess string) {
 	fmt.Printf("\tTotalAlloc = %v B", FormatByteDecimalUnits(int64(m.TotalAlloc)))
 	fmt.Printf("\tSys = %v B", FormatByteDecimalUnits(int64(m.Sys)))
 	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+
+// Partition splits an array into 2 arrays based on a predicate function
+func Partition[T any](array []T, test func(T) bool) (matched []T, notmatched []T) {
+	for _, t := range array {
+		if test(t) {
+			matched = append(matched, t)
+		} else {
+			notmatched = append(notmatched, t)
+		}
+	}
+	return
 }

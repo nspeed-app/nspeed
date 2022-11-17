@@ -81,6 +81,9 @@ type JobHTTPServer struct {
 	TotalRequests    int
 	mutex            sync.Mutex
 	api              *APIHost
+	addr             string
+	listener         *net.Listener
+	udpConn          *net.UDPConn
 }
 
 func (j *JobHTTPServer) GetTarget() string {
@@ -401,7 +404,7 @@ func (s *JobHTTPServer) Init(wm *Metrics) error {
 	}
 	return nil
 }
-func (s *JobHTTPServer) Run(ctx context.Context) error {
+func (s *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 	ctx, s.Cancel = context.WithCancel(ctx)
 
@@ -427,12 +430,6 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 	}
 
 	go func() {
-		//select {
-		// case sig := <-shutdownCh:
-		// 	s.Logger.Warn().Msgf("shutdown started by signal: %s", sig)
-		// 	s.Cancel()
-		//case
-
 		<-ctx.Done()
 		s.Logger.Debug().Msgf("shutdown started by context : %s", ctx.Err())
 
@@ -459,52 +456,98 @@ func (s *JobHTTPServer) Run(ctx context.Context) error {
 
 	}
 
-	var listenErr error
-	if s.Parameters.ServeTLS {
-		if s.Parameters.HTTP3 {
-			s.Logger.Info().Msgf("nspeed listening on https://%s (HTTP/3, UDP, H2C = %t)", s.Server.Addr, s.Parameters.H2C)
-			listenErr = s.HTTP3ListenAndServe()
-		} else {
-			s.Logger.Info().Msgf("nspeed listening on https://%s (H2C = %t)", s.Server.Addr, s.Parameters.H2C)
-			listenErr = s.Server.ListenAndServeTLS("", "")
-		}
-	} else {
-		s.Logger.Info().Msgf("nspeed listening on http://%s", s.Server.Addr)
-		listenErr = s.Server.ListenAndServe()
-	}
-	if listenErr != nil && listenErr != http.ErrServerClosed {
-		s.Logger.Fatal().Msgf("failed to listen: %s", listenErr)
+	err := s.Listen()
+	if err != nil {
+		s.Logger.Fatal().Msgf("failed to listen: %s", err)
+		return err
 	}
 
+	// signal parent we're listening
+	wg.Done()
+
+	// Serve: todo
+	err = s.Serve()
+	if err != nil {
+		s.Logger.Fatal().Msgf("failed to serve: %s", err)
+	}
+
+	// we get here if shutdown or error
 	<-exitCh
 	s.Logger.Info().Msgf("shutdown finished")
 	return nil
 }
 
-// HTTP3ListenAndServe  serves HTTP3 over UDP QUIC
-func (s *JobHTTPServer) HTTP3ListenAndServe() error {
+func (s *JobHTTPServer) Serve() error {
+	if s.Parameters.HTTP3 {
+		return s.HTTP3Serve()
+	}
+	if s.listener == nil {
+		return errors.New("no listener")
+	}
+	var err error
+	if s.Parameters.ServeTLS {
+		err = s.Server.ServeTLS(*s.listener, "", "")
+	} else {
+		err = s.Server.Serve(*s.listener)
+	}
+
+	if err == http.ErrServerClosed {
+		err = nil
+	}
+	return err
+}
+
+// Listen opens the listening conn
+func (s *JobHTTPServer) Listen() error {
+
+	if s.Parameters.HTTP3 {
+		return s.HTTP3Listen()
+	}
+
+	if s.listener != nil {
+		return errors.New("a connection is already listening")
+	}
+
+	s.addr = s.Server.Addr
+	if s.addr == "" {
+		s.addr = ":http"
+		if s.Parameters.ServeTLS {
+			s.addr = ":https"
+		}
+	}
+
+	ln, err := net.Listen("tcp", s.addr)
+	if err != nil {
+		return err
+	}
+
+	s.listener = &ln
+
+	if s.Parameters.ServeTLS {
+		s.Logger.Info().Msgf("listening on https://%s (H2C = %t)", s.addr, s.Parameters.H2C)
+	} else {
+		s.Logger.Info().Msgf("listening on http://%s", s.addr)
+	}
+
+	return nil
+}
+
+// HTTP3Listen opens the listening udp conn
+func (s *JobHTTPServer) HTTP3Listen() error {
 
 	if s.Server == nil {
 		return errors.New("no HTTP server")
 	}
-	quicConf := &quic.Config{}
 
-	// setup debug trace
-	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(s.Logger))
+	if s.udpConn != nil {
+		return errors.New("udp connection already listening")
 	}
 
-	// "tcp4" for IPv4 only
-	// "tcp6" or IPv6 only
-	// "tcp" (default) for both
-	//networkTcp := "tcp"
 	networkUdp := "udp"
 	if s.Parameters.ForceIPVersion == 4 {
-		//networkTcp = "tcp4"
 		networkUdp = "udp4"
 	}
 	if s.Parameters.ForceIPVersion == 6 {
-		//networkTcp = "tcp6"
 		networkUdp = "udp6"
 	}
 
@@ -513,11 +556,27 @@ func (s *JobHTTPServer) HTTP3ListenAndServe() error {
 	if err != nil {
 		return err
 	}
-	udpConn, err := net.ListenUDP("udp", udpAddr)
+	s.udpConn, err = net.ListenUDP("udp", udpAddr)
 	if err != nil {
 		return err
 	}
-	defer udpConn.Close()
+	s.Logger.Info().Msgf("listening https://%s (http3 on udp)", s.Server.Addr)
+	return nil
+}
+
+func (s *JobHTTPServer) HTTP3Serve() error {
+
+	if s.udpConn == nil {
+		return errors.New("no udp connection")
+	}
+	defer s.udpConn.Close()
+
+	quicConf := &quic.Config{}
+
+	// setup debug trace
+	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
+		quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(s.Logger))
+	}
 
 	quicServer := &http3.Server{
 		Addr:       s.Server.Addr,
@@ -537,13 +596,13 @@ func (s *JobHTTPServer) HTTP3ListenAndServe() error {
 	})
 
 	// this blocks or fail
-	s.Logger.Info().Msgf("nspeed listening on https://%s (http3 on udp)", s.Server.Addr)
+	s.Logger.Info().Msgf("nspeed serving https://%s (http3 on udp)", s.Server.Addr)
 
 	s.Close = func(shutdownTimeout time.Duration) {
-		s.Logger.Warn().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")
+		s.Logger.Debug().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")
 		// nyi: quicServer.CloseGracefully(shutdownTimeout)
 		err := quicServer.Close()
 		log.Info().Err(err).Msg("quicServer Close called")
 	}
-	return quicServer.Serve(udpConn)
+	return quicServer.Serve(s.udpConn)
 }

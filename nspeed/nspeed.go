@@ -56,6 +56,7 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	}
 
 	// create & init workers for jobs (synchronously one after the others)
+	// run infinite jobs
 	for _, wm := range wcWorkers {
 		log.Debug().Msgf("creating worker %d %s %t", wm.Index, wm.Target, wm.Done)
 		err := wm.Job.Init(wm)
@@ -66,30 +67,40 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	}
 
 	// run workers by launching a go routine for each one
-	// todo:investigate using errgroup.WithContext (update: looking at errgroup.WithContext source code, it doesn't do much else)
-	var wg sync.WaitGroup
+	// we use 2 waitgroup, one for short-lived jobs (get, put,etc), one for infinite (server, api)
+	var wgsl sync.WaitGroup
+	var wgi sync.WaitGroup
 
+	IsInfinite := true // will be false if at least one job is not infinite
 	for _, wm := range wcWorkers {
 		log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
-		wg.Add(1)
-		//todo: use pprof.Do and labels ?
-		go func(w *Metrics) {
-			defer wg.Done()
-			err := w.Job.Run(ctx)
+		finalwg := &wgi
+		if !wm.Job.IsInfinite() {
+			finalwg = &wgsl
+			IsInfinite = false
+		}
+		finalwg.Add(1)
+		go func(w *Metrics, wg *sync.WaitGroup) {
+			err := w.Job.Run(ctx, wg)
 			if err != nil {
 				log.Error().Msgf("error '%s' for '%s'", err, w.Target)
 				cancel()
 				return
 			}
-		}(wm)
+		}(wm, finalwg)
 	}
 
-	// this waits for all jobs to end then sends a signal (purpose is to 'select' a waitgroup)
-	cWaitgroupEnded := make(chan struct{})
+	// wait for all infite jobs to signal they're ready
+	log.Debug().Msg("waiting on infinite job to be ready")
+	wgi.Wait()
+	log.Debug().Msg("all infinite jobs are ready")
+
+	// this waits for all (non infinite) jobs to end then sends a signal (purpose is to 'select' a waitgroup)
+	cWaitgroupSLEnded := make(chan struct{})
 	go func() {
-		defer close(cWaitgroupEnded)
-		wg.Wait()
-		log.Debug().Msg("wait group ended")
+		defer close(cWaitgroupSLEnded)
+		wgsl.Wait()
+		log.Debug().Msg("wait group SL ended")
 	}()
 
 	progressTickerChannel := make(<-chan time.Time) // forever
@@ -100,7 +111,11 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 		progressTickerChannel = progressTicker.C
 	}
 
+	if IsInfinite {
+		fmt.Println("running - hit ctrl-C or send a kill signal to end")
+	}
 	rc := njobs
+	fmt.Println("running...")
 mainloop:
 	for {
 		select {
@@ -114,11 +129,15 @@ mainloop:
 			if wm.Done {
 				log.Debug().Msgf("job %d ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.Index, wm.Expired, runtime.NumGoroutine(), rc)
 			}
-		case <-cWaitgroupEnded:
-			log.Debug().Msgf("all workers ended (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
-			break mainloop
+		case <-cWaitgroupSLEnded:
+			log.Debug().Msgf("all sl workers ended (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
+			if !IsInfinite {
+				break mainloop
+			}
 		}
 	}
+	log.Debug().Msgf("exited mainloop (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
+	fmt.Println("all done")
 
 	// all done or canceled, return
 	return wcWorkers, nil

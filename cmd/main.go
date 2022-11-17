@@ -295,7 +295,7 @@ mainloop:
 			cancel()
 			break mainloop
 		case <-waitChan:
-			log.Warn().Msgf("all jobs ended")
+			log.Info().Msgf("all jobs ended")
 			break mainloop
 		}
 	}

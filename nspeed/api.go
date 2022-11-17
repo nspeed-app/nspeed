@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	_ "embed"
@@ -98,7 +99,7 @@ func (s *APIHost) Init(wm *Metrics) error {
 	return nil
 }
 
-func (s *APIHost) Run(ctx context.Context) error {
+func (s *APIHost) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	if s.Server == nil {
 		return errors.New("API: no server")
 	}
@@ -110,7 +111,7 @@ func (s *APIHost) Run(ctx context.Context) error {
 			_ = browser.OpenURL(fmt.Sprintf("http://localhost:%d/rt", s.Parameters.Port))
 		}()
 	}
-	return s.Server.Run(ctx)
+	return s.Server.Run(ctx, wg)
 }
 
 func (h *APIHost) apiHelpHandler(w http.ResponseWriter, r *http.Request) {

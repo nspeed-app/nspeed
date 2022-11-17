@@ -19,7 +19,7 @@ type Job interface {
 	PrintString(bool) string
 	IsInfinite() bool
 	Init(*Metrics) error
-	Run(context.Context) error
+	Run(context.Context, *sync.WaitGroup) error
 	GetMetric() (NetMetric, error)
 }
 
@@ -331,7 +331,9 @@ func GenerateTextReport(out io.Writer, wcWorkers []*Metrics, verbose bool) {
 			}
 			speedReport(w, fmt.Sprintf("Job %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose))
 		} else {
-			log.Warn().Err(wm.Error).Msgf("job %d ended", wm.Index)
+			if wm.Error != nil {
+				log.Warn().Err(wm.Error).Msgf("job %d ended", wm.Index)
+			}
 		}
 	}
 	if totalRead == 0 && totalWrite == 0 {

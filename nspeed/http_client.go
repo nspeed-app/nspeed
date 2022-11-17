@@ -13,6 +13,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -366,8 +367,9 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	return nil
 }
 
-func (j *JobHTTPClient) Run(ctx context.Context) error {
+func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
+	defer wg.Done()
 	if j.req == nil {
 		return errors.New("no request")
 	}

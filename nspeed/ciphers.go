@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/url"
 	"runtime"
+	"sync"
 	"time"
 	_ "unsafe"
 
@@ -202,8 +203,9 @@ func (j *JobCiphers) Init(wm *Metrics) error {
 }
 
 // print the ciphers list of hostname (dial address)
-func (j *JobCiphers) Run(ctx context.Context) error {
+func (j *JobCiphers) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
+	defer wg.Done()
 	if j.Delay > 0 {
 		j.wm.Logger.Debug().Uint("delay", j.Delay).Msg("waiting")
 		time.Sleep(time.Duration(j.Delay) * time.Second)
