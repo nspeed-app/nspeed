@@ -62,6 +62,7 @@ func Main() {
 			fmt.Fprintf(flag.CommandLine.Output(), "  - %-6s: %s\n", c, nspeed.CommandDescriptions[c])
 		}
 		fmt.Fprintf(flag.CommandLine.Output(), "\nuse: \"%s <command> -h\" to see each command specific arguments and options\n\n", name)
+
 		fmt.Fprintf(flag.CommandLine.Output(), "Available global options:\n\n")
 		flag.PrintDefaults()
 	}

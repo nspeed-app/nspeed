@@ -10,21 +10,26 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     - put
     - post
     - server
-    - ciphers
     - api
+    - ciphers
 
     The ciphers command can not be combined with others and can only be called once. 
     Each "command" has its own arguments, use -h to see them. 
     
     Overview of commands:
 
+    short-lived:
         nspeed get [options] url 
         nspeed put [options] url size
         nspeed post [options] url size
+    infinite:
         nspeed server [options]
-        nspeed ciphers [options] target
         nspeed api [options]
 
+    special:
+        nspeed ciphers [options] target
+
+If there is at least one short-lived command, the program will end when all short-lived commands have ended. If there are only infinite commands, the program will wait for ctrl-c or kill signal.
 ## Examples
 
     # download a single target four times at the same time
@@ -62,7 +67,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     nspeed get http://localhost:7333/1g
 
     # download 20 x 100MiB from a nspeed server
-    nspeed get -n 20 http://localhost:7333/100M
+    nspeed get -n 20 http://localhost:7333/100M server
 
     # with curl, download 1GiB from a nspeed local server
     curl -o /dev/null http://localhost:7333/1G
@@ -74,14 +79,11 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     curl -X POST --data-binary /path/to/file http://localhost:7333/ | tee
 
     # download 1 GB from the local server and stop it
-    # how it works:
-    #   - we launch a localhost server that will respond to one request then shutdown (-n 1)
-    #   - we launch a get command 
-    nspeed server -n 1 get -w 1 http://localhost:7333/1g
+    nspeed server get http://localhost:7333/1g
 
     # with curl, download 1k bytes as content-type "text/plain" but with extention "jpg" from a nspeed server
     curl -o /dev/null http://localhost:7333/1k.jpg?ct=text/plain
-
+    
 ## Installation
 
 Binary distribution available here: [dl.nspeed.app](https://dl.nspeed.app) or in the [release section](https://github.com/nspeed-app/nspeed/releases)

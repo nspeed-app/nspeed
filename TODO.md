@@ -6,7 +6,6 @@ add errors like this:
 var errNotNumber = errors.New("not a valid number")
 
 prévisions pour la v0.7: API &  utilisation de l'API
-- mode agent : lancer nspeed en mode agent permet a un nspeed maitre de le contrôler a distance. Ceci permettra d’effectuer des tests synchronisés et centralisés depuis machines en même temps.
 - UI web version basique: version simpliste sans chichi dans l'interface web
 
 prévisions pour la v0.8: metrics & graphes
