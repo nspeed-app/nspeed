@@ -470,9 +470,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		},
 		WroteRequest: func(wri httptrace.WroteRequestInfo) {
 			j.wm.Logger.Debug().Err(wri.Err).Msgf("ClientTrace-WroteRequest")
-			if wri.Err != nil {
-				j.wm.Error = wri.Err
-			}
+			// todo: can we catch stuff here ?!
 		},
 	}
 

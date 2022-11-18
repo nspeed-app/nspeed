@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const binaryUnits = "kmgtpe"
@@ -87,18 +88,21 @@ func ParseByteUnits(s string) (uint64, error) {
 }
 
 // FormatBitperSecond format bit per seconds in human readable format
-func FormatBitperSecond(elapsedSeconds float64, totalBytesRead int64) string {
-	// nyi - fix me
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("recovered from divide by zero")
-		}
-	}()
-	speed := "(too fast)"
-	if elapsedSeconds > 0 {
-		speed = ByteCountDecimal((int64)((float64)(totalBytesRead)*8.0/elapsedSeconds)) + "bps"
+func FormatBitperSecond(bytes int64, duration time.Duration) string {
+	bps := BitperSecond(bytes, duration)
+	if bps != -1 {
+		return ByteCountDecimal(bps) + "bps"
 	}
-	return speed
+	return "(too fast)"
+}
+
+// convert to bps, return -1 if duration is too small
+func BitperSecond(bytes int64, duration time.Duration) int64 {
+	secs := duration.Seconds()
+	if secs > 0 {
+		return int64((float64(bytes)) * 8.0 / secs)
+	}
+	return -1
 }
 
 // TLS stuff

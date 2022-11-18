@@ -167,8 +167,10 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 			Int64("TotalWrite", wm.TotalWrite).
 			Int64("WriteCount", wm.WriteCount).
 			Int64("AverageWriteSize", AverageWriteSize).
-			Int64("ReadBPS", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds())).
-			Int64("WriteBPS", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds())).
+			// Int64("ReadBPS", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds())).
+			// Int64("WriteBPS", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds())).
+			Str("ReadBPS", FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
+			Str("WriteBPS", FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
 			Float64("duration", wm.ElapsedTime.Seconds()).
 			Str("url", wm.Target).
 			Send()
@@ -180,8 +182,8 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 func (wm *Metrics) PrintFinal(w io.Writer, verbose bool) {
 	if wm.Valid {
 		fmt.Fprintf(w, "%d:", wm.Index)
-		fmt.Fprintf(w, "Read: %s ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalRead))
-		fmt.Fprintf(w, "Write: %s ", FormatBitperSecond(wm.ElapsedTime.Seconds(), wm.TotalWrite))
+		fmt.Fprintf(w, "Read: %s ", FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
+		fmt.Fprintf(w, "Write: %s ", FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
 		fmt.Fprintf(w, "TotalRead: %d ", wm.TotalRead)
 		fmt.Fprintf(w, "TotalWrite: %d ", wm.TotalWrite)
 		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
@@ -305,8 +307,8 @@ func initSpeedReport(w *tabwriter.Writer) {
 func speedReport(w *tabwriter.Writer, job string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
 	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
 		job,
-		FormatBitperSecond(elapsedTime.Seconds(), totalRead),
-		FormatBitperSecond(elapsedTime.Seconds(), totalWrite),
+		FormatBitperSecond(totalRead, elapsedTime),
+		FormatBitperSecond(totalWrite, elapsedTime),
 		elapsedTime.Seconds(),
 		ByteCountDecimal(totalRead),
 		ByteCountDecimal(totalWrite),

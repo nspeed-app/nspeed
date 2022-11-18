@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"strings"
 
 	"net/http"
@@ -15,7 +16,7 @@ func main() {
 	contentLength := int64(len(bodyString))
 	body := strings.NewReader(bodyString)
 
-	req, err := http.NewRequest("POST", "https://www.google.com/", body)
+	req, err := http.NewRequest("POST", os.Args[1], body)
 	if err != nil {
 		log.Fatal(err)
 	}

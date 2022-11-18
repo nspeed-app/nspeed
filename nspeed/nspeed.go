@@ -113,11 +113,13 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 
 	if IsInfinite {
 		fmt.Println("running - hit ctrl-C or send a kill signal to end")
+	} else {
+		fmt.Println("running...")
 	}
 	rc := njobs
-	fmt.Println("running...")
 mainloop:
 	for {
+		log.Debug().Msgf("mainloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
 		select {
 		case <-ctx.Done():
 			log.Debug().Msgf("parent cancelled us")
@@ -134,6 +136,8 @@ mainloop:
 			if !IsInfinite {
 				break mainloop
 			}
+			// we want this case to block the select forever
+			cWaitgroupSLEnded = nil
 		}
 	}
 	log.Debug().Msgf("exited mainloop (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
