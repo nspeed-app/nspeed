@@ -62,9 +62,8 @@ type JobHTTPClient struct {
 	UseTLSSelfConfig bool
 	Delay            time.Duration
 	Logger           *zerolog.Logger
-	UseHTTP11        bool
+	HTTPVersion      int
 	H2C              bool
-	HTTP3            bool
 	// private
 	client      *http.Client
 	req         *http.Request
@@ -78,7 +77,7 @@ func (j *JobHTTPClient) GoString() string {
 	if zerolog.GlobalLevel() > zerolog.InfoLevel {
 		return fmt.Sprintf("HTTP %s %s", j.Command, j.Target)
 	}
-	s := fmt.Sprintf("HTTP client {Method: %s, URL: %q, IPversion: %d, Address: %s, Group: %d, timeout: %s, delay: %s, h2c: %t, http1.1:%t}",
+	s := fmt.Sprintf("HTTP client {Method: %s, URL: %q, IPversion: %d, Address: %s, Group: %d, timeout: %s, delay: %s, h2c: %t, http:%s}",
 		j.Command,
 		j.Target,
 		j.IPversion,
@@ -87,7 +86,7 @@ func (j *JobHTTPClient) GoString() string {
 		j.Timeout.String(),
 		j.Delay.String(),
 		j.H2C,
-		j.UseHTTP11,
+		HTTPVersionStringer(j.HTTPVersion),
 	)
 	if j.Command == "POST" || j.Command == "PUT" {
 		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, ByteCountDecimal(j.ContentSize))
@@ -133,24 +132,12 @@ func (j *JobHTTPClient) PrintString(verbose bool) string {
 
 	if j.Command == "GET" {
 		t := "get %s" + j.finalTarget
-		r := fmt.Sprintf(t, "")
-		if j.H2C {
-			r = fmt.Sprintf(t, "-h2c ")
-		}
-		if j.UseHTTP11 {
-			r = fmt.Sprintf(t, "-http11 ")
-		}
+		r := fmt.Sprintf(t, HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
 
 	} else if j.Command == "POST" || j.Command == "PUT" {
 		t := strings.ToLower(j.Command) + " %s" + j.finalTarget + " " + ByteCountDecimal(j.ContentSize) + "B" //todo
-		r := fmt.Sprintf(t, "")
-		if j.H2C {
-			r = fmt.Sprintf(t, "-h2c ")
-		}
-		if j.UseHTTP11 {
-			r = fmt.Sprintf(t, "-http11 ")
-		}
+		r := fmt.Sprintf(t, HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
 	} else {
 		return "unknown command"
@@ -235,7 +222,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	//var netTransport = http.DefaultTransport.(*http.Transport).Clone()
 	var netTransport = &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
-		ForceAttemptHTTP2:     !j.UseHTTP11,
+		ForceAttemptHTTP2:     j.HTTPVersion != 1, // what about -http3?
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   5 * time.Second,
@@ -270,9 +257,9 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	// interface to the transport so we can switch if needed
 	var rtTransport http.RoundTripper = netTransport
 
-	if !j.UseHTTP11 {
+	if j.HTTPVersion != 1 {
 		// get a http2 transport
-		rt2, err := http2.ConfigureTransports(netTransport)
+		_, err := http2.ConfigureTransports(netTransport)
 		if err != nil {
 			log.Warn().Msgf("something bad happened that shouldn't : %s", err)
 			return err
@@ -280,20 +267,28 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		// when https://go-review.googlesource.com/c/net/+/362834
 		//rt2.MaxReadFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
 
-		// H2C support
+		// force http/2 : this is hacky: remove "http/1.1" from NextProtos.
+		// Forcing a http2.Transport fails unless it's h2c mode.
+		if j.HTTPVersion == 2 {
+			idx := SliceIndex(netTransport.TLSClientConfig.NextProtos, "http/1.1")
+			if idx != -1 {
+				log.Debug().Msgf("removing http/1.1 from netTransport.TLSClientConfig")
+				netTransport.TLSClientConfig.NextProtos = append(netTransport.TLSClientConfig.NextProtos[:idx], netTransport.TLSClientConfig.NextProtos[idx+1:]...)
+			}
+		}
 		if j.H2C {
-			rt2.AllowHTTP = true
 			rtTransport = &http2.Transport{
 				DialTLSContext: func(ctx context.Context, network string, addr string, cfg *tls.Config) (net.Conn, error) {
 					return dialer.DialContext(ctx, network, addr)
 				},
+				TLSClientConfig:    netTransport.TLSClientConfig.Clone(),
 				DisableCompression: true,
-				AllowHTTP:          true,
+				AllowHTTP:          j.H2C,
 				// when https://go-review.googlesource.com/c/net/+/362834/
 				//MaxReadFrameSize: 256 * 1024,
 			}
 		}
-		if j.HTTP3 {
+		if j.HTTPVersion == 3 {
 			quicConf := &quic.Config{}
 			if zerolog.GlobalLevel() <= zerolog.TraceLevel {
 				quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(j.Logger))
@@ -302,17 +297,15 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 				DisableCompression: true,
 				TLSClientConfig:    netTransport.TLSClientConfig,
 				QuicConfig:         quicConf,
-				//EnableDatagrams:    false,
 				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
 					log.Debug().Msgf("HTTP3: %s,%v", addr, cfg)
 					return quic.DialAddrEarlyContext(ctx, addr, tlsCfg, cfg)
 				},
-				//MaxResponseHeaderBytes: 0,
 			}
 		}
 	}
 
-	if j.UseHTTP11 {
+	if j.HTTPVersion == 1 {
 		// force HTTP1.1 as per https://pkg.go.dev/net/http#pkg-overview
 		netTransport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
 	}
@@ -427,11 +420,11 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 				j.tr.tlsDone = time.Now()
 				j.tr.TLSDone = true
 				j.tr.TLS = t
+				wm.Logger.Debug().Msgf("ClientTrace-TLSHandshakeDone: %v (protocol = %s)", j.tr.tlsDone.Sub(refdate), t.NegotiatedProtocol)
 			} else {
 				j.tr.tls = false
 				//fmt.Printf("tls: %+v \n", err)
 			}
-			wm.Logger.Debug().Msgf("ClientTrace-TLSHandshakeDone: %v", j.tr.tlsDone.Sub(refdate))
 		},
 		ConnectStart: func(_, _ string) {
 			wm.mutex.Lock()

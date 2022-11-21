@@ -124,3 +124,27 @@ func FilterAddresses(addrs []net.IPAddr, ipversion int) []net.IPAddr {
 	}
 	return fipaddrs
 }
+
+func HTTPVersionFlag(version int, h2c bool) string {
+	r := ""
+	if h2c {
+		r = "-h2c "
+	}
+	if version != 0 {
+		return r + "-http" + HTTPVersionStringer(version) + " "
+	}
+	return ""
+}
+
+func HTTPVersionStringer(version int) string {
+	if version == 1 {
+		return "1.1"
+	}
+	if version == 2 {
+		return "2"
+	}
+	if version == 3 {
+		return "3"
+	}
+	return "any"
+}

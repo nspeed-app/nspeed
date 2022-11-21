@@ -60,13 +60,17 @@ var CommandDescriptions = map[string]string{
 // global flags
 var OptTLSSelf = false
 
-// common GET/PUT flags that need treatment
+// common GET/PUT flags that need treatment/checks
 type httpFlags struct {
-	Timeout uint
-	Delay   uint
-	UseIPv4 bool
-	UseIPv6 bool
-	Url     string
+	Timeout   uint
+	Delay     uint
+	UseIPv4   bool
+	UseIPv6   bool
+	Url       string
+	UseHTTP11 bool
+	UseHTTP2  bool
+	UseHTTP3  bool
+	H2C       bool
 }
 
 // flags that need a name because they're used multiple time (with isFlagPassed notabily)
@@ -80,9 +84,6 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	fs.StringVar(&job.Host, "a", "", "specific local address to use")
 	fs.BoolVar(&job.SkipTLSCheck, "k", false, "skip certificates validation")
 	fs.BoolVar(&job.UseTLSSelfConfig, "self", OptTLSSelf, "use self-signed TLS certificate")
-	fs.BoolVar(&job.UseHTTP11, "http11", false, "force using HTTP 1.1")
-	fs.BoolVar(&job.H2C, "h2c", false, "force using HTTP/2 Cleartext (H2C) mode")
-	fs.BoolVar(&job.HTTP3, "http3", false, "use HTTP3")
 	fs.StringVar(&job.UserAgent, "u", "nspeed.app/"+Version, "user-agent")
 
 	hf := httpFlags{}
@@ -90,6 +91,10 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	fs.UintVar(&hf.Delay, "w", 0, "delay in seconds to wait before starting the command")
 	fs.BoolVar(&hf.UseIPv4, "4", false, "use IPv4 only")
 	fs.BoolVar(&hf.UseIPv6, "6", false, "use IPv6 only")
+	fs.BoolVar(&hf.UseHTTP11, "http1.1", false, "force using HTTP 1.1")
+	fs.BoolVar(&hf.UseHTTP2, "http2", false, "force using HTTP/2")
+	fs.BoolVar(&hf.H2C, "h2c", false, "force using HTTP/2 Cleartext (H2C) mode (implies -http2)")
+	fs.BoolVar(&hf.UseHTTP3, "http3", false, "use HTTP3")
 	fs.StringVar(&hf.Url, urlFlag, "", "target url for the command")
 	return fs, &hf
 }
@@ -117,7 +122,7 @@ func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *JobHTTPClien
 	job.Delay = time.Duration(hf.Delay) * time.Second
 
 	if hf.UseIPv4 && hf.UseIPv6 {
-		fs.Usage()
+		//fs.Usage()
 		return errors.New("specify IPv4 or IPv6 but not both")
 	}
 	if hf.UseIPv4 {
@@ -127,6 +132,30 @@ func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *JobHTTPClien
 		job.IPversion = 6
 	}
 
+	if hf.UseHTTP11 && hf.UseHTTP2 ||
+		hf.UseHTTP11 && hf.UseHTTP3 ||
+		hf.UseHTTP2 && hf.UseHTTP3 {
+		return errors.New("specify only one HTTP version")
+	}
+	// 0 = any version
+	job.HTTPVersion = 0
+	if hf.UseHTTP11 {
+		job.HTTPVersion = 1
+	}
+	if hf.UseHTTP2 {
+		job.HTTPVersion = 2
+	}
+	if hf.UseHTTP3 {
+		job.HTTPVersion = 3
+	}
+	// h2c implied 2
+	if hf.H2C {
+		if hf.H2C && !(job.HTTPVersion == 2 || job.HTTPVersion == 0) {
+			return errors.New("H2C only work with -http2")
+		}
+		job.H2C = true
+		job.HTTPVersion = 2
+	}
 	return nil
 }
 
