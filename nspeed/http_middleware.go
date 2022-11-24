@@ -69,15 +69,14 @@ func preflight(h http.Handler) http.Handler {
 	})
 }
 
-// BigBuffer is used with io.CopyBuffer because of io.Copy iternal buffer is too small.
+// BigBuffer is used with io.CopyBuffer because of io.Copy internal buffer is too small.
 // todo: we set a 4 MiB size. on small systems/embedded systems this could be an issue
-// this buffer can be read/write by multiple goroutines at the same time.
-// do not use the data in it.
+// this buffer can be read/write by multiple goroutines at the same time so do not use the data in it.
 var bigBuffer [4 * 1024 * 1024]byte
 var BigBuffer = bigBuffer[:]
 
 // BigChunk is a big array of random data
-const MaxChunkSize = 1024 * 1024 // warning : 1 MiB //this will be allocated in memory
+const MaxChunkSize = 1 * 1024 * 1024 // warning : 1 MiB //this will be allocated in memory
 var BigChunk [MaxChunkSize]byte
 
 // init a buffer of random values - callable only once

@@ -3,6 +3,7 @@ package nspeed
 import (
 	"errors"
 	"net"
+	"net/url"
 	"strings"
 )
 
@@ -147,4 +148,19 @@ func HTTPVersionStringer(version int) string {
 		return "3"
 	}
 	return "any"
+}
+
+// parse URL , append default port
+func parseURL(u, scheme string) (*url.URL, error) {
+	u1, err := url.ParseRequestURI(u)
+	if err != nil || u1.Host == "" {
+		//fmt.Println("error 1")
+		u2, err := url.ParseRequestURI(scheme + "://" + u)
+		if err != nil {
+			//fmt.Println("error 2")
+			return nil, err
+		}
+		return u2, nil
+	}
+	return u1, nil
 }

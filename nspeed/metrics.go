@@ -124,7 +124,7 @@ func (wm *Metrics) FixMeReadFrom(r io.Reader) (n int64, err error) {
 		}
 	}
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
-	fmt.Printf("ReadFrom used with %d Read and %d max buff\n", wm.ReadCount, wm.StepSize)
+	fmt.Printf("ReadFrom used with %d Read and %d max buff", wm.ReadCount, wm.StepSize)
 	return wm.TotalRead, nil
 }
 
@@ -167,8 +167,6 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 			Int64("TotalWrite", wm.TotalWrite).
 			Int64("WriteCount", wm.WriteCount).
 			Int64("AverageWriteSize", AverageWriteSize).
-			// Int64("ReadBPS", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds())).
-			// Int64("WriteBPS", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds())).
 			Str("ReadBPS", FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
 			Str("WriteBPS", FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
 			Float64("duration", wm.ElapsedTime.Seconds()).
@@ -209,12 +207,14 @@ func (wm *Metrics) InitNew() {
 	wm.TotalWrite = 0
 	wm.ReadCount = 0
 	wm.WriteCount = 0
+	log.Debug().Msgf("wm InitNew called")
 }
 
 func (wm *Metrics) Close() error {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+	wm.Logger.Debug().Msgf("Close() called after %d", wm.ElapsedTime)
 	// assert wm.Done == false
 	wm.Done = true
 	if wm.TotalWrite < wm.ContentWriteSize {
@@ -231,18 +231,21 @@ func (wm *Metrics) Close() error {
 // Read <- golang http client -> PUT/POST --> network --> server upload
 func (wm *Metrics) Read(p []byte) (n int, err error) {
 	n, err = wm.read(p)
-	//fmt.Println("READ:", n, err)
+	//fmt.Println("READ:", n, err, time.Since(wm.TransfertStartTime), wm.TotalWrite)
 	return n, err
 }
 func (wm *Metrics) read(p []byte) (n int, err error) {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
-	if wm.TotalWrite == 0 {
-		wm.TransfertStartTime = time.Now()
-		wm.ElapsedTime = 0
-	} else {
-		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
-	}
+
+	// TODO: why this doesn't work ?
+	// first read = start timer ?
+	// if wm.TotalWrite == 0 {
+	// 	wm.TransfertStartTime = time.Now()
+	// 	wm.ElapsedTime = 0
+	// } else {
+	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+	// }
 
 	wm.WriteCount++
 	maxstep := len(p)
@@ -275,6 +278,7 @@ func (wm *Metrics) FixWriteTo(w io.Writer) (n int64, err error) {
 
 	buflen := int64(len(BigBuffer))
 
+	log.Debug().Msgf("WriteTo loop starting for %d bytes (%d)\n", wm.TotalWrite, time.Since(wm.TransfertStartTime))
 	for {
 		todo := Min(wm.ContentWriteSize-wm.TotalWrite, buflen)
 		if todo <= 0 {
@@ -297,7 +301,7 @@ func (wm *Metrics) FixWriteTo(w io.Writer) (n int64, err error) {
 			break
 		}
 	}
-	fmt.Printf("WriteTo used with %d Write ops and %d max buff for a total of %d\n", wm.WriteCount, wm.StepSize, wm.TotalWrite)
+	log.Debug().Msgf("WriteTo done: %d Write ops and %d max buff size. Total = %d bytes in %s\n", wm.WriteCount, wm.StepSize, wm.TotalWrite, wm.ElapsedTime)
 	return wm.TotalWrite, nil
 }
 

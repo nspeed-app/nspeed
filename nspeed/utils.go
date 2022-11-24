@@ -46,18 +46,21 @@ func DumpRequest(req *http.Request, body bool) {
 	fmt.Printf("%s", dump)
 }
 
-func PrintMemUsage(mess string) {
-	if zerolog.GlobalLevel() > zerolog.InfoLevel {
+func PrintMemUsage(log *zerolog.Logger, mess string) {
+	if log == nil {
+		return
+	}
+	if log.GetLevel() > zerolog.InfoLevel {
 		return
 	}
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	fmt.Printf("%s: ", mess)
-	fmt.Printf("Alloc = %v B", FormatByteDecimalUnits(int64(m.Alloc)))
-	fmt.Printf("\tTotalAlloc = %v B", FormatByteDecimalUnits(int64(m.TotalAlloc)))
-	fmt.Printf("\tSys = %v B", FormatByteDecimalUnits(int64(m.Sys)))
-	fmt.Printf("\tNumGC = %v\n", m.NumGC)
+	log.Printf("%s: - Alloc = %vB\tTotalAlloc = %vB\tSys = %vB\tNumGC = %v\n", mess,
+		FormatByteDecimalUnits(int64(m.Alloc)),
+		FormatByteDecimalUnits(int64(m.TotalAlloc)),
+		FormatByteDecimalUnits(int64(m.Sys)),
+		m.NumGC)
 }
 
 // Partition splits an array into 2 arrays based on a predicate function

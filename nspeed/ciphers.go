@@ -8,7 +8,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"net/url"
 	"runtime"
 	"sync"
 	"time"
@@ -154,21 +153,6 @@ func supportedTLS12Ciphers(hostname, port string, timeout time.Duration) ([]uint
 	}
 
 	return supportedCiphers, nil
-}
-
-// parse URL , append default port
-func parseURL(u, scheme string) (*url.URL, error) {
-	u1, err := url.ParseRequestURI(u)
-	if err != nil || u1.Host == "" {
-		//fmt.Println("error 1")
-		u2, err := url.ParseRequestURI(scheme + "://" + u)
-		if err != nil {
-			//fmt.Println("error 2")
-			return nil, err
-		}
-		return u2, nil
-	}
-	return u1, nil
 }
 
 // implement Job

@@ -488,9 +488,9 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	// resp, err := client.Transport.RoundTrip(req)
 	wm.InitNew()
 
-	PrintMemUsage("before Do")
+	PrintMemUsage(j.Logger, "before Do")
 	resp, err := j.client.Do(j.req)
-	PrintMemUsage("after Do")
+	PrintMemUsage(j.Logger, "after Do")
 
 	j.Logger.Debug().Msgf("client.Do: %v - %v", err, wm.Error)
 	j.tr.end = time.Now()
@@ -622,7 +622,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 			wm.Valid = true
 		}
 	}
-	PrintMemUsage("client ended")
+	PrintMemUsage(j.Logger, "client ended")
 	wm.LogFinal(j.Logger)
 	wm.ResultChan <- wm
 	return nil

@@ -44,6 +44,7 @@ type HostParameters struct {
 	MaxDuration      time.Duration
 	ServeTLS         bool
 	H2C              bool
+	HTTP2            bool
 	HTTP3            bool
 	UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
 	TLSCertFile      string
@@ -58,13 +59,9 @@ type HostParameters struct {
 // initialize a new HostParameters
 func NewHostParameters() *HostParameters {
 	return &HostParameters{
-		Port:             DefaultPort,
-		MaxBodySize:      DefaultMaxBodySize,
-		MaxDuration:      DefaultMaxDuration,
-		ServeTLS:         false,
-		H2C:              false,
-		HTTP3:            false,
-		UseTLSSelfConfig: false,
+		Port:        DefaultPort,
+		MaxBodySize: DefaultMaxBodySize,
+		MaxDuration: DefaultMaxDuration,
 	}
 }
 
@@ -247,7 +244,8 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	// keep multplt of 16384
 	var chunkSize int64 = 256 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 
-	//danger zone
+	//danger zone - the cient is setting the chunk_size - be careful
+	// todo: do we still need to support this parameter ?
 	if r.URL.Query().Get("chunk_size") != "" {
 		cs, err := ParseByteUnits(r.URL.Query().Get("chunk_size"))
 		chunkSize = int64(cs)
@@ -259,7 +257,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		// todo- for now we limit chunkSize to maxBodySize. do we a new cmd line parameter for max chunk size ?
+		// todo- for now we limit chunkSize to maxBodySize. do we need a new cmd line parameter for max chunk size ?
 		// since huge chunksize can overload the server memory this is not safe
 		if chunkSize > MaxChunkSize {
 			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", MaxChunkSize), http.StatusBadRequest)
@@ -477,26 +475,6 @@ func (s *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (s *JobHTTPServer) Serve() error {
-	if s.Parameters.HTTP3 {
-		return s.HTTP3Serve()
-	}
-	if s.listener == nil {
-		return errors.New("no listener")
-	}
-	var err error
-	if s.Parameters.ServeTLS {
-		err = s.Server.ServeTLS(*s.listener, "", "")
-	} else {
-		err = s.Server.Serve(*s.listener)
-	}
-
-	if err == http.ErrServerClosed {
-		err = nil
-	}
-	return err
-}
-
 // Listen opens the listening conn
 func (s *JobHTTPServer) Listen() error {
 
@@ -530,6 +508,26 @@ func (s *JobHTTPServer) Listen() error {
 	}
 
 	return nil
+}
+
+func (s *JobHTTPServer) Serve() error {
+	if s.Parameters.HTTP3 {
+		return s.HTTP3Serve()
+	}
+	if s.listener == nil {
+		return errors.New("no listener")
+	}
+	var err error
+	if s.Parameters.ServeTLS {
+		err = s.Server.ServeTLS(*s.listener, "", "")
+	} else {
+		err = s.Server.Serve(*s.listener)
+	}
+
+	if err == http.ErrServerClosed {
+		err = nil
+	}
+	return err
 }
 
 // HTTP3Listen opens the listening udp conn
