@@ -519,6 +519,9 @@ func (s *JobHTTPServer) Serve() error {
 	}
 	var err error
 	if s.Parameters.ServeTLS {
+		if s.Parameters.HTTP2 {
+			return errors.New("-http2 is not implemented yet")
+		}
 		err = s.Server.ServeTLS(*s.listener, "", "")
 	} else {
 		err = s.Server.Serve(*s.listener)
