@@ -75,10 +75,10 @@ func Partition[T any](array []T, test func(T) bool) (matched []T, notmatched []T
 	return
 }
 
-// SliceIndex searches for an element in a slice and return its index or -1 if not found
-// todo: find and use the 'canonical' name for ths function
+// IndexOf searches for an element in a slice and returns its index or -1 if not found
+// todo: find and use the 'canonical' name for this function
 // todo: watch for future equivalence in std lib
-func SliceIndex[T comparable](ss []T, s T) (idx int) {
+func IndexOf[T comparable](ss []T, s T) (idx int) {
 	for idx, v := range ss {
 		if v == s {
 			return idx

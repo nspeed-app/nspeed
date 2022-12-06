@@ -270,7 +270,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		// force http/2 : this is hacky: remove "http/1.1" from NextProtos.
 		// Forcing a http2.Transport fails unless it's h2c mode.
 		if j.HTTPVersion == 2 {
-			idx := SliceIndex(netTransport.TLSClientConfig.NextProtos, "http/1.1")
+			idx := IndexOf(netTransport.TLSClientConfig.NextProtos, "http/1.1")
 			if idx != -1 {
 				log.Debug().Msgf("removing http/1.1 from netTransport.TLSClientConfig")
 				netTransport.TLSClientConfig.NextProtos = append(netTransport.TLSClientConfig.NextProtos[:idx], netTransport.TLSClientConfig.NextProtos[idx+1:]...)

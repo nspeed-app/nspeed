@@ -525,7 +525,7 @@ func (s *JobHTTPServer) Serve() error {
 		// future proof: keep in sync with changes made to ServeTLS
 		if s.Parameters.HTTP2 {
 			//return errors.New("-http2 is not implemented yet")
-			fmt.Println("using http/2")
+			fmt.Println("using http/2 only")
 
 			err = http2.ConfigureServer(s.Server, &http2.Server{})
 
@@ -533,7 +533,7 @@ func (s *JobHTTPServer) Serve() error {
 				return err
 			}
 
-			idx := SliceIndex(s.Server.TLSConfig.NextProtos, "http/1.1")
+			idx := IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
 			if idx != -1 {
 				log.Warn().Msgf("removing http/1.1 from server.TLSConfig")
 				s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)
