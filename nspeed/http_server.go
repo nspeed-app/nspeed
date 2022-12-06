@@ -392,6 +392,7 @@ func (s *JobHTTPServer) Init(wm *Metrics) error {
 		WriteTimeout: s.Parameters.MaxDuration,
 		ReadTimeout:  s.Parameters.MaxDuration,
 	}
+
 	if s.Parameters.H2C {
 		s.Server.Handler = h2c.NewHandler(s.Server.Handler, &http2.Server{})
 	}
@@ -451,7 +452,6 @@ func (s *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 			s.Logger.Fatal().Err(err).Msgf("error loading cert/key files")
 		}
 		s.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
-
 	}
 
 	err := s.Listen()
@@ -519,11 +519,36 @@ func (s *JobHTTPServer) Serve() error {
 	}
 	var err error
 	if s.Parameters.ServeTLS {
+		// if we only want HTTP/2 we cannot use ServeTLS because it adds "http/1.1" to alpn
+		// so we rewrite our own ServeTLS using http2.ConfigureServer, we remove "http/1.1"
+		// we open the TLS listener and call Serve
+		// future proof: keep in sync with changes made to ServeTLS
 		if s.Parameters.HTTP2 {
-			return errors.New("-http2 is not implemented yet")
+			//return errors.New("-http2 is not implemented yet")
+			fmt.Println("using http/2")
+
+			err = http2.ConfigureServer(s.Server, &http2.Server{})
+
+			if err != nil {
+				return err
+			}
+
+			idx := SliceIndex(s.Server.TLSConfig.NextProtos, "http/1.1")
+			if idx != -1 {
+				log.Warn().Msgf("removing http/1.1 from server.TLSConfig")
+				s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)
+			}
+
+			config := s.Server.TLSConfig.Clone()
+
+			tlsListener := tls.NewListener(*s.listener, config)
+			err = s.Server.Serve(tlsListener)
+		} else {
+			// standard HTTPS server (http/1.1 or http/1.1+http/2)
+			err = s.Server.ServeTLS(*s.listener, "", "")
 		}
-		err = s.Server.ServeTLS(*s.listener, "", "")
 	} else {
+		// http server
 		err = s.Server.Serve(*s.listener)
 	}
 
