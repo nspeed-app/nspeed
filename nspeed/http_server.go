@@ -511,51 +511,58 @@ func (s *JobHTTPServer) Listen() error {
 }
 
 func (s *JobHTTPServer) Serve() error {
-	if s.Parameters.HTTP3 {
-		return s.HTTP3Serve()
-	}
-	if s.listener == nil {
-		return errors.New("no listener")
-	}
-	var err error
-	if s.Parameters.ServeTLS {
-		// if we only want HTTP/2 we cannot use ServeTLS because it adds "http/1.1" to alpn
-		// so we rewrite our own ServeTLS using http2.ConfigureServer, we remove "http/1.1"
-		// we open the TLS listener and call Serve
-		// future proof: keep in sync with changes made to ServeTLS
-		if s.Parameters.HTTP2 {
-			//return errors.New("-http2 is not implemented yet")
-			fmt.Println("using http/2 only")
-
-			err = http2.ConfigureServer(s.Server, &http2.Server{})
-
-			if err != nil {
-				return err
-			}
-
-			idx := IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
-			if idx != -1 {
-				log.Warn().Msgf("removing http/1.1 from server.TLSConfig")
-				s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)
-			}
-
-			config := s.Server.TLSConfig.Clone()
-
-			tlsListener := tls.NewListener(*s.listener, config)
-			err = s.Server.Serve(tlsListener)
-		} else {
-			// standard HTTPS server (http/1.1 or http/1.1+http/2)
-			err = s.Server.ServeTLS(*s.listener, "", "")
-		}
-	} else {
-		// http server
-		err = s.Server.Serve(*s.listener)
-	}
-
+	err := s.serve()
 	if err == http.ErrServerClosed {
 		err = nil
 	}
 	return err
+}
+
+func (s *JobHTTPServer) serve() error {
+
+	if s.Parameters.HTTP3 {
+		return s.HTTP3Serve()
+	}
+
+	if s.listener == nil {
+		return errors.New("no listener")
+	}
+
+	if s.Parameters.HTTP2 {
+		return s.HTTP2Serve()
+	} else if s.Parameters.ServeTLS {
+		return s.Server.ServeTLS(*s.listener, "", "")
+
+	} else {
+		return s.Server.Serve(*s.listener)
+	}
+
+}
+
+func (s *JobHTTPServer) HTTP2Serve() error {
+	//return errors.New("enforcing HTTP/2 is not implemented yet")
+	return s.HTTP2serve()
+	// can't do unless we rewrite Serve because of we can't add
+	// our own proto handler for http/1.1 (see )
+
+	// fmt.Println("using http/2 only")
+
+	// err := http2.ConfigureServer(s.Server, &http2.Server{})
+
+	// if err != nil {
+	// 	return err
+	// }
+
+	// idx := IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
+	// if idx != -1 {
+	// 	log.Warn().Msgf("removing http/1.1 from server.TLSConfig")
+	// 	s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)
+	// }
+
+	// config := s.Server.TLSConfig.Clone()
+
+	// tlsListener := tls.NewListener(*s.listener, config)
+	// return s.Server.Serve(tlsListener)
 }
 
 // HTTP3Listen opens the listening udp conn
