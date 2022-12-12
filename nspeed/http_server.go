@@ -550,7 +550,7 @@ func (s *JobHTTPServer) HTTP2Serve() error {
 	// can't do unless we rewrite Serve because of we can't add
 	// our own proto handler for http/1.1 (see )
 
-	//fmt.Println("using http/2 only")
+	fmt.Println("using http/2 only with patched crypto")
 
 	err := http2.ConfigureServer(s.Server, &http2.Server{})
 

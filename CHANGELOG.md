@@ -6,6 +6,8 @@
 - new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
 - breaking changes in main loop: 'infinite' commands (commands that never stop like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://nspeed.app/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the programm will not stop until killed.
 - cleaned out defaut text output
+## server
+ - added `-http1.1` and `-http2` flags to enforce the HTTP version used
 ## Client
 - breaking changes: `-http11` flag renamed to `-http1.1`
 - added `-http2` flag to force using HTTP/2
