@@ -6,13 +6,13 @@ require (
 	github.com/arl/statsviz v0.5.1
 	github.com/go-echarts/go-echarts/v2 v2.2.4
 	github.com/go-echarts/statsview v0.3.4
-	github.com/lucas-clemente/quic-go v0.31.0
+	github.com/lucas-clemente/quic-go v0.31.1
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/rs/zerolog v1.28.0
 	github.com/shirou/gopsutil/v3 v3.22.11
-	golang.org/x/exp v0.0.0-20221204150635-6dcec336b2bb
-	golang.org/x/net v0.2.0
+	golang.org/x/exp v0.0.0-20221211140036-ad323defaf05
+	golang.org/x/net v0.4.0
 	golang.org/x/sys v0.3.0
 	golang.zx2c4.com/wireguard/windows v0.5.3
 )
@@ -30,15 +30,15 @@ require (
 	github.com/marten-seemann/qtls-go1-19 v0.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
-	github.com/onsi/ginkgo/v2 v2.5.1 // indirect
+	github.com/onsi/ginkgo/v2 v2.6.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20220216144756-c35f1ee13d7c // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.2 // indirect
-	golang.org/x/crypto v0.3.0 // indirect
+	golang.org/x/crypto v0.4.0 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
-	golang.org/x/tools v0.3.0 // indirect
+	golang.org/x/tools v0.4.0 // indirect
 )
 
 //replace golang.org/x/net => ../golang-net

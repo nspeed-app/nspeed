@@ -44,6 +44,7 @@ type HostParameters struct {
 	MaxDuration      time.Duration
 	ServeTLS         bool
 	H2C              bool
+	HTTP11           bool
 	HTTP2            bool
 	HTTP3            bool
 	UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
@@ -504,7 +505,7 @@ func (s *JobHTTPServer) Listen() error {
 	if s.Parameters.ServeTLS {
 		s.Logger.Info().Msgf("listening on https://%s (H2C = %t)", s.addr, s.Parameters.H2C)
 	} else {
-		s.Logger.Info().Msgf("listening on http://%s", s.addr)
+		s.Logger.Info().Msgf("listening on https://%s", s.addr)
 	}
 
 	return nil
@@ -531,6 +532,10 @@ func (s *JobHTTPServer) serve() error {
 	if s.Parameters.HTTP2 {
 		return s.HTTP2Serve()
 	} else if s.Parameters.ServeTLS {
+		if s.Parameters.HTTP11 {
+			// force HTTP1.1 as per https://pkg.go.dev/net/http#pkg-overview
+			s.Server.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
+		}
 		return s.Server.ServeTLS(*s.listener, "", "")
 
 	} else {
@@ -545,24 +550,24 @@ func (s *JobHTTPServer) HTTP2Serve() error {
 	// can't do unless we rewrite Serve because of we can't add
 	// our own proto handler for http/1.1 (see )
 
-	// fmt.Println("using http/2 only")
+	//fmt.Println("using http/2 only")
 
-	// err := http2.ConfigureServer(s.Server, &http2.Server{})
+	err := http2.ConfigureServer(s.Server, &http2.Server{})
 
-	// if err != nil {
-	// 	return err
-	// }
+	if err != nil {
+		return err
+	}
 
-	// idx := IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
-	// if idx != -1 {
-	// 	log.Warn().Msgf("removing http/1.1 from server.TLSConfig")
-	// 	s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)
-	// }
+	idx := IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
+	if idx != -1 {
+		log.Warn().Msgf("removing http/1.1 from server.TLSConfig")
+		s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)
+	}
 
-	// config := s.Server.TLSConfig.Clone()
+	config := s.Server.TLSConfig.Clone()
 
-	// tlsListener := tls.NewListener(*s.listener, config)
-	// return s.Server.Serve(tlsListener)
+	tlsListener := tls.NewListener(*s.listener, config)
+	return s.Server.Serve(tlsListener)
 }
 
 // HTTP3Listen opens the listening udp conn

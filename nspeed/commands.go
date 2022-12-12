@@ -322,8 +322,9 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
 		fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
 		fs.StringVar(&host.Directory, "dir", "", "directory to serve content from (url will be /dir)")
-		fs.BoolVar(&host.H2C, "h2c", false, "support also HTTP/2 Cleartext (H2C) mode")
-		fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1)")
+		fs.BoolVar(&host.H2C, "h2c", false, "listen in HTTP/2 Cleartext (H2C) mode")
+		fs.BoolVar(&host.HTTP11, "http1.1", false, "listen only in HTTP/1.1 (this will disable HTTP/2) - implies -self is no cert/key ")
+		fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key ")
 		fs.BoolVar(&host.HTTP3, "http3", false, "also listen using HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
 		fs.BoolVar(&host.API, "api", false, "enable API endpoint (/api url)")
 		if err := fs.Parse(args); err != nil {
@@ -364,14 +365,17 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		}
 
 		// force -self if http2 or http3 and no tls files
-		if (host.HTTP2 || host.HTTP3) && !host.ServeTLS {
+		if (host.HTTP11 || host.HTTP2 || host.HTTP3) && !host.ServeTLS {
 			host.UseTLSSelfConfig = true
 			host.ServeTLS = true
 		}
+		if host.HTTP11 && host.HTTP2 {
+			return args, nil, errors.New("can't use both -http1.1 and -http2")
+		}
 
-		// if encryption is on (-self, -http2, -http3 or -key/-cert) then don't allow h2c
+		// if encryption is on (-self, -http1.1, -http2, -http3 or -key/-cert) then don't allow h2c
 		if host.ServeTLS && host.H2C {
-			return args, nil, errors.New("h2c not compatible with tls/http2/http3" + host.TLSKeyFile)
+			return args, nil, errors.New("h2c not compatible with self/http1.1/http2/http3" + host.TLSKeyFile)
 		}
 
 		args = fs.Args()

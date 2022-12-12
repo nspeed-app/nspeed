@@ -38,8 +38,9 @@ var LocalAddrContextKey = &contextKey{"local-addr"}
 type atomicBool int32
 
 func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
-func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
-func (b *atomicBool) setFalse()   { atomic.StoreInt32((*int32)(b), 0) }
+
+// func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
+// func (b *atomicBool) setFalse()   { atomic.StoreInt32((*int32)(b), 0) }
 
 type HTTP2Server struct {
 	http2.Server
@@ -127,12 +128,11 @@ func (s *JobHTTPServer) HTTP2serve() error {
 	// can't do unless we rewrite Serve because of we can't add
 	// our own proto handler for http/1.1 (see )
 
-	fmt.Println("using http/2 only")
-
 	s2 := &HTTP2Server{server: s.Server}
 	err := http2.ConfigureServer(s.Server, &s2.Server)
 
 	if err != nil {
+		fmt.Printf("error: %s\n", err)
 		return err
 	}
 
@@ -144,6 +144,7 @@ func (s *JobHTTPServer) HTTP2serve() error {
 
 	config := s.Server.TLSConfig.Clone()
 
+	s.Logger.Debug().Msgf("listening with %v\n", config.NextProtos)
 	l := tls.NewListener(*s.listener, config)
 
 	origListener := l
@@ -174,7 +175,7 @@ func (s *JobHTTPServer) HTTP2serve() error {
 				return http.ErrServerClosed
 			default:
 			}
-			if ne, ok := err.(net.Error); ok && ne.Temporary() {
+			if ne, ok := err.(net.Error); ok && ne.Timeout() { // was Temporary()
 				if tempDelay == 0 {
 					tempDelay = 5 * time.Millisecond
 				} else {
@@ -274,18 +275,21 @@ func (c *conn) serve(ctx context.Context) {
 		c.tlsState = new(tls.ConnectionState)
 		*c.tlsState = tlsConn.ConnectionState()
 		proto := c.tlsState.NegotiatedProtocol
+		//fmt.Println("version", TLSVersionFriendlyName(c.tlsState.Version))
+		c.server.logf("http/2: ALPN from %s: %s", c.rwc.RemoteAddr(), proto)
 		if fn := c.server.server.TLSNextProto[proto]; fn != nil {
 			h := initALPNRequest{ctx, tlsConn, serverHandler{c.server}}
 			// Mark freshly created HTTP/2 as active and prevent any server state hooks
 			// from being run on these connections. This prevents closeIdleConns from
 			// closing such connections. See issue https://golang.org/issue/39776.
 			c.setState(c.rwc, http.StateActive, skipHooks)
+			fmt.Println("calling ALPN fn for", proto)
 			fn(c.server.server, tlsConn, h)
+			return
 		}
-		return
-
+		io.WriteString(c.rwc, "HTTP/1.1 505 HTTP Version Not Supported\r\n\r\nunsupported protocol\n")
 	}
-	return // todo
+	return
 }
 
 // A conn represents the server side of an HTTP connection.

@@ -26,6 +26,10 @@ import (
 	"nspeed.app/nspeed/internal/utils"
 )
 
+// this will be used to set a big value for MaxReadFrameSize (HTTP/2)
+// see https://github.com/golang/go/issues/54850
+const h2MaxFrameSize uint32 = 1 << 20
+
 // roundTripTrace holds timings for a single HTTP roundtrip.
 // greatly inspired by Prometheus blackbox_exporter
 type roundTripTrace struct {
@@ -259,13 +263,13 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 
 	if j.HTTPVersion != 1 {
 		// get a http2 transport
-		_, err := http2.ConfigureTransports(netTransport)
+		t2, err := http2.ConfigureTransports(netTransport)
 		if err != nil {
 			log.Warn().Msgf("something bad happened that shouldn't : %s", err)
 			return err
 		}
-		// when https://go-review.googlesource.com/c/net/+/362834
-		//rt2.MaxReadFrameSize = 256 * 1024 // till Go team fix http2 implementation, we bump the max frame size
+		// default settings of frame size impacts performance, so we bump it
+		t2.MaxReadFrameSize = h2MaxFrameSize
 
 		// force http/2 : this is hacky: remove "http/1.1" from NextProtos.
 		// Forcing a http2.Transport fails unless it's h2c mode.
@@ -284,8 +288,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 				TLSClientConfig:    netTransport.TLSClientConfig.Clone(),
 				DisableCompression: true,
 				AllowHTTP:          j.H2C,
-				// when https://go-review.googlesource.com/c/net/+/362834/
-				//MaxReadFrameSize: 256 * 1024,
+				MaxReadFrameSize:   h2MaxFrameSize,
 			}
 		}
 		if j.HTTPVersion == 3 {

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bufio"
+	"errors"
 	"io"
 )
 
@@ -19,7 +20,9 @@ func NewBufferedWriteCloser(writer *bufio.Writer, closer io.Closer) io.WriteClos
 }
 
 func (h bufferedWriteCloser) Close() error {
-	//assert(h.Write := nil)
+	if h.Writer == nil {
+		return errors.New("bufferedWriteCloser is missing a bufio.Writer")
+	}
 	if err := h.Writer.Flush(); err != nil {
 		return err
 	}
