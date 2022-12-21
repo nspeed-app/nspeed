@@ -511,6 +511,7 @@ func (s *JobHTTPServer) Listen() error {
 	return nil
 }
 
+// Serve accepts incoming connections for this server.
 func (s *JobHTTPServer) Serve() error {
 	err := s.serve()
 	if err == http.ErrServerClosed {
@@ -519,6 +520,7 @@ func (s *JobHTTPServer) Serve() error {
 	return err
 }
 
+// serve implements Serve/ServeTLS based on parameters
 func (s *JobHTTPServer) serve() error {
 
 	if s.Parameters.HTTP3 {

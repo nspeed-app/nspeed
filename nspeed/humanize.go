@@ -116,8 +116,8 @@ var tlsversionMap = map[uint16]struct {
 	0x0300: {"SSL30", "SSL 3.0"},
 	0x0301: {"TLS10", "TLS 1.0"},
 	0x0302: {"TLS11", "TLS 1.1"},
-	0x0303: {"TLS12", "TLS 2.0"},
-	0x0304: {"TLS13", "TLS 3.0"},
+	0x0303: {"TLS12", "TLS 1.2"},
+	0x0304: {"TLS13", "TLS 1.3"},
 }
 
 // TLSVersionName return TLS version name

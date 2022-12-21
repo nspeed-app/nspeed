@@ -44,12 +44,12 @@ func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
 
 type HTTP2Server struct {
 	http2.Server
-	server        *http.Server
-	inShutdown    atomicBool // true when server is in shutdown
-	mu            sync.Mutex
-	listeners     map[*net.Listener]struct{}
-	doneChan      chan struct{}
-	onShutdown    []func()
+	server     *http.Server
+	inShutdown atomicBool // true when server is in shutdown
+	mu         sync.Mutex
+	listeners  map[*net.Listener]struct{}
+	doneChan   chan struct{}
+	//onShutdown    []func()
 	activeConn    map[*conn]struct{}
 	listenerGroup sync.WaitGroup
 }
@@ -77,18 +77,6 @@ func (s *HTTP2Server) getDoneChanLocked() chan struct{} {
 		s.doneChan = make(chan struct{})
 	}
 	return s.doneChan
-}
-
-func (s *HTTP2Server) closeDoneChanLocked() {
-	ch := s.getDoneChanLocked()
-	select {
-	case <-ch:
-		// Already closed. Don't close again.
-	default:
-		// Safe to close here. We're the only closer, guarded
-		// by s.mu.
-		close(ch)
-	}
 }
 
 func (s *HTTP2Server) trackListener(ln *net.Listener, add bool) bool {
@@ -289,7 +277,6 @@ func (c *conn) serve(ctx context.Context) {
 		}
 		io.WriteString(c.rwc, "HTTP/1.1 505 HTTP Version Not Supported\r\n\r\nunsupported protocol\n")
 	}
-	return
 }
 
 // A conn represents the server side of an HTTP connection.
