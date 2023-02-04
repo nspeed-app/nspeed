@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/lucas-clemente/quic-go/logging"
+	"github.com/quic-go/quic-go/logging"
 	"github.com/rs/zerolog"
 )
 
