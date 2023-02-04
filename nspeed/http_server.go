@@ -294,10 +294,12 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 
 	// prepare metrics handler
 	wm := Metrics{
-		Done:    false,
-		Expired: false,
-		Target:  fmt.Sprintf("download %s to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
-		Job:     h,
+		MetricsData: MetricsData{
+			Done:    false,
+			Expired: false,
+			Target:  fmt.Sprintf("download %s to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
+			Job:     h,
+		},
 	}
 	wm.TransfertStartTime = time.Now()
 	wm.FirstResponseByte = wm.TransfertStartTime
@@ -339,12 +341,15 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
 	wm := Metrics{
-		Done:    false,
-		Expired: false,
-		Target:  fmt.Sprintf("upload from %s", r.RemoteAddr),
-		Job:     h,
+		MetricsData: MetricsData{
+			Done:    false,
+			Expired: false,
+			Target:  fmt.Sprintf("upload from %s", r.RemoteAddr),
+			Job:     h,
+		},
 	}
 	wm.FirstResponseByte = time.Now()
+
 	n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, &wm), BigBuffer)
 	wm.ElapsedTime = time.Since(wm.FirstResponseByte)
 	wm.TotalRead = n

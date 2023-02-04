@@ -32,17 +32,13 @@ func ExpandJobs(jobs []Job) []Job {
 	return out
 }
 
-// Metrics - main metrics struct
-// implements to the io.Writer interface
-// this needs heavy refactoring
-// & check openmetrics suff
-type Metrics struct {
+// MetricsData -
+type MetricsData struct {
 	Index              int
 	Job                Job
 	Done               bool // job ended
 	Expired            bool // job timed out or other side ended
 	Cancelled          bool
-	ResultChan         chan *Metrics
 	Target             string
 	ContentReadSize    int64
 	ContentWriteSize   int64
@@ -54,11 +50,29 @@ type Metrics struct {
 	TransfertStartTime time.Time
 	ElapsedTime        time.Duration
 	FirstResponseByte  time.Time
-	Logger             zerolog.Logger
-	mutex              sync.Mutex
-	Valid              bool
-	Protocol           string
-	Error              error
+}
+
+// Metrics main metrics struct
+// implements to the io.Writer interface
+// this needs heavy refactoring
+// & check openmetrics suff
+type Metrics struct {
+	MetricsData
+	ResultChan chan *Metrics
+	Logger     zerolog.Logger
+	mutex      sync.Mutex
+	Valid      bool
+	Protocol   string
+	Error      error
+	LatestData MetricsData
+}
+
+// GetMetricData updated the lastest data
+func (wm *Metrics) UpdateData() {
+	wm.mutex.Lock()
+	defer wm.mutex.Unlock()
+
+	wm.LatestData = wm.MetricsData
 }
 
 // serialized metrics
@@ -133,15 +147,17 @@ func (wm *Metrics) LogProgress(logger *zerolog.Logger) {
 	if logger == nil {
 		return
 	}
+	wm.UpdateData()
+	m := &wm.LatestData
 	logger.Info().
-		Float64("Elapsed", wm.ElapsedTime.Seconds()).
-		Int64("TotalRead", wm.TotalRead).
-		Int64("ContentReadSize", wm.ContentReadSize).
-		Int64("TotalWrite", wm.TotalWrite).
-		Int64("ContentWriteSize", wm.ContentWriteSize).
-		Int64("stepsize", wm.StepSize).
-		Int64("ReadCount", wm.ReadCount).
-		Int64("WriteCount", wm.WriteCount).
+		Float64("Elapsed", m.ElapsedTime.Seconds()).
+		Int64("TotalRead", m.TotalRead).
+		Int64("ContentReadSize", m.ContentReadSize).
+		Int64("TotalWrite", m.TotalWrite).
+		Int64("ContentWriteSize", m.ContentWriteSize).
+		Int64("stepsize", m.StepSize).
+		Int64("ReadCount", m.ReadCount).
+		Int64("WriteCount", m.WriteCount).
 		Send()
 }
 

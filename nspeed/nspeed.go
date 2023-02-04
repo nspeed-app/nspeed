@@ -32,13 +32,16 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	fmt.Println("Jobs:")
 	for idx, job := range jobs {
 		wm := Metrics{
-			Done:       false,
-			Expired:    false,
-			Index:      idx,
-			Target:     job.GetTarget(),
+			MetricsData: MetricsData{
+				Done:    false,
+				Expired: false,
+				Index:   idx,
+				Target:  job.GetTarget(),
+				Job:     job,
+			},
 			ResultChan: results,
 			Logger:     log.With().Int("job", idx).Logger(),
-			Job:        job}
+		}
 		wcWorkers[idx] = &wm
 		fmt.Printf("  %d-%#v\n", idx, job)
 	}

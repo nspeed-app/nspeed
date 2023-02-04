@@ -7,7 +7,7 @@ nspeed='go run cmd/nspeed/main.go'
 # fi
 opts="-color -cpu"
 # echo "$nspeed" - "$opts"
-test="nocrypto"
+test="crypto"
 
 count=1
 test $1 && {
@@ -22,7 +22,9 @@ case $test in
         break
         ;;
 	crypto)
-        $nspeed $opts server -self -n $count get -n $count -self -http11 -w 1 https://localhost:7333/20g
+        #http1.1
+        $nspeed $opts server -self -n $count get -n $count -self -http1.1 -w 1 https://localhost:7333/20g
+        # http/2
         $nspeed $opts server -self -n $count get -n $count -self -w 1 https://localhost:7333/20g
         # http/3
         $nspeed $opts server -http3 -n $count get -n $count -self -w 1 -http3 https://localhost:7333/20g
