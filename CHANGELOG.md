@@ -11,6 +11,8 @@
 ## Client
 - breaking changes: `-http11` flag renamed to `-http1.1`
 - added `-http2` flag to force using HTTP/2
+## ciphers
+- fixed TLS version text messages
 # v0.10
 ## general
 - experimental support of HTTP/3 using quic-go ( see HTTP/3 section )
@@ -43,7 +45,7 @@
 - displays AES hardware support
 
 ## HTTP/3
-The implementation used is https://github.com/lucas-clemente/quic-go . In trace mode (`-trace`) qlog trace files are generated in the current directory. They can be analized with https://qvis.quictools.info/
+The implementation used is https://github.com/quic-go/quic-go. In trace mode (`-trace`) qlog trace files are generated in the current directory. They can be analized with https://qvis.quictools.info/
 
 # v0.9
 ## general
