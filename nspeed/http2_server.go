@@ -1,3 +1,5 @@
+// nolint
+// this is copy of modified copy of x/net/http2
 package nspeed
 
 import (
