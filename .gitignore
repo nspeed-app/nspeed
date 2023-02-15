@@ -30,3 +30,5 @@ node_modules/
 
 #qlog
 *.glog
+
+tmp
