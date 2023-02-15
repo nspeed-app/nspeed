@@ -29,7 +29,6 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	results := make(chan *Metrics, njobs)
 	wcWorkers := make([]*Metrics, njobs)
 
-	fmt.Println("Jobs:")
 	for idx, job := range jobs {
 		wm := Metrics{
 			MetricsData: MetricsData{
@@ -43,7 +42,8 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 			Logger:     log.With().Int("job", idx).Logger(),
 		}
 		wcWorkers[idx] = &wm
-		fmt.Printf("  %d-%#v\n", idx, job)
+		log.Info().Msgf("job %d = %#v", idx, job)
+		//fmt.Printf("  %d-%#v\n", idx, job)
 	}
 
 	// Cancel will allows to shutdown everything by calling cancel()

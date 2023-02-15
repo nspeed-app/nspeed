@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"flag"
 	"fmt"
 	"os"
@@ -101,32 +99,6 @@ func Main() {
 		return
 	}
 
-	// self-signed cert & CA
-	certificate, err := tls.X509KeyPair(nspeed.TLSSelfSignedCert, nspeed.TLSSelfSignedKey)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	// todo: move this in a func and Once it or 'init' it
-	// https://forfuncsake.github.io/post/2017/08/trust-extra-ca-cert-in-go-app/
-	// Get the SystemCertPool, continue with an empty pool on error
-	rootCAs, _ := x509.SystemCertPool()
-	if rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-	}
-	// Append our cert to the system pool
-	if ok := rootCAs.AppendCertsFromPEM(nspeed.TLSSelfSignedCA); !ok {
-		fmt.Println("error: couldn't append our embedded self-signed CA")
-		os.Exit(1)
-	}
-
-	nspeed.TLSSelfConfig = &tls.Config{
-		Certificates: []tls.Certificate{certificate},
-		RootCAs:      rootCAs,
-		// CipherSuites: []uint16{tls.TLS_CHACHA20_POLY1305_SHA256},
-		// MinVersion:   tls.VersionTLS13,
-	}
 	//todo: up to here
 
 	jobs, err := nspeed.ParseCommands(flag.Args(), nil, false)
