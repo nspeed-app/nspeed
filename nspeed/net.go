@@ -64,7 +64,7 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 	// IPv6 first (but we don't distinguish between GUA and ULA)
 	// then IPv4
 	// then link-local
-	// this is temporary we will use SO_BINDTODEVICE later.
+	// this is temporary we will use SO_BINDTODEVICE later (on supported plateforms)
 	var ipaddrs4 []net.IPAddr
 	var ipaddrs6 []net.IPAddr
 	var ipaddrs []net.IPAddr

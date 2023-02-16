@@ -101,18 +101,6 @@ func Main() {
 
 	//todo: up to here
 
-	jobs, err := nspeed.ParseCommands(flag.Args(), nil, false)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	// no command, return for now, later: check if launched from UI world (explorer, file manager, browser, etc)
-	if len(jobs) == 0 {
-		flag.CommandLine.Usage()
-		return
-	}
-
 	if *optCpuprofile != "" {
 		f, err := os.Create(*optCpuprofile)
 		if err != nil {
@@ -169,6 +157,18 @@ func Main() {
 		log.Logger = log.Output(zerolog.MultiLevelWriter(fileWriter, consoleWriter))
 	} else {
 		log.Logger = log.Output(consoleWriter)
+	}
+
+	jobs, err := nspeed.ParseCommands(flag.Args(), nil, false)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	// no command, return for now, later: check if launched from UI world (explorer, file manager, browser, etc)
+	if len(jobs) == 0 {
+		flag.CommandLine.Usage()
+		return
 	}
 
 	// html report: by default, add delays before & after
@@ -296,7 +296,9 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
-		nspeed.GenerateTextReport(f, wcWorkers, consoleLevel <= zerolog.InfoLevel)
+		report := nspeed.GenerateTextReport(wcWorkers, consoleLevel <= zerolog.InfoLevel)
+		f.WriteString(report)
+		f.Close()
 	}
 
 	// html report:

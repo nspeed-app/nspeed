@@ -1,4 +1,5 @@
 # v0.0.11
+- new `bench` command (see corresponding bench section below)
 - using semantic version
 - using goreleaser
 - using GOAMD64 levels: (see https://github.com/golang/go/wiki/MinimumRequirements#amd64 ). for now only level1 (_v1) is built.
@@ -6,6 +7,8 @@
 - new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
 - breaking changes in main loop: 'infinite' commands (commands that never stop like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://nspeed.app/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the programm will not stop until killed.
 - cleaned out defaut text output
+## bench
+- new `bench` command (abbrev `b`) : allow to launch loopback test (get/put on localhost server). see `nspeed bench -h` for details.
 ## server
  - added `-http1.1` and `-http2` flags to enforce the HTTP version used
 ## Client

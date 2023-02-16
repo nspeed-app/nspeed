@@ -70,19 +70,15 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 	}
 
 	// run workers by launching a go routine for each one
-	// we use 2 waitgroup, one for short-lived jobs (get, put,etc), one for infinite (server, api)
-	var wgsl sync.WaitGroup
-	var wgi sync.WaitGroup
+	// we use 2 waitgroup, one for short-lived jobs (get, put,etc), one for infinite jobs (server, api)
+	var wgi sync.WaitGroup // infinite
 
-	IsInfinite := true // will be false if at least one job is not infinite
 	for _, wm := range wcWorkers {
-		log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
-		finalwg := &wgi
 		if !wm.Job.IsInfinite() {
-			finalwg = &wgsl
-			IsInfinite = false
+			continue
 		}
-		finalwg.Add(1)
+		log.Debug().Msgf("spawning infinite workload %d %s %t", wm.Index, wm.Target, wm.Done)
+		wgi.Add(1)
 		go func(w *Metrics, wg *sync.WaitGroup) {
 			err := w.Job.Run(ctx, wg)
 			if err != nil {
@@ -90,13 +86,31 @@ func RunJobs(jobs []Job, opt Options, ctx context.Context, progress func([]*Metr
 				cancel()
 				return
 			}
-		}(wm, finalwg)
+		}(wm, &wgi)
 	}
-
 	// wait for all infite jobs to signal they're ready
-	log.Debug().Msg("waiting on infinite job to be ready")
+	log.Info().Msg("waiting on infinite jobs to be ready")
 	wgi.Wait()
-	log.Debug().Msg("all infinite jobs are ready")
+	log.Info().Msg("all infinite jobs are ready")
+	// spawn short lived jobs
+	var wgsl sync.WaitGroup // short lived sync group
+	IsInfinite := true      // will be false if at least one job is not infinite
+	for _, wm := range wcWorkers {
+		if wm.Job.IsInfinite() {
+			continue
+		}
+		IsInfinite = false //we got at least one finite job
+		log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
+		wgsl.Add(1)
+		go func(w *Metrics, wg *sync.WaitGroup) {
+			err := w.Job.Run(ctx, wg)
+			if err != nil {
+				log.Error().Msgf("error '%s' for '%s'", err, w.Target)
+				cancel()
+				return
+			}
+		}(wm, &wgsl)
+	}
 
 	// this waits for all (non infinite) jobs to end then sends a signal (purpose is to 'select' a waitgroup)
 	cWaitgroupSLEnded := make(chan struct{})

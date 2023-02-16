@@ -539,7 +539,7 @@ func ParseCommand(command string, cmdargs []string, output io.Writer) ([]string,
 			cmd := strings.Fields(c.String())
 			port += 1
 			values.Port = port
-			fmt.Println("todo: ", cmd)
+			log.Info().Msgf("benchmark: %s", cmd)
 			jobs, err := ParseCommands(cmd, output, false)
 			if err != nil {
 				return args, nil, err

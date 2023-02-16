@@ -1,6 +1,7 @@
 package nspeed
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -338,13 +339,16 @@ func speedReport(w *tabwriter.Writer, job string, elapsedTime time.Duration, tot
 }
 
 // generate a tabular formatted text report
-func GenerateTextReport(out io.Writer, wcWorkers []*Metrics, verbose bool) {
+func GenerateTextReport(wcWorkers []*Metrics, verbose bool) string {
 	// main speed report - todo: refactor in a function
+
+	var out bytes.Buffer
+
 	var elapsedTime time.Duration = 0
 	var totalRead int64 = 0
 	var totalWrite int64 = 0
 
-	w := tabwriter.NewWriter(out, 0, 2, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
+	w := tabwriter.NewWriter(&out, 0, 2, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
 	initSpeedReport(w)
 	for _, wm := range wcWorkers {
 		if wm.Valid {
@@ -366,6 +370,7 @@ func GenerateTextReport(out io.Writer, wcWorkers []*Metrics, verbose bool) {
 		speedReport(w, "Total", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
 	}
+	return out.String()
 }
 
 func GenerateHTMLReport(out io.Writer, wcWorkers []*Metrics) {

@@ -15,7 +15,7 @@ func localAddresses() {
 		return
 	}
 	for _, i := range ifaces {
-		fmt.Printf("interface %d %s:\n", i.Index, i.Name)
+		fmt.Printf("interface %d = %s:\n", i.Index, i.Name)
 		addrs, err := i.Addrs()
 		if err != nil {
 			fmt.Printf("localAddresses: %+v\n", err)
@@ -35,7 +35,10 @@ func localAddresses() {
 }
 
 func main() {
-	localAddresses()
+	if len(os.Args) == 1 {
+		localAddresses()
+		return
+	}
 	for _, a := range os.Args[1:] {
 		fmt.Printf("calling ResolveInterfaceHostAddress for %s\n", a)
 		ipaddrs, err := nspeed.ResolveInterfaceHostAddress(a)
