@@ -27,7 +27,9 @@ type Job interface {
 func ExpandJobs(jobs []Job) []Job {
 	var out []Job
 	for g, job := range jobs {
-		out = job.Expand(out, g)
+		if job != nil { // just in case. todo: should we fatal/warn ?
+			out = job.Expand(out, g)
+		}
 	}
 	return out
 }

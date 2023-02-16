@@ -1,14 +1,18 @@
 package nspeed
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // commands
@@ -20,6 +24,7 @@ const postCommand = "post"
 const serveCommand = "server"
 const ciphersCommand = "ciphers"
 const apiCommand = "api"
+const benchmarkCommand = "bench"
 
 // const latencyCommand = "latency"
 // const tracerouteCommand = "traceroute"
@@ -43,7 +48,8 @@ var Commands = map[string]Command{
 	ciphersCommand: {ciphersCommand, 0, false},
 	// latencyCommand:    {latencyCommand, 1, true},
 	// tracerouteCommand: {tracerouteCommand, 2, true},
-	apiCommand: {apiCommand, 1, false},
+	apiCommand:       {apiCommand, 1, false},
+	benchmarkCommand: {benchmarkCommand, 1, false},
 }
 
 var CommandDescriptions = map[string]string{
@@ -54,7 +60,8 @@ var CommandDescriptions = map[string]string{
 	ciphersCommand: "list cipher suites supported by the target server(s)",
 	// latencyCommand:    "measure latency to destination (not yet implemented)",
 	// tracerouteCommand: "discover route to destination (not yet implemented)",
-	apiCommand: "enable an API endpoint",
+	apiCommand:       "enable an API endpoint",
+	benchmarkCommand: "perform preselected commands",
 }
 
 // global flags
@@ -184,7 +191,7 @@ func IsCommand(cmd string) (Command, error) {
 
 // parse cmd line args for commands and their respective args
 // todo: split this function into a func for each command and put it in Commands
-func ParseCommand(command string, args []string, output io.Writer) ([]string, Job, error) {
+func ParseCommand(command string, cmdargs []string, output io.Writer) ([]string, []Job, error) {
 	switch command {
 	case getCommand:
 		j := JobHTTPClient{}
@@ -200,12 +207,12 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			fmt.Fprintf(fs.Output(), "\n")
 		}
 
-		if err := httpParse(fs, hf, args, &j); err != nil {
-			return args, nil, err
+		if err := httpParse(fs, hf, cmdargs, &j); err != nil {
+			return cmdargs, nil, err
 		}
 
 		// "get target" or "get -url target"
-		args = fs.Args()
+		args := fs.Args()
 
 		if isFlagPassed(fs, urlFlag) {
 			j.Target = hf.Url
@@ -221,7 +228,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			args = args[1:]
 		}
 
-		return args, &j, nil
+		return args, []Job{&j}, nil
 
 	case putCommand, postCommand:
 		j := JobHTTPClient{}
@@ -244,13 +251,13 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		var size string
 		fs.StringVar(&size, sizeFlag, "", "size to upload")
 
-		if err := httpParse(fs, hf, args, &j); err != nil {
-			return args, nil, err
+		if err := httpParse(fs, hf, cmdargs, &j); err != nil {
+			return cmdargs, nil, err
 		}
 
 		// put/post [-u] url [-s] size
 		// since -u and -s are optionnal , we must check if they are here and if not advance args
-		args = fs.Args()
+		args := fs.Args()
 
 		if isFlagPassed(fs, urlFlag) {
 			j.Target = hf.Url
@@ -296,7 +303,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		// 	u.Path = path.Join(u.Path, FormatByteDecimalUnits(j.ContentSize))
 		// 	j.Target = u.String()
 		// }
-		return args, &j, nil
+		return args, []Job{&j}, nil
 
 	case serveCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -313,7 +320,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		//flag.Lookup("address").NoOptDefVal = ""
 		useIPv4 := fs.Bool("4", false, "use IPv4 only")
 		useIPv6 := fs.Bool("6", false, "use IPv6 only")
-		fs.IntVar(&host.Port, "p", DefaultPort, "Port to listen on")
+		fs.IntVar(&host.Port, "p", DefaultPort, "Port number to listen on")
 		maxsize := fs.String("s", FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
 		maxtime := fs.Uint("t", uint(DefaultMaxDuration.Seconds()), "Maximum duration a response may take")
 		fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
@@ -327,8 +334,8 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key ")
 		fs.BoolVar(&host.HTTP3, "http3", false, "also listen using HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
 		fs.BoolVar(&host.API, "api", false, "enable API endpoint (/api url)")
-		if err := fs.Parse(args); err != nil {
-			return args, nil, err
+		if err := fs.Parse(cmdargs); err != nil {
+			return cmdargs, nil, err
 		}
 
 		//
@@ -337,7 +344,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		// force IPv4 or IPv6
 		if *useIPv4 && *useIPv6 {
 			fs.Usage()
-			return args, nil, errors.New("specify IPv4 or IPv6 but not both")
+			return cmdargs, nil, errors.New("specify IPv4 or IPv6 but not both")
 		}
 		if *useIPv4 {
 			host.ForceIPVersion = 4
@@ -349,17 +356,17 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		ms, err := ParseByteUnits(*maxsize)
 		if err != nil {
 			fs.Usage()
-			return args, nil, err
+			return cmdargs, nil, err
 		}
 		host.MaxBodySize = int64(ms)
 
 		host.ServeTLS = host.UseTLSSelfConfig
 		if host.TLSCertFile != "" || host.TLSKeyFile != "" {
 			if _, err := os.Stat(host.TLSCertFile); os.IsNotExist(err) {
-				return args, nil, errors.New("bad or missing TLS certificate file: " + host.TLSCertFile)
+				return cmdargs, nil, errors.New("bad or missing TLS certificate file: " + host.TLSCertFile)
 			}
 			if _, err := os.Stat(host.TLSKeyFile); os.IsNotExist(err) {
-				return args, nil, errors.New("bad or missing TLS key file: " + host.TLSKeyFile)
+				return cmdargs, nil, errors.New("bad or missing TLS key file: " + host.TLSKeyFile)
 			}
 			host.ServeTLS = true
 		}
@@ -370,17 +377,17 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			host.ServeTLS = true
 		}
 		if host.HTTP11 && host.HTTP2 {
-			return args, nil, errors.New("can't use both -http1.1 and -http2")
+			return cmdargs, nil, errors.New("can't use both -http1.1 and -http2")
 		}
 
 		// if encryption is on (-self, -http1.1, -http2, -http3 or -key/-cert) then don't allow h2c
 		if host.ServeTLS && host.H2C {
-			return args, nil, errors.New("h2c not compatible with self/http1.1/http2/http3" + host.TLSKeyFile)
+			return cmdargs, nil, errors.New("h2c not compatible with self/http1.1/http2/http3" + host.TLSKeyFile)
 		}
 
-		args = fs.Args()
+		args := fs.Args()
 		j := JobHTTPServer{Parameters: host}
-		return args, &j, nil
+		return args, []Job{&j}, nil
 
 	case ciphersCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -392,22 +399,22 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			fmt.Fprintf(fs.Output(), "Usage of %s: ", ciphersCommand)
 			fmt.Fprintf(fs.Output(), "  %s hostname[:port]\n", ciphersCommand)
 			fmt.Fprintf(fs.Output(), "argument is a hostname or an ip address with an optionnal port\n")
-			fmt.Fprintf(fs.Output(), "if no port is specified, 443 will be used\n")
+			fmt.Fprintf(fs.Output(), "if no port number is specified, 443 will be used\n")
 			fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
 			fs.PrintDefaults()
 			fmt.Fprintf(fs.Output(), "\n")
 		}
-		if err := fs.Parse(args); err != nil {
-			return args, nil, err
+		if err := fs.Parse(cmdargs); err != nil {
+			return cmdargs, nil, err
 		}
-		args = fs.Args()
+		args := fs.Args()
 		if len(args) < 1 {
 			fs.Usage()
 			return args, nil, errors.New("missing target")
 		}
 		j.Target = args[0]
 		args = args[1:]
-		return args, &j, nil
+		return args, []Job{&j}, nil
 	case apiCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
 		host := NewHostParameters()
@@ -425,7 +432,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		//flag.Lookup("address").NoOptDefVal = ""
 		useIPv4 := fs.Bool("4", false, "use IPv4 only")
 		useIPv6 := fs.Bool("6", false, "use IPv6 only")
-		fs.IntVar(&host.Port, "p", DefaultPort, "Port to listen on")
+		fs.IntVar(&host.Port, "p", DefaultPort, "Port number to listen on")
 		fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
 		fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
 		fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
@@ -434,8 +441,8 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		fs.BoolVar(&j.WebStatsDebug, "statsdebug", false, "enable web stats debug (url is /debug/pprof/, GO specifics info, implies -stats)")
 		fs.BoolVar(&j.OpenBrowser, "browse", false, "open browser (implies -stats) - work for localhost only for now (wip)")
 
-		if err := fs.Parse(args); err != nil {
-			return args, nil, err
+		if err := fs.Parse(cmdargs); err != nil {
+			return cmdargs, nil, err
 		}
 
 		if j.WebStatsOnly || j.WebStatsDebug || j.OpenBrowser {
@@ -445,7 +452,7 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 		// force IPv4 or IPv6
 		if *useIPv4 && *useIPv6 {
 			fs.Usage()
-			return args, nil, errors.New("specify IPv4 or IPv6 but not both")
+			return cmdargs, nil, errors.New("specify IPv4 or IPv6 but not both")
 		}
 		if *useIPv4 {
 			host.ForceIPVersion = 4
@@ -454,12 +461,96 @@ func ParseCommand(command string, args []string, output io.Writer) ([]string, Jo
 			host.ForceIPVersion = 6
 		}
 
-		args = fs.Args()
-		return args, &j, nil
+		args := fs.Args()
+		return args, []Job{&j}, nil
+	case benchmarkCommand:
+		fs := flag.NewFlagSet(command, flag.ContinueOnError)
+
+		fs.Usage = func() {
+			fmt.Fprintf(fs.Output(), "Usage of %s: ", benchmarkCommand)
+			fmt.Fprintf(fs.Output(), "  %s [options] benchmark[,benchmark]\n", benchmarkCommand)
+			fmt.Fprintf(fs.Output(), "\nAvailable benchmark:\n")
+
+			for _, k := range benchmarKeys {
+				fmt.Fprintf(fs.Output(), "  %-4s: %s\n", k, benchmarksTemplates[k].Name)
+			}
+
+			fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
+			fs.PrintDefaults()
+			fmt.Fprintf(fs.Output(), "\n")
+		}
+		useIPv4 := fs.Bool("4", false, "use IPv4 only")
+		useIPv6 := fs.Bool("6", false, "use IPv6 only")
+		startingPort := fs.Int("p", DefaultPort, "First port number to use")
+		nStreams := fs.Int("n", 1, "number of streams")
+		size := fs.String("s", "20g", "number of bytes")
+
+		if err := fs.Parse(cmdargs); err != nil {
+			return cmdargs, nil, err
+		}
+		// force IPv4 or IPv6
+		if *useIPv4 && *useIPv6 {
+			fs.Usage()
+			return cmdargs, nil, errors.New("specify IPv4 or IPv6 but not both")
+		}
+		forcedIPVersion := ""
+		if *useIPv6 {
+			forcedIPVersion = " -6"
+		}
+		if *useIPv4 {
+			forcedIPVersion = " -4"
+		}
+
+		// we parse the size just to check it's valid
+		_, err := ParseByteUnits(*size)
+		if err != nil {
+			return cmdargs, nil, err
+		}
+
+		args := fs.Args()
+		if len(args) < 1 {
+			fs.Usage()
+			return args, nil, errors.New("missing benchmark parameters")
+		}
+		benchs := strings.Split(args[0], ",")
+		args = args[1:]
+
+		port := *startingPort
+
+		values := BenchmarkArgs{
+			Args: forcedIPVersion,
+			N:    *nStreams,
+			Size: *size,
+			Port: port,
+		}
+		newjobs := []Job{}
+		for _, arg := range benchs {
+			ct, ok := benchmarksTemplates[arg]
+			if !ok {
+				log.Fatal().Msgf("unknown benchmark: '%s'", arg)
+			}
+			tpl := template.New("T")
+			t := template.Must(tpl.Parse(ct.Tpl))
+
+			var c bytes.Buffer
+			if err := t.Execute(&c, values); err != nil {
+				log.Fatal().Err(err).Send()
+			}
+			cmd := strings.Fields(c.String())
+			port += 1
+			values.Port = port
+			fmt.Println("todo: ", cmd)
+			jobs, err := ParseCommands(cmd, output, false)
+			if err != nil {
+				return args, nil, err
+			}
+			newjobs = append(newjobs, jobs...)
+		}
+		return args, newjobs, nil
 	// case latencyCommand, tracerouteCommand:
 	// 	return args, nil, errors.New("not yet implemented")
 	default:
-		return args, nil, errors.New("unknown command")
+		return cmdargs, nil, errors.New("unknown command")
 	}
 }
 
@@ -497,7 +588,7 @@ func ParseCommands(rawArgs []string, output io.Writer, fromAPI bool) ([]Job, err
 			return nil, err
 		}
 		args = reminder
-		out = append(out, job)
+		out = append(out, job...)
 	}
 	return out, nil
 }
