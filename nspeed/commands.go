@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"nspeed.app/utils"
 )
 
 // commands
@@ -69,15 +70,16 @@ var OptTLSSelf = false
 
 // common GET/PUT flags that need treatment/checks
 type httpFlags struct {
-	Timeout   uint
-	Delay     uint
-	UseIPv4   bool
-	UseIPv6   bool
-	Url       string
-	UseHTTP11 bool
-	UseHTTP2  bool
-	UseHTTP3  bool
-	H2C       bool
+	Timeout     uint
+	DialTimeout time.Duration
+	Delay       uint
+	UseIPv4     bool
+	UseIPv6     bool
+	Url         string
+	UseHTTP11   bool
+	UseHTTP2    bool
+	UseHTTP3    bool
+	H2C         bool
 }
 
 // flags that need a name because they're used multiple time (with isFlagPassed notabily)
@@ -94,7 +96,8 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	fs.StringVar(&job.UserAgent, "u", "nspeed.app/"+Version, "user-agent")
 
 	hf := httpFlags{}
-	fs.UintVar(&hf.Timeout, "t", 8, "timeout")
+	fs.UintVar(&hf.Timeout, "m", 8, "maximum duration in seconds the command is allowed to take")
+	fs.DurationVar(&hf.DialTimeout, "connect-timeout", 2*time.Second, "maximum duration allowed for the initial connection")
 	fs.UintVar(&hf.Delay, "w", 0, "delay in seconds to wait before starting the command")
 	fs.BoolVar(&hf.UseIPv4, "4", false, "use IPv4 only")
 	fs.BoolVar(&hf.UseIPv6, "6", false, "use IPv6 only")
@@ -286,7 +289,7 @@ func ParseCommand(command string, cmdargs []string, output io.Writer) ([]string,
 			args = args[1:]
 		}
 
-		cs, err := ParseByteUnits(size)
+		cs, err := utils.ParseByteUnits(size)
 		if err != nil {
 			return args, nil, err
 		}
@@ -321,7 +324,7 @@ func ParseCommand(command string, cmdargs []string, output io.Writer) ([]string,
 		useIPv4 := fs.Bool("4", false, "use IPv4 only")
 		useIPv6 := fs.Bool("6", false, "use IPv6 only")
 		fs.IntVar(&host.Port, "p", DefaultPort, "Port number to listen on")
-		maxsize := fs.String("s", FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
+		maxsize := fs.String("s", utils.FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
 		maxtime := fs.Uint("t", uint(DefaultMaxDuration.Seconds()), "Maximum duration a response may take")
 		fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
 		fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = infinite)")
@@ -353,7 +356,7 @@ func ParseCommand(command string, cmdargs []string, output io.Writer) ([]string,
 			host.ForceIPVersion = 6
 		}
 
-		ms, err := ParseByteUnits(*maxsize)
+		ms, err := utils.ParseByteUnits(*maxsize)
 		if err != nil {
 			fs.Usage()
 			return cmdargs, nil, err
@@ -502,7 +505,7 @@ func ParseCommand(command string, cmdargs []string, output io.Writer) ([]string,
 		}
 
 		// we parse the size just to check it's valid
-		_, err := ParseByteUnits(*size)
+		_, err := utils.ParseByteUnits(*size)
 		if err != nil {
 			return cmdargs, nil, err
 		}

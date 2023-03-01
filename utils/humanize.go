@@ -1,4 +1,4 @@
-package nspeed
+package utils
 
 import (
 	"fmt"

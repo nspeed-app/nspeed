@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"nspeed.app/utils"
 )
 
 type Job interface {
@@ -186,8 +187,8 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 			Int64("TotalWrite", wm.TotalWrite).
 			Int64("WriteCount", wm.WriteCount).
 			Int64("AverageWriteSize", AverageWriteSize).
-			Str("ReadBPS", FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
-			Str("WriteBPS", FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
+			Str("ReadBPS", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
+			Str("WriteBPS", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
 			Float64("duration", wm.ElapsedTime.Seconds()).
 			Str("url", wm.Target).
 			Send()
@@ -199,8 +200,8 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 func (wm *Metrics) PrintFinal(w io.Writer, verbose bool) {
 	if wm.Valid {
 		fmt.Fprintf(w, "%d:", wm.Index)
-		fmt.Fprintf(w, "Read: %s ", FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
-		fmt.Fprintf(w, "Write: %s ", FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
+		fmt.Fprintf(w, "Read: %s ", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
+		fmt.Fprintf(w, "Write: %s ", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
 		fmt.Fprintf(w, "TotalRead: %d ", wm.TotalRead)
 		fmt.Fprintf(w, "TotalWrite: %d ", wm.TotalWrite)
 		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
@@ -278,7 +279,7 @@ func (wm *Metrics) read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	todo := Min(Min(int64(maxstep), wm.StepSize), lefttodo)
+	todo := utils.Min(utils.Min(int64(maxstep), wm.StepSize), lefttodo)
 
 	wm.TotalWrite += todo
 
@@ -299,7 +300,7 @@ func (wm *Metrics) FixWriteTo(w io.Writer) (n int64, err error) {
 
 	log.Debug().Msgf("WriteTo loop starting for %d bytes (%d)\n", wm.TotalWrite, time.Since(wm.TransfertStartTime))
 	for {
-		todo := Min(wm.ContentWriteSize-wm.TotalWrite, buflen)
+		todo := utils.Min(wm.ContentWriteSize-wm.TotalWrite, buflen)
 		if todo <= 0 {
 			break
 		}
@@ -330,11 +331,11 @@ func initSpeedReport(w *tabwriter.Writer) {
 func speedReport(w *tabwriter.Writer, job string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
 	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
 		job,
-		FormatBitperSecond(totalRead, elapsedTime),
-		FormatBitperSecond(totalWrite, elapsedTime),
+		utils.FormatBitperSecond(totalRead, elapsedTime),
+		utils.FormatBitperSecond(totalWrite, elapsedTime),
 		elapsedTime.Seconds(),
-		ByteCountDecimal(totalRead),
-		ByteCountDecimal(totalWrite),
+		utils.ByteCountDecimal(totalRead),
+		utils.ByteCountDecimal(totalWrite),
 		target))
 }
 
@@ -357,7 +358,7 @@ func GenerateTextReport(wcWorkers []*Metrics, verbose bool) string {
 			if wm.ElapsedTime > elapsedTime {
 				elapsedTime = wm.ElapsedTime
 			}
-			speedReport(w, fmt.Sprintf("Job %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose))
+			speedReport(w, fmt.Sprintf(" %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose))
 		} else {
 			if wm.Error != nil {
 				log.Warn().Err(wm.Error).Msgf("job %d ended", wm.Index)

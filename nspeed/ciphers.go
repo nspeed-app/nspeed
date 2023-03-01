@@ -16,6 +16,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/cpu"
+	"nspeed.app/utils"
 )
 
 // from: https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/
@@ -167,7 +168,7 @@ type JobCiphers struct {
 
 func (j *JobCiphers) Init(wm *Metrics) error {
 
-	u, err := parseURL(j.Target, "https")
+	u, err := utils.ParseURL(j.Target, "https")
 	if err != nil {
 		return err
 	}
@@ -203,13 +204,13 @@ func (j *JobCiphers) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	if err != nil {
 		return err
 	}
-	LogCipher(j.host, j.port, TLSVersionFriendlyName(tls.VersionTLS12), range12, j.wm.Logger)
+	LogCipher(j.host, j.port, utils.TLSVersionFriendlyName(tls.VersionTLS12), range12, j.wm.Logger)
 
 	range13, err := supportedTLS13Ciphers(j.host, j.port, j.Timeout)
 	if err != nil {
 		return err
 	}
-	LogCipher(j.host, j.port, TLSVersionFriendlyName(tls.VersionTLS13), range13, j.wm.Logger)
+	LogCipher(j.host, j.port, utils.TLSVersionFriendlyName(tls.VersionTLS13), range13, j.wm.Logger)
 
 	j.wm.ResultChan <- j.wm
 

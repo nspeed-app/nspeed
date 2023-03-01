@@ -1,7 +1,8 @@
-package nspeed
+package utils
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -12,6 +13,17 @@ import (
 func ResolveHostAddress(host string) ([]net.IPAddr, error) {
 	var ipaddrs []net.IPAddr
 
+	// special case, 'localhost' we should always resolves our self
+	// todo:
+	//  get loopback interface addresses
+	//
+	// if host == "localhost" {
+	// 	ips := []net.IPAddr{
+	// 		{IP: net.IPv6loopback},
+	// 		{IP: net.IPv4(127, 0, 0, 1)},
+	// 	}
+	// 	return ips, nil
+	// }
 	// special case, "ipv6%zone"
 	hi := strings.SplitN(host, "%", 2)
 	if len(hi) == 2 {
@@ -151,7 +163,7 @@ func HTTPVersionStringer(version int) string {
 }
 
 // parse URL , append default port
-func parseURL(u, scheme string) (*url.URL, error) {
+func ParseURL(u, scheme string) (*url.URL, error) {
 	u1, err := url.ParseRequestURI(u)
 	if err != nil || u1.Host == "" {
 		//fmt.Println("error 1")
@@ -163,4 +175,40 @@ func parseURL(u, scheme string) (*url.URL, error) {
 		return u2, nil
 	}
 	return u1, nil
+}
+
+// GetIntefaceNames returns the Name members of a net.Interface list
+func GetIntefaceNames(interfaces []net.Interface) []string {
+	var names = []string{}
+	for _, it := range interfaces {
+		names = append(names, it.Name)
+	}
+	return names
+}
+
+// GetNetInterfaces returns the net.Interface values of interface names parameter or
+// all interface if no names (nil) - case sensitive
+func GetNetInterfaces(names []string) ([]net.Interface, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	ifts := ifaces
+	if names != nil {
+		ifts = nil
+		for _, n := range names {
+			found := false
+			for _, it := range ifaces {
+				if n == it.Name {
+					ifts = append(ifts, it)
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("interface \"%s\" not found", n)
+			}
+		}
+	}
+	return ifts, nil
 }

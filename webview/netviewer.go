@@ -3,7 +3,6 @@ package webview
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net"
 	"net/http"
 	"time"
@@ -38,7 +37,7 @@ type NetInterfacesViewer struct {
 
 // NewNetInterfacesViewer returns the NetInterfacesViewer instance
 // Series: net interfaces
-func NewNetInterfacesViewer(tick time.Duration, dir string, path string) Viewer {
+func NewNetInterfacesViewer(tick time.Duration, ifaces []net.Interface, dir string, path string) Viewer {
 	graph := newBasicView(tick, VNetInterfaces+dir, path)
 	graph.SetGlobalOptions(
 		charts.WithToolboxOpts(opts.Toolbox{
@@ -69,10 +68,6 @@ func NewNetInterfacesViewer(tick time.Duration, dir string, path string) Viewer 
 			Formatter: opts.FuncOpts("function (params) {return formatTooltip(params) }"),
 		}),
 	)
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		log.Fatalf("error calling net.Interfaces(): %s", err)
-	}
 	var interfaces []net.Interface
 	for _, itf := range ifaces {
 		if itf.Flags&net.FlagUp != 0 {

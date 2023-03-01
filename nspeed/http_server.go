@@ -21,7 +21,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"nspeed.app/nspeed/internal/utils"
+	"nspeed.app/utils"
 )
 
 var ServerName string = "NSpeed"
@@ -101,7 +101,7 @@ func (j *JobHTTPServer) GoString() string {
 		j.Parameters.Host,
 		j.Parameters.Port,
 		j.Parameters.ForceIPVersion,
-		ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
+		utils.ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
 		j.Parameters.MaxDuration,
 		j.Parameters.ServeTLS,
 		j.Parameters.H2C,
@@ -226,7 +226,7 @@ func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 // StreamBytes sends 'size' bytes using streaming (io level streaming not HTTP level).
 func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size string, extension string) {
 
-	n, err := ParseByteUnits(size)
+	n, err := utils.ParseByteUnits(size)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -249,7 +249,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	//danger zone - the cient is setting the chunk_size - be careful
 	// todo: do we still need to support this parameter ?
 	if r.URL.Query().Get("chunk_size") != "" {
-		cs, err := ParseByteUnits(r.URL.Query().Get("chunk_size"))
+		cs, err := utils.ParseByteUnits(r.URL.Query().Get("chunk_size"))
 		chunkSize = int64(cs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -364,7 +364,7 @@ func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 func (s *JobHTTPServer) Init(wm *Metrics) error {
 
 	// todo: this should be a global and Once
-	s.StreamPathRegexp = regexp.MustCompile("^(" + ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
+	s.StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
 
 	s.Logger = &wm.Logger //
 
@@ -377,12 +377,12 @@ func (s *JobHTTPServer) Init(wm *Metrics) error {
 	s.Logger.Debug().Msgf("host parameter is:'%s'", host)
 	if host != "" {
 		// if host is an interface name
-		hostIPAddrs, err := ResolveInterfaceHostAddress(s.Parameters.Host)
+		hostIPAddrs, err := utils.ResolveInterfaceHostAddress(s.Parameters.Host)
 		if err != nil {
 			return err
 		}
 
-		fhostIPAddrs := FilterAddresses(hostIPAddrs, s.Parameters.ForceIPVersion)
+		fhostIPAddrs := utils.FilterAddresses(hostIPAddrs, s.Parameters.ForceIPVersion)
 
 		if len(fhostIPAddrs) == 0 {
 			s.Logger.Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, s.Parameters.ForceIPVersion)
@@ -473,12 +473,16 @@ func (s *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	// Serve: todo
 	err = s.Serve()
 	if err != nil {
-		s.Logger.Fatal().Msgf("failed to serve: %s", err)
+		if err != errors.New("quic: Server closed") { // temporary quic fix
+			s.Logger.Warn().Msgf("failed to serve: %s", err)
+		}
 	}
 
 	// we get here if shutdown or error
 	<-exitCh
-	s.Logger.Info().Msgf("shutdown finished")
+	if err == nil {
+		s.Logger.Info().Msgf("shutdown finished")
+	}
 	return nil
 }
 
@@ -566,7 +570,7 @@ func (s *JobHTTPServer) HTTP2Serve() error {
 		return err
 	}
 
-	idx := IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
+	idx := utils.IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
 	if idx != -1 {
 		log.Warn().Msgf("removing http/1.1 from server.TLSConfig")
 		s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)

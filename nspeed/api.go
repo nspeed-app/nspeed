@@ -88,7 +88,8 @@ func (s *APIHost) Init(wm *Metrics) error {
 		s.Server.Mux.Handle("/api/", http.HandlerFunc(s.apiHelpHandler))
 	}
 	if s.WebStats {
-		mgr := webview.NewViewManager(time.Duration(GlobalOptions.ProgressInterval)*time.Second, "/rt", s.WebStatsDebug)
+		//todo: filter interface
+		mgr, _ := webview.NewViewManager(time.Duration(GlobalOptions.ProgressInterval)*time.Second, "/rt", nil, s.WebStatsDebug)
 		mgr.RegisterRoutes(s.Server.Mux)
 		fmt.Printf("real time web stats at http://%s/rt\n", s.Server.Server.Addr)
 		if s.WebStatsDebug {

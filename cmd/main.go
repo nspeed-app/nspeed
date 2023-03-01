@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"nspeed.app/nspeed"
+	"nspeed.app/utils"
 )
 
 // global flags
@@ -149,7 +150,7 @@ func Main() {
 	// level is always info (for now)
 	// todo : remove 'level'
 	if *optLogOutput != "" {
-		f, err := nspeed.FileCreate(*optLogOutput)
+		f, err := utils.FileCreate(*optLogOutput)
 		if err != nil {
 			panic("error creating log file!" + err.Error())
 		}
@@ -292,7 +293,7 @@ mainloop:
 
 	// text report:
 	if *optTextReport != "" {
-		f, err := nspeed.FileCreate(*optTextReport)
+		f, err := utils.FileCreate(*optTextReport)
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}

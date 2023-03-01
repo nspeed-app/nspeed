@@ -12,7 +12,9 @@
 ## server
  - added `-http1.1` and `-http2` flags to enforce the HTTP version used
 ## Client
-- breaking changes: `-http11` flag renamed to `-http1.1`
+- *breaking changes*: `-http11` flag renamed to `-http1.1`
+- *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
+- added flag: `-connect-timeout` maximum duration for the initial connection (=timeout before dial abort)
 - added `-http2` flag to force using HTTP/2
 ## ciphers
 - fixed TLS version text messages

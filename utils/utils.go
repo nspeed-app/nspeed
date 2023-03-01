@@ -1,4 +1,4 @@
-package nspeed
+package utils
 
 import (
 	"fmt"
@@ -50,7 +50,7 @@ func PrintMemUsage(log *zerolog.Logger, mess string) {
 	if log == nil {
 		return
 	}
-	if log.GetLevel() > zerolog.InfoLevel {
+	if log.GetLevel() > zerolog.DebugLevel {
 		return
 	}
 	var m runtime.MemStats

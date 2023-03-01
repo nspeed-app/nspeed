@@ -12,6 +12,7 @@ import (
 	"github.com/arl/statsviz"
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/templates"
+	"nspeed.app/utils"
 
 	"github.com/go-echarts/statsview/statics"
 	"github.com/go-echarts/statsview/viewer"
@@ -88,7 +89,7 @@ func init() {
 var staticFiles embed.FS
 
 // New creates a new ViewManager instance
-func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
+func NewViewManager(tick time.Duration, path string, interfaceNames []string, debug bool) (*ViewManager, error) {
 
 	path = strings.TrimSuffix(path, "/")
 	path = strings.TrimPrefix(path, "/")
@@ -114,9 +115,13 @@ func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
 	mgr.Ctx, mgr.Cancel = context.WithCancel(context.Background())
 	//todo : may be add a message  if no support
 	if HasNetStats() == nil {
+		ifts, err := utils.GetNetInterfaces(interfaceNames)
+		if err != nil {
+			return nil, err
+		}
 		mgr.Register(
-			NewNetInterfacesViewer(tick, "tx", mgr.path),
-			NewNetInterfacesViewer(tick, "rx", mgr.path),
+			NewNetInterfacesViewer(tick, ifts, "tx", mgr.path),
+			NewNetInterfacesViewer(tick, ifts, "rx", mgr.path),
 		)
 	}
 	mgr.Register(
@@ -152,7 +157,7 @@ func NewViewManager(tick time.Duration, path string, debug bool) *ViewManager {
 	// 	}
 	// }
 
-	return mgr
+	return mgr, nil
 }
 
 func (vm *ViewManager) RegisterRoutes(mux *http.ServeMux) {

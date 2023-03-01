@@ -19,6 +19,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
+	"nspeed.app/utils"
 )
 
 const (
@@ -126,7 +127,7 @@ func (s *JobHTTPServer) HTTP2serve() error {
 		return err
 	}
 
-	idx := IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
+	idx := utils.IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
 	if idx != -1 {
 		log.Debug().Msgf("removing http/1.1 from server.TLSConfig")
 		s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)

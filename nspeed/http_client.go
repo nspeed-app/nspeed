@@ -23,7 +23,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
-	"nspeed.app/nspeed/internal/utils"
+	"nspeed.app/utils"
 )
 
 // this will be used to set a big value for MaxReadFrameSize (HTTP/2)
@@ -59,6 +59,7 @@ type JobHTTPClient struct {
 	Target           string
 	Group            int
 	Timeout          time.Duration
+	DialTimeout      time.Duration
 	UserAgent        string
 	ContentType      string
 	ContentSize      int64
@@ -90,10 +91,10 @@ func (j *JobHTTPClient) GoString() string {
 		j.Timeout.String(),
 		j.Delay.String(),
 		j.H2C,
-		HTTPVersionStringer(j.HTTPVersion),
+		utils.HTTPVersionStringer(j.HTTPVersion),
 	)
 	if j.Command == "POST" || j.Command == "PUT" {
-		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, ByteCountDecimal(j.ContentSize))
+		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, utils.ByteCountDecimal(j.ContentSize))
 	}
 	s += "}"
 	return s
@@ -136,12 +137,12 @@ func (j *JobHTTPClient) PrintString(verbose bool) string {
 
 	if j.Command == "GET" {
 		t := "get %s" + j.finalTarget
-		r := fmt.Sprintf(t, HTTPVersionFlag(j.HTTPVersion, j.H2C))
+		r := fmt.Sprintf(t, utils.HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
 
 	} else if j.Command == "POST" || j.Command == "PUT" {
-		t := strings.ToLower(j.Command) + " %s" + j.finalTarget + " " + ByteCountDecimal(j.ContentSize) + "B" //todo
-		r := fmt.Sprintf(t, HTTPVersionFlag(j.HTTPVersion, j.H2C))
+		t := strings.ToLower(j.Command) + " %s" + j.finalTarget + " " + utils.ByteCountDecimal(j.ContentSize) + "B" //todo
+		r := fmt.Sprintf(t, utils.HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
 	} else {
 		return "unknown command"
@@ -179,13 +180,13 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	// source address
 	var LocalAddr net.Addr
 	if j.Host != "" {
-		la, err := ResolveInterfaceHostAddress(j.Host)
+		la, err := utils.ResolveInterfaceHostAddress(j.Host)
 		//la, err := net.ResolveIPAddr("ip", j.Host)
 		if err != nil {
 			return errors.New("bad local host address: " + j.Host)
 		}
 
-		fhostIPAddrs := FilterAddresses(la, j.IPversion)
+		fhostIPAddrs := utils.FilterAddresses(la, j.IPversion)
 
 		if len(fhostIPAddrs) == 0 {
 			j.Logger.Error().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", la, fhostIPAddrs, j.IPversion)
@@ -201,9 +202,9 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 
 	// dialer
 	var dialer = &net.Dialer{
-		Timeout:       5 * time.Second, // fail quick
-		FallbackDelay: -1,              // don't use Happy Eyeballs
-		LocalAddr:     LocalAddr,       // "-a" for client
+		Timeout:       j.DialTimeout, //
+		FallbackDelay: -1,            // don't use Happy Eyeballs
+		LocalAddr:     LocalAddr,     // "-a" for client
 		// TODO: remove later
 		Control: func(network string, address string, c syscall.RawConn) error {
 			j.Logger.Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
@@ -274,7 +275,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		// force http/2 : this is hacky: remove "http/1.1" from NextProtos.
 		// Forcing a http2.Transport fails unless it's h2c mode.
 		if j.HTTPVersion == 2 {
-			idx := IndexOf(netTransport.TLSClientConfig.NextProtos, "http/1.1")
+			idx := utils.IndexOf(netTransport.TLSClientConfig.NextProtos, "http/1.1")
 			if idx != -1 {
 				log.Debug().Msgf("removing http/1.1 from netTransport.TLSClientConfig")
 				netTransport.TLSClientConfig.NextProtos = append(netTransport.TLSClientConfig.NextProtos[:idx], netTransport.TLSClientConfig.NextProtos[idx+1:]...)
@@ -329,7 +330,6 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 			return nil // http.ErrUseLastResponse
 		},
 		Transport: rtTransport,
-		// Timeout:   10 * time.Second,
 	}
 
 	var body io.ReadCloser
@@ -491,9 +491,9 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	// resp, err := client.Transport.RoundTrip(req)
 	wm.InitNew()
 
-	PrintMemUsage(j.Logger, "before Do")
+	utils.PrintMemUsage(j.Logger, "before Do")
 	resp, err := j.client.Do(j.req)
-	PrintMemUsage(j.Logger, "after Do")
+	utils.PrintMemUsage(j.Logger, "after Do")
 
 	j.Logger.Debug().Msgf("client.Do: %v - %v", err, wm.Error)
 	j.tr.end = time.Now()
@@ -538,7 +538,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 		if j.tr.TLSDone {
 			j.Logger.Info().
-				Str("crypto", TLSVersionName(j.tr.TLS.Version)).
+				Str("crypto", utils.TLSVersionName(j.tr.TLS.Version)).
 				Str("cipher", tls.CipherSuiteName(j.tr.TLS.CipherSuite)).
 				Dur("TLSDuration", j.tr.tlsDone.Sub(refdate)).Send()
 		}
@@ -554,8 +554,8 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 			Send()
 		j.Logger.Debug().
 			Int64("ContentLength", resp.ContentLength).
-			Str("ContentLength-Decimal", ByteCountDecimal(resp.ContentLength)+"B").
-			Str("ContentLength-Binary", ByteCountBinary(resp.ContentLength)+"B").
+			Str("ContentLength-Decimal", utils.ByteCountDecimal(resp.ContentLength)+"B").
+			Str("ContentLength-Binary", utils.ByteCountBinary(resp.ContentLength)+"B").
 			Send()
 
 		// dump resp if trace on
@@ -625,7 +625,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 			wm.Valid = true
 		}
 	}
-	PrintMemUsage(j.Logger, "client ended")
+	utils.PrintMemUsage(j.Logger, "client ended")
 	wm.LogFinal(j.Logger)
 	wm.ResultChan <- wm
 	return nil
