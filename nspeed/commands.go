@@ -443,15 +443,19 @@ func ParseCommand(command string, cmdargs []string, output io.Writer) ([]string,
 		fs.BoolVar(&j.WebStatsOnly, "statsonly", false, "enable web stats only (implies -stats)")
 		fs.BoolVar(&j.WebStatsDebug, "statsdebug", false, "enable web stats debug (url is /debug/pprof/, GO specifics info, implies -stats)")
 		fs.BoolVar(&j.OpenBrowser, "browse", false, "open browser (implies -stats) - work for localhost only for now (wip)")
+		interfaces := fs.String("statsinterfaces", "", "network interfaces to include (comma separated - default : all - implies -stats)")
 
 		if err := fs.Parse(cmdargs); err != nil {
 			return cmdargs, nil, err
 		}
 
-		if j.WebStatsOnly || j.WebStatsDebug || j.OpenBrowser {
+		if j.WebStatsOnly || j.WebStatsDebug || j.OpenBrowser || *interfaces != "" {
 			j.WebStats = true
 		}
 
+		if *interfaces != "" {
+			j.WebStatsInterface = strings.Split(*interfaces, ",")
+		}
 		// force IPv4 or IPv6
 		if *useIPv4 && *useIPv6 {
 			fs.Usage()

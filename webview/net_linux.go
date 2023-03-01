@@ -10,6 +10,9 @@ func HasNetStats() error {
 	return nil
 }
 
+//todo: use https://github.com/prometheus/procfs ?
+// see also https://github.com/prometheus/node_exporter
+
 // return rx/tx counters for interfaces - Linux version
 func GetNetStats(interfaces []net.Interface, dir string) []float64 {
 	var values []float64

@@ -27,12 +27,13 @@ const APIVersion string = "1.0"
 var APIDocumentation []byte
 
 type APIHost struct {
-	Parameters    *HostParameters
-	Server        *JobHTTPServer // underlying HTTP server
-	WebStats      bool
-	WebStatsOnly  bool
-	WebStatsDebug bool
-	OpenBrowser   bool
+	Parameters        *HostParameters
+	Server            *JobHTTPServer // underlying HTTP server
+	WebStats          bool
+	WebStatsOnly      bool
+	WebStatsDebug     bool
+	OpenBrowser       bool
+	WebStatsInterface []string
 }
 
 func (j *APIHost) GetTarget() string {
@@ -88,8 +89,10 @@ func (s *APIHost) Init(wm *Metrics) error {
 		s.Server.Mux.Handle("/api/", http.HandlerFunc(s.apiHelpHandler))
 	}
 	if s.WebStats {
-		//todo: filter interface
-		mgr, _ := webview.NewViewManager(time.Duration(GlobalOptions.ProgressInterval)*time.Second, "/rt", nil, s.WebStatsDebug)
+		mgr, err := webview.NewViewManager(time.Duration(GlobalOptions.ProgressInterval)*time.Second, "/rt", s.WebStatsInterface, s.WebStatsDebug)
+		if err != nil {
+			return err
+		}
 		mgr.RegisterRoutes(s.Server.Mux)
 		fmt.Printf("real time web stats at http://%s/rt\n", s.Server.Server.Addr)
 		if s.WebStatsDebug {

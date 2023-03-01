@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -211,4 +212,26 @@ func GetNetInterfaces(names []string) ([]net.Interface, error) {
 		}
 	}
 	return ifts, nil
+}
+
+// copied from https://github.com/prometheus/node_exporter/collector/device_filter.go
+type netInterfaceFilter struct {
+	ignorePattern *regexp.Regexp
+	acceptPattern *regexp.Regexp
+}
+
+func NewNetInterfaceFilter(ignoredPattern, acceptPattern string) (f netInterfaceFilter, err error) {
+	if ignoredPattern != "" {
+		f.ignorePattern, err = regexp.Compile(ignoredPattern)
+	}
+
+	if err != nil && acceptPattern != "" {
+		f.acceptPattern, err = regexp.Compile(acceptPattern)
+	}
+	return f, err
+}
+
+func (f *netInterfaceFilter) IgnoreInterface(name string) bool {
+	return ((f.ignorePattern != nil && f.ignorePattern.MatchString(name)) ||
+		(f.acceptPattern != nil && !f.acceptPattern.MatchString(name)))
 }
