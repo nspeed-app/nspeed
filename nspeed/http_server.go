@@ -35,7 +35,8 @@ const (
 	DirPath                  = "/dir/"
 )
 
-// parameters of aa server instance
+// parameters of a server endpoint
+// todo: rename & refactor ?
 type HostParameters struct {
 	Host             string
 	Port             int
@@ -55,6 +56,7 @@ type HostParameters struct {
 	Directory        string // directory to serve content from /dir url
 	API              bool
 	APIOnly          bool
+	ID               string
 }
 
 // initialize a new HostParameters

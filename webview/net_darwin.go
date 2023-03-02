@@ -21,7 +21,7 @@ func GetNetStats(interfaces []net.Interface, dir string) []float64 {
 			if dir == "tx" {
 				value = float64(ifaceData.Data.Obytes)
 			}
-			if dir == "tx" {
+			if dir == "rx" {
 				value = float64(ifaceData.Data.Ibytes)
 			}
 		}
