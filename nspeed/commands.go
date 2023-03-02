@@ -323,7 +323,7 @@ func ParseCommand(command string, cmdargs []string, output io.Writer) ([]string,
 		//flag.Lookup("address").NoOptDefVal = ""
 		useIPv4 := fs.Bool("4", false, "use IPv4 only")
 		useIPv6 := fs.Bool("6", false, "use IPv6 only")
-		fs.IntVar(&host.Port, "p", DefaultPort, "Port number to listen on")
+		fs.IntVar(&host.Port, "p", 0, "Port number to listen on")
 		maxsize := fs.String("s", utils.FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
 		maxtime := fs.Uint("t", uint(DefaultMaxDuration.Seconds()), "Maximum duration a response may take")
 		fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
@@ -337,6 +337,7 @@ func ParseCommand(command string, cmdargs []string, output io.Writer) ([]string,
 		fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key ")
 		fs.BoolVar(&host.HTTP3, "http3", false, "also listen using HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
 		fs.BoolVar(&host.API, "api", false, "enable API endpoint (/api url)")
+		fs.StringVar(&host.ID, "id", "", "ID or name of this server")
 		if err := fs.Parse(cmdargs); err != nil {
 			return cmdargs, nil, err
 		}

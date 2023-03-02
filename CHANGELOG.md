@@ -11,9 +11,12 @@
 - new `bench` command (abbrev `b`) : allow to launch loopback test (get/put on localhost server). see `nspeed bench -h` for details.
 ## server
  - added `-http1.1` and `-http2` flags to enforce the HTTP version used
+ - *breanking change*: the default port is now a random , available port instead of 7333. Use `-p` to specific a port.
+ - added `-id string` flag: allows to spec a uniq id/name for this server (can be used in `nspeed:` url scheme)
 ## Client
 - *breaking changes*: `-http11` flag renamed to `-http1.1`
 - *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
+- in conjonction with the new server `-id` flag, a special url scheme `nspeed:name` is now supported to referece the endpoint address of the corresponding server.
 - added flag: `-connect-timeout` maximum duration for the initial connection (=timeout before dial abort)
 - added `-http2` flag to force using HTTP/2
 ## ciphers

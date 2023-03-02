@@ -514,10 +514,10 @@ func (s *JobHTTPServer) Listen() error {
 	s.listener = &ln
 	if s.Parameters.ServeTLS {
 		s.URL = "https://" + ln.Addr().String()
-		s.Logger.Warn().Msgf("server listening on %s (H2C = %t)", s.URL, s.Parameters.H2C)
+		s.Logger.Warn().Msgf("server %s listening on %s (H2C = %t)", s.Parameters.ID, s.URL, s.Parameters.H2C)
 	} else {
 		s.URL = "http://" + ln.Addr().String()
-		s.Logger.Warn().Msgf("server listening on %s", s.URL)
+		s.Logger.Warn().Msgf("server %s listening on %s", s.Parameters.ID, s.URL)
 	}
 
 	return nil
