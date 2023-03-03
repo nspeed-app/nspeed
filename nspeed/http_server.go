@@ -83,7 +83,7 @@ type JobHTTPServer struct {
 	mutex            sync.Mutex
 	api              *APIHost
 	addr             string
-	URL              url.URL
+	URL              *url.URL
 	listener         *net.Listener
 	udpConn          *net.UDPConn
 	// allow extension
@@ -532,10 +532,10 @@ func (s *JobHTTPServer) Listen() error {
 	}
 	s.listener = &ln
 	if s.Parameters.ServeTLS {
-		s.URL = url.URL{Scheme: "https", Host: ln.Addr().String()}
+		s.URL = &url.URL{Scheme: "https", Host: ln.Addr().String()}
 		s.Logger.Warn().Msgf("server %s listening on %s (H2C = %t)", s.Parameters.ID, s.URL.String(), s.Parameters.H2C)
 	} else {
-		s.URL = url.URL{Scheme: "http", Host: ln.Addr().String()}
+		s.URL = &url.URL{Scheme: "http", Host: ln.Addr().String()}
 		s.Logger.Warn().Msgf("server %s listening on %s", s.Parameters.ID, s.URL.String())
 	}
 
@@ -632,7 +632,7 @@ func (s *JobHTTPServer) HTTP3Listen() error {
 	if err != nil {
 		return err
 	}
-	s.URL = url.URL{Scheme: "https", Host: s.udpConn.LocalAddr().String()}
+	s.URL = &url.URL{Scheme: "https", Host: s.udpConn.LocalAddr().String()}
 	s.Logger.Warn().Msgf("server listening on %s (HTTP/3 on UDP)", s.URL.String())
 	return nil
 }

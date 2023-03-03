@@ -58,9 +58,13 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 		ctx = newctx
 	}
 
+	// PART1: INFINITE JOBS
 	// create & init workers for jobs (synchronously one after the others)
 	// run infinite jobs
 	for _, wm := range wcWorkers {
+		if !wm.Job.IsInfinite() {
+			continue
+		}
 		log.Debug().Msgf("creating worker %d %s %t", wm.Index, wm.Target, wm.Done)
 		err := wm.Job.Init(wm)
 		if err != nil {
@@ -92,7 +96,21 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 	log.Info().Msg("waiting on infinite jobs to be ready")
 	wgi.Wait()
 	log.Info().Msg("all infinite jobs are ready")
+
+	// PART2: SHORT LIVED JOBS
 	// spawn short lived jobs
+	for _, wm := range wcWorkers {
+		if wm.Job.IsInfinite() {
+			continue
+		}
+		log.Debug().Msgf("creating worker %d %s %t", wm.Index, wm.Target, wm.Done)
+		err := wm.Job.Init(wm)
+		if err != nil {
+			log.Error().Msgf("error %s for %s", err, wm.Target)
+			return nil, err
+		}
+	}
+
 	var wgsl sync.WaitGroup // short lived sync group
 	IsInfinite := true      // will be false if at least one job is not infinite
 	for _, wm := range wcWorkers {

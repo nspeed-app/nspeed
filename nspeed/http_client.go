@@ -11,6 +11,7 @@ import (
 	"net/http/httptrace"
 	"net/http/httputil"
 	"net/textproto"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -177,8 +178,12 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	if !strings.Contains(j.Target, "://") {
 		j.Target = "https://" + j.Target
 	}
-	j.finalTarget = j.Target
-	j.Logger.Debug().Msgf("target is: %s", j.Target)
+	var err error
+	j.finalTarget, err = ResolveSchemes(j.JobList.IDMap, j.Target)
+	if err != nil {
+		return err
+	}
+	j.Logger.Debug().Msgf("target is: %s", j.finalTarget)
 
 	// source address
 	var LocalAddr net.Addr
@@ -345,7 +350,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		body = wm
 	}
 
-	req, err := http.NewRequest(j.Command, j.Target, body)
+	req, err := http.NewRequest(j.Command, j.finalTarget, body)
 	if err != nil {
 		return err
 	}
@@ -632,4 +637,30 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	wm.LogFinal(j.Logger)
 	wm.ResultChan <- wm
 	return nil
+}
+
+// handle special schemes
+func ResolveSchemes(idmap map[string]Job, target string) (string, error) {
+	url, err := url.Parse(target)
+	if err != nil {
+		return "", err
+	}
+	if url.Scheme == "nspeed" {
+		t, ok := idmap[url.Host]
+		if !ok {
+			return "", fmt.Errorf("named job '%s' not found", url.Host)
+		}
+		s, sok := t.(*JobHTTPServer)
+		if !sok {
+			return "", fmt.Errorf("named job '%s' is not a server", url.Host)
+		}
+		if s.URL == nil {
+			return "", fmt.Errorf("named job '%s' not running", url.Host)
+		}
+		url.Scheme = s.URL.Scheme
+		url.Host = s.URL.Host
+		log.Debug().Msgf("expanded nspeed scheme %s to %s ", target, url.String())
+		return url.String(), nil
+	}
+	return target, nil
 }
