@@ -23,6 +23,33 @@ type Job interface {
 	Init(*Metrics) error
 	Run(context.Context, *sync.WaitGroup) error
 	GetMetric() (NetMetric, error)
+	ID() string
+}
+
+// a list of jobs, having unique IDs
+type JobList struct {
+	Jobs  []Job
+	IDMap map[string]Job
+}
+
+func NewJoblist() *JobList {
+	return &JobList{
+		IDMap: make(map[string]Job),
+	}
+}
+
+func (jl *JobList) AddJob(j Job) error {
+	id := j.ID()
+	if id != "" {
+		_, ok := jl.IDMap[id]
+		if ok {
+			return fmt.Errorf("duplicate job id %s", id)
+		}
+		jl.IDMap[id] = j
+	}
+
+	jl.Jobs = append(jl.Jobs, j)
+	return nil
 }
 
 // ExpandJobs maps Expand to each job and merge them

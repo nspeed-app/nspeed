@@ -7,7 +7,6 @@ require (
 	github.com/go-echarts/go-echarts/v2 v2.2.5
 	github.com/go-echarts/statsview v0.3.4
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
-	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/quic-go/quic-go v0.33.0
 	github.com/rs/zerolog v1.29.0
 	github.com/shirou/gopsutil/v3 v3.23.2

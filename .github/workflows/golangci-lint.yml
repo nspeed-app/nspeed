@@ -24,7 +24,7 @@ jobs:
           version: latest
 
           # Optional: working directory, useful for monorepos
-          working-directory: nspeed
+          # working-directory: nspeed
 
           # Optional: golangci-lint command line arguments.
           # args: --issues-exit-code=0

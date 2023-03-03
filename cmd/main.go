@@ -160,14 +160,15 @@ func Main() {
 		log.Logger = log.Output(consoleWriter)
 	}
 
-	jobs, err := nspeed.ParseCommands(flag.Args(), nil, false)
+	jl := nspeed.NewJoblist()
+	err := nspeed.ParseCommands(flag.Args(), jl, nil, false)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	// no command, return for now, later: check if launched from UI world (explorer, file manager, browser, etc)
-	if len(jobs) == 0 {
+	if len(jl.Jobs) == 0 {
 		flag.CommandLine.Usage()
 		return
 	}
@@ -231,7 +232,7 @@ func Main() {
 	go func() {
 		// defer wg.Done()
 		var err error
-		wcWorkers, err = nspeed.RunJobs(jobs, nspeed.GlobalOptions, ctx, func(wms []*nspeed.Metrics) {
+		wcWorkers, err = nspeed.RunJobs(jl, nspeed.GlobalOptions, ctx, func(wms []*nspeed.Metrics) {
 			wcWorkers = wms
 			if consoleLevel == zerolog.DebugLevel {
 				for _, wm := range wcWorkers {

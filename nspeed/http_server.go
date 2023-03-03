@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"sync"
@@ -31,8 +32,8 @@ var TLSSelfConfig *tls.Config
 const (
 	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 40 // bytes
 	DefaultMaxDuration       = 10 * time.Second
-	DefaultPort              = 7333
-	DirPath                  = "/dir/"
+	//DefaultPort              = 7333
+	DirPath = "/dir/"
 )
 
 // parameters of a server endpoint
@@ -62,7 +63,7 @@ type HostParameters struct {
 // initialize a new HostParameters
 func NewHostParameters() *HostParameters {
 	return &HostParameters{
-		Port:        DefaultPort,
+		//Port:        DefaultPort,
 		MaxBodySize: DefaultMaxBodySize,
 		MaxDuration: DefaultMaxDuration,
 	}
@@ -82,9 +83,13 @@ type JobHTTPServer struct {
 	mutex            sync.Mutex
 	api              *APIHost
 	addr             string
-	URL              string
+	URL              url.URL
 	listener         *net.Listener
 	udpConn          *net.UDPConn
+	// allow extension
+	InitHook func() error
+	RunHook  func(context.Context) error
+	JobList  *JobList
 }
 
 func (j *JobHTTPServer) GetTarget() string {
@@ -118,6 +123,10 @@ func (j *JobHTTPServer) PrintString(verbose bool) string {
 
 func (j *JobHTTPServer) GetMetric() (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")
+}
+
+func (j *JobHTTPServer) ID() string {
+	return j.Parameters.ID
 }
 
 func (j *JobHTTPServer) IsInfinite() bool {
@@ -471,9 +480,19 @@ func (s *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 	// signal parent we're listening
 	wg.Done()
+	// hack: openbrowser, revisit this
+	if s.RunHook != nil {
+		err := s.RunHook(ctx)
+		if err != nil {
+			s.Logger.Warn().Msgf("failed to serve: %s", err)
+			return err
+		}
+	}
 
 	// Serve: todo
 	err = s.Serve()
+	// remove from global list
+
 	if err != nil {
 		if err != errors.New("quic: Server closed") { // temporary quic fix
 			s.Logger.Warn().Msgf("failed to serve: %s", err)
@@ -513,11 +532,11 @@ func (s *JobHTTPServer) Listen() error {
 	}
 	s.listener = &ln
 	if s.Parameters.ServeTLS {
-		s.URL = "https://" + ln.Addr().String()
-		s.Logger.Warn().Msgf("server %s listening on %s (H2C = %t)", s.Parameters.ID, s.URL, s.Parameters.H2C)
+		s.URL = url.URL{Scheme: "https", Host: ln.Addr().String()}
+		s.Logger.Warn().Msgf("server %s listening on %s (H2C = %t)", s.Parameters.ID, s.URL.String(), s.Parameters.H2C)
 	} else {
-		s.URL = "http://" + ln.Addr().String()
-		s.Logger.Warn().Msgf("server %s listening on %s", s.Parameters.ID, s.URL)
+		s.URL = url.URL{Scheme: "http", Host: ln.Addr().String()}
+		s.Logger.Warn().Msgf("server %s listening on %s", s.Parameters.ID, s.URL.String())
 	}
 
 	return nil
@@ -612,7 +631,7 @@ func (s *JobHTTPServer) HTTP3Listen() error {
 	if err != nil {
 		return err
 	}
-	s.URL = "https://" + s.udpConn.LocalAddr().String()
+	s.URL = url.URL{Scheme: "https", Host: s.udpConn.LocalAddr().String()}
 	s.Logger.Warn().Msgf("server listening on %s (HTTP/3 on UDP)", s.URL)
 	return nil
 }

@@ -29,7 +29,7 @@ func NewCPUViewer(tick time.Duration, path string) Viewer {
 	graph := newBasicView(tick, VCPU, path)
 	graph.SetGlobalOptions(
 		charts.WithYAxisOpts(opts.YAxis{
-			Name:        "Load",
+			Name:        "CPU Load",
 			Scale:       false,
 			Min:         0,
 			SplitNumber: 10,

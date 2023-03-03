@@ -15,13 +15,14 @@ import (
 
 	_ "embed"
 
-	"github.com/pkg/browser"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"nspeed.app/utils"
 	"nspeed.app/webview"
 )
 
 const APIVersion string = "1.0"
+const StatsPath = "/rt"
 
 //go:embed API.md
 var APIDocumentation []byte
@@ -64,6 +65,10 @@ func (j *APIHost) IsInfinite() bool {
 	return true
 }
 
+func (j *APIHost) ID() string {
+	return j.Parameters.ID
+}
+
 func (j *APIHost) GetMetric() (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")
 }
@@ -89,16 +94,11 @@ func (s *APIHost) Init(wm *Metrics) error {
 		s.Server.Mux.Handle("/api/", http.HandlerFunc(s.apiHelpHandler))
 	}
 	if s.WebStats {
-		mgr, err := webview.NewViewManager(time.Duration(GlobalOptions.ProgressInterval)*time.Second, "/rt", s.WebStatsInterface, s.WebStatsDebug)
+		mgr, err := webview.NewViewManager(time.Duration(GlobalOptions.ProgressInterval)*time.Second, StatsPath, s.WebStatsInterface, s.WebStatsDebug)
 		if err != nil {
 			return err
 		}
 		mgr.RegisterRoutes(s.Server.Mux)
-		fmt.Printf("real time web stats at http://%s/rt\n", s.Server.Server.Addr)
-		if s.WebStatsDebug {
-			// we should get the route from wher it's defined
-			fmt.Printf("Go runtime stats at http://%s/%s\n", s.Server.Server.Addr, webview.GoStatsRoute)
-		}
 	}
 	return nil
 }
@@ -107,13 +107,8 @@ func (s *APIHost) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	if s.Server == nil {
 		return errors.New("API: no server")
 	}
-	// wait 1 sonde and open a browser
-	if s.OpenBrowser {
-		go func() {
-			// todo: change this sleep to a signal or test of the url  ?
-			time.Sleep(1 * time.Second)
-			_ = browser.OpenURL(fmt.Sprintf("http://localhost:%d/rt", s.Parameters.Port))
-		}()
+	s.Server.RunHook = func(c context.Context) error {
+		return s.PostRun()
 	}
 	return s.Server.Run(ctx, wg)
 }
@@ -256,7 +251,8 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			args = append(args, strings.Fields(a[i])...)
 		}
 
-		jobs, err := ParseCommands(args, w, true)
+		jl := NewJoblist()
+		err := ParseCommands(args, jl, w, true)
 		if err != nil {
 			fmt.Fprintf(w, "error parsing run command: %s\n", err)
 			return
@@ -268,7 +264,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			Send()
 
 		f, okToFlush := w.(http.Flusher)
-		wcWorkers, err := RunJobs(jobs, GlobalOptions, r.Context(), func(wms []*Metrics) {
+		wcWorkers, err := RunJobs(jl, GlobalOptions, r.Context(), func(wms []*Metrics) {
 			log.Debug().Msgf("api: progress called")
 			fmt.Fprintf(w, "api @%s - progress %s: %d\n", r.Host, time.Now().String(), len(wms))
 			if okToFlush {
@@ -288,4 +284,25 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Error(w, "unknown API command", http.StatusNotFound)
+}
+
+// PostRun is called when the endpoint server is running
+func (h *APIHost) PostRun() error {
+	url := h.Server.URL.JoinPath(StatsPath)
+	if h.WebStats {
+		h.Server.Logger.Warn().Msgf("real time web stats at %s", url)
+	}
+	if h.WebStatsDebug {
+		// we should get the route from wher it's defined
+		// add a link in rt to this ?
+		h.Server.Logger.Warn().Msgf("Go runtime stats at %s", h.Server.URL.JoinPath(webview.GoStatsRoute))
+		if !h.WebStats {
+			url = h.Server.URL.JoinPath(webview.GoStatsRoute)
+		}
+	}
+	if h.OpenBrowser {
+		h.Server.Logger.Warn().Msgf("opening browser at %s", url)
+		return utils.Openbrowser(url.String(), nil, nil)
+	}
+	return nil
 }

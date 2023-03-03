@@ -76,6 +76,7 @@ type JobHTTPClient struct {
 	numRedirect int
 	finalTarget string
 	wm          *Metrics
+	JobList     *JobList
 }
 
 func (j *JobHTTPClient) GoString() string {
@@ -159,6 +160,8 @@ func (j *JobHTTPClient) Expand(jobs []Job, group int) []Job {
 }
 
 func (j *JobHTTPClient) IsInfinite() bool { return false }
+
+func (j *JobHTTPClient) ID() string { return "" }
 
 func (j *JobHTTPClient) GetMetric() (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")

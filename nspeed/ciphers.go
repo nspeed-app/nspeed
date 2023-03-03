@@ -229,6 +229,10 @@ func (j *JobCiphers) Expand(jobs []Job, group int) []Job {
 	return append(jobs, j)
 }
 
+func (j *JobCiphers) ID() string {
+	return ""
+}
+
 func (j *JobCiphers) GoString() string {
 	return fmt.Sprintf("ciphers {Target: %s (%s;%s), delay: %d, timeout:%s}",
 		j.Target,
