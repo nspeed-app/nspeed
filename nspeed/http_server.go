@@ -577,6 +577,7 @@ func (s *JobHTTPServer) serve() error {
 
 }
 
+// nolint
 func (s *JobHTTPServer) HTTP2Serve() error {
 	//return errors.New("enforcing HTTP/2 is not implemented yet")
 	return s.HTTP2serve()
@@ -632,7 +633,7 @@ func (s *JobHTTPServer) HTTP3Listen() error {
 		return err
 	}
 	s.URL = url.URL{Scheme: "https", Host: s.udpConn.LocalAddr().String()}
-	s.Logger.Warn().Msgf("server listening on %s (HTTP/3 on UDP)", s.URL)
+	s.Logger.Warn().Msgf("server listening on %s (HTTP/3 on UDP)", s.URL.String())
 	return nil
 }
 

@@ -299,7 +299,7 @@ mainloop:
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
 		report := nspeed.GenerateTextReport(wcWorkers, consoleLevel <= zerolog.InfoLevel)
-		f.WriteString(report)
+		_, _ = f.WriteString(report)
 		f.Close()
 	}
 

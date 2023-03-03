@@ -167,7 +167,7 @@ func (vm *ViewManager) RegisterRoutes(mux *http.ServeMux) {
 	}
 
 	if vm.debug {
-		statsviz.Register(mux,
+		_ = statsviz.Register(mux,
 			statsviz.Root(GoStatsRoute),
 			statsviz.SendFrequency(GoStatsFrequency))
 
