@@ -19,7 +19,6 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"nspeed.app/utils"
@@ -177,7 +176,7 @@ func (h *JobHTTPServer) CreateHandler() http.Handler {
 
 	// serve static files h.Parameters.Directory
 	if h.Parameters.Directory != "" {
-		log.Info().Msgf("serving directory '%s' at %s", h.Parameters.Directory, DirPath)
+		h.Logger.Info().Msgf("serving directory '%s' at %s", h.Parameters.Directory, DirPath)
 		mux.Handle(DirPath, http.StripPrefix(DirPath, http.FileServer(http.Dir(h.Parameters.Directory))))
 	}
 
@@ -207,11 +206,11 @@ func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		method = "GET"
 	}
 
-	log.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
+	h.Logger.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
 
 	if method == "GET" {
 		match := h.StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
-		log.Debug().Strs("match", match).Send()
+		h.Logger.Debug().Strs("match", match).Send()
 		// keep this test in sync with the regexp
 		if len(match) == 3 {
 			h.StreamBytes(w, r, match[1], match[2])
@@ -243,7 +242,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		return
 	}
 	numBytes := int64(n)
-	log.Info().Msgf("streaming %s bytes (= %d bytes) with extention: %s", size, numBytes, extension)
+	h.Logger.Info().Msgf("streaming %s bytes (= %d bytes) with extention: %s", size, numBytes, extension)
 
 	if numBytes < 1 {
 		numBytes = 1
@@ -276,7 +275,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", MaxChunkSize), http.StatusBadRequest)
 			return
 		}
-		log.Info().Msgf("chunk_size set to %d", chunkSize)
+		h.Logger.Info().Msgf("chunk_size set to %d", chunkSize)
 	}
 	// end danger zone
 
@@ -594,7 +593,7 @@ func (s *JobHTTPServer) HTTP2Serve() error {
 
 	idx := utils.IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
 	if idx != -1 {
-		log.Warn().Msgf("removing http/1.1 from server.TLSConfig")
+		s.Logger.Warn().Msgf("removing http/1.1 from server.TLSConfig")
 		s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)
 	}
 
@@ -663,7 +662,7 @@ func (s *JobHTTPServer) HTTP3Serve() error {
 		err := quicServer.SetQuicHeaders(w.Header())
 		s.Logger.Debug().Msgf("SetQuicHeaders called")
 		if err != nil {
-			log.Fatal().Err(err)
+			s.Logger.Fatal().Err(err)
 		}
 		h.ServeHTTP(w, r)
 	})
@@ -675,7 +674,7 @@ func (s *JobHTTPServer) HTTP3Serve() error {
 		s.Logger.Debug().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")
 		// nyi: quicServer.CloseGracefully(shutdownTimeout)
 		err := quicServer.Close()
-		log.Info().Err(err).Msg("quicServer Close called")
+		s.Logger.Info().Err(err).Msg("quicServer Close called")
 	}
 	return quicServer.Serve(s.udpConn)
 }

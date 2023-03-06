@@ -264,7 +264,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	}
 
 	if netTransport.TLSClientConfig != nil {
-		log.Debug().Msgf("TLSConfig: defined")
+		j.Logger.Debug().Msgf("TLSConfig: defined")
 	}
 
 	// interface to the transport so we can switch if needed
@@ -274,7 +274,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		// get a http2 transport
 		t2, err := http2.ConfigureTransports(netTransport)
 		if err != nil {
-			log.Warn().Msgf("something bad happened that shouldn't : %s", err)
+			j.Logger.Warn().Msgf("something bad happened that shouldn't : %s", err)
 			return err
 		}
 		// default settings of frame size impacts performance, so we bump it
@@ -310,7 +310,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 				TLSClientConfig:    netTransport.TLSClientConfig,
 				QuicConfig:         quicConf,
 				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-					log.Debug().Msgf("HTTP3: %s,%v", addr, cfg)
+					j.Logger.Debug().Msgf("HTTP3: %s,%v", addr, cfg)
 					return quic.DialAddrEarlyContext(ctx, addr, tlsCfg, cfg)
 				},
 			}
@@ -570,7 +570,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		if ShouldLog(j.Logger, zerolog.TraceLevel) {
 			dump, err := httputil.DumpResponse(resp, false)
 			if err != nil {
-				log.Fatal().Err(err).Send()
+				j.Logger.Fatal().Err(err).Send()
 			}
 			j.Logger.Debug().Msgf("Response:\n%s", dump)
 		}
@@ -659,7 +659,6 @@ func ResolveSchemes(idmap map[string]Job, target string) (string, error) {
 		}
 		url.Scheme = s.URL.Scheme
 		url.Host = s.URL.Host
-		log.Debug().Msgf("expanded nspeed scheme %s to %s ", target, url.String())
 		return url.String(), nil
 	}
 	return target, nil

@@ -254,7 +254,7 @@ func (wm *Metrics) InitNew() {
 	wm.TotalWrite = 0
 	wm.ReadCount = 0
 	wm.WriteCount = 0
-	log.Debug().Msgf("wm InitNew called")
+	wm.Logger.Debug().Msgf("wm InitNew called")
 }
 
 func (wm *Metrics) Close() error {
@@ -325,7 +325,7 @@ func (wm *Metrics) FixWriteTo(w io.Writer) (n int64, err error) {
 
 	buflen := int64(len(BigBuffer))
 
-	log.Debug().Msgf("WriteTo loop starting for %d bytes (%d)\n", wm.TotalWrite, time.Since(wm.TransfertStartTime))
+	wm.Logger.Debug().Msgf("WriteTo loop starting for %d bytes (%d)\n", wm.TotalWrite, time.Since(wm.TransfertStartTime))
 	for {
 		todo := utils.Min(wm.ContentWriteSize-wm.TotalWrite, buflen)
 		if todo <= 0 {

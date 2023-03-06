@@ -16,7 +16,6 @@ import (
 	_ "embed"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"nspeed.app/utils"
 	"nspeed.app/webview"
 )
@@ -124,7 +123,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		method = "GET"
 	}
 	path := r.URL.Path
-	log.Warn().Msgf("apiHandler: %s - %s from %s", method, path, r.RemoteAddr)
+	h.Server.Logger.Warn().Msgf("apiHandler: %s - %s from %s", method, path, r.RemoteAddr)
 
 	if method != "GET" {
 		http.Error(w, "no such method", http.StatusNotImplemented)
@@ -236,7 +235,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Warn().Msgf("apiHandler: run: %s", args)
+		h.Server.Logger.Warn().Msgf("apiHandler: run: %s", args)
 
 		a, ok := r.URL.Query()["args"]
 
@@ -247,7 +246,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		var args []string
 		for i := range a {
-			log.Warn().Msgf("apiHandler: run: %d - %s", i, a[i])
+			h.Server.Logger.Warn().Msgf("apiHandler: run: %d - %s", i, a[i])
 			args = append(args, strings.Fields(a[i])...)
 		}
 
@@ -257,7 +256,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "error parsing run command: %s\n", err)
 			return
 		}
-		log.Warn().
+		h.Server.Logger.Warn().
 			Str("remoteAddress", r.RemoteAddr).
 			Str("command", "run").
 			Strs("args", args).
@@ -265,7 +264,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		f, okToFlush := w.(http.Flusher)
 		wcWorkers, err := RunJobs(jl, GlobalOptions, r.Context(), func(wms []*Metrics) {
-			log.Debug().Msgf("api: progress called")
+			h.Server.Logger.Debug().Msgf("api: progress called")
 			fmt.Fprintf(w, "api @%s - progress %s: %d\n", r.Host, time.Now().String(), len(wms))
 			if okToFlush {
 				f.Flush()
