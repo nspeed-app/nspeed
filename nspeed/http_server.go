@@ -24,7 +24,10 @@ import (
 	"nspeed.app/utils"
 )
 
+// name of product, used in user-agent
 var ServerName string = "NSpeed"
+
+// local certificate - ALWAYS Clone() it
 var TLSSelfConfig *tls.Config
 
 // Default configuration values
@@ -457,7 +460,8 @@ func (s *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	// TLS stuff (todo move this in Init ?)
 	if s.Parameters.UseTLSSelfConfig {
 		if TLSSelfConfig != nil {
-			s.Server.TLSConfig = TLSSelfConfig
+			s.Server.TLSConfig = TLSSelfConfig.Clone()
+			s.Logger.Info().Msgf("using TLSSelfConfig")
 		} else {
 			// this shouldn't happen if parameters check are done correctly
 			s.Logger.Fatal().Msgf("no self certificate installed")

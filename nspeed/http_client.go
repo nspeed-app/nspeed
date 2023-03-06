@@ -256,11 +256,13 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 
 	if j.UseTLSSelfConfig {
 		netTransport.TLSClientConfig = TLSSelfConfig.Clone()
+		j.Logger.Info().Msgf("using TLSSelfConfig")
 		// netTransport.TLSClientConfig.CipherSuites = []uint16{tls.TLS_CHACHA20_POLY1305_SHA256}
 		// netTransport.TLSClientConfig.MinVersion = tls.VersionTLS13
 	}
 	if j.SkipTLSCheck {
 		netTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		j.Logger.Info().Msgf("skipping TLS Check")
 	}
 
 	if netTransport.TLSClientConfig != nil {
