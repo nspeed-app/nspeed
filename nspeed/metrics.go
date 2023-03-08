@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"sync"
 	"text/tabwriter"
 	"time"
@@ -15,21 +16,38 @@ import (
 )
 
 type Job interface {
+	// per job implementation
 	GetTarget() string
-	Expand([]Job, int) []Job
 	GoString() string
 	PrintString(bool) string
 	IsInfinite() bool
 	Init(*Metrics) error
 	Run(context.Context, *sync.WaitGroup) error
 	GetMetric() (NetMetric, error)
+	//common, implemented here
 	ID() string
+	SetID(string)
+	GroupID() string
+	SetGroupID(string)
 }
 
-// a list of jobs, having unique IDs
+// JobData should be embeded in every struct implementing Job interface
+// it provides ID/GID storage
+type JobData struct {
+	Job
+	id    string
+	group string
+}
+
+func (j *JobData) ID() string            { return j.id }
+func (j *JobData) SetID(id string)       { j.id = id }
+func (j *JobData) GroupID() string       { return j.group }
+func (j *JobData) SetGroupID(gid string) { j.group = gid }
+
+// a list of jobs, some having unique IDs stored in IDMap
 type JobList struct {
 	Jobs  []Job
-	IDMap map[string]Job
+	IDMap map[string]Job // this basically a cache to avoid looping Jobs
 }
 
 func NewJoblist() *JobList {
@@ -38,29 +56,36 @@ func NewJoblist() *JobList {
 	}
 }
 
-func (jl *JobList) AddJob(j Job) error {
-	id := j.ID()
-	if id != "" {
-		_, ok := jl.IDMap[id]
+// AddJobs adds jobs preventing duplicate id, adding and renaming groups
+// if a job name is empty, generate a unique one
+func (jl *JobList) AddJobs(jobs ...Job) error {
+	id := "#" + strconv.Itoa(len(jl.Jobs))
+	n := len(jobs)
+
+	for i, j := range jobs {
+		if j == nil {
+			return fmt.Errorf("Addjob: nil argument")
+		}
+		if j.ID() == "" {
+			j.SetID(id)
+		}
+		if n > 1 {
+			// special, if job group, 'id' becomme 'id.n' but 'id' could already exists
+			// this avoid 'id' and 'id.1', "id.2" with different commands
+			j.SetGroupID(j.ID())
+			if _, ok := jl.IDMap[j.ID()]; ok {
+				return fmt.Errorf("duplicate job id %s", j.ID())
+			}
+			j.SetID(j.ID() + "." + strconv.Itoa(i+1))
+		}
+		_, ok := jl.IDMap[j.ID()]
 		if ok {
-			return fmt.Errorf("duplicate job id %s", id)
+			return fmt.Errorf("duplicate job id %s", j.ID())
 		}
-		jl.IDMap[id] = j
+		jl.IDMap[j.ID()] = j
+		jl.Jobs = append(jl.Jobs, j)
 	}
-
-	jl.Jobs = append(jl.Jobs, j)
 	return nil
-}
-
-// ExpandJobs maps Expand to each job and merge them
-func ExpandJobs(jobs []Job) []Job {
-	var out []Job
-	for g, job := range jobs {
-		if job != nil { // just in case. todo: should we fatal/warn ?
-			out = job.Expand(out, g)
-		}
-	}
-	return out
 }
 
 // MetricsData -
@@ -353,17 +378,24 @@ func (wm *Metrics) FixWriteTo(w io.Writer) (n int64, err error) {
 }
 
 func initSpeedReport(w *tabwriter.Writer) {
-	fmt.Fprintf(w, "Job\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\tcommand\n")
+	fmt.Fprintf(w, "Job\tId\tGid\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\tcommand\n")
 }
-func speedReport(w *tabwriter.Writer, job string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
-	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
-		job,
+func speedReport(w *tabwriter.Writer, job string, id string, gid string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
+	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
+		job, id, gid,
 		utils.FormatBitperSecond(totalRead, elapsedTime),
 		utils.FormatBitperSecond(totalWrite, elapsedTime),
 		elapsedTime.Seconds(),
 		utils.ByteCountDecimal(totalRead),
 		utils.ByteCountDecimal(totalWrite),
 		target))
+}
+
+// group subtotals
+type reportGroup struct {
+	ElapsedTime time.Duration
+	TotalRead   int64
+	TotalWrite  int64
 }
 
 // generate a tabular formatted text report
@@ -375,9 +407,11 @@ func GenerateTextReport(wcWorkers []*Metrics, verbose bool) string {
 	var elapsedTime time.Duration = 0
 	var totalRead int64 = 0
 	var totalWrite int64 = 0
+	groups := make(map[string]*reportGroup)
 
 	w := tabwriter.NewWriter(&out, 0, 2, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
 	initSpeedReport(w)
+
 	for _, wm := range wcWorkers {
 		if wm.Valid {
 			totalRead += wm.TotalRead
@@ -385,17 +419,33 @@ func GenerateTextReport(wcWorkers []*Metrics, verbose bool) string {
 			if wm.ElapsedTime > elapsedTime {
 				elapsedTime = wm.ElapsedTime
 			}
-			speedReport(w, fmt.Sprintf(" %d", wm.Index), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose))
+			speedReport(w, fmt.Sprintf(" %d", wm.Index), wm.Job.ID(), wm.Job.GroupID(), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose))
+			if wm.Job.GroupID() != "" {
+				g, ok := groups[wm.Job.GroupID()]
+				if !ok {
+					g = &reportGroup{}
+					groups[wm.Job.GroupID()] = g
+				}
+				g.TotalRead += wm.TotalRead
+				g.TotalWrite += wm.TotalWrite
+				if wm.ElapsedTime > g.ElapsedTime {
+					g.ElapsedTime = wm.ElapsedTime
+				}
+			}
 		} else {
 			if wm.Error != nil {
 				log.Warn().Err(wm.Error).Msgf("job %d ended", wm.Index)
 			}
 		}
 	}
+	for gid, g := range groups {
+		speedReport(w, "Subtotal", "", gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, "")
+	}
+
 	if totalRead == 0 && totalWrite == 0 {
 		fmt.Println("no metrics to report")
 	} else {
-		speedReport(w, "Total", elapsedTime, totalRead, totalWrite, "")
+		speedReport(w, "Total", "", "", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
 	}
 	return out.String()

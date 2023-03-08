@@ -2,6 +2,7 @@ package nspeed
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
@@ -42,7 +43,12 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 			Logger:     log.With().Int("job", idx).Logger(),
 		}
 		wcWorkers[idx] = &wm
-		log.Info().Msgf("job %d = %#v", idx, job)
+		msg := fmt.Sprintf("job %d (id=%s,gid=%s) = %#v", idx, job.ID(), job.GroupID(), job)
+		if opt.Test {
+			log.Warn().Msg(msg)
+		} else {
+			log.Info().Msg(msg)
+		}
 		//fmt.Printf("  %d-%#v\n", idx, job)
 	}
 
@@ -81,16 +87,20 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 		if !wm.Job.IsInfinite() {
 			continue
 		}
-		log.Debug().Msgf("spawning infinite workload %d %s %t", wm.Index, wm.Target, wm.Done)
-		wgi.Add(1)
-		go func(w *Metrics, wg *sync.WaitGroup) {
-			err := w.Job.Run(ctx, wg)
-			if err != nil {
-				log.Error().Msgf("error '%s' for '%s'", err, w.Target)
-				cancel()
-				return
-			}
-		}(wm, &wgi)
+		if !opt.Test {
+			log.Debug().Msgf("spawning infinite workload %d %s %t", wm.Index, wm.Target, wm.Done)
+			wgi.Add(1)
+			go func(w *Metrics, wg *sync.WaitGroup) {
+				err := w.Job.Run(ctx, wg)
+				if err != nil {
+					log.Error().Msgf("error '%s' for '%s'", err, w.Target)
+					cancel()
+					return
+				}
+			}(wm, &wgi)
+		} else {
+			log.Debug().Msgf("test mode: skipping workload %d %s %t", wm.Index, wm.Target, wm.Done)
+		}
 	}
 	// wait for all infite jobs to signal they're ready
 	log.Info().Msg("waiting on infinite jobs to be ready")
@@ -106,8 +116,11 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 		log.Debug().Msgf("creating worker %d %s %t", wm.Index, wm.Target, wm.Done)
 		err := wm.Job.Init(wm)
 		if err != nil {
-			log.Error().Msgf("error %s for %s", err, wm.Target)
-			return nil, err
+			if opt.Test && errors.Is(err, errNotRunning) {
+				log.Warn().Msgf("(ok in test mode): error %s for %s", err, wm.Target)
+			} else {
+				log.Error().Msgf("error %s for %s", err, wm.Target)
+			}
 		}
 	}
 
@@ -118,16 +131,20 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 			continue
 		}
 		IsInfinite = false //we got at least one finite job
-		log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
-		wgsl.Add(1)
-		go func(w *Metrics, wg *sync.WaitGroup) {
-			err := w.Job.Run(ctx, wg)
-			if err != nil {
-				log.Error().Msgf("error '%s' for '%s'", err, w.Target)
-				cancel()
-				return
-			}
-		}(wm, &wgsl)
+		if !opt.Test {
+			log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
+			wgsl.Add(1)
+			go func(w *Metrics, wg *sync.WaitGroup) {
+				err := w.Job.Run(ctx, wg)
+				if err != nil {
+					log.Error().Msgf("error '%s' for '%s'", err, w.Target)
+					cancel()
+					return
+				}
+			}(wm, &wgsl)
+		} else {
+			log.Debug().Msgf("test mode: skipping workload %d %s %t", wm.Index, wm.Target, wm.Done)
+		}
 	}
 
 	// this waits for all (non infinite) jobs to end then sends a signal (purpose is to 'select' a waitgroup)
@@ -144,6 +161,11 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 		progressTicker := time.NewTicker(time.Duration(opt.ProgressInterval) * time.Second)
 		//fmt.Printf("setting progress ticker of %d seconds\n", opt.ProgressInterval)
 		progressTickerChannel = progressTicker.C
+	}
+
+	if opt.Test {
+		fmt.Println("test mode - nothing done")
+		return nil, nil
 	}
 
 	if IsInfinite {

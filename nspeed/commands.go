@@ -80,6 +80,7 @@ type httpFlags struct {
 	UseHTTP2    bool
 	UseHTTP3    bool
 	H2C         bool
+	ID          string
 }
 
 // flags that need a name because they're used multiple time (with isFlagPassed notabily)
@@ -106,6 +107,7 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	fs.BoolVar(&hf.H2C, "h2c", false, "force using HTTP/2 Cleartext (H2C) mode (implies -http2)")
 	fs.BoolVar(&hf.UseHTTP3, "http3", false, "use HTTP3")
 	fs.StringVar(&hf.Url, urlFlag, "", "target url for the command")
+	fs.StringVar(&hf.ID, "id", "", "name/id of this command")
 	return fs, &hf
 }
 
@@ -166,6 +168,7 @@ func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *JobHTTPClien
 		job.H2C = true
 		job.HTTPVersion = 2
 	}
+	job.SetID(hf.ID)
 	return nil
 }
 
@@ -197,7 +200,7 @@ func IsCommand(cmd string) (Command, error) {
 func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	switch command {
 	case getCommand:
-		j := JobHTTPClient{JobList: jl}
+		j := JobHTTPClient{jobList: jl}
 		j.Command = "GET"
 		fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j)
 		fs.SetOutput(output)
@@ -230,11 +233,17 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			j.Target = args[0]
 			args = args[1:]
 		}
-		err := jl.AddJob(&j)
-		return args, err
+
+		jobs := make([]Job, j.Repeat)
+		// clone j j.Repeat times
+		for i := 0; i < j.Repeat; i++ {
+			jc := j
+			jobs[i] = &jc
+		}
+		return args, jl.AddJobs(jobs...)
 
 	case putCommand, postCommand:
-		j := JobHTTPClient{JobList: jl}
+		j := JobHTTPClient{jobList: jl}
 		j.Command = "PUT"
 		if command == postCommand {
 			j.Command = "POST"
@@ -306,8 +315,13 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		// 	u.Path = path.Join(u.Path, FormatByteDecimalUnits(j.ContentSize))
 		// 	j.Target = u.String()
 		// }
-		err = jl.AddJob(&j)
-		return args, err
+		jobs := make([]Job, j.Repeat)
+		// clone j j.Repeat times
+		for i := 0; i < j.Repeat; i++ {
+			jc := j
+			jobs[i] = &jc
+		}
+		return args, jl.AddJobs(jobs...)
 
 	case serveCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -326,7 +340,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		useIPv6 := fs.Bool("6", false, "use IPv6 only")
 		fs.IntVar(&host.Port, "p", 0, "Port number to listen on")
 		maxsize := fs.String("s", utils.FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
-		maxtime := fs.Uint("t", uint(DefaultMaxDuration.Seconds()), "Maximum duration a response may take")
+		maxtime := fs.Uint("t", uint(DefaultMaxDuration.Seconds()), "Maximum duration in seconds a response may take")
 		fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
 		fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = infinite)")
 		fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
@@ -338,7 +352,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key ")
 		fs.BoolVar(&host.HTTP3, "http3", false, "also listen using HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
 		fs.BoolVar(&host.API, "api", false, "enable API endpoint (/api url)")
-		fs.StringVar(&host.ID, "id", "", "ID or name of this server")
+		id := fs.String("id", "", "unique ID/name of this server")
 		if err := fs.Parse(cmdargs); err != nil {
 			return cmdargs, err
 		}
@@ -392,7 +406,8 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 
 		args := fs.Args()
 		j := JobHTTPServer{Parameters: host, JobList: jl}
-		err = jl.AddJob(&j)
+		j.SetID(*id)
+		err = jl.AddJobs(&j)
 		return args, err
 
 	case ciphersCommand:
@@ -420,7 +435,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		}
 		j.Target = args[0]
 		args = args[1:]
-		err := jl.AddJob(&j)
+		err := jl.AddJobs(&j)
 		return args, err
 	case apiCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
@@ -473,7 +488,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		}
 
 		args := fs.Args()
-		err := jl.AddJob(&j)
+		err := jl.AddJobs(&j)
 		return args, err
 
 	case benchmarkCommand:

@@ -53,12 +53,12 @@ type roundTripTrace struct {
 // a HTTP command, get or post
 // implements Job interface
 type JobHTTPClient struct {
+	JobData
 	Command          string
 	Repeat           int
 	IPversion        int
 	Host             string
 	Target           string
-	Group            int
 	Timeout          time.Duration
 	DialTimeout      time.Duration
 	UserAgent        string
@@ -70,6 +70,7 @@ type JobHTTPClient struct {
 	Logger           *zerolog.Logger
 	HTTPVersion      int
 	H2C              bool
+	jobList          *JobList
 	// private
 	client      *http.Client
 	req         *http.Request
@@ -77,19 +78,17 @@ type JobHTTPClient struct {
 	numRedirect int
 	finalTarget string
 	wm          *Metrics
-	JobList     *JobList
 }
 
 func (j *JobHTTPClient) GoString() string {
 	if zerolog.GlobalLevel() > zerolog.InfoLevel {
 		return fmt.Sprintf("HTTP %s %s", j.Command, j.Target)
 	}
-	s := fmt.Sprintf("HTTP client {Method: %s, URL: %q, IPversion: %d, Address: %s, Group: %d, timeout: %s, delay: %s, h2c: %t, http:%s}",
+	s := fmt.Sprintf("HTTP client {Method: %s, URL: %q, IPversion: %d, Address: %s, timeout: %s, delay: %s, h2c: %t, http:%s}",
 		j.Command,
 		j.Target,
 		j.IPversion,
 		j.Host,
-		j.Group,
 		j.Timeout.String(),
 		j.Delay.String(),
 		j.H2C,
@@ -151,18 +150,7 @@ func (j *JobHTTPClient) PrintString(verbose bool) string {
 	}
 }
 
-func (j *JobHTTPClient) Expand(jobs []Job, group int) []Job {
-	for i := 0; i < j.Repeat; i++ {
-		clone := *j // use deep copy if struct change ?
-		clone.Group = group
-		jobs = append(jobs, &clone)
-	}
-	return jobs
-}
-
 func (j *JobHTTPClient) IsInfinite() bool { return false }
-
-func (j *JobHTTPClient) ID() string { return "" }
 
 func (j *JobHTTPClient) GetMetric() (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")
@@ -179,7 +167,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		j.Target = "https://" + j.Target
 	}
 	var err error
-	j.finalTarget, err = ResolveSchemes(j.JobList.IDMap, j.Target)
+	j.finalTarget, err = ResolveSchemes(j.jobList.IDMap, j.Target)
 	if err != nil {
 		return err
 	}
@@ -641,6 +629,8 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
+var errNotRunning = errors.New("named job not running")
+
 // handle special schemes
 func ResolveSchemes(idmap map[string]Job, target string) (string, error) {
 	url, err := url.Parse(target)
@@ -657,7 +647,7 @@ func ResolveSchemes(idmap map[string]Job, target string) (string, error) {
 			return "", fmt.Errorf("named job '%s' is not a server", url.Host)
 		}
 		if s.URL == nil {
-			return "", fmt.Errorf("named job '%s' not running", url.Host)
+			return "", NewNSError(errNotRunning, url.Host)
 		}
 		url.Scheme = s.URL.Scheme
 		url.Host = s.URL.Host

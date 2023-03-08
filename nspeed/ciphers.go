@@ -158,6 +158,7 @@ func supportedTLS12Ciphers(hostname, port string, timeout time.Duration) ([]uint
 
 // implement Job
 type JobCiphers struct {
+	JobData
 	Target  string
 	Delay   uint
 	host    string
@@ -223,14 +224,6 @@ func (j *JobCiphers) GetTarget() string {
 
 func (j *JobCiphers) GetMetric() (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")
-}
-
-func (j *JobCiphers) Expand(jobs []Job, group int) []Job {
-	return append(jobs, j)
-}
-
-func (j *JobCiphers) ID() string {
-	return ""
 }
 
 func (j *JobCiphers) GoString() string {

@@ -59,7 +59,6 @@ type HostParameters struct {
 	Directory        string // directory to serve content from /dir url
 	API              bool
 	APIOnly          bool
-	ID               string
 }
 
 // initialize a new HostParameters
@@ -74,6 +73,7 @@ func NewHostParameters() *HostParameters {
 // the HTTP Server
 // implements Job interface
 type JobHTTPServer struct {
+	JobData
 	Parameters       *HostParameters
 	Server           *http.Server
 	Mux              *http.ServeMux
@@ -98,10 +98,6 @@ func (j *JobHTTPServer) GetTarget() string {
 	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
 }
 
-func (j *JobHTTPServer) Expand(jobs []Job, group int) []Job {
-	return append(jobs, j)
-}
-
 func (j *JobHTTPServer) GoString() string {
 	if zerolog.GlobalLevel() > zerolog.InfoLevel {
 		return fmt.Sprintf("HTTP server %s:%d", j.Parameters.Host, j.Parameters.Port)
@@ -120,15 +116,11 @@ func (j *JobHTTPServer) GoString() string {
 }
 
 func (j *JobHTTPServer) PrintString(verbose bool) string {
-	return "SERVER"
+	return "HTTP SERVER " + j.ID()
 }
 
 func (j *JobHTTPServer) GetMetric() (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")
-}
-
-func (j *JobHTTPServer) ID() string {
-	return j.Parameters.ID
 }
 
 func (j *JobHTTPServer) IsInfinite() bool {
@@ -536,10 +528,10 @@ func (s *JobHTTPServer) Listen() error {
 	s.listener = &ln
 	if s.Parameters.ServeTLS {
 		s.URL = &url.URL{Scheme: "https", Host: ln.Addr().String()}
-		s.Logger.Warn().Msgf("server %s listening on %s (H2C = %t)", s.Parameters.ID, s.URL.String(), s.Parameters.H2C)
+		s.Logger.Warn().Msgf("server %s listening on %s (H2C = %t)", s.ID(), s.URL.String(), s.Parameters.H2C)
 	} else {
 		s.URL = &url.URL{Scheme: "http", Host: ln.Addr().String()}
-		s.Logger.Warn().Msgf("server %s listening on %s", s.Parameters.ID, s.URL.String())
+		s.Logger.Warn().Msgf("server %s listening on %s", s.ID(), s.URL.String())
 	}
 
 	return nil

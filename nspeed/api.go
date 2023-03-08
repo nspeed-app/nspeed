@@ -27,6 +27,7 @@ const StatsPath = "/rt"
 var APIDocumentation []byte
 
 type APIHost struct {
+	JobData
 	Parameters        *HostParameters
 	Server            *JobHTTPServer // underlying HTTP server
 	WebStats          bool
@@ -38,10 +39,6 @@ type APIHost struct {
 
 func (j *APIHost) GetTarget() string {
 	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
-}
-
-func (j *APIHost) Expand(jobs []Job, group int) []Job {
-	return append(jobs, j)
 }
 
 func (j *APIHost) GoString() string {
@@ -62,10 +59,6 @@ func (j *APIHost) PrintString(verbose bool) string {
 
 func (j *APIHost) IsInfinite() bool {
 	return true
-}
-
-func (j *APIHost) ID() string {
-	return j.Parameters.ID
 }
 
 func (j *APIHost) GetMetric() (NetMetric, error) {
