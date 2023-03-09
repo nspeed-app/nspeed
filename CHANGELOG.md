@@ -4,11 +4,14 @@
 - using goreleaser
 - using GOAMD64 levels: (see https://github.com/golang/go/wiki/MinimumRequirements#amd64 ). for now only level1 (_v1) is built.
 - less info displayed with `-version`. Use `-version full` for more infos.
-- new `-html filename` flag: record the results to an interactive html file (this flag triggers `-pre t*2` and `-post t*2` flags `t` is the  `-tick` progress interval (default is 1 second))
 - breaking changes in main loop: 'infinite' commands (commands that never stop like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://nspeed.app/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the programm will not stop until killed.
 - cleaned out defaut text output
+- *breaking change*: the `-tick duration` flag is now a duration instead of an integer of seconds (default remain 1 secondes). it doesn't control the sampling rate of `-cpu` anymore. The `-tick` rate is used for displaying verbose/debug/trace informations or for the progress in the realtime webview.
+- new flag: `-rate duration`: used to set the frequency for sampling cpu (if `-cpu`) & generating the time series data for json/html output Default is 1s.
+- new `-html filename` flag: record the results to an interactive html file (implies `-pre 1s` and `-post 1s` flags unless set explicity to something else).
+- new `-json filename` flag: record the results to a json file. See `-rate` for the frequencies.
 ## bench
-- new `bench` command (abbrev `b`) : allow to launch loopback test (get/put on localhost server). see `nspeed bench -h` for details.
+- new `bench` command (abbrev `b`) : allow to launch loopback tests (get/put on a localhost server). see `nspeed bench -h` for details.
 ## server
  - added `-http1.1` and `-http2` flags to enforce the HTTP version used
  - *breanking change*: the default port is now a random , available port instead of 7333. Use `-p` to specific a port.
@@ -16,9 +19,11 @@
 ## Client
 - *breaking changes*: `-http11` flag renamed to `-http1.1`
 - *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
-- in conjonction with the new server `-id` flag, a special url scheme `nspeed:name` is now supported to referece the endpoint address of the corresponding server.
+- in conjonction with the new server `-id` flag, a special new url scheme `nspeed:name` is now supported to reference the url address of the corresponding server (draft)
 - added flag: `-connect-timeout` maximum duration for the initial connection (=timeout before dial abort)
 - added `-http2` flag to force using HTTP/2
+- added `-id string` flag: allows to spec a uniq id/name for this command 
+- repeated commands (`-n` flag) have now a subtotal in the report.
 ## ciphers
 - fixed TLS version text messages
 # v0.10

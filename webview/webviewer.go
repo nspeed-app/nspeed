@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/arl/statsviz"
+	"github.com/go-echarts/go-echarts/templates"
 	"github.com/go-echarts/go-echarts/v2/components"
-	"github.com/go-echarts/go-echarts/v2/templates"
 	"nspeed.app/utils"
 
 	"github.com/go-echarts/statsview/statics"

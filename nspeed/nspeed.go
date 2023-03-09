@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 type Options struct {
-	ProgressInterval int
+	ProgressInterval time.Duration
+	Tick             time.Duration
 	Timeout          time.Duration
 	Test             bool
 	TLSSelf          bool
@@ -21,7 +21,7 @@ type Options struct {
 
 var GlobalOptions Options
 
-// run all the jobs, this is a synchronous function
+// RunJobs runs all the jobs, this is a synchronous function
 func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Metrics)) ([]*Metrics, error) {
 
 	jobs := jl.Jobs
@@ -41,6 +41,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 			},
 			ResultChan: results,
 			Logger:     log.With().Int("job", idx).Logger(),
+			Tick:       opt.Tick,
 		}
 		wcWorkers[idx] = &wm
 		msg := fmt.Sprintf("job %d (id=%s,gid=%s) = %#v", idx, job.ID(), job.GroupID(), job)
@@ -52,7 +53,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 		//fmt.Printf("  %d-%#v\n", idx, job)
 	}
 
-	// Cancel will allows to shutdown everything by calling cancel()
+	// cancel will allows to shutdown everything by calling cancel()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -155,12 +156,20 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 		log.Debug().Msg("wait group SL ended")
 	}()
 
+	// Ticker for progress
 	progressTickerChannel := make(<-chan time.Time) // forever
-	//fmt.Printf("zerolog.GlobalLevel = %d\n", zerolog.GlobalLevel())
-	if zerolog.GlobalLevel() <= zerolog.InfoLevel {
-		progressTicker := time.NewTicker(time.Duration(opt.ProgressInterval) * time.Second)
-		//fmt.Printf("setting progress ticker of %d seconds\n", opt.ProgressInterval)
+	if progress != nil {
+		progressTicker := time.NewTicker(opt.ProgressInterval)
+		log.Debug().Msgf("setting progress ticker to %s\n", opt.ProgressInterval)
 		progressTickerChannel = progressTicker.C
+	}
+
+	// Ticker for time series
+	tickTickerChannel := make(<-chan time.Time) // forever
+	if opt.Tick > 0 {
+		tickTicker := time.NewTicker(opt.Tick)
+		log.Debug().Msgf("setting series ticker to %s\n", opt.Tick)
+		tickTickerChannel = tickTicker.C
 	}
 
 	if opt.Test {
@@ -176,13 +185,21 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 	rc := njobs
 mainloop:
 	for {
-		log.Debug().Msgf("mainloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
+		log.Trace().Msgf("mainloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
 		select {
 		case <-ctx.Done():
 			log.Debug().Msgf("parent cancelled us")
 			break mainloop
+		case <-tickTickerChannel:
+			// we call Update on each wcWorkers
+			for _, wc := range wcWorkers {
+				wc.UpdateData()
+			}
 		case <-progressTickerChannel:
-			progress(wcWorkers)
+			fmt.Println("CALLING PROGRESS")
+			if progress != nil { // shouldn't happen but just in case
+				progress(wcWorkers)
+			}
 		case wm := <-results:
 			rc--
 			if wm.Done {

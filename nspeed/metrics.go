@@ -109,7 +109,7 @@ type MetricsData struct {
 }
 
 // Metrics main metrics struct
-// implements to the io.Writer interface
+// implements the io.Writer and io.Reader interfaces
 // this needs heavy refactoring
 // & check openmetrics suff
 type Metrics struct {
@@ -120,15 +120,27 @@ type Metrics struct {
 	Valid      bool
 	Protocol   string
 	Error      error
-	LatestData MetricsData
+	// history
+	Tick  time.Duration
+	Serie []MetricsData
 }
 
-// GetMetricData updated the lastest data
-func (wm *Metrics) UpdateData() {
+// UpdateData adds the lastest data to the history and also returns it
+func (wm *Metrics) UpdateData() MetricsData {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
-
-	wm.LatestData = wm.MetricsData
+	// still running, get metrics , store and return them
+	if !wm.Valid && !wm.Done && !wm.Cancelled && !wm.Expired {
+		d := wm.MetricsData
+		// make this 'copy' the MetricsData
+		wm.Serie = append(wm.Serie, d)
+		return d
+	}
+	if len(wm.Serie) > 0 {
+		return wm.Serie[len(wm.Serie)-1]
+	}
+	// no history , return 0
+	return MetricsData{}
 }
 
 // serialized metrics
@@ -203,8 +215,7 @@ func (wm *Metrics) LogProgress(logger *zerolog.Logger) {
 	if logger == nil {
 		return
 	}
-	wm.UpdateData()
-	m := &wm.LatestData
+	m := wm.MetricsData //critical section
 	logger.Info().
 		Float64("Elapsed", m.ElapsedTime.Seconds()).
 		Int64("TotalRead", m.TotalRead).
@@ -396,6 +407,18 @@ type reportGroup struct {
 	ElapsedTime time.Duration
 	TotalRead   int64
 	TotalWrite  int64
+}
+
+// generate a tabular formatted text report
+func GenerateJSONReport(wcWorkers []*Metrics) string {
+	return "NO YET IMPLEMENTED\n"
+}
+
+func SeriesReport(wcWorkers []*Metrics) (report string) {
+	for _, wm := range wcWorkers {
+		report = report + fmt.Sprintf("%d - %s - has %d data to report\n", wm.Index, wm.Job.ID(), len(wm.Serie))
+	}
+	return
 }
 
 // generate a tabular formatted text report

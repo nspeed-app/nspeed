@@ -29,7 +29,7 @@ var APIDocumentation []byte
 type APIHost struct {
 	JobData
 	Parameters        *HostParameters
-	Server            *JobHTTPServer // underlying HTTP server
+	Server            *JobHTTPServer // underlying endpoint
 	WebStats          bool
 	WebStatsOnly      bool
 	WebStatsDebug     bool
@@ -86,7 +86,7 @@ func (s *APIHost) Init(wm *Metrics) error {
 		s.Server.Mux.Handle("/api/", http.HandlerFunc(s.apiHelpHandler))
 	}
 	if s.WebStats {
-		mgr, err := webview.NewViewManager(time.Duration(GlobalOptions.ProgressInterval)*time.Second, StatsPath, s.WebStatsInterface, s.WebStatsDebug)
+		mgr, err := webview.NewViewManager(GlobalOptions.ProgressInterval, StatsPath, s.WebStatsInterface, s.WebStatsDebug)
 		if err != nil {
 			return err
 		}
@@ -255,14 +255,17 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			Strs("args", args).
 			Send()
 
-		f, okToFlush := w.(http.Flusher)
-		wcWorkers, err := RunJobs(jl, GlobalOptions, r.Context(), func(wms []*Metrics) {
+		//f, okToFlush := w.(http.Flusher)
+
+		progress := func(wms []*Metrics) {
 			h.Server.Logger.Debug().Msgf("api: progress called")
-			fmt.Fprintf(w, "api @%s - progress %s: %d\n", r.Host, time.Now().String(), len(wms))
-			if okToFlush {
-				f.Flush()
-			}
-		})
+			h.Server.Logger.Debug().Msgf("api @%s - progress %s: %d\n", r.Host, time.Now().String(), len(wms))
+			//todo: at trace level, display details
+		}
+		if h.Server.Logger.GetLevel() > zerolog.DebugLevel {
+			progress = nil
+		}
+		wcWorkers, err := RunJobs(jl, GlobalOptions, r.Context(), progress)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error running command: %s", err), http.StatusInternalServerError)
 			return

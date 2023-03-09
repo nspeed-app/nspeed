@@ -111,15 +111,15 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	return fs, &hf
 }
 
-// check is a flag was passed
-func isFlagPassed(fs *flag.FlagSet, name string) bool {
-	found := false
+// IsFlagPassed check is a flag was passed
+func IsFlagPassed(fs *flag.FlagSet, name string) bool {
+	passed := false
 	fs.Visit(func(f *flag.Flag) {
 		if f.Name == name {
-			found = true
+			passed = true
 		}
 	})
-	return found
+	return passed
 }
 
 // parse GET/PUT/POST flags
@@ -220,7 +220,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		// "get target" or "get -url target"
 		args := fs.Args()
 
-		if isFlagPassed(fs, urlFlag) {
+		if IsFlagPassed(fs, urlFlag) {
 			j.Target = hf.Url
 			if j.Target == "" {
 				return args, errors.New("empty url argument")
@@ -271,7 +271,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		// since -u and -s are optionnal , we must check if they are here and if not advance args
 		args := fs.Args()
 
-		if isFlagPassed(fs, urlFlag) {
+		if IsFlagPassed(fs, urlFlag) {
 			j.Target = hf.Url
 			if j.Target == "" {
 				return args, errors.New("empty url argument")
@@ -285,7 +285,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			args = args[1:]
 		}
 
-		if isFlagPassed(fs, sizeFlag) {
+		if IsFlagPassed(fs, sizeFlag) {
 			if size == "" {
 				return args, errors.New("empty size argument")
 			}

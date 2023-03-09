@@ -29,8 +29,9 @@ var optVerbose = flag.Bool("verbose", false, "show progress & details")
 var optDebug = flag.Bool("debug", false, "show even more progress & details")
 var optTrace = flag.Bool("trace", false, "maximum debug and tracing informations")
 
-var optTick = flag.Int("tick", 1, "sampling/progress interval in seconds (used for -debug, -cpu and webstats and filestats)")
-var optCPU = flag.Bool("cpu", false, "display cpu usage")
+var optProgressRate = flag.Duration("tick", 1*time.Second, "display progress rate in duration (used for -debug, -trace and webstats")
+var optSamplingRate = flag.Duration("rate", 1*time.Second, "data sampling rate in duration (used for -cpu and time series generation)")
+var optCPU = flag.Bool("cpu", false, "display cpu usage (use -rate for sampling rate")
 
 var optColor = flag.Bool("color", false, "use colors in text output")
 
@@ -44,6 +45,7 @@ var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 
 // var optHTMLReport = flag.String("html", "", "output stats in a html file (use - for stdout)")
+var optJSONReport = flag.String("json", "", "output stats in a json file (use - for stdout)")
 var optTextReport = flag.String("text", "-", "output stats as text (use - for stdout)")
 
 var optPreDelay = flag.Duration("pre", 0, "duration to wait before starting commands")
@@ -173,20 +175,21 @@ func Main() {
 		return
 	}
 
-	// html report: by default, add delays before & after
+	//html report: by default, add delays before & after
 	// if *optHTMLReport != "" {
-	// 	// add 2 seconds before  and 2 seconds after unless pre/post flags are set
+	// 	// add 1 seconds before  and 1 seconds after unless pre/post flags are set
 	// 	if *optPreDelay == 0 {
-	// 		*optPreDelay = 2 * time.Second
+	// 		*optPreDelay = 1 * time.Second
 	// 	}
 	// 	if *optPostDelay == 0 {
-	// 		*optPostDelay = 2 * time.Second
+	// 		*optPostDelay = 1 * time.Second
 	// 	}
 	// }
 
 	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
 	nspeed.GlobalOptions = nspeed.Options{
-		ProgressInterval: *optTick,
+		ProgressInterval: *optProgressRate,
+		Tick:             *optSamplingRate,
 		Timeout:          time.Duration(*optTimeout) * time.Second,
 		Test:             *optTest,
 		TLSSelf:          false,
@@ -211,7 +214,7 @@ func Main() {
 
 	progressCPUChannel := make(<-chan time.Time) // forever
 	if *optCPU {
-		progressCPUTicker := time.NewTicker(time.Duration(*optTick) * time.Second) // todo: pass value
+		progressCPUTicker := time.NewTicker(*optSamplingRate) // todo: pass value
 		progressCPUChannel = progressCPUTicker.C
 	}
 
@@ -225,24 +228,33 @@ func Main() {
 		log.Warn().Msgf("pre-delay ended")
 	}
 
-	rc := 0
 	waitChan := make(chan error)
 	var wcWorkers []*nspeed.Metrics = nil
+
+	rc := 0
 	// RunJobs async
+	progress := func(wms []*nspeed.Metrics) {
+		newrc := 0
+		for _, wm := range wms {
+			if !wm.Done {
+				newrc += 1
+				if consoleLevel == zerolog.DebugLevel {
+					wm.LogProgress(&wm.Logger)
+				}
+			}
+		}
+		log.Debug().Msgf("progress called (%d)", len(wms))
+		rc = newrc
+	}
+	// dont call progress if quiet
+	if consoleLevel > zerolog.InfoLevel && !*optCPU {
+		progress = nil
+	}
+
 	go func() {
 		// defer wg.Done()
 		var err error
-		wcWorkers, err = nspeed.RunJobs(jl, nspeed.GlobalOptions, ctx, func(wms []*nspeed.Metrics) {
-			wcWorkers = wms
-			if consoleLevel == zerolog.DebugLevel {
-				for _, wm := range wcWorkers {
-					if !wm.Done {
-						wm.LogProgress(&wm.Logger)
-					}
-				}
-			}
-			log.Debug().Msgf("progress called (%d)", rc)
-		})
+		wcWorkers, err = nspeed.RunJobs(jl, nspeed.GlobalOptions, ctx, progress)
 		if err != nil {
 			log.Warn().Msgf("error running jobs: %v", err)
 		}
@@ -298,7 +310,28 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
-		report := nspeed.GenerateTextReport(wcWorkers, consoleLevel <= zerolog.InfoLevel)
+		report := nspeed.GenerateTextReport(wcWorkers, *optVerbose)
+		_, err = f.WriteString(report)
+		if err == nil {
+			_, err = f.WriteString(nspeed.SeriesReport(wcWorkers))
+		}
+		if err != nil {
+			log.Error().Err(err).Msgf("error writing text report")
+		}
+		// add history after
+		err = f.Close()
+		if err != nil {
+			log.Error().Err(err).Msgf("error closing text report")
+		}
+	}
+
+	// json report:
+	if *optJSONReport != "" {
+		f, err := utils.FileCreate(*optJSONReport)
+		if err != nil {
+			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
+		}
+		report := nspeed.GenerateJSONReport(wcWorkers)
 		_, _ = f.WriteString(report)
 		f.Close()
 	}
