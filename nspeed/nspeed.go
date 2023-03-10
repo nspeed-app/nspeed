@@ -176,7 +176,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([
 	// Ticker for CPU series
 	tickCPUChannel := make(<-chan time.Time) // forever
 	if message != nil && opt.CPU > 0 {
-		t := time.NewTicker(*&opt.CPU) // todo: pass value
+		t := time.NewTicker(opt.CPU) // todo: pass value
 		log.Debug().Msgf("setting CPU ticker to %s", opt.CPU)
 		tickCPUChannel = t.C
 	}
