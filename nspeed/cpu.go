@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -26,14 +27,15 @@ const colorRed = "\033[31m"
 const colorGreen = "\033[32m"
 const colorYellow = "\033[33m"
 
-func FormatCPULoad(pcts []float64, colorize bool) string {
+func FormatCPULoad(pcts []float64, colorize bool) (string, string) {
 	red, green, yellow, reset := colorRed, colorGreen, colorYellow, colorReset
 	if !colorize {
 		red, green, yellow, reset = "", "", "", ""
 	}
 
 	cpuload := "|"
-	for _, pc := range pcts {
+	headers := "|"
+	for i, pc := range pcts {
 		v := math.Round(pc)
 		color := green
 		if v > 50 {
@@ -42,16 +44,28 @@ func FormatCPULoad(pcts []float64, colorize bool) string {
 		if v > 80 {
 			color = red
 		}
+		headers += fmt.Sprintf("%3s|", "c"+strconv.Itoa(i))
 		cpuload += fmt.Sprintf("%s%3v%s|", color, v, reset)
+
 	}
-	return cpuload
+	return cpuload, headers
+}
+
+func PrintCPULoad(pcts []float64, colorize bool) (string, string, int) {
+	s, h := FormatCPULoad(pcts, colorize)
+	return s, h, len(pcts)
 }
 
 // todo: get cpu values from a unique goroutine/Once
-func GetCPULoad(interval time.Duration, colorize bool) (string, error) {
-	pcts, err := cpu.Percent(interval, true)
+func GetCPULoad(interval time.Duration, percpu bool) ([]float64, error) {
+	pcts, err := cpu.Percent(interval, percpu)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return FormatCPULoad(pcts, colorize), nil
+	return pcts, nil
+}
+
+type CPUMetric struct {
+	Pcts       []float64
+	ActiveJobs int
 }

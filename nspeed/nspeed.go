@@ -12,8 +12,9 @@ import (
 )
 
 type Options struct {
-	ProgressInterval time.Duration
-	Tick             time.Duration
+	ProgressInterval time.Duration // logging/trace output rate
+	Tick             time.Duration // metrics/series sampling rate
+	CPU              time.Duration // cpu sampling rate
 	Timeout          time.Duration
 	Test             bool
 	TLSSelf          bool
@@ -22,7 +23,7 @@ type Options struct {
 var GlobalOptions Options
 
 // RunJobs runs all the jobs, this is a synchronous function
-func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Metrics)) ([]*Metrics, error) {
+func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([]*Metrics, error) {
 
 	jobs := jl.Jobs
 
@@ -44,11 +45,11 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 			Tick:       opt.Tick,
 		}
 		wcWorkers[idx] = &wm
-		msg := fmt.Sprintf("job %d (id=%s,gid=%s) = %#v", idx, job.ID(), job.GroupID(), job)
+		msg := fmt.Sprintf("id=%s,gid=%s,%#v", job.ID(), job.GroupID(), job)
 		if opt.Test {
-			log.Warn().Msg(msg)
+			wm.Logger.Warn().Msg(msg)
 		} else {
-			log.Info().Msg(msg)
+			wm.Logger.Info().Msg(msg)
 		}
 		//fmt.Printf("  %d-%#v\n", idx, job)
 	}
@@ -72,7 +73,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 		if !wm.Job.IsInfinite() {
 			continue
 		}
-		log.Debug().Msgf("creating worker %d %s %t", wm.Index, wm.Target, wm.Done)
+		wm.Logger.Debug().Msgf("creating worker %s %t", wm.Target, wm.Done)
 		err := wm.Job.Init(wm)
 		if err != nil {
 			log.Error().Msgf("error %s for %s", err, wm.Target)
@@ -89,7 +90,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 			continue
 		}
 		if !opt.Test {
-			log.Debug().Msgf("spawning infinite workload %d %s %t", wm.Index, wm.Target, wm.Done)
+			wm.Logger.Debug().Msgf("spawning infinite workload %s %t", wm.Target, wm.Done)
 			wgi.Add(1)
 			go func(w *Metrics, wg *sync.WaitGroup) {
 				err := w.Job.Run(ctx, wg)
@@ -100,7 +101,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 				}
 			}(wm, &wgi)
 		} else {
-			log.Debug().Msgf("test mode: skipping workload %d %s %t", wm.Index, wm.Target, wm.Done)
+			wm.Logger.Debug().Msgf("test mode: skipping workload %s %t", wm.Target, wm.Done)
 		}
 	}
 	// wait for all infite jobs to signal they're ready
@@ -114,13 +115,13 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 		if wm.Job.IsInfinite() {
 			continue
 		}
-		log.Debug().Msgf("creating worker %d %s %t", wm.Index, wm.Target, wm.Done)
+		wm.Logger.Debug().Msgf("creating worker %d %s %t", wm.Index, wm.Target, wm.Done)
 		err := wm.Job.Init(wm)
 		if err != nil {
 			if opt.Test && errors.Is(err, errNotRunning) {
-				log.Warn().Msgf("(ok in test mode): error %s for %s", err, wm.Target)
+				wm.Logger.Warn().Msgf("(ok in test mode): error %s for %s", err, wm.Target)
 			} else {
-				log.Error().Msgf("error %s for %s", err, wm.Target)
+				wm.Logger.Error().Msgf("error %s for %s", err, wm.Target)
 			}
 		}
 	}
@@ -133,18 +134,18 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 		}
 		IsInfinite = false //we got at least one finite job
 		if !opt.Test {
-			log.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
+			wm.Logger.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
 			wgsl.Add(1)
 			go func(w *Metrics, wg *sync.WaitGroup) {
 				err := w.Job.Run(ctx, wg)
 				if err != nil {
-					log.Error().Msgf("error '%s' for '%s'", err, w.Target)
+					w.Logger.Error().Msgf("error '%s' for '%s'", err, w.Target)
 					cancel()
 					return
 				}
 			}(wm, &wgsl)
 		} else {
-			log.Debug().Msgf("test mode: skipping workload %d %s %t", wm.Index, wm.Target, wm.Done)
+			wm.Logger.Debug().Msgf("test mode: skipping workload %d %s %t", wm.Index, wm.Target, wm.Done)
 		}
 	}
 
@@ -158,18 +159,26 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, progress func([]*Met
 
 	// Ticker for progress
 	progressTickerChannel := make(<-chan time.Time) // forever
-	if progress != nil {
-		progressTicker := time.NewTicker(opt.ProgressInterval)
-		log.Debug().Msgf("setting progress ticker to %s\n", opt.ProgressInterval)
-		progressTickerChannel = progressTicker.C
+	if message != nil && opt.ProgressInterval > 0 {
+		t := time.NewTicker(opt.ProgressInterval)
+		log.Debug().Msgf("setting progress ticker to %s", opt.ProgressInterval)
+		progressTickerChannel = t.C
 	}
 
 	// Ticker for time series
 	tickTickerChannel := make(<-chan time.Time) // forever
-	if opt.Tick > 0 {
-		tickTicker := time.NewTicker(opt.Tick)
-		log.Debug().Msgf("setting series ticker to %s\n", opt.Tick)
-		tickTickerChannel = tickTicker.C
+	if message != nil && opt.Tick > 0 {
+		t := time.NewTicker(opt.Tick)
+		log.Debug().Msgf("setting series ticker to %s", opt.Tick)
+		tickTickerChannel = t.C
+	}
+
+	// Ticker for CPU series
+	tickCPUChannel := make(<-chan time.Time) // forever
+	if message != nil && opt.CPU > 0 {
+		t := time.NewTicker(*&opt.CPU) // todo: pass value
+		log.Debug().Msgf("setting CPU ticker to %s", opt.CPU)
+		tickCPUChannel = t.C
 	}
 
 	if opt.Test {
@@ -195,15 +204,18 @@ mainloop:
 			for _, wc := range wcWorkers {
 				wc.UpdateData()
 			}
-		case <-progressTickerChannel:
-			fmt.Println("CALLING PROGRESS")
-			if progress != nil { // shouldn't happen but just in case
-				progress(wcWorkers)
+		case <-tickCPUChannel:
+			pcts, err := GetCPULoad(0, true)
+			if err != nil {
+				log.Log().Err(err).Msgf("failed to get cpu load")
 			}
+			message <- CPUMetric{pcts, rc}
+		case <-progressTickerChannel:
+			message <- wcWorkers
 		case wm := <-results:
 			rc--
 			if wm.Done {
-				log.Debug().Msgf("job %d ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.Index, wm.Expired, runtime.NumGoroutine(), rc)
+				wm.Logger.Info().Msgf("job ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.Expired, runtime.NumGoroutine(), rc)
 			}
 		case <-cWaitgroupSLEnded:
 			log.Debug().Msgf("all sl workers ended (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)

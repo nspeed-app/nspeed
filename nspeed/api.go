@@ -257,15 +257,12 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		//f, okToFlush := w.(http.Flusher)
 
-		progress := func(wms []*Metrics) {
-			h.Server.Logger.Debug().Msgf("api: progress called")
-			h.Server.Logger.Debug().Msgf("api @%s - progress %s: %d\n", r.Host, time.Now().String(), len(wms))
-			//todo: at trace level, display details
-		}
-		if h.Server.Logger.GetLevel() > zerolog.DebugLevel {
-			progress = nil
-		}
-		wcWorkers, err := RunJobs(jl, GlobalOptions, r.Context(), progress)
+		//progress := func(wms []*Metrics) {
+		// 	h.Server.Logger.Debug().Msgf("api: progress called")
+		// 	h.Server.Logger.Debug().Msgf("api @%s - progress %s: %d\n", r.Host, time.Now().String(), len(wms))
+		// 	//todo: at trace level, display details
+		// }
+		wcWorkers, err := RunJobs(jl, GlobalOptions, r.Context(), nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error running command: %s", err), http.StatusInternalServerError)
 			return

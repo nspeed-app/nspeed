@@ -201,34 +201,23 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		Timeout:       j.DialTimeout, //
 		FallbackDelay: -1,            // don't use Happy Eyeballs
 		LocalAddr:     LocalAddr,     // "-a" for client
-		// TODO: remove later
 		Control: func(network string, address string, c syscall.RawConn) error {
 			j.Logger.Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
-			// old code, moved to transport.DialContext
-			// if len(network) == 0 {
-			// 	return nil
-			// }
-			// v := network[len(network)-1]
-			// if j.IPversion == 4 && v == '6' {
-			// 	return errors.New("bad IP version: want IPv4 got " + network)
-			// }
-			// if j.IPversion == 6 && v == '4' {
-			// 	return errors.New("bad IP version: want IPv6 got " + network)
-			// }
 			return nil
 		},
 	}
 
 	// we clone to avoid ConfigureTransports to crash
-	//var netTransport = http.DefaultTransport.(*http.Transport).Clone()
+	// var netTransport = http.DefaultTransport.(*http.Transport).Clone()
 	var netTransport = &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		ForceAttemptHTTP2:     j.HTTPVersion != 1, // what about -http3?
 		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   5 * time.Second,
+		IdleConnTimeout:       10 * time.Second, // add parameter for this ?
+		TLSHandshakeTimeout:   5 * time.Second,  // this seems long ?
 		ExpectContinueTimeout: 1 * time.Second,
 		DisableCompression:    true,
+		//  transforms network "tcp" / "udp" to "tcp4"/"udp4" or "tcp6"/"udp6" if IPVerson is set.
 		DialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
 			j.Logger.Info().Msgf("DialContext %s %s %d ", network, address, j.IPversion)
 			if network == "udp" || network == "tcp" {
@@ -245,6 +234,8 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	if j.UseTLSSelfConfig {
 		netTransport.TLSClientConfig = TLSSelfConfig.Clone()
 		j.Logger.Info().Msgf("using TLSSelfConfig")
+		// for tls 1.3 we can't change cipher suites with current Go implementation: https://go.dev/blog/tls-cipher-suites
+		// so something like this won't work:
 		// netTransport.TLSClientConfig.CipherSuites = []uint16{tls.TLS_CHACHA20_POLY1305_SHA256}
 		// netTransport.TLSClientConfig.MinVersion = tls.VersionTLS13
 	}
@@ -260,7 +251,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	// interface to the transport so we can switch if needed
 	var rtTransport http.RoundTripper = netTransport
 
-	if j.HTTPVersion != 1 {
+	if j.HTTPVersion != 1 { // 1 means 1.11 too
 		// get a http2 transport
 		t2, err := http2.ConfigureTransports(netTransport)
 		if err != nil {
@@ -308,12 +299,17 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 	}
 
 	if j.HTTPVersion == 1 {
-		// force HTTP1.1 as per https://pkg.go.dev/net/http#pkg-overview
+		// force HTTP1.1 as per https://pkg.go.dev/net/http#pkg-overview:
+		// "Programs that must disable HTTP/2 can do so by setting
+		//  Transport.TLSNextProto (for clients) or Server.TLSNextProto (for servers)
+		//  to a non-nil, empty map."
 		netTransport.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{}
 	}
 
-	// create http client
+	// create the HTTP client
 	j.client = &http.Client{
+		// handle redirections here.
+		// we count them, and reset metrics here
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			loc, err := req.Response.Location()
 			if err != nil {
@@ -321,8 +317,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 			} else {
 				j.Logger.Info().Msgf("redirected to %s", loc.String())
 			}
-
-			wm.InitNew() //todo: evaluate - Body rewind may interactions (redirection happends afte consuming the body?)?
+			wm.InitNew() //todo: evaluate
 			j.numRedirect++
 			j.finalTarget = loc.String()
 			return nil // http.ErrUseLastResponse
@@ -382,35 +377,35 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.start = time.Now()
-			wm.Logger.Debug().Msgf("ClientTrace-DNSStart: %v", j.tr.start.Sub(refdate))
+			wm.Logger.Trace().Msgf("ClientTrace-DNSStart: %v", j.tr.start.Sub(refdate))
 		},
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.dnsDone = time.Now()
 			j.tr.DNSInfo = dnsInfo
-			wm.Logger.Debug().Msgf("ClientTrace-DNSDone: %v", j.tr.dnsDone.Sub(refdate))
+			wm.Logger.Trace().Msgf("ClientTrace-DNSDone: %v", j.tr.dnsDone.Sub(refdate))
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.gotConn = time.Now()
 			j.tr.ConnInfo = connInfo
-			wm.Logger.Debug().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
+			wm.Logger.Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
 		},
 		GotFirstResponseByte: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.responseStart = time.Now()
 			wm.FirstResponseByte = j.tr.responseStart // todo: does this belong here ?
-			wm.Logger.Debug().Msgf("ClientTrace-GotFirstResponseByte: %v", j.tr.responseStart.Sub(refdate))
+			wm.Logger.Trace().Msgf("ClientTrace-GotFirstResponseByte: %v", j.tr.responseStart.Sub(refdate))
 		},
 
 		TLSHandshakeStart: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.tlsStart = time.Now()
-			wm.Logger.Debug().Msgf("ClientTrace-TLSHandshakeStart: %v", j.tr.tlsStart.Sub(refdate))
+			wm.Logger.Trace().Msgf("ClientTrace-TLSHandshakeStart: %v", j.tr.tlsStart.Sub(refdate))
 		},
 
 		TLSHandshakeDone: func(t tls.ConnectionState, err error) {
@@ -421,7 +416,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 				j.tr.tlsDone = time.Now()
 				j.tr.TLSDone = true
 				j.tr.TLS = t
-				wm.Logger.Debug().Msgf("ClientTrace-TLSHandshakeDone: %v (protocol = %s)", j.tr.tlsDone.Sub(refdate), t.NegotiatedProtocol)
+				wm.Logger.Trace().Msgf("ClientTrace-TLSHandshakeDone: %v (protocol = %s)", j.tr.tlsDone.Sub(refdate), t.NegotiatedProtocol)
 			} else {
 				j.tr.tls = false
 				//fmt.Printf("tls: %+v \n", err)
@@ -436,34 +431,34 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 				j.tr.start = j.tr.connectStart
 				j.tr.dnsDone = j.tr.start
 			}
-			wm.Logger.Debug().Msgf("ClientTrace-onnectStart: %v", time.Since(refdate))
+			wm.Logger.Trace().Msgf("ClientTrace-onnectStart: %v", time.Since(refdate))
 		},
 
 		ConnectDone: func(net, addr string, err error) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.connectDone = time.Now()
-			wm.Logger.Debug().Msgf("ClientTrace-ConnectDone: %v", j.tr.connectDone.Sub(refdate))
+			wm.Logger.Trace().Msgf("ClientTrace-ConnectDone: %v", j.tr.connectDone.Sub(refdate))
 		},
 
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			j.Logger.Debug().Msgf("ClientTrace-got 1xx: %d %+v", code, header)
+			j.Logger.Trace().Msgf("ClientTrace-got 1xx: %d %+v", code, header)
 			return nil
 		},
 
 		WroteHeaderField: func(key string, value []string) {
-			j.Logger.Debug().Msgf("ClientTrace-WroteHeaderField %s = %v", key, value)
+			j.Logger.Trace().Msgf("ClientTrace-WroteHeaderField %s = %v", key, value)
 		},
 		WroteHeaders: func() {
-			j.Logger.Debug().Msgf("ClientTrace-WroteHeaders")
+			j.Logger.Trace().Msgf("ClientTrace-WroteHeaders")
 		},
 		Wait100Continue: func() {
-			j.Logger.Debug().Msgf("ClientTrace-Wait100Continue")
+			j.Logger.Trace().Msgf("ClientTrace-Wait100Continue")
 		},
 		WroteRequest: func(wri httptrace.WroteRequestInfo) {
-			j.wm.Logger.Debug().Err(wri.Err).Msgf("ClientTrace-WroteRequest")
+			j.wm.Logger.Trace().Err(wri.Err).Msgf("ClientTrace-WroteRequest")
 			// todo: can we catch stuff here ?!
 		},
 	}
@@ -514,7 +509,6 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 	// completed or expired (timeout)
 	if wm.Error == nil && !wm.Cancelled {
-		//fmt.Printf("TR: j.tr %+v\n", j.tr)
 		if j.tr.ConnInfo.Conn != nil {
 			j.Logger.Info().
 				Stringer("LocalAddr", j.tr.ConnInfo.Conn.LocalAddr()).
@@ -619,10 +613,10 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 			// 		fmt.Println("----------------------------------------------------------------------------")
 			// 	}
 			// }
-
-			wm.Valid = true
+			wm.Close()
 		}
 	}
+	wm.Done = true
 	utils.PrintMemUsage(j.Logger, "client ended")
 	wm.LogFinal(j.Logger)
 	wm.ResultChan <- wm

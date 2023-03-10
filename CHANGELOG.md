@@ -1,28 +1,30 @@
 # v0.0.11
-- new `bench` command (see corresponding bench section below)
-- using semantic version
+- **new command**: `bench` (abbr `b`) (see corresponding bench section below)
+- using semantic version (before it would have been **v0.11** -> now it's **v0.0.11**)
 - using goreleaser
 - using GOAMD64 levels: (see https://github.com/golang/go/wiki/MinimumRequirements#amd64 ). for now only level1 (_v1) is built.
 - less info displayed with `-version`. Use `-version full` for more infos.
-- breaking changes in main loop: 'infinite' commands (commands that never stop like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://nspeed.app/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the programm will not stop until killed.
-- cleaned out defaut text output
-- *breaking change*: the `-tick duration` flag is now a duration instead of an integer of seconds (default remain 1 secondes). it doesn't control the sampling rate of `-cpu` anymore. The `-tick` rate is used for displaying verbose/debug/trace informations or for the progress in the realtime webview.
-- new flag: `-rate duration`: used to set the frequency for sampling cpu (if `-cpu`) & generating the time series data for json/html output Default is 1s.
-- new `-html filename` flag: record the results to an interactive html file (implies `-pre 1s` and `-post 1s` flags unless set explicity to something else).
-- new `-json filename` flag: record the results to a json file. See `-rate` for the frequencies.
+- **breaking changes in behavior**: 'infinite' commands (commands that usally never end like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://nspeed.app/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the programm will not stop until killed.
+- cleaned out text output, reformatted cpu output. Verbose & debug messages now dislpay the job number at the beginning of the line. 
+- **new flags**: `-display-log-level` and `-display-log-time` to toggle their respective fields.
+- **breaking change**: the `-tick duration` flag is now a duration instead of an integer of seconds (default remain 1 second). It doesn't control the sampling rate of `-cpu` anymore (see `-cpurate`). The `-tick` rate is controling the rate of trace & debug messages.
+- **new flag**: `-rate duration` used to set the frequency generating the time series data for json/html output Default is 1s.
+- **new flag**: `-cpurate duration` used to set the cpu sampling rate (implies `-cpu`)
+- **new flag**: `-html filename` to record the results to an interactive html file (implies `-pre 1s` and `-post 1s` flags unless set explicity to something else). Use `-rate` to add timeseries.
+- **new flag**: `-json filename` flag: record the results to a json file. Use `-rate` for time series.
 ## bench
 - new `bench` command (abbrev `b`) : allow to launch loopback tests (get/put on a localhost server). see `nspeed bench -h` for details.
 ## server
  - added `-http1.1` and `-http2` flags to enforce the HTTP version used
- - *breanking change*: the default port is now a random , available port instead of 7333. Use `-p` to specific a port.
- - added `-id string` flag: allows to spec a uniq id/name for this server (can be used in `nspeed:` url scheme)
+ - *breanking change*: the default port is now a *random , available port instead of 7333*. Use `-p` to specific a port.
+ - added `-id string` flag: allows to set a uniq id/name for this server (can be used in `nspeed:` url scheme)
 ## Client
 - *breaking changes*: `-http11` flag renamed to `-http1.1`
 - *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
 - in conjonction with the new server `-id` flag, a special new url scheme `nspeed:name` is now supported to reference the url address of the corresponding server (draft)
 - added flag: `-connect-timeout` maximum duration for the initial connection (=timeout before dial abort)
 - added `-http2` flag to force using HTTP/2
-- added `-id string` flag: allows to spec a uniq id/name for this command 
+- added `-id string` flag: allows to set a uniq id/name for this command 
 - repeated commands (`-n` flag) have now a subtotal in the report.
 ## ciphers
 - fixed TLS version text messages

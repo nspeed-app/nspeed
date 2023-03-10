@@ -215,8 +215,11 @@ func (wm *Metrics) LogProgress(logger *zerolog.Logger) {
 	if logger == nil {
 		return
 	}
+	if wm.Done {
+		log.Panic()
+	}
 	m := wm.MetricsData //critical section
-	logger.Info().
+	logger.Trace().
 		Float64("Elapsed", m.ElapsedTime.Seconds()).
 		Int64("TotalRead", m.TotalRead).
 		Int64("ContentReadSize", m.ContentReadSize).
@@ -244,16 +247,16 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 		}
 
 		logger.Info().
-			Int64("TotalRead", wm.TotalRead).
-			Int64("ReadCount", wm.ReadCount).
-			Int64("AverageReadSize", AverageReadSize).
-			Int64("TotalWrite", wm.TotalWrite).
-			Int64("WriteCount", wm.WriteCount).
-			Int64("AverageWriteSize", AverageWriteSize).
-			Str("ReadBPS", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
-			Str("WriteBPS", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
-			Float64("duration", wm.ElapsedTime.Seconds()).
-			Str("url", wm.Target).
+			Int64("Read", wm.TotalRead).
+			Int64("RCount", wm.ReadCount).
+			Int64("RSize", AverageReadSize).
+			Int64("Write", wm.TotalWrite).
+			Int64("WCount", wm.WriteCount).
+			Int64("WSize", AverageWriteSize).
+			Str("RBPS", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
+			Str("WBPS", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
+			Float64("Dur", wm.ElapsedTime.Seconds()).
+			Str("URL", wm.Target).
 			Send()
 	} else {
 		wm.Logger.Info().Err(wm.Error).Send()
@@ -290,6 +293,7 @@ func (wm *Metrics) InitNew() {
 	wm.TotalWrite = 0
 	wm.ReadCount = 0
 	wm.WriteCount = 0
+	wm.Serie = nil
 	wm.Logger.Debug().Msgf("wm InitNew called")
 }
 
@@ -297,8 +301,9 @@ func (wm *Metrics) Close() error {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
-	wm.Logger.Debug().Msgf("Close() called after %d", wm.ElapsedTime)
+	wm.Logger.Debug().Msgf("Close() called after %v", wm.ElapsedTime)
 	// assert wm.Done == false
+	// we don't report 2+ calls to Close
 	wm.Done = true
 	if wm.TotalWrite < wm.ContentWriteSize {
 		wm.Expired = true

@@ -56,7 +56,7 @@ func PrintMemUsage(log *zerolog.Logger, mess string) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	log.Printf("%s: - Alloc = %vB\tTotalAlloc = %vB\tSys = %vB\tNumGC = %v\n", mess,
+	log.Debug().Msgf("%s: - Alloc = %vB\tTotalAlloc = %vB\tSys = %vB\tNumGC = %v", mess,
 		FormatByteDecimalUnits(int64(m.Alloc)),
 		FormatByteDecimalUnits(int64(m.TotalAlloc)),
 		FormatByteDecimalUnits(int64(m.Sys)),

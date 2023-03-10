@@ -30,8 +30,9 @@ var optDebug = flag.Bool("debug", false, "show even more progress & details")
 var optTrace = flag.Bool("trace", false, "maximum debug and tracing informations")
 
 var optProgressRate = flag.Duration("tick", 1*time.Second, "display progress rate in duration (used for -debug, -trace and webstats")
-var optSamplingRate = flag.Duration("rate", 1*time.Second, "data sampling rate in duration (used for -cpu and time series generation)")
-var optCPU = flag.Bool("cpu", false, "display cpu usage (use -rate for sampling rate")
+var optSamplingRate = flag.Duration("rate", 0, "data sampling rate in duration (used for time series generation)")
+var optCPURate = flag.Duration("cpurate", 0, "retrieve and display cpu rate (implies -cpu)")
+var optCPU = flag.Bool("cpu", false, "display cpu usage (default to 1s, use -cpurate to change)")
 
 var optColor = flag.Bool("color", false, "use colors in text output")
 
@@ -50,6 +51,9 @@ var optTextReport = flag.String("text", "-", "output stats as text (use - for st
 
 var optPreDelay = flag.Duration("pre", 0, "duration to wait before starting commands")
 var optPostDelay = flag.Duration("post", 0, "duration to wait after all commands ended")
+
+var optLogTimestamps = flag.Bool("display-log-time", false, "display logging timestamps")
+var optLogLevels = flag.Bool("display-log-level", true, "display logging levels")
 
 // main
 func Main() {
@@ -128,8 +132,10 @@ func Main() {
 	zerolog.SetGlobalLevel(consoleLevel)
 
 	// remove these ugly "???" from zerolog level formatter
-
 	formatLevel := func(i any) string {
+		if !*optLogLevels {
+			return ""
+		}
 		if i == nil {
 			return ""
 		}
@@ -137,13 +143,38 @@ func Main() {
 		// so we lose colors for level
 		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
 	}
-
+	// for no timestamps return ""
+	formatTimestamp := func(i any) string {
+		return ""
+	}
+	formatFieldValue := func(i any) string {
+		if i != nil {
+			return fmt.Sprintf("%s |", i)
+		}
+		return ""
+	}
+	if *optLogTimestamps {
+		formatTimestamp = nil
+	}
 	// console output, stderr, level is consoleLevel which depends on flags
+
+	consolePartsOrder := []string{
+		zerolog.TimestampFieldName,
+		zerolog.LevelFieldName,
+		zerolog.CallerFieldName,
+		"job",
+		zerolog.MessageFieldName,
+	}
 	consoleWriter := nspeed.CreateFilteredWriter(
 		zerolog.MultiLevelWriter(zerolog.ConsoleWriter{
-			Out:         os.Stderr,
-			NoColor:     !*optColor,
-			FormatLevel: formatLevel,
+			Out:              os.Stderr,
+			NoColor:          !*optColor,
+			FormatLevel:      formatLevel,
+			TimeFormat:       time.TimeOnly,
+			FormatTimestamp:  formatTimestamp,
+			FormatFieldValue: formatFieldValue,
+			PartsOrder:       consolePartsOrder,
+			FieldsExclude:    []string{"job"},
 		}),
 		consoleLevel,
 		false)
@@ -187,9 +218,18 @@ func Main() {
 	// }
 
 	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
+
+	// cpu sampling rate
+	cpuRate := *optCPURate
+	if *optCPU {
+		if cpuRate == 0 {
+			cpuRate = time.Second
+		}
+	}
 	nspeed.GlobalOptions = nspeed.Options{
 		ProgressInterval: *optProgressRate,
 		Tick:             *optSamplingRate,
+		CPU:              cpuRate,
 		Timeout:          time.Duration(*optTimeout) * time.Second,
 		Test:             *optTest,
 		TLSSelf:          false,
@@ -212,12 +252,6 @@ func Main() {
 
 	errs := make(chan error, 1)
 
-	progressCPUChannel := make(<-chan time.Time) // forever
-	if *optCPU {
-		progressCPUTicker := time.NewTicker(*optSamplingRate) // todo: pass value
-		progressCPUChannel = progressCPUTicker.C
-	}
-
 	// pre delay
 	if *optPreDelay != 0 {
 		log.Warn().Msgf("pre-delay started - sleeping %s", *optPreDelay)
@@ -231,25 +265,33 @@ func Main() {
 	waitChan := make(chan error)
 	var wcWorkers []*nspeed.Metrics = nil
 
-	rc := 0
-	// RunJobs async
-	progress := func(wms []*nspeed.Metrics) {
-		newrc := 0
-		for _, wm := range wms {
-			if !wm.Done {
-				newrc += 1
-				if consoleLevel == zerolog.DebugLevel {
-					wm.LogProgress(&wm.Logger)
+	printHeaders := true
+	progressHandler := func(p any) {
+		switch m := p.(type) {
+		case []*nspeed.Metrics:
+			rc := 0
+			for _, wm := range m {
+				if !wm.Done {
+					rc += 1
+					if consoleLevel == zerolog.TraceLevel {
+						wm.LogProgress(&wm.Logger)
+					}
 				}
 			}
+			log.Trace().Msgf("progress called (%d)", rc)
+		case nspeed.CPUMetric:
+			if cpuRate > 0 { // if this doesn't match, we did something wrong
+				cpuload, headers, _ := nspeed.PrintCPULoad(m.Pcts, *optColor)
+				if printHeaders {
+					log.Log().Msgf("%s jobs | threads|", headers)
+					printHeaders = false
+				}
+				log.Log().Msgf("%s %-4d | %-4d   |", cpuload, m.ActiveJobs, runtime.NumGoroutine())
+			}
 		}
-		log.Debug().Msgf("progress called (%d)", len(wms))
-		rc = newrc
 	}
-	// dont call progress if quiet
-	if consoleLevel > zerolog.InfoLevel && !*optCPU {
-		progress = nil
-	}
+
+	progress := make(chan any)
 
 	go func() {
 		// defer wg.Done()
@@ -260,23 +302,16 @@ func Main() {
 		}
 		waitChan <- err
 	}()
-
+	// assumes all jobs are running
 mainloop:
 	for {
 		select {
+		case m := <-progress:
+			progressHandler(m)
 		case sig := <-shutdownCh:
 			log.Warn().Msgf("global shutdown started by signal: %s", sig)
 			cancel()
 			break mainloop
-		case <-progressCPUChannel:
-			if *optCPU {
-				cpuload, err := nspeed.GetCPULoad(0, *optColor)
-				if err != nil {
-					log.Log().Err(err).Msgf("failed to get cpu load")
-				}
-				// we dont log.Info() this to avoid sending it to the file
-				log.Log().Msgf("%s, active jobs: %d / active goroutines: %d", cpuload, rc, runtime.NumGoroutine())
-			}
 		case err := <-errs:
 			log.Warn().Err(err).Msgf("error with webview")
 			cancel()
@@ -286,7 +321,7 @@ mainloop:
 			break mainloop
 		}
 	}
-	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", rc, runtime.NumGoroutine())
+	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", len(wcWorkers), runtime.NumGoroutine())
 
 	// pre delay
 	if *optPostDelay != 0 && ctx.Err() == nil {
