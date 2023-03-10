@@ -419,9 +419,53 @@ func GenerateJSONReport(wcWorkers []*Metrics) string {
 	return "NO YET IMPLEMENTED\n"
 }
 
+func (wm *Metrics) SerieReport() (report string) {
+	var ReadCount, WriteCount, TotalRead, TotalWrite int64
+	var ElapsedTime time.Duration
+	for i, w := range wm.Serie {
+		if i == 0 {
+			TotalRead = w.TotalRead
+			ReadCount = w.ReadCount
+			TotalWrite = w.TotalWrite
+			WriteCount = w.WriteCount
+			ElapsedTime = w.ElapsedTime
+		} else {
+			TotalRead = w.TotalRead - TotalRead
+			ReadCount = w.ReadCount - ReadCount
+			TotalWrite = w.TotalWrite - TotalWrite
+			WriteCount = w.WriteCount - WriteCount
+			ElapsedTime = w.ElapsedTime - ElapsedTime
+		}
+		report += fmt.Sprintf("serie:%s %d %d %d %d %s %s %s\n",
+			wm.Job.ID(),
+			TotalRead,
+			ReadCount,
+			TotalWrite,
+			WriteCount,
+			utils.FormatBitperSecond(TotalRead, ElapsedTime),
+			utils.FormatBitperSecond(TotalWrite, ElapsedTime),
+			ElapsedTime)
+		report += fmt.Sprintf("cumul: %s %d %d %d %d %s\n",
+			w.Job.ID(),
+			w.TotalRead,
+			w.ReadCount,
+			w.TotalWrite,
+			w.WriteCount,
+			w.ElapsedTime)
+	}
+	report += fmt.Sprintf("total: %s %d %d %d %d %s\n",
+		wm.Job.ID(),
+		wm.TotalRead,
+		wm.ReadCount,
+		wm.TotalWrite,
+		wm.WriteCount,
+		wm.ElapsedTime)
+	return
+}
 func SeriesReport(wcWorkers []*Metrics) (report string) {
 	for _, wm := range wcWorkers {
-		report = report + fmt.Sprintf("%d - %s - has %d data to report\n", wm.Index, wm.Job.ID(), len(wm.Serie))
+		report = report + wm.SerieReport() // fmt.Sprintf("%d - %s - has %d data to report\n", wm.Index, wm.Job.ID(), len(wm.Serie))
+
 	}
 	return
 }
