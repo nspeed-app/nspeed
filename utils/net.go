@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -8,6 +9,19 @@ import (
 	"regexp"
 	"strings"
 )
+
+func init_off() {
+	net.DefaultResolver.PreferGo = false
+	net.DefaultResolver.Dial = func(context context.Context, network, address string) (net.Conn, error) {
+		var d net.Dialer
+		conn, err := d.DialContext(context, "udp", "1.1.1.1:53")
+		if err != nil {
+			return nil, err
+		}
+		return conn, nil
+	}
+	fmt.Println("dns: PreferGo disable")
+}
 
 // ResolveHostAddress resolves host as a dns name or an ip address
 // works with ipv6%zone link-local address
