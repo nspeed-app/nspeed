@@ -23,13 +23,34 @@ func (s *StringArray) Set(value string) error {
 	return nil
 }
 
-// Create creates or truncates the named file.
-// Drop-in replacement for os.Create but interprets "-" as stdout
-func FileCreate(filename string) (*os.File, error) {
-	if filename == "-" {
-		return os.Stdout, nil
+// Drop-in replacement for os.File but interprets "-" as stdout
+// ignore Close when stdout
+type SmartFile struct {
+	*os.File
+	isstd bool
+}
+
+func (f *SmartFile) Close() error {
+	if f.isstd {
+		return nil
 	}
-	return os.Create(filename)
+	if f.File == nil {
+		return os.ErrInvalid
+	}
+	err := f.File.Close()
+	f.File = nil
+	return err
+}
+
+func FileCreate(filename string) (*SmartFile, error) {
+	if filename == "-" {
+		return &SmartFile{os.Stdout, true}, nil
+	}
+	fd, err := os.Create(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &SmartFile{fd, false}, nil
 }
 
 // min/max with generics

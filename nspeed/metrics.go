@@ -3,6 +3,7 @@ package nspeed
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -420,7 +421,11 @@ type reportGroup struct {
 
 // generate a tabular formatted text report
 func GenerateJSONReport(wcWorkers []*Metrics) string {
-	return "NO YET IMPLEMENTED\n"
+	json, err := json.Marshal(wcWorkers)
+	if err != nil {
+		return fmt.Sprintf("error: %v", err)
+	}
+	return fmt.Sprintf("%s", json)
 }
 
 func (wm *Metrics) SerieReport() (report string) {
@@ -561,7 +566,8 @@ func GenerateHTMLReport(out io.Writer, wcWorkers []*Metrics) {
 
 type NetMetric struct {
 	Description    string        `json:"description"`
-	Group          int           `json:"group"`
+	ID             string        `json:"id"`
+	GroupID        string        `json:"gid"`
 	Date           time.Time     `json:"date"`
 	RXBytes        uint64        `json:"rxbytes"`
 	TXBytes        uint64        `json:"txbytes"`
@@ -571,11 +577,24 @@ type NetMetric struct {
 }
 
 type NetMetricSample struct {
-	Offset   time.Duration `json:"index"`
 	RXBytes  uint64        `json:"rxbytes"`
 	TXBytes  uint64        `json:"txbytes"`
 	Latency  uint64        `json:"latency"`
-	Duration uint64        `json:"duration"` // in ms or ns ? - should be constant - keep?
+	Duration time.Duration `json:"duration"` // in ms or ns ? - should be constant - keep?
+}
+
+func (wm *Metrics) MarshalJSON() ([]byte, error) {
+	nm := NetMetric{
+		Description: wm.Job.PrintString(false, false),
+		ID:          wm.Job.ID(),
+		GroupID:     wm.Job.GroupID(),
+		Date:        wm.TransfertStartTime,
+		RXBytes:     uint64(wm.TotalRead),
+		TXBytes:     uint64(wm.TotalRead),
+		Duration:    wm.ElapsedTime,
+		Samples:     []NetMetricSample{},
+	}
+	return json.Marshal(nm)
 }
 
 /*  echarts.apache.org

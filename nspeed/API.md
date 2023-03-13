@@ -10,7 +10,7 @@ return this file
 run job(s) , same as invoking `npeed` from the command line , pass arguments in the `args` query parameter.
 
 example:  
-`/api/v1/run/get?args=get%20http://google.com`  
+`/api/v1/run?args=get%20http://google.com`  
 is equivalent to   
 `nspeed get http://google.com`  
 

@@ -50,7 +50,7 @@ var Commands = map[string]Command{
 	// latencyCommand:    {latencyCommand, 1, true},
 	// tracerouteCommand: {tracerouteCommand, 2, true},
 	apiCommand:       {apiCommand, 1, false},
-	benchmarkCommand: {benchmarkCommand, 1, false},
+	benchmarkCommand: {benchmarkCommand, 1, true},
 }
 
 var CommandDescriptions = map[string]string{
@@ -81,6 +81,7 @@ type httpFlags struct {
 	UseHTTP3    bool
 	H2C         bool
 	ID          string
+	RemoteHost  string
 }
 
 // flags that need a name because they're used multiple time (with isFlagPassed notabily)
@@ -108,6 +109,8 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	fs.BoolVar(&hf.UseHTTP3, "http3", false, "use HTTP3")
 	fs.StringVar(&hf.Url, urlFlag, "", "target url for the command")
 	fs.StringVar(&hf.ID, "id", "", "name/id of this command")
+
+	//fs.StringVar(&hf.RemoteHost, "remote", "", "use a remote nspeed client (hostname or hostname:port)")
 	return fs, &hf
 }
 

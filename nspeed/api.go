@@ -267,11 +267,16 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("error running command: %s", err), http.StatusInternalServerError)
 			return
 		}
-		fmt.Fprintf(w, "api @%s - ended: %s: %d\n", r.Host, time.Now().String(), len(wcWorkers))
-		for _, wm := range wcWorkers {
-			fmt.Fprintf(w, "api @%s - result:", r.Host)
-			wm.PrintFinal(w, true)
+		json, err := json.Marshal(wcWorkers)
+		if err != nil {
+			fmt.Fprintf(w, "error parsing json reply from %s: %s\n", r.RemoteAddr, err)
 		}
+		fmt.Fprintf(w, "%s", json)
+		// fmt.Fprintf(w, "api @%s - ended: %s: %d\n", r.Host, time.Now().String(), len(wcWorkers))
+		// for _, wm := range wcWorkers {
+		// 	fmt.Fprintf(w, "api @%s - result:", r.Host)
+		// 	wm.PrintFinal(w, true)
+		// }
 		//todo: send results back
 		return
 	}
