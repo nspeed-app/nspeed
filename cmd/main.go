@@ -55,6 +55,10 @@ var optPostDelay = flag.Duration("post", 0, "duration to wait after all commands
 var optLogTimestamps = flag.Bool("display-log-time", false, "display logging timestamps")
 var optLogLevels = flag.Bool("display-log-level", true, "display logging levels")
 
+var optDNSServer = flag.String("dns-server", "", "specify a dns server to use (literal ip or literal ip:port)")
+
+//var optHostnames utils.StringArray
+
 // main
 func Main() {
 
@@ -71,6 +75,8 @@ func Main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Available global options:\n\n")
 		flag.PrintDefaults()
 	}
+
+	//flag.Var(&optHostnames, "resolve", "Provide a custom address for a specific host and port pair (literal ip or literal ip:port)")
 
 	flag.Parse() // parse global flags
 	nspeed.OptTLSSelf = *optTLSSelf
@@ -193,6 +199,12 @@ func Main() {
 		log.Logger = log.Output(consoleWriter)
 	}
 
+	//
+	if *optDNSServer != "" {
+		if err := utils.SetDNSServer(*optDNSServer); err != nil {
+			log.Fatal().Err(err).Msg("error setting dns server")
+		}
+	}
 	jl := nspeed.NewJoblist()
 	err := nspeed.ParseCommands(flag.Args(), jl, nil, false)
 	if err != nil {

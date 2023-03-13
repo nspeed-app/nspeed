@@ -44,53 +44,57 @@ func (j *JobData) SetID(id string)       { j.id = id }
 func (j *JobData) GroupID() string       { return j.group }
 func (j *JobData) SetGroupID(gid string) { j.group = gid }
 
-// a list of jobs, some having unique IDs stored in IDMap
+// a list of jobs
 type JobList struct {
-	Jobs  []Job
-	IDMap map[string]Job // this basically a cache to avoid looping Jobs
+	Jobs   map[string]Job
+	Groups map[string][]Job
 }
 
 func NewJoblist() *JobList {
 	return &JobList{
-		IDMap: make(map[string]Job),
+		Jobs:   make(map[string]Job),
+		Groups: make(map[string][]Job),
 	}
 }
 
-// AddJobs adds jobs preventing duplicate id, adding and renaming groups
+// AddJobs adds jobs as a group, preventing duplicate id/gid
 // if a job name is empty, generate a unique one
+// this is hard to read, rewrite properly
 func (jl *JobList) AddJobs(jobs ...Job) error {
-	id := "#" + strconv.Itoa(len(jl.Jobs))
+	gid := "#" + strconv.Itoa(len(jl.Groups))
 	n := len(jobs)
 
+	var js []Job
 	for i, j := range jobs {
 		if j == nil {
 			return fmt.Errorf("Addjob: nil argument")
 		}
 		if j.ID() == "" {
-			j.SetID(id)
+			j.SetID(gid)
+		} else {
+			gid = j.ID()
 		}
+		// group is ID for single job
+		j.SetGroupID(gid)
+
 		if n > 1 {
-			// special, if job group, 'id' becomme 'id.n' but 'id' could already exists
-			// this avoid 'id' and 'id.1', "id.2" with different commands
-			j.SetGroupID(j.ID())
-			if _, ok := jl.IDMap[j.ID()]; ok {
-				return fmt.Errorf("duplicate job id %s", j.ID())
-			}
 			j.SetID(j.ID() + "." + strconv.Itoa(i+1))
 		}
-		_, ok := jl.IDMap[j.ID()]
-		if ok {
+		if _, ok := jl.Jobs[j.ID()]; ok {
 			return fmt.Errorf("duplicate job id %s", j.ID())
 		}
-		jl.IDMap[j.ID()] = j
-		jl.Jobs = append(jl.Jobs, j)
+		jl.Jobs[j.ID()] = j
+		js = append(js, j)
 	}
+	if _, ok := jl.Groups[gid]; ok {
+		return fmt.Errorf("duplicate group id %s", gid)
+	}
+	jl.Groups[gid] = js
 	return nil
 }
 
 // MetricsData -
 type MetricsData struct {
-	Index              int
 	Job                Job
 	Done               bool // job ended
 	Expired            bool // job timed out or other side ended
@@ -265,7 +269,6 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 
 func (wm *Metrics) PrintFinal(w io.Writer, verbose bool) {
 	if wm.Valid {
-		fmt.Fprintf(w, "%d:", wm.Index)
 		fmt.Fprintf(w, "Read: %s ", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
 		fmt.Fprintf(w, "Write: %s ", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
 		fmt.Fprintf(w, "TotalRead: %d ", wm.TotalRead)
@@ -277,7 +280,7 @@ func (wm *Metrics) PrintFinal(w io.Writer, verbose bool) {
 		fmt.Fprintf(w, "\n")
 
 	} else {
-		fmt.Fprintf(w, "job %d error: %v\n", wm.Index, wm.Error)
+		fmt.Fprintf(w, "job %s error: %v\n", wm.Job.ID(), wm.Error)
 	}
 }
 
@@ -396,9 +399,9 @@ func (wm *Metrics) FixWriteTo(w io.Writer) (n int64, err error) {
 func initSpeedReport(w *tabwriter.Writer) {
 	fmt.Fprintf(w, "Job\tId\tGid\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\tcommand\n")
 }
-func speedReport(w *tabwriter.Writer, job string, id string, gid string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
-	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
-		job, id, gid,
+func speedReport(w *tabwriter.Writer, id string, gid string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
+	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
+		id, gid,
 		utils.FormatBitperSecond(totalRead, elapsedTime),
 		utils.FormatBitperSecond(totalWrite, elapsedTime),
 		elapsedTime.Seconds(),
@@ -445,13 +448,6 @@ func (wm *Metrics) SerieReport() (report string) {
 			utils.FormatBitperSecond(TotalRead, ElapsedTime),
 			utils.FormatBitperSecond(TotalWrite, ElapsedTime),
 			ElapsedTime)
-		report += fmt.Sprintf("cumul: %s %d %d %d %d %s\n",
-			w.Job.ID(),
-			w.TotalRead,
-			w.ReadCount,
-			w.TotalWrite,
-			w.WriteCount,
-			w.ElapsedTime)
 	}
 	report += fmt.Sprintf("total: %s %d %d %d %d %s\n",
 		wm.Job.ID(),
@@ -491,7 +487,7 @@ func GenerateTextReport(wcWorkers []*Metrics, verbose bool) string {
 			if wm.ElapsedTime > elapsedTime {
 				elapsedTime = wm.ElapsedTime
 			}
-			speedReport(w, fmt.Sprintf(" %d", wm.Index), wm.Job.ID(), wm.Job.GroupID(), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose))
+			speedReport(w, wm.Job.ID(), wm.Job.GroupID(), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose))
 			if wm.Job.GroupID() != "" {
 				g, ok := groups[wm.Job.GroupID()]
 				if !ok {
@@ -506,18 +502,18 @@ func GenerateTextReport(wcWorkers []*Metrics, verbose bool) string {
 			}
 		} else {
 			if wm.Error != nil {
-				log.Warn().Err(wm.Error).Msgf("job %d ended", wm.Index)
+				log.Warn().Err(wm.Error).Msgf("job %s ended", wm.Job.ID())
 			}
 		}
 	}
 	for gid, g := range groups {
-		speedReport(w, "Subtotal", "", gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, "")
+		speedReport(w, "Subtotal", gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, "")
 	}
 
 	if totalRead == 0 && totalWrite == 0 {
 		fmt.Println("no metrics to report")
 	} else {
-		speedReport(w, "Total", "", "", elapsedTime, totalRead, totalWrite, "")
+		speedReport(w, "Total", "", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
 	}
 	return out.String()

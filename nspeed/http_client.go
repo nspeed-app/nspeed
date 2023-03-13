@@ -167,7 +167,7 @@ func (j *JobHTTPClient) Init(wm *Metrics) error {
 		j.Target = "https://" + j.Target
 	}
 	var err error
-	j.finalTarget, err = ResolveSchemes(j.jobList.IDMap, j.Target)
+	j.finalTarget, err = ResolveSchemes(j.jobList.Jobs, j.Target)
 	if err != nil {
 		return err
 	}

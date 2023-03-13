@@ -5,22 +5,38 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
-func init_off() {
-	net.DefaultResolver.PreferGo = false
+// SetDNSServer specifies a custom DNS server (globally).
+// The parameter must a literal IP address or literal IP:port combination.
+// if no port, 53 will be used.
+
+func SetDNSServer(address string) error {
+	addrPort, err := netip.ParseAddrPort(address)
+	if err != nil {
+		addr, err2 := netip.ParseAddr(address)
+		if err2 != nil {
+			return err2
+		}
+		addrPort = netip.AddrPortFrom(addr, 53)
+	}
+	log.Logger.Info().Msgf("DNS server set %s", addrPort)
+	net.DefaultResolver.PreferGo = true
 	net.DefaultResolver.Dial = func(context context.Context, network, address string) (net.Conn, error) {
 		var d net.Dialer
-		conn, err := d.DialContext(context, "udp", "1.1.1.1:53")
+		conn, err := d.DialContext(context, "udp", addrPort.String())
 		if err != nil {
 			return nil, err
 		}
 		return conn, nil
 	}
-	fmt.Println("dns: PreferGo disable")
+	return nil
 }
 
 // ResolveHostAddress resolves host as a dns name or an ip address

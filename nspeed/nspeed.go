@@ -29,23 +29,22 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([
 
 	njobs := len(jobs)
 	results := make(chan *Metrics, njobs)
-	wcWorkers := make([]*Metrics, njobs)
+	wcWorkers := make([]*Metrics, 0, njobs)
 
-	for idx, job := range jobs {
+	for id, job := range jobs {
 		wm := Metrics{
 			MetricsData: MetricsData{
 				Done:    false,
 				Expired: false,
-				Index:   idx,
 				Target:  job.GetTarget(),
 				Job:     job,
 			},
 			ResultChan: results,
-			Logger:     log.With().Int("job", idx).Logger(),
+			Logger:     log.With().Str("job", id).Logger(),
 			Tick:       opt.Tick,
 		}
-		wcWorkers[idx] = &wm
-		msg := fmt.Sprintf("id=%s,gid=%s,%#v", job.ID(), job.GroupID(), job)
+		wcWorkers = append(wcWorkers, &wm)
+		msg := fmt.Sprintf("id=%s,gid=%s,%#v", id, job.GroupID(), job)
 		if opt.Test {
 			wm.Logger.Warn().Msg(msg)
 		} else {
@@ -69,7 +68,9 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([
 	// PART1: INFINITE JOBS
 	// create & init workers for jobs (synchronously one after the others)
 	// run infinite jobs
-	for _, wm := range wcWorkers {
+	log.Debug().Msgf("wcWorkers has %d jobs", len(wcWorkers))
+	for i, wm := range wcWorkers {
+		log.Debug().Msgf(" %d, %+v", i, wm)
 		if !wm.Job.IsInfinite() {
 			continue
 		}
@@ -115,7 +116,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([
 		if wm.Job.IsInfinite() {
 			continue
 		}
-		wm.Logger.Debug().Msgf("creating worker %d %s %t", wm.Index, wm.Target, wm.Done)
+		wm.Logger.Debug().Msgf("creating worker %s %t", wm.Target, wm.Done)
 		err := wm.Job.Init(wm)
 		if err != nil {
 			if opt.Test && errors.Is(err, errNotRunning) {
@@ -134,7 +135,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([
 		}
 		IsInfinite = false //we got at least one finite job
 		if !opt.Test {
-			wm.Logger.Debug().Msgf("spawning workload %d %s %t", wm.Index, wm.Target, wm.Done)
+			wm.Logger.Debug().Msgf("spawning workload %s %t", wm.Target, wm.Done)
 			wgsl.Add(1)
 			go func(w *Metrics, wg *sync.WaitGroup) {
 				err := w.Job.Run(ctx, wg)
@@ -145,7 +146,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([
 				}
 			}(wm, &wgsl)
 		} else {
-			wm.Logger.Debug().Msgf("test mode: skipping workload %d %s %t", wm.Index, wm.Target, wm.Done)
+			wm.Logger.Debug().Msgf("test mode: skipping workload %s %t", wm.Target, wm.Done)
 		}
 	}
 

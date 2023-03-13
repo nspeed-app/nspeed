@@ -11,7 +11,8 @@
 - **new flag**: `-rate duration` used to set the frequency generating the time series data for json/html output Default is 1s.
 - **new flag**: `-cpurate duration` used to set the cpu sampling rate (implies `-cpu`)
 - **new flag**: `-html filename` to record the results to an interactive html file (implies `-pre 1s` and `-post 1s` flags unless set explicity to something else). Use `-rate` to add timeseries.
-- **new flag**: `-json filename` flag: record the results to a json file. Use `-rate` for time series.
+- **new flag**: `-json filename` to record the results to a json file. Use `-rate` for time series.
+- **new flag**: `-dns-server address[:port]` to specify a dns server (literal ip address with optionnal port)
 ## bench
 - new `bench` command (abbrev `b`) : allow to launch loopback tests (get/put on a localhost server). see `nspeed bench -h` for details.
 ## server

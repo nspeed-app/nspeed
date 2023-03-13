@@ -12,6 +12,17 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+// StringArray is just a []string. Used for parsing multiple ocurrences of the same string flag (see flag.Var)
+type StringArray []string
+
+func (s *StringArray) String() string {
+	return fmt.Sprintf("%+v", *s)
+}
+func (s *StringArray) Set(value string) error {
+	*s = append(*s, value)
+	return nil
+}
+
 // Create creates or truncates the named file.
 // Drop-in replacement for os.Create but interprets "-" as stdout
 func FileCreate(filename string) (*os.File, error) {
