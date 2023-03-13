@@ -124,7 +124,7 @@ func (j *JobHTTPClient) GetDestination() string {
 }
 
 // Pretty print command and some infos
-func (j *JobHTTPClient) PrintString(verbose bool) string {
+func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 
 	formatOut := func(r string) string {
 		latency := j.tr.connectDone.Sub(j.tr.connectStart).Milliseconds()
@@ -136,13 +136,17 @@ func (j *JobHTTPClient) PrintString(verbose bool) string {
 		return details
 	}
 
+	groupFormat := ""
+	if group {
+		groupFormat = "-n " + strconv.Itoa(j.Repeat) + " "
+	}
 	if j.Command == "GET" {
-		t := "get %s" + j.finalTarget
+		t := "get " + groupFormat + "%s" + j.finalTarget
 		r := fmt.Sprintf(t, utils.HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
 
 	} else if j.Command == "POST" || j.Command == "PUT" {
-		t := strings.ToLower(j.Command) + " %s" + j.finalTarget + " " + utils.ByteCountDecimal(j.ContentSize) + "B" //todo
+		t := strings.ToLower(j.Command) + " " + groupFormat + "%s" + j.finalTarget + " " + utils.ByteCountDecimal(j.ContentSize) + "B" //todo
 		r := fmt.Sprintf(t, utils.HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
 	} else {

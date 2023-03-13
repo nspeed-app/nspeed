@@ -115,7 +115,7 @@ func (j *JobHTTPServer) GoString() string {
 	)
 }
 
-func (j *JobHTTPServer) PrintString(verbose bool) string {
+func (j *JobHTTPServer) PrintString(verbose, group bool) string {
 	return "HTTP SERVER " + j.ID()
 }
 

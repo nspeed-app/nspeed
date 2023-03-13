@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sort"
 	"sync"
 	"time"
 
@@ -26,12 +27,19 @@ var GlobalOptions Options
 func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([]*Metrics, error) {
 
 	jobs := jl.Jobs
-
 	njobs := len(jobs)
+
+	jobIds := make([]string, 0, njobs)
+	for k := range jl.Jobs {
+		jobIds = append(jobIds, k)
+	}
+	sort.Strings(jobIds)
+
 	results := make(chan *Metrics, njobs)
 	wcWorkers := make([]*Metrics, 0, njobs)
 
-	for id, job := range jobs {
+	for _, id := range jobIds {
+		job := jl.Jobs[id]
 		wm := Metrics{
 			MetricsData: MetricsData{
 				Done:    false,

@@ -48,6 +48,7 @@ var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 // var optHTMLReport = flag.String("html", "", "output stats in a html file (use - for stdout)")
 var optJSONReport = flag.String("json", "", "output stats in a json file (use - for stdout)")
 var optTextReport = flag.String("text", "-", "output stats as text (use - for stdout)")
+var optUngroup = flag.Bool("ungroup", false, "show members of groups")
 
 var optPreDelay = flag.Duration("pre", 0, "duration to wait before starting commands")
 var optPostDelay = flag.Duration("post", 0, "duration to wait after all commands ended")
@@ -357,7 +358,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
-		report := nspeed.GenerateTextReport(wcWorkers, *optVerbose)
+		report := nspeed.GenerateTextReport(wcWorkers, *optVerbose, *optUngroup)
 		_, err = f.WriteString(report)
 		if err == nil {
 			_, err = f.WriteString(nspeed.SeriesReport(wcWorkers))

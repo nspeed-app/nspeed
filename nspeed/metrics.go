@@ -19,7 +19,7 @@ type Job interface {
 	// per job implementation
 	GetTarget() string
 	GoString() string
-	PrintString(bool) string
+	PrintString(bool, bool) string
 	IsInfinite() bool
 	Init(*Metrics) error
 	Run(context.Context, *sync.WaitGroup) error
@@ -276,7 +276,7 @@ func (wm *Metrics) PrintFinal(w io.Writer, verbose bool) {
 		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
 		// fmt.Fprintf(w, "WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
 		fmt.Fprintf(w, "duration: %v ", wm.ElapsedTime.Seconds())
-		fmt.Fprintf(w, "command: %s", wm.Job.PrintString(verbose))
+		fmt.Fprintf(w, "command: %s", wm.Job.PrintString(verbose, false))
 		fmt.Fprintf(w, "\n")
 
 	} else {
@@ -397,11 +397,11 @@ func (wm *Metrics) FixWriteTo(w io.Writer) (n int64, err error) {
 }
 
 func initSpeedReport(w *tabwriter.Writer) {
-	fmt.Fprintf(w, "Job\tId\tGid\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\tcommand\n")
+	fmt.Fprintf(w, "Id\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\tcommand\n")
 }
-func speedReport(w *tabwriter.Writer, id string, gid string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
-	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
-		id, gid,
+func speedReport(w *tabwriter.Writer, id string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
+	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
+		id,
 		utils.FormatBitperSecond(totalRead, elapsedTime),
 		utils.FormatBitperSecond(totalWrite, elapsedTime),
 		elapsedTime.Seconds(),
@@ -415,6 +415,7 @@ type reportGroup struct {
 	ElapsedTime time.Duration
 	TotalRead   int64
 	TotalWrite  int64
+	Command     string
 }
 
 // generate a tabular formatted text report
@@ -467,7 +468,7 @@ func SeriesReport(wcWorkers []*Metrics) (report string) {
 }
 
 // generate a tabular formatted text report
-func GenerateTextReport(wcWorkers []*Metrics, verbose bool) string {
+func GenerateTextReport(wcWorkers []*Metrics, verbose bool, showGroup bool) string {
 	// main speed report - todo: refactor in a function
 
 	var out bytes.Buffer
@@ -481,39 +482,46 @@ func GenerateTextReport(wcWorkers []*Metrics, verbose bool) string {
 	initSpeedReport(w)
 
 	for _, wm := range wcWorkers {
-		if wm.Valid {
-			totalRead += wm.TotalRead
-			totalWrite += wm.TotalWrite
-			if wm.ElapsedTime > elapsedTime {
-				elapsedTime = wm.ElapsedTime
+		if !wm.Valid {
+			continue
+		}
+		if wm.Error != nil {
+			log.Warn().Err(wm.Error).Msgf("job %s ended", wm.Job.ID())
+			continue
+		}
+		inGroup := false
+		totalRead += wm.TotalRead
+		totalWrite += wm.TotalWrite
+		if wm.ElapsedTime > elapsedTime {
+			elapsedTime = wm.ElapsedTime
+		}
+		if wm.Job.GroupID() != wm.Job.ID() {
+			inGroup = true
+			g, ok := groups[wm.Job.GroupID()]
+			if !ok {
+				g = &reportGroup{}
+				groups[wm.Job.GroupID()] = g
+				g.Command = wm.Job.PrintString(verbose, true)
 			}
-			speedReport(w, wm.Job.ID(), wm.Job.GroupID(), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose))
-			if wm.Job.GroupID() != "" {
-				g, ok := groups[wm.Job.GroupID()]
-				if !ok {
-					g = &reportGroup{}
-					groups[wm.Job.GroupID()] = g
-				}
-				g.TotalRead += wm.TotalRead
-				g.TotalWrite += wm.TotalWrite
-				if wm.ElapsedTime > g.ElapsedTime {
-					g.ElapsedTime = wm.ElapsedTime
-				}
-			}
-		} else {
-			if wm.Error != nil {
-				log.Warn().Err(wm.Error).Msgf("job %s ended", wm.Job.ID())
+			g.TotalRead += wm.TotalRead
+			g.TotalWrite += wm.TotalWrite
+			if wm.ElapsedTime > g.ElapsedTime {
+				g.ElapsedTime = wm.ElapsedTime
 			}
 		}
+		if !inGroup || showGroup {
+			speedReport(w, wm.Job.GroupID(), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose, false))
+		}
+
 	}
 	for gid, g := range groups {
-		speedReport(w, "Subtotal", gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, "")
+		speedReport(w, gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, g.Command)
 	}
-
+	fmt.Fprintf(w, "\t\t\t\t\t\t\n")
 	if totalRead == 0 && totalWrite == 0 {
 		fmt.Println("no metrics to report")
 	} else {
-		speedReport(w, "Total", "", elapsedTime, totalRead, totalWrite, "")
+		speedReport(w, "Total", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
 	}
 	return out.String()

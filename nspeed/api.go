@@ -53,7 +53,7 @@ func (j *APIHost) GoString() string {
 	)
 }
 
-func (j *APIHost) PrintString(verbose bool) string {
+func (j *APIHost) PrintString(verbose, group bool) string {
 	return "API " + net.JoinHostPort(j.Parameters.Host, strconv.Itoa(j.Parameters.Port))
 }
 

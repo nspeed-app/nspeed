@@ -4,8 +4,8 @@
 - using goreleaser
 - using GOAMD64 levels: (see https://github.com/golang/go/wiki/MinimumRequirements#amd64 ). for now only level1 (_v1) is built.
 - less info displayed with `-version`. Use `-version full` for more infos.
-- **breaking changes in behavior**: 'infinite' commands (commands that usally never end like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://nspeed.app/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the programm will not stop until killed.
-- cleaned out text output, reformatted cpu output. Verbose & debug messages now dislpay the job number at the beginning of the line. 
+- **breaking changes in behavior**: 'infinite' commands (commands that usually never end like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://google.com/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the programm will not stop until killed (=deamon mode)
+- cleaned out text output, reformatted cpu output. Verbose & debug messages now dislpay the job name at the beginning of the line. 
 - **new flags**: `-display-log-level` and `-display-log-time` to toggle their respective fields.
 - **breaking change**: the `-tick duration` flag is now a duration instead of an integer of seconds (default remain 1 second). It doesn't control the sampling rate of `-cpu` anymore (see `-cpurate`). The `-tick` rate is controling the rate of trace & debug messages.
 - **new flag**: `-rate duration` used to set the frequency generating the time series data for json/html output Default is 1s.
@@ -13,6 +13,7 @@
 - **new flag**: `-html filename` to record the results to an interactive html file (implies `-pre 1s` and `-post 1s` flags unless set explicity to something else). Use `-rate` to add timeseries.
 - **new flag**: `-json filename` to record the results to a json file. Use `-rate` for time series.
 - **new flag**: `-dns-server address[:port]` to specify a dns server (literal ip address with optionnal port)
+- **new flag**: `-ungroup` show each stream result of a multi-streams command (see client below) 
 ## bench
 - new `bench` command (abbrev `b`) : allow to launch loopback tests (get/put on a localhost server). see `nspeed bench -h` for details.
 ## server
@@ -25,8 +26,8 @@
 - in conjonction with the new server `-id` flag, a special new url scheme `nspeed:name` is now supported to reference the url address of the corresponding server (draft)
 - added flag: `-connect-timeout` maximum duration for the initial connection (=timeout before dial abort)
 - added `-http2` flag to force using HTTP/2
-- added `-id string` flag: allows to set a uniq id/name for this command 
-- repeated commands (`-n` flag) have now a subtotal in the report.
+- added `-id string` flag: allows to set a uniq id/name for this command
+- repeated commands (`-n` flag) are now summed and grouped in the report. use the new global flag `-ungroup` to see each instance.
 ## ciphers
 - fixed TLS version text messages
 # v0.10
