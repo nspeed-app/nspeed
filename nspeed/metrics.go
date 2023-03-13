@@ -425,7 +425,7 @@ func GenerateJSONReport(wcWorkers []*Metrics) string {
 	if err != nil {
 		return fmt.Sprintf("error: %v", err)
 	}
-	return fmt.Sprintf("%s", json)
+	return string(json)
 }
 
 func (wm *Metrics) SerieReport() (report string) {
