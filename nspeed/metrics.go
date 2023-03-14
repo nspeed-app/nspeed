@@ -125,6 +125,7 @@ type Metric struct {
 	Valid      bool
 	Protocol   string
 	Error      error
+	Instances  int
 	// history
 	Tick  time.Duration
 	Serie []MetricsData
@@ -433,16 +434,61 @@ func (wc *Metrics) MarshalJSON() ([]byte, error) {
 	return json.Marshal(todo)
 }
 
-func (wc *Metrics) Ungroup() *Metrics {
-	log.Fatal().Msgf("Metrics ungroup not yet implemented")
-	return nil
+// Group replace instances of the groups with the sum of metrics
+func (wc *Metrics) Group() *Metrics {
+	if wc == nil {
+		return nil
+	}
+	rwc := make(Metrics, 0, len(*wc))
+	groups := make(map[string]*Metric)
+	totalRead := int64(0)
+	totalWrite := int64(0)
+	elapsedTime := time.Duration(0)
+
+	for _, wm := range *wc {
+		if wm == nil {
+			continue
+		}
+		if !wm.Valid {
+			continue
+		}
+		if wm.Error != nil {
+			continue
+		}
+		totalRead += wm.TotalRead
+		totalWrite += wm.TotalWrite
+		if wm.ElapsedTime > elapsedTime {
+			elapsedTime = wm.ElapsedTime
+		}
+		if wm.Job.GroupID() != wm.Job.ID() {
+			g, ok := groups[wm.Job.GroupID()]
+			if !ok {
+				g = &Metric{
+					MetricsData: wm.MetricsData,
+					Protocol:    wm.Protocol, // might not be uniq
+					Tick:        wm.Tick,
+				}
+				groups[wm.Job.GroupID()] = g
+				rwc = append(rwc, g)
+			}
+			g.TotalRead += wm.TotalRead
+			g.TotalWrite += wm.TotalWrite
+			g.Instances = g.Instances + 1
+			if wm.ElapsedTime > g.ElapsedTime {
+				g.ElapsedTime = wm.ElapsedTime
+			}
+		} else {
+			rwc = append(rwc, wm)
+		}
+	}
+	return &rwc
 }
 
 // generate a tabular formatted text report
 func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 	wc := wcWorkers
 	if !ungroup {
-		wc = wcWorkers.Ungroup()
+		wc = wcWorkers.Group()
 	}
 	json, err := json.MarshalIndent(wc, "", "\t")
 	if err != nil {
