@@ -379,7 +379,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}
-		report := nspeed.GenerateJSONReport(&wcWorkers)
+		report := nspeed.GenerateJSONReport(&wcWorkers, *optUngroup)
 		_, err = f.WriteString(report)
 		if err != nil {
 			log.Fatal().Msgf("could not write json report file (%s): %v", *optJSONReport, err)

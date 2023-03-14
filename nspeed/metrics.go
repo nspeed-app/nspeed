@@ -433,9 +433,18 @@ func (wc *Metrics) MarshalJSON() ([]byte, error) {
 	return json.Marshal(todo)
 }
 
+func (wc *Metrics) Ungroup() *Metrics {
+	log.Fatal().Msgf("Metrics ungroup not yet implemented")
+	return nil
+}
+
 // generate a tabular formatted text report
-func GenerateJSONReport(wcWorkers *Metrics) string {
-	json, err := json.MarshalIndent(wcWorkers, "", "\t")
+func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
+	wc := wcWorkers
+	if !ungroup {
+		wc = wcWorkers.Ungroup()
+	}
+	json, err := json.MarshalIndent(wc, "", "\t")
 	if err != nil {
 		return fmt.Sprintf("error: %v", err)
 	}
@@ -585,8 +594,12 @@ type NetMetric struct {
 	Date     time.Time     `json:"date"`
 	RXBytes  uint64        `json:"rxbytes"`
 	TXBytes  uint64        `json:"txbytes"`
-	Latency  time.Duration `json:"latency"`
 	Duration time.Duration `json:"duration"`
+	RXHBps   string        `json:"rxhbps"`
+	TXHBps   string        `json:"ryhbps"`
+	RXBps    int64         `json:"rxbps"`
+	TXBps    int64         `json:"rybps"`
+	Latency  time.Duration `json:"latency"`
 	Target   string        `json:"target"`
 	Protocol string        `json:"protocol"`
 	Samples  []NetMetricSample
