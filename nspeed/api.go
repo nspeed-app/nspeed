@@ -65,7 +65,7 @@ func (j *APIHost) GetMetric() (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")
 }
 
-func (s *APIHost) Init(wm *Metrics) error {
+func (s *APIHost) Init(wm *Metric) error {
 	if s.Parameters == nil {
 		s.Parameters = NewHostParameters()
 		s.Parameters.APIOnly = true
@@ -257,11 +257,6 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		//f, okToFlush := w.(http.Flusher)
 
-		//progress := func(wms []*Metrics) {
-		// 	h.Server.Logger.Debug().Msgf("api: progress called")
-		// 	h.Server.Logger.Debug().Msgf("api @%s - progress %s: %d\n", r.Host, time.Now().String(), len(wms))
-		// 	//todo: at trace level, display details
-		// }
 		wcWorkers, err := RunJobs(jl, GlobalOptions, r.Context(), nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error running command: %s", err), http.StatusInternalServerError)

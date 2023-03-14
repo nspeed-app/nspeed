@@ -276,12 +276,12 @@ func Main() {
 	}
 
 	waitChan := make(chan error)
-	var wcWorkers []*nspeed.Metrics = nil
+	var wcWorkers nspeed.Metrics = nil
 
 	printHeaders := true
 	progressHandler := func(p any) {
 		switch m := p.(type) {
-		case []*nspeed.Metrics:
+		case []*nspeed.Metric:
 			rc := 0
 			for _, wm := range m {
 				if !wm.Done {
@@ -379,7 +379,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}
-		report := nspeed.GenerateJSONReport(wcWorkers)
+		report := nspeed.GenerateJSONReport(&wcWorkers)
 		_, err = f.WriteString(report)
 		if err != nil {
 			log.Fatal().Msgf("could not write json report file (%s): %v", *optJSONReport, err)

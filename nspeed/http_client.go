@@ -77,14 +77,17 @@ type JobHTTPClient struct {
 	tr          roundTripTrace
 	numRedirect int
 	finalTarget string
-	wm          *Metrics
+	wm          *Metric
 }
 
 func (j *JobHTTPClient) GoString() string {
 	if zerolog.GlobalLevel() > zerolog.InfoLevel {
 		return fmt.Sprintf("HTTP %s %s", j.Command, j.Target)
 	}
-	s := fmt.Sprintf("HTTP client {Method: %s, URL: %q, IPversion: %d, Address: %s, timeout: %s, delay: %s, h2c: %t, http:%s}",
+	return j.CommandString()
+}
+func (j *JobHTTPClient) CommandString() string {
+	s := fmt.Sprintf("HTTP client {Method: %s, URL: %s, IPversion: %d, Address: %s, timeout: %s, delay: %s, h2c: %t, http:%s}",
 		j.Command,
 		j.Target,
 		j.IPversion,
@@ -157,11 +160,26 @@ func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 func (j *JobHTTPClient) IsInfinite() bool { return false }
 
 func (j *JobHTTPClient) GetMetric() (NetMetric, error) {
-	return NetMetric{}, fmt.Errorf("not yet implemented")
+	if j.wm.Error != nil {
+		return NetMetric{}, fmt.Errorf("job has error %w", j.wm.Error)
+	}
+	n := NetMetric{
+		Command:  j.CommandString(),
+		ID:       j.ID(),
+		GroupID:  j.GroupID(),
+		Date:     j.wm.TransfertStartTime,
+		RXBytes:  uint64(j.wm.TotalRead),
+		TXBytes:  uint64(j.wm.TotalRead),
+		Duration: j.wm.ElapsedTime,
+		Latency:  j.tr.connectDone.Sub(j.tr.connectStart),
+		Target:   j.GetDestination(),
+		Protocol: j.wm.Protocol,
+	}
+	return n, nil
 }
 
 // init a HTTP Job
-func (j *JobHTTPClient) Init(wm *Metrics) error {
+func (j *JobHTTPClient) Init(wm *Metric) error {
 
 	j.Logger = &wm.Logger
 	j.wm = wm

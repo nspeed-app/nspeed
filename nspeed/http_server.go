@@ -299,7 +299,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	w.WriteHeader(http.StatusOK) // this could also be done by the first w.Write()
 
 	// prepare metrics handler
-	wm := Metrics{
+	wm := Metric{
 		MetricsData: MetricsData{
 			Done:    false,
 			Expired: false,
@@ -346,7 +346,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 // handle upload
 func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	h.Logger.Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
-	wm := Metrics{
+	wm := Metric{
 		MetricsData: MetricsData{
 			Done:    false,
 			Expired: false,
@@ -366,7 +366,7 @@ func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 // implements the http server
 
-func (s *JobHTTPServer) Init(wm *Metrics) error {
+func (s *JobHTTPServer) Init(wm *Metric) error {
 
 	// todo: this should be a global and Once
 	s.StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")

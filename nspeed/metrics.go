@@ -22,7 +22,7 @@ type Job interface {
 	GoString() string
 	PrintString(bool, bool) string
 	IsInfinite() bool
-	Init(*Metrics) error
+	Init(*Metric) error
 	Run(context.Context, *sync.WaitGroup) error
 	GetMetric() (NetMetric, error)
 	//common, implemented here
@@ -113,13 +113,13 @@ type MetricsData struct {
 	FirstResponseByte  time.Time
 }
 
-// Metrics main metrics struct
+// Metric main metrics struct
 // implements the io.Writer and io.Reader interfaces
 // this needs heavy refactoring
 // & check openmetrics suff
-type Metrics struct {
+type Metric struct {
 	MetricsData
-	ResultChan chan *Metrics
+	ResultChan chan *Metric
 	Logger     zerolog.Logger
 	mutex      sync.Mutex
 	Valid      bool
@@ -131,7 +131,7 @@ type Metrics struct {
 }
 
 // UpdateData adds the lastest data to the history and also returns it
-func (wm *Metrics) UpdateData() MetricsData {
+func (wm *Metric) UpdateData() MetricsData {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 	// still running, get metrics , store and return them
@@ -171,7 +171,7 @@ HTTP SERVER:
 */
 
 // Writer - performance sensitive, don't do much here
-func (wm *Metrics) Write(p []byte) (int, error) {
+func (wm *Metric) Write(p []byte) (int, error) {
 	n := len(p)
 	s := int64(n)
 	wm.mutex.Lock()
@@ -189,7 +189,7 @@ func (wm *Metrics) Write(p []byte) (int, error) {
 // investigate if we can implement ReadFrom instead of Write
 // ReadFrom version- performance sensitive, don't do much here
 // it's basically a io.Discard with some metrics stored
-func (wm *Metrics) FixMeReadFrom(r io.Reader) (n int64, err error) {
+func (wm *Metric) FixMeReadFrom(r io.Reader) (n int64, err error) {
 	wm.mutex.Lock()
 	wm.TotalRead = 0
 	wm.ReadCount = 0
@@ -216,7 +216,7 @@ func (wm *Metrics) FixMeReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // LogProgress logs the intermediary metrics
-func (wm *Metrics) LogProgress(logger *zerolog.Logger) {
+func (wm *Metric) LogProgress(logger *zerolog.Logger) {
 	if logger == nil {
 		return
 	}
@@ -237,7 +237,7 @@ func (wm *Metrics) LogProgress(logger *zerolog.Logger) {
 }
 
 // LogFinal logs the final metrics
-func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
+func (wm *Metric) LogFinal(logger *zerolog.Logger) {
 	if logger == nil {
 		return
 	}
@@ -268,7 +268,7 @@ func (wm *Metrics) LogFinal(logger *zerolog.Logger) {
 	}
 }
 
-func (wm *Metrics) PrintFinal(w io.Writer, verbose bool) {
+func (wm *Metric) PrintFinal(w io.Writer, verbose bool) {
 	if wm.Valid {
 		fmt.Fprintf(w, "Read: %s ", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
 		fmt.Fprintf(w, "Write: %s ", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
@@ -286,7 +286,7 @@ func (wm *Metrics) PrintFinal(w io.Writer, verbose bool) {
 }
 
 // initialize metrics
-func (wm *Metrics) InitNew() {
+func (wm *Metric) InitNew() {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 
@@ -301,7 +301,7 @@ func (wm *Metrics) InitNew() {
 	wm.Logger.Debug().Msgf("wm InitNew called")
 }
 
-func (wm *Metrics) Close() error {
+func (wm *Metric) Close() error {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
@@ -321,12 +321,12 @@ func (wm *Metrics) Close() error {
 
 // Implement io.Reader - (it's a 'Write' metrics since a PUT/POST will call this Read() here to send to http server)
 // Read <- golang http client -> PUT/POST --> network --> server upload
-func (wm *Metrics) Read(p []byte) (n int, err error) {
+func (wm *Metric) Read(p []byte) (n int, err error) {
 	n, err = wm.read(p)
 	//fmt.Println("READ:", n, err, time.Since(wm.TransfertStartTime), wm.TotalWrite)
 	return n, err
 }
-func (wm *Metrics) read(p []byte) (n int, err error) {
+func (wm *Metric) read(p []byte) (n int, err error) {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 
@@ -359,7 +359,7 @@ func (wm *Metrics) read(p []byte) (n int, err error) {
 }
 
 // WriteTo - implement io.WriterTo interface - optimized Read
-func (wm *Metrics) FixWriteTo(w io.Writer) (n int64, err error) {
+func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 	wm.mutex.Lock()
 	wm.TransfertStartTime = time.Now()
 	wm.TotalWrite = 0
@@ -419,16 +419,30 @@ type reportGroup struct {
 	Command     string
 }
 
+type Metrics []*Metric
+
+// MarshalJSON for Workers type.
+// if an entry has an error, it will be ignored
+func (wc *Metrics) MarshalJSON() ([]byte, error) {
+	todo := Metrics{}
+	for _, v := range *wc {
+		if v.Error == nil {
+			todo = append(todo, v)
+		}
+	}
+	return json.Marshal(todo)
+}
+
 // generate a tabular formatted text report
-func GenerateJSONReport(wcWorkers []*Metrics) string {
-	json, err := json.Marshal(wcWorkers)
+func GenerateJSONReport(wcWorkers *Metrics) string {
+	json, err := json.MarshalIndent(wcWorkers, "", "\t")
 	if err != nil {
 		return fmt.Sprintf("error: %v", err)
 	}
 	return string(json)
 }
 
-func (wm *Metrics) SerieReport() (report string) {
+func (wm *Metric) SerieReport() (report string) {
 	var ReadCount, WriteCount, TotalRead, TotalWrite int64
 	var ElapsedTime time.Duration
 	for i, w := range wm.Serie {
@@ -464,7 +478,7 @@ func (wm *Metrics) SerieReport() (report string) {
 		wm.ElapsedTime)
 	return
 }
-func SeriesReport(wcWorkers []*Metrics) (report string) {
+func SeriesReport(wcWorkers Metrics) (report string) {
 	for _, wm := range wcWorkers {
 		report = report + wm.SerieReport() // fmt.Sprintf("%d - %s - has %d data to report\n", wm.Index, wm.Job.ID(), len(wm.Serie))
 
@@ -473,7 +487,7 @@ func SeriesReport(wcWorkers []*Metrics) (report string) {
 }
 
 // generate a tabular formatted text report
-func GenerateTextReport(wcWorkers []*Metrics, verbose bool, showGroup bool) string {
+func GenerateTextReport(wcWorkers Metrics, verbose bool, showGroup bool) string {
 	// main speed report - todo: refactor in a function
 
 	var out bytes.Buffer
@@ -532,7 +546,7 @@ func GenerateTextReport(wcWorkers []*Metrics, verbose bool, showGroup bool) stri
 	return out.String()
 }
 
-func GenerateHTMLReport(out io.Writer, wcWorkers []*Metrics) {
+func GenerateHTMLReport(out io.Writer, wcWorkers Metrics) {
 	//todo:
 }
 
@@ -565,15 +579,17 @@ func GenerateHTMLReport(out io.Writer, wcWorkers []*Metrics) {
 */
 
 type NetMetric struct {
-	Description    string        `json:"description"`
-	ID             string        `json:"id"`
-	GroupID        string        `json:"gid"`
-	Date           time.Time     `json:"date"`
-	RXBytes        uint64        `json:"rxbytes"`
-	TXBytes        uint64        `json:"txbytes"`
-	AverageLatency uint64        `json:"latency"`
-	Duration       time.Duration `json:"duration"`
-	Samples        []NetMetricSample
+	Command  string        `json:"command"`
+	ID       string        `json:"id"`
+	GroupID  string        `json:"gid"`
+	Date     time.Time     `json:"date"`
+	RXBytes  uint64        `json:"rxbytes"`
+	TXBytes  uint64        `json:"txbytes"`
+	Latency  time.Duration `json:"latency"`
+	Duration time.Duration `json:"duration"`
+	Target   string        `json:"target"`
+	Protocol string        `json:"protocol"`
+	Samples  []NetMetricSample
 }
 
 type NetMetricSample struct {
@@ -583,16 +599,10 @@ type NetMetricSample struct {
 	Duration time.Duration `json:"duration"` // in ms or ns ? - should be constant - keep?
 }
 
-func (wm *Metrics) MarshalJSON() ([]byte, error) {
-	nm := NetMetric{
-		Description: wm.Job.PrintString(false, false),
-		ID:          wm.Job.ID(),
-		GroupID:     wm.Job.GroupID(),
-		Date:        wm.TransfertStartTime,
-		RXBytes:     uint64(wm.TotalRead),
-		TXBytes:     uint64(wm.TotalRead),
-		Duration:    wm.ElapsedTime,
-		Samples:     []NetMetricSample{},
+func (wm *Metric) MarshalJSON() ([]byte, error) {
+	nm, err := wm.Job.GetMetric()
+	if err != nil {
+		return nil, err
 	}
 	return json.Marshal(nm)
 }

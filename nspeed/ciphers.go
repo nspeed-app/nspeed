@@ -164,10 +164,10 @@ type JobCiphers struct {
 	host    string
 	port    string
 	Timeout time.Duration
-	wm      *Metrics
+	wm      *Metric
 }
 
-func (j *JobCiphers) Init(wm *Metrics) error {
+func (j *JobCiphers) Init(wm *Metric) error {
 
 	u, err := utils.ParseURL(j.Target, "https")
 	if err != nil {

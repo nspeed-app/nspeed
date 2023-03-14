@@ -24,7 +24,7 @@ type Options struct {
 var GlobalOptions Options
 
 // RunJobs runs all the jobs, this is a synchronous function
-func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([]*Metrics, error) {
+func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) (Metrics, error) {
 
 	jobs := jl.Jobs
 	njobs := len(jobs)
@@ -35,12 +35,12 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([
 	}
 	sort.Strings(jobIds)
 
-	results := make(chan *Metrics, njobs)
-	wcWorkers := make([]*Metrics, 0, njobs)
+	results := make(chan *Metric, njobs)
+	wcWorkers := make(Metrics, 0, njobs)
 
 	for _, id := range jobIds {
 		job := jl.Jobs[id]
-		wm := Metrics{
+		wm := Metric{
 			MetricsData: MetricsData{
 				Done:    false,
 				Expired: false,
@@ -101,7 +101,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([
 		if !opt.Test {
 			wm.Logger.Debug().Msgf("spawning infinite workload %s %t", wm.Target, wm.Done)
 			wgi.Add(1)
-			go func(w *Metrics, wg *sync.WaitGroup) {
+			go func(w *Metric, wg *sync.WaitGroup) {
 				err := w.Job.Run(ctx, wg)
 				if err != nil {
 					log.Error().Msgf("error '%s' for '%s'", err, w.Target)
@@ -145,7 +145,7 @@ func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) ([
 		if !opt.Test {
 			wm.Logger.Debug().Msgf("spawning workload %s %t", wm.Target, wm.Done)
 			wgsl.Add(1)
-			go func(w *Metrics, wg *sync.WaitGroup) {
+			go func(w *Metric, wg *sync.WaitGroup) {
 				err := w.Job.Run(ctx, wg)
 				if err != nil {
 					w.Logger.Error().Msgf("error '%s' for '%s'", err, w.Target)
