@@ -17,7 +17,7 @@ import (
 )
 
 // commands
-type CommandId int
+type CommandID int
 
 const getCommand = "get"
 const putCommand = "put"
@@ -75,7 +75,7 @@ type httpFlags struct {
 	Delay       uint
 	UseIPv4     bool
 	UseIPv6     bool
-	Url         string
+	URL         string
 	UseHTTP11   bool
 	UseHTTP2    bool
 	UseHTTP3    bool
@@ -107,7 +107,7 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	fs.BoolVar(&hf.UseHTTP2, "http2", false, "force using HTTP/2")
 	fs.BoolVar(&hf.H2C, "h2c", false, "force using HTTP/2 Cleartext (H2C) mode (implies -http2)")
 	fs.BoolVar(&hf.UseHTTP3, "http3", false, "use HTTP3")
-	fs.StringVar(&hf.Url, urlFlag, "", "target url for the command")
+	fs.StringVar(&hf.URL, urlFlag, "", "target url for the command")
 	fs.StringVar(&hf.ID, "id", "", "name/id of this command")
 
 	//fs.StringVar(&hf.RemoteHost, "remote", "", "use a remote nspeed client (hostname or hostname:port)")
@@ -187,9 +187,9 @@ func IsCommand(cmd string) (Command, error) {
 		if strings.HasPrefix(v.Name, cmd) {
 			if found != "" {
 				return Command{}, errors.New("ambiguous command name: " + cmd)
-			} else {
-				found = v.Name
 			}
+			found = v.Name
+
 		}
 	}
 	if found != "" {
@@ -224,7 +224,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		args := fs.Args()
 
 		if IsFlagPassed(fs, urlFlag) {
-			j.Target = hf.Url
+			j.Target = hf.URL
 			if j.Target == "" {
 				return args, errors.New("empty url argument")
 			}
@@ -275,7 +275,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		args := fs.Args()
 
 		if IsFlagPassed(fs, urlFlag) {
-			j.Target = hf.Url
+			j.Target = hf.URL
 			if j.Target == "" {
 				return args, errors.New("empty url argument")
 			}
@@ -550,7 +550,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			Args: forcedIPVersion,
 			N:    *nStreams,
 			Size: *size,
-			Id:   id,
+			ID:   id,
 		}
 		for _, arg := range benchs {
 			ct, ok := benchmarksTemplates[arg]
@@ -565,8 +565,8 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 				log.Fatal().Err(err).Send()
 			}
 			cmd := strings.Fields(c.String())
-			id += 1
-			values.Id = id
+			id++
+			values.ID = id
 			log.Info().Msgf("benchmark: %s", cmd)
 			err := ParseCommands(cmd, jl, output, false)
 			if err != nil {

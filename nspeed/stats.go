@@ -35,11 +35,11 @@ type memStats struct {
 	Time           time.Time
 }
 
-var MachineInfo machineInfo = loadMachInfo()
+var MachineInfo = loadMachInfo()
 var MachineInfoMap map[string]any
-var MachineInfoJSON, _ = StructToJson(MachineInfo, &MachineInfoMap)
+var MachineInfoJSON, _ = StructToJSON(MachineInfo, &MachineInfoMap)
 
-func StructToJson(v any, m *map[string]any) ([]byte, error) {
+func StructToJSON(v any, m *map[string]any) ([]byte, error) {
 	z, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return nil, err

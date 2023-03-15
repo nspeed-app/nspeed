@@ -24,7 +24,7 @@ type Options struct {
 var GlobalOptions Options
 
 // RunJobs runs all the jobs, this is a synchronous function
-func RunJobs(jl *JobList, opt Options, ctx context.Context, message chan any) (Metrics, error) {
+func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (Metrics, error) {
 
 	jobs := jl.Jobs
 	njobs := len(jobs)

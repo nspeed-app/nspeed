@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"sync"
 	"time"
-	_ "unsafe"
+	_ "unsafe" //
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -189,7 +189,7 @@ func (j *JobCiphers) Init(wm *Metric) error {
 }
 
 // print the ciphers list of hostname (dial address)
-func (j *JobCiphers) Run(ctx context.Context, wg *sync.WaitGroup) error {
+func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup) error {
 
 	defer wg.Done()
 	if j.Delay > 0 {
@@ -235,7 +235,7 @@ func (j *JobCiphers) GoString() string {
 	)
 }
 
-func (j *JobCiphers) PrintString(verbose, group bool) string {
+func (j *JobCiphers) PrintString(_, _ bool) string {
 	return fmt.Sprintf("ciphers %s (%s:%s)", j.Target, j.host, j.port)
 }
 

@@ -25,7 +25,7 @@ import (
 )
 
 // name of product, used in user-agent
-var ServerName string = "NSpeed"
+var ServerName = "NSpeed"
 
 // local certificate - ALWAYS Clone() it
 var TLSSelfConfig *tls.Config
@@ -115,7 +115,7 @@ func (j *JobHTTPServer) GoString() string {
 	)
 }
 
-func (j *JobHTTPServer) PrintString(verbose, group bool) string {
+func (j *JobHTTPServer) PrintString(_, _ bool) string {
 	return "HTTP SERVER " + j.ID()
 }
 
@@ -160,23 +160,23 @@ func (j *JobHTTPServer) OnRequestEnd() {
 	}
 }
 
-func notImplemented(w http.ResponseWriter, r *http.Request) {
+func notImplemented(w http.ResponseWriter, _ *http.Request) {
 	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
 // CreateHandler returns an http.Handler that exposes all the server endpoints
-func (h *JobHTTPServer) CreateHandler() http.Handler {
+func (j *JobHTTPServer) CreateHandler() http.Handler {
 	mux := http.NewServeMux()
-	h.Mux = mux
+	j.Mux = mux
 
 	// serve static files h.Parameters.Directory
-	if h.Parameters.Directory != "" {
-		h.Logger.Info().Msgf("serving directory '%s' at %s", h.Parameters.Directory, DirPath)
-		mux.Handle(DirPath, http.StripPrefix(DirPath, http.FileServer(http.Dir(h.Parameters.Directory))))
+	if j.Parameters.Directory != "" {
+		j.Logger.Info().Msgf("serving directory '%s' at %s", j.Parameters.Directory, DirPath)
+		mux.Handle(DirPath, http.StripPrefix(DirPath, http.FileServer(http.Dir(j.Parameters.Directory))))
 	}
 
-	if !h.Parameters.APIOnly {
-		mux.HandleFunc("/", h.rootHandler)
+	if !j.Parameters.APIOnly {
+		mux.HandleFunc("/", j.rootHandler)
 	}
 
 	mux.HandleFunc("/ip", notImplemented)
@@ -184,52 +184,51 @@ func (h *JobHTTPServer) CreateHandler() http.Handler {
 	// mux and chain of middlewares (see http_middleware.go)
 	var handler http.Handler
 	handler = mux
-	handler = limitRequestSize(h.Parameters.MaxBodySize, handler)
+	handler = limitRequestSize(j.Parameters.MaxBodySize, handler)
 	handler = preflight(handler)
-	handler = limitNumRequests(h.OnRequestStart, h.OnRequestEnd, handler)
-	if h.Logger != nil {
-		handler = logger(h.Logger, handler)
+	handler = limitNumRequests(j.OnRequestStart, j.OnRequestEnd, handler)
+	if j.Logger != nil {
+		handler = logger(j.Logger, handler)
 	}
 
 	return handler
 }
 
 // handle '/' .. get : stream bytes, post/put - upload bytes
-func (h *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
+func (j *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	if method == "" {
 		method = "GET"
 	}
 
-	h.Logger.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
+	j.Logger.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
 
 	if method == "GET" {
-		match := h.StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
-		h.Logger.Debug().Strs("match", match).Send()
+		match := j.StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
+		j.Logger.Debug().Strs("match", match).Send()
 		// keep this test in sync with the regexp
 		if len(match) == 3 {
-			h.StreamBytes(w, r, match[1], match[2])
-			return
-		} else {
-			http.Error(w, "Not found (no regexp match)", http.StatusNotFound)
+			j.StreamBytes(w, r, match[1], match[2])
 			return
 		}
+		http.Error(w, "Not found (no regexp match)", http.StatusNotFound)
+		return
 	}
 
 	if method == "POST" && r.URL.Path == "/" {
-		h.Upload(w, r)
+		j.Upload(w, r)
 		return
 	}
 	//todo: may be only accept some specific path.
 	if method == "PUT" {
-		h.Upload(w, r)
+		j.Upload(w, r)
 		return
 	}
 	//http.NotFound(w, r)
 }
 
 // StreamBytes sends 'size' bytes using streaming (io level streaming not HTTP level).
-func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size string, extension string) {
+func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size string, extension string) {
 
 	n, err := utils.ParseByteUnits(size)
 	if err != nil {
@@ -237,11 +236,11 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		return
 	}
 	numBytes := int64(n)
-	h.Logger.Info().Msgf("streaming %s bytes (= %d bytes) with extention: %s", size, numBytes, extension)
+	j.Logger.Info().Msgf("streaming %s bytes (= %d bytes) with extention: %s", size, numBytes, extension)
 
 	if numBytes < 1 {
 		numBytes = 1
-	} else if numBytes > h.Parameters.MaxBodySize {
+	} else if numBytes > j.Parameters.MaxBodySize {
 		//http.Error(w, "too big", http.StatusBadRequest)
 		// we use 413 instead of 404 for now.
 		http.Error(w, "too big", http.StatusRequestEntityTooLarge)
@@ -270,7 +269,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", MaxChunkSize), http.StatusBadRequest)
 			return
 		}
-		h.Logger.Info().Msgf("chunk_size set to %d", chunkSize)
+		j.Logger.Info().Msgf("chunk_size set to %d", chunkSize)
 	}
 	// end danger zone
 
@@ -304,7 +303,7 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			Done:    false,
 			Expired: false,
 			Target:  fmt.Sprintf("download %s to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
-			Job:     h,
+			Job:     j,
 		},
 	}
 	wm.TransfertStartTime = time.Now()
@@ -340,18 +339,18 @@ func (h *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	}
 	wm.Done = true
 	wm.Valid = true
-	wm.LogFinal(h.Logger)
+	wm.LogFinal(j.Logger)
 }
 
 // handle upload
-func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
-	h.Logger.Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
+func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
+	j.Logger.Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
 	wm := Metric{
 		MetricsData: MetricsData{
 			Done:    false,
 			Expired: false,
 			Target:  fmt.Sprintf("upload from %s", r.RemoteAddr),
-			Job:     h,
+			Job:     j,
 		},
 	}
 	wm.FirstResponseByte = time.Now()
@@ -361,185 +360,193 @@ func (h *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	wm.TotalRead = n
 	wm.Error = err
 	wm.Valid = true
-	wm.LogFinal(h.Logger)
+	wm.LogFinal(j.Logger)
+	result, err := wm.MarshalJSON()
+	if err != nil {
+		fmt.Fprintf(w, "error formating metrics: %v", err)
+	}
+	_, err = w.Write(result)
+	if err != nil {
+		j.Logger.Error().Err(err).Msgf("Uload error writing result")
+	}
 }
 
 // implements the http server
 
-func (s *JobHTTPServer) Init(wm *Metric) error {
+func (j *JobHTTPServer) Init(wm *Metric) error {
 
 	// todo: this should be a global and Once
-	s.StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
+	j.StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
 
-	s.Logger = &wm.Logger //
+	j.Logger = &wm.Logger //
 
-	s.TotalRequests = 0 // just in case we reuse
+	j.TotalRequests = 0 // just in case we reuse
 
-	host := s.Parameters.Host
+	host := j.Parameters.Host
 
 	// empty host is a special case
 
-	s.Logger.Debug().Msgf("host parameter is:'%s'", host)
+	j.Logger.Debug().Msgf("host parameter is:'%s'", host)
 	if host != "" {
 		// if host is an interface name
-		hostIPAddrs, err := utils.ResolveInterfaceHostAddress(s.Parameters.Host)
+		hostIPAddrs, err := utils.ResolveInterfaceHostAddress(j.Parameters.Host)
 		if err != nil {
 			return err
 		}
 
-		fhostIPAddrs := utils.FilterAddresses(hostIPAddrs, s.Parameters.ForceIPVersion)
+		fhostIPAddrs := utils.FilterAddresses(hostIPAddrs, j.Parameters.ForceIPVersion)
 
 		if len(fhostIPAddrs) == 0 {
-			s.Logger.Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, s.Parameters.ForceIPVersion)
+			j.Logger.Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, j.Parameters.ForceIPVersion)
 			return errors.New("no valid candidate address found")
 		}
 		host = fhostIPAddrs[0].String()
 	}
 
 	// since Addr of http.Server is a single value we only use the first address
-	listenAddr := net.JoinHostPort(host, strconv.Itoa(s.Parameters.Port))
-	s.Server = &http.Server{
+	listenAddr := net.JoinHostPort(host, strconv.Itoa(j.Parameters.Port))
+	j.Server = &http.Server{
 		Addr:         listenAddr,
-		Handler:      s.CreateHandler(),
-		WriteTimeout: s.Parameters.MaxDuration,
-		ReadTimeout:  s.Parameters.MaxDuration,
+		Handler:      j.CreateHandler(),
+		WriteTimeout: j.Parameters.MaxDuration,
+		ReadTimeout:  j.Parameters.MaxDuration,
 	}
 
-	if s.Parameters.H2C {
-		s.Server.Handler = h2c.NewHandler(s.Server.Handler, &http2.Server{})
+	if j.Parameters.H2C {
+		j.Server.Handler = h2c.NewHandler(j.Server.Handler, &http2.Server{})
 	}
 
-	if s.Parameters.API {
-		s.api = &APIHost{Parameters: s.Parameters, Server: s}
-		return s.api.Init(wm)
+	if j.Parameters.API {
+		j.api = &APIHost{Parameters: j.Parameters, Server: j}
+		return j.api.Init(wm)
 	}
 	return nil
 }
-func (s *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
+func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
-	ctx, s.Cancel = context.WithCancel(ctx)
+	ctx, j.Cancel = context.WithCancel(ctx)
 
 	// run duration is either global timeout from ctx or RunDuration parameter
-	if s.Parameters.RunDuration != 0 {
-		ctx2, cancel := context.WithTimeout(ctx, s.Parameters.RunDuration)
+	if j.Parameters.RunDuration != 0 {
+		ctx2, cancel := context.WithTimeout(ctx, j.Parameters.RunDuration)
 		defer cancel()
 		ctx = ctx2
-		s.Logger.Debug().Msgf("server will shutdown in: %v", s.Parameters.RunDuration)
+		j.Logger.Debug().Msgf("server will shutdown in: %v", j.Parameters.RunDuration)
 	}
 	// exitCh will be closed when it is safe to exit, after graceful shutdown
 	exitCh := make(chan struct{})
 
 	// call this to shutdown server (net.http version)
-	s.Close = func(shutdownTimeout time.Duration) {
+	j.Close = func(shutdownTimeout time.Duration) {
 		lctx, lcancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer lcancel()
 
-		s.Server.SetKeepAlivesEnabled(false)
-		if err := s.Server.Shutdown(lctx); err != nil {
-			s.Logger.Debug().Msgf("shutdown error: %s", err)
+		j.Server.SetKeepAlivesEnabled(false)
+		if err := j.Server.Shutdown(lctx); err != nil {
+			j.Logger.Debug().Msgf("shutdown error: %s", err)
 		}
 	}
 
 	go func() {
 		<-ctx.Done()
-		s.Logger.Debug().Msgf("shutdown started by context : %s", ctx.Err())
+		j.Logger.Debug().Msgf("shutdown started by context : %s", ctx.Err())
 
-		s.Close(s.Parameters.MaxDuration + s.Parameters.MaxDuration*time.Second) //todo check with global timeout too
+		j.Close(j.Parameters.MaxDuration + j.Parameters.MaxDuration*time.Second) //todo check with global timeout too
 
 		close(exitCh)
 	}()
 
 	// TLS stuff (todo move this in Init ?)
-	if s.Parameters.UseTLSSelfConfig {
+	if j.Parameters.UseTLSSelfConfig {
 		if TLSSelfConfig != nil {
-			s.Server.TLSConfig = TLSSelfConfig.Clone()
-			s.Logger.Info().Msgf("using TLSSelfConfig")
+			j.Server.TLSConfig = TLSSelfConfig.Clone()
+			j.Logger.Info().Msgf("using TLSSelfConfig")
 		} else {
 			// this shouldn't happen if parameters check are done correctly
-			s.Logger.Fatal().Msgf("no self certificate installed")
+			j.Logger.Fatal().Msgf("no self certificate installed")
 		}
-	} else if s.Parameters.ServeTLS {
+	} else if j.Parameters.ServeTLS {
 		// todo: this should be done earlier may be ?
-		cer, err := tls.LoadX509KeyPair(s.Parameters.TLSCertFile, s.Parameters.TLSKeyFile)
+		cer, err := tls.LoadX509KeyPair(j.Parameters.TLSCertFile, j.Parameters.TLSKeyFile)
 		if err != nil {
-			s.Logger.Fatal().Err(err).Msgf("error loading cert/key files")
+			j.Logger.Fatal().Err(err).Msgf("error loading cert/key files")
 		}
-		s.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
+		j.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
 	}
 
-	err := s.Listen()
+	err := j.Listen()
 	if err != nil {
-		s.Logger.Fatal().Msgf("failed to listen: %s", err)
+		j.Logger.Fatal().Msgf("failed to listen: %s", err)
 		return err
 	}
 
 	// signal parent we're listening
 	wg.Done()
 	// hack: openbrowser, revisit this
-	if s.RunHook != nil {
-		err := s.RunHook(ctx)
+	if j.RunHook != nil {
+		err := j.RunHook(ctx)
 		if err != nil {
-			s.Logger.Warn().Msgf("failed to serve: %s", err)
+			j.Logger.Warn().Msgf("failed to serve: %s", err)
 			return err
 		}
 	}
 
 	// Serve: todo
-	err = s.Serve()
+	err = j.Serve()
 	// remove from global list
 
 	if err != nil {
 		if err != errors.New("quic: Server closed") { // temporary quic fix
-			s.Logger.Warn().Msgf("failed to serve: %s", err)
+			j.Logger.Warn().Msgf("failed to serve: %s", err)
 		}
 	}
 
 	// we get here if shutdown or error
 	<-exitCh
 	if err == nil {
-		s.Logger.Info().Msgf("shutdown finished")
+		j.Logger.Info().Msgf("shutdown finished")
 	}
 	return nil
 }
 
 // Listen opens the listening conn
-func (s *JobHTTPServer) Listen() error {
+func (j *JobHTTPServer) Listen() error {
 
-	if s.Parameters.HTTP3 {
-		return s.HTTP3Listen()
+	if j.Parameters.HTTP3 {
+		return j.HTTP3Listen()
 	}
 
-	if s.listener != nil {
+	if j.listener != nil {
 		return errors.New("a connection is already listening")
 	}
 
-	s.addr = s.Server.Addr
-	if s.addr == "" {
-		s.addr = ":http"
-		if s.Parameters.ServeTLS {
-			s.addr = ":https"
+	j.addr = j.Server.Addr
+	if j.addr == "" {
+		j.addr = ":http"
+		if j.Parameters.ServeTLS {
+			j.addr = ":https"
 		}
 	}
 
-	ln, err := net.Listen("tcp", s.addr)
+	ln, err := net.Listen("tcp", j.addr)
 	if err != nil {
 		return err
 	}
-	s.listener = &ln
-	if s.Parameters.ServeTLS {
-		s.URL = &url.URL{Scheme: "https", Host: ln.Addr().String()}
-		s.Logger.Warn().Msgf("server %s listening on %s (H2C = %t)", s.ID(), s.URL.String(), s.Parameters.H2C)
+	j.listener = &ln
+	if j.Parameters.ServeTLS {
+		j.URL = &url.URL{Scheme: "https", Host: ln.Addr().String()}
+		j.Logger.Warn().Msgf("server %s listening on %s (H2C = %t)", j.ID(), j.URL.String(), j.Parameters.H2C)
 	} else {
-		s.URL = &url.URL{Scheme: "http", Host: ln.Addr().String()}
-		s.Logger.Warn().Msgf("server %s listening on %s", s.ID(), s.URL.String())
+		j.URL = &url.URL{Scheme: "http", Host: ln.Addr().String()}
+		j.Logger.Warn().Msgf("server %s listening on %s", j.ID(), j.URL.String())
 	}
 
 	return nil
 }
 
 // Serve accepts incoming connections for this server.
-func (s *JobHTTPServer) Serve() error {
-	err := s.serve()
+func (j *JobHTTPServer) Serve() error {
+	err := j.serve()
 	if err == http.ErrServerClosed {
 		err = nil
 	}
@@ -547,130 +554,132 @@ func (s *JobHTTPServer) Serve() error {
 }
 
 // serve implements Serve/ServeTLS based on parameters
-func (s *JobHTTPServer) serve() error {
+func (j *JobHTTPServer) serve() error {
 
-	if s.Parameters.HTTP3 {
-		return s.HTTP3Serve()
+	if j.Parameters.HTTP3 {
+		return j.HTTP3Serve()
 	}
 
-	if s.listener == nil {
+	if j.listener == nil {
 		return errors.New("no listener")
 	}
 
-	if s.Parameters.HTTP2 {
-		return s.HTTP2Serve()
-	} else if s.Parameters.ServeTLS {
-		if s.Parameters.HTTP11 {
+	if j.Parameters.HTTP2 {
+		return j.HTTP2Serve()
+	} else if j.Parameters.ServeTLS {
+		if j.Parameters.HTTP11 {
 			// force HTTP1.1 as per https://pkg.go.dev/net/http#pkg-overview
-			s.Server.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
+			j.Server.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
 		}
-		return s.Server.ServeTLS(*s.listener, "", "")
+		return j.Server.ServeTLS(*j.listener, "", "")
 
 	} else {
-		return s.Server.Serve(*s.listener)
+		return j.Server.Serve(*j.listener)
 	}
 
 }
 
 // nolint
-func (s *JobHTTPServer) HTTP2Serve() error {
+func (j *JobHTTPServer) HTTP2Serve() error {
 	//return errors.New("enforcing HTTP/2 is not implemented yet")
-	return s.HTTP2serve()
+	return j.HTTP2serve()
 	// can't do unless we rewrite Serve because of we can't add
 	// our own proto handler for http/1.1 (see )
 
+	//revive:disable
 	fmt.Println("using http/2 only with patched crypto")
+	//revive:enable
 
-	err := http2.ConfigureServer(s.Server, &http2.Server{})
+	err := http2.ConfigureServer(j.Server, &http2.Server{})
 
 	if err != nil {
 		return err
 	}
 
-	idx := utils.IndexOf(s.Server.TLSConfig.NextProtos, "http/1.1")
+	idx := utils.IndexOf(j.Server.TLSConfig.NextProtos, "http/1.1")
 	if idx != -1 {
-		s.Logger.Warn().Msgf("removing http/1.1 from server.TLSConfig")
-		s.Server.TLSConfig.NextProtos = append(s.Server.TLSConfig.NextProtos[:idx], s.Server.TLSConfig.NextProtos[idx+1:]...)
+		j.Logger.Warn().Msgf("removing http/1.1 from server.TLSConfig")
+		j.Server.TLSConfig.NextProtos = append(j.Server.TLSConfig.NextProtos[:idx], j.Server.TLSConfig.NextProtos[idx+1:]...)
 	}
 
-	config := s.Server.TLSConfig.Clone()
+	config := j.Server.TLSConfig.Clone()
 
-	tlsListener := tls.NewListener(*s.listener, config)
-	return s.Server.Serve(tlsListener)
+	tlsListener := tls.NewListener(*j.listener, config)
+	return j.Server.Serve(tlsListener)
 }
 
 // HTTP3Listen opens the listening udp conn
-func (s *JobHTTPServer) HTTP3Listen() error {
+func (j *JobHTTPServer) HTTP3Listen() error {
 
-	if s.Server == nil {
+	if j.Server == nil {
 		return errors.New("no HTTP server")
 	}
 
-	if s.udpConn != nil {
+	if j.udpConn != nil {
 		return errors.New("udp connection already listening")
 	}
 
-	networkUdp := "udp"
-	if s.Parameters.ForceIPVersion == 4 {
-		networkUdp = "udp4"
+	networkUDP := "udp"
+	if j.Parameters.ForceIPVersion == 4 {
+		networkUDP = "udp4"
 	}
-	if s.Parameters.ForceIPVersion == 6 {
-		networkUdp = "udp6"
+	if j.Parameters.ForceIPVersion == 6 {
+		networkUDP = "udp6"
 	}
 
 	// Open the listeners
-	udpAddr, err := net.ResolveUDPAddr(networkUdp, s.Server.Addr)
+	udpAddr, err := net.ResolveUDPAddr(networkUDP, j.Server.Addr)
 	if err != nil {
 		return err
 	}
-	s.udpConn, err = net.ListenUDP("udp", udpAddr)
+	j.udpConn, err = net.ListenUDP("udp", udpAddr)
 	if err != nil {
 		return err
 	}
-	s.URL = &url.URL{Scheme: "https", Host: s.udpConn.LocalAddr().String()}
-	s.Logger.Warn().Msgf("server listening on %s (HTTP/3 on UDP)", s.URL.String())
+	j.URL = &url.URL{Scheme: "https", Host: j.udpConn.LocalAddr().String()}
+	j.Logger.Warn().Msgf("server listening on %s (HTTP/3 on UDP)", j.URL.String())
 	return nil
 }
 
-func (s *JobHTTPServer) HTTP3Serve() error {
+func (j *JobHTTPServer) HTTP3Serve() error {
 
-	if s.udpConn == nil {
+	if j.udpConn == nil {
 		return errors.New("no udp connection")
 	}
-	defer s.udpConn.Close()
+	defer j.udpConn.Close()
 
 	quicConf := &quic.Config{}
 
 	// setup debug trace
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(s.Logger))
+		quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(j.Logger))
 	}
 
 	quicServer := &http3.Server{
-		Addr:       s.Server.Addr,
-		TLSConfig:  s.Server.TLSConfig,
+		Addr:       j.Server.Addr,
+		TLSConfig:  j.Server.TLSConfig,
 		QuicConfig: quicConf,
-		Handler:    s.Server.Handler,
+		Handler:    j.Server.Handler,
 	}
 
-	h := s.Server.Handler
-	s.Server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := j.Server.Handler
+	j.Server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := quicServer.SetQuicHeaders(w.Header())
-		s.Logger.Debug().Msgf("SetQuicHeaders called")
+		j.Logger.Debug().Msgf("SetQuicHeaders called")
 		if err != nil {
-			s.Logger.Fatal().Err(err)
+			j.Logger.Fatal().Err(err)
 		}
 		h.ServeHTTP(w, r)
 	})
 
 	// this blocks or fail
-	s.Logger.Info().Msgf("nspeed serving https://%s (http3 on udp)", s.Server.Addr)
+	j.Logger.Info().Msgf("nspeed serving https://%s (http3 on udp)", j.Server.Addr)
 
-	s.Close = func(shutdownTimeout time.Duration) {
-		s.Logger.Debug().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")
+	j.Close = func(shutdownTimeout time.Duration) {
+		j.Logger.Debug().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")
 		// nyi: quicServer.CloseGracefully(shutdownTimeout)
 		err := quicServer.Close()
-		s.Logger.Info().Err(err).Msg("quicServer Close called")
+		j.Logger.Info().Err(err).Msg("quicServer Close called")
 	}
-	return quicServer.Serve(s.udpConn)
+	return quicServer.Serve(j.udpConn)
 }

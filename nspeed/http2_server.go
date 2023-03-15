@@ -198,9 +198,9 @@ func (s *JobHTTPServer) HTTP2serve() error {
 }
 
 // Create new connection from rwc.
-func (srv *HTTP2Server) newConn(rwc net.Conn) *conn {
+func (s *HTTP2Server) newConn(rwc net.Conn) *conn {
 	c := &conn{
-		server: srv,
+		server: s,
 		rwc:    rwc,
 	}
 	if debugServerConnections {
@@ -378,12 +378,12 @@ func (s *HTTP2Server) trackConn(c *conn, add bool) {
 //
 // It returns the minimum of any positive ReadHeaderTimeout,
 // ReadTimeout, or WriteTimeout.
-func (srv *HTTP2Server) tlsHandshakeTimeout() time.Duration {
+func (s *HTTP2Server) tlsHandshakeTimeout() time.Duration {
 	var ret time.Duration
 	for _, v := range [...]time.Duration{
-		srv.server.ReadHeaderTimeout,
-		srv.server.ReadTimeout,
-		srv.server.WriteTimeout,
+		s.server.ReadHeaderTimeout,
+		s.server.ReadTimeout,
+		s.server.WriteTimeout,
 	} {
 		if v <= 0 {
 			continue

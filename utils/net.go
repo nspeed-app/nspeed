@@ -250,7 +250,7 @@ type netInterfaceFilter struct {
 	acceptPattern *regexp.Regexp
 }
 
-func NewNetInterfaceFilter(ignoredPattern, acceptPattern string) (f netInterfaceFilter, err error) {
+func newNetInterfaceFilter(ignoredPattern, acceptPattern string) (f netInterfaceFilter, err error) {
 	if ignoredPattern != "" {
 		f.ignorePattern, err = regexp.Compile(ignoredPattern)
 	}

@@ -60,7 +60,7 @@ var optDNSServer = flag.String("dns-server", "", "specify a dns server to use (l
 
 //var optHostnames utils.StringArray
 
-// main
+// Main as main
 func Main() {
 
 	flag.CommandLine.Usage = func() {
@@ -276,7 +276,7 @@ func Main() {
 	}
 
 	waitChan := make(chan error)
-	var wcWorkers nspeed.Metrics = nil
+	var wcWorkers nspeed.Metrics
 
 	printHeaders := true
 	progressHandler := func(p any) {
@@ -285,7 +285,7 @@ func Main() {
 			rc := 0
 			for _, wm := range m {
 				if !wm.Done {
-					rc += 1
+					rc++
 					if consoleLevel == zerolog.TraceLevel {
 						wm.LogProgress(&wm.Logger)
 					}
@@ -309,7 +309,7 @@ func Main() {
 	go func() {
 		// defer wg.Done()
 		var err error
-		wcWorkers, err = nspeed.RunJobs(jl, nspeed.GlobalOptions, ctx, progress)
+		wcWorkers, err = nspeed.RunJobs(ctx, jl, nspeed.GlobalOptions, progress)
 		if err != nil {
 			log.Warn().Msgf("error running jobs: %v", err)
 		}

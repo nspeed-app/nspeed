@@ -202,14 +202,14 @@ func genViewTemplate(tick time.Duration, vid, route string, path string) string 
 	var c = struct {
 		Interval  int
 		MaxPoints int
-		Url       string
+		URL       string
 		Route     string
 		Path      string
 		ViewID    string
 	}{
 		Interval:  int(tick.Milliseconds()),
 		MaxPoints: defaultCfg.MaxPoints,
-		Url:       defaultCfg.LinkAddr,
+		URL:       defaultCfg.LinkAddr,
 		Route:     url.PathEscape(path + "/" + route),
 		ViewID:    vid,
 	}

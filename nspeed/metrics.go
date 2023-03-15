@@ -327,6 +327,8 @@ func (wm *Metric) Read(p []byte) (n int, err error) {
 	//fmt.Println("READ:", n, err, time.Since(wm.TransfertStartTime), wm.TotalWrite)
 	return n, err
 }
+
+// actual implementation of Read
 func (wm *Metric) read(p []byte) (n int, err error) {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
@@ -547,9 +549,9 @@ func GenerateTextReport(wcWorkers Metrics, verbose bool, showGroup bool) string 
 
 	var out bytes.Buffer
 
-	var elapsedTime time.Duration = 0
-	var totalRead int64 = 0
-	var totalWrite int64 = 0
+	var elapsedTime time.Duration
+	var totalRead int64
+	var totalWrite int64
 	groups := make(map[string]*reportGroup)
 
 	w := tabwriter.NewWriter(&out, 0, 2, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)

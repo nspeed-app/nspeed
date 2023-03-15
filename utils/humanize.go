@@ -43,9 +43,9 @@ func ByteCountBinary(b int64) string {
 	s, u := byteCount(b, 1024, decimalUnits)
 	if len(u) > 0 {
 		return s + " " + u + "i"
-	} else {
-		return s + " "
 	}
+	return s + " "
+
 }
 
 // FormatByteDecimalUnits format byte size to human readable format (decimal units)

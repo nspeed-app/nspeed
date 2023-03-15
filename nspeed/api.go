@@ -53,7 +53,7 @@ func (j *APIHost) GoString() string {
 	)
 }
 
-func (j *APIHost) PrintString(verbose, group bool) string {
+func (j *APIHost) PrintString(_, _ bool) string {
 	return "API " + net.JoinHostPort(j.Parameters.Host, strconv.Itoa(j.Parameters.Port))
 }
 
@@ -65,58 +65,58 @@ func (j *APIHost) GetMetric() (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")
 }
 
-func (s *APIHost) Init(wm *Metric) error {
-	if s.Parameters == nil {
-		s.Parameters = NewHostParameters()
-		s.Parameters.APIOnly = true
+func (j *APIHost) Init(wm *Metric) error {
+	if j.Parameters == nil {
+		j.Parameters = NewHostParameters()
+		j.Parameters.APIOnly = true
 	}
-	if s.Server == nil {
-		s.Parameters.APIOnly = true
-		s.Server = &JobHTTPServer{Parameters: s.Parameters}
-		err := s.Server.Init(wm)
+	if j.Server == nil {
+		j.Parameters.APIOnly = true
+		j.Server = &JobHTTPServer{Parameters: j.Parameters}
+		err := j.Server.Init(wm)
 		if err != nil {
 			return err
 		}
 	}
-	if s.Server.Mux == nil {
+	if j.Server.Mux == nil {
 		return errors.New("API: no Mux in server")
 	}
-	if !s.WebStatsOnly {
-		s.Server.Mux.Handle("/api/v1/", http.StripPrefix("/api/v1/", http.HandlerFunc(s.apiHandler)))
-		s.Server.Mux.Handle("/api/", http.HandlerFunc(s.apiHelpHandler))
+	if !j.WebStatsOnly {
+		j.Server.Mux.Handle("/api/v1/", http.StripPrefix("/api/v1/", http.HandlerFunc(j.apiHandler)))
+		j.Server.Mux.Handle("/api/", http.HandlerFunc(j.apiHelpHandler))
 	}
-	if s.WebStats {
-		mgr, err := webview.NewViewManager(GlobalOptions.ProgressInterval, StatsPath, s.WebStatsInterface, s.WebStatsDebug)
+	if j.WebStats {
+		mgr, err := webview.NewViewManager(GlobalOptions.ProgressInterval, StatsPath, j.WebStatsInterface, j.WebStatsDebug)
 		if err != nil {
 			return err
 		}
-		mgr.RegisterRoutes(s.Server.Mux)
+		mgr.RegisterRoutes(j.Server.Mux)
 	}
 	return nil
 }
 
-func (s *APIHost) Run(ctx context.Context, wg *sync.WaitGroup) error {
-	if s.Server == nil {
+func (j *APIHost) Run(ctx context.Context, wg *sync.WaitGroup) error {
+	if j.Server == nil {
 		return errors.New("API: no server")
 	}
-	s.Server.RunHook = func(c context.Context) error {
-		return s.PostRun()
+	j.Server.RunHook = func(c context.Context) error {
+		return j.PostRun()
 	}
-	return s.Server.Run(ctx, wg)
+	return j.Server.Run(ctx, wg)
 }
 
-func (h *APIHost) apiHelpHandler(w http.ResponseWriter, r *http.Request) {
+func (j *APIHost) apiHelpHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(APIDocumentation)
 }
 
-func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
+func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	method := r.Method
 	if method == "" {
 		method = "GET"
 	}
 	path := r.URL.Path
-	h.Server.Logger.Warn().Msgf("apiHandler: %s - %s from %s", method, path, r.RemoteAddr)
+	j.Server.Logger.Warn().Msgf("apiHandler: %s - %s from %s", method, path, r.RemoteAddr)
 
 	if method != "GET" {
 		http.Error(w, "no such method", http.StatusNotImplemented)
@@ -133,7 +133,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	//goal = allow adding new commands without editing this function
 
 	if cmd == "help" || cmd == "" {
-		h.apiHelpHandler(w, r)
+		j.apiHelpHandler(w, r)
 		return
 	}
 
@@ -228,7 +228,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Server.Logger.Warn().Msgf("apiHandler: run: %s", args)
+		j.Server.Logger.Warn().Msgf("apiHandler: run: %s", args)
 
 		a, ok := r.URL.Query()["args"]
 
@@ -239,7 +239,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		var args []string
 		for i := range a {
-			h.Server.Logger.Warn().Msgf("apiHandler: run: %d - %s", i, a[i])
+			j.Server.Logger.Warn().Msgf("apiHandler: run: %d - %s", i, a[i])
 			args = append(args, strings.Fields(a[i])...)
 		}
 
@@ -249,7 +249,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "error parsing run command: %s\n", err)
 			return
 		}
-		h.Server.Logger.Warn().
+		j.Server.Logger.Warn().
 			Str("remoteAddress", r.RemoteAddr).
 			Str("command", "run").
 			Strs("args", args).
@@ -257,7 +257,7 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		//f, okToFlush := w.(http.Flusher)
 
-		wcWorkers, err := RunJobs(jl, GlobalOptions, r.Context(), nil)
+		wcWorkers, err := RunJobs(r.Context(), jl, GlobalOptions, nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error running command: %s", err), http.StatusInternalServerError)
 			return
@@ -279,21 +279,21 @@ func (h *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PostRun is called when the endpoint server is running
-func (h *APIHost) PostRun() error {
-	url := h.Server.URL.JoinPath(StatsPath)
-	if h.WebStats {
-		h.Server.Logger.Warn().Msgf("real time web stats at %s", url)
+func (j *APIHost) PostRun() error {
+	url := j.Server.URL.JoinPath(StatsPath)
+	if j.WebStats {
+		j.Server.Logger.Warn().Msgf("real time web stats at %s", url)
 	}
-	if h.WebStatsDebug {
+	if j.WebStatsDebug {
 		// we should get the route from wher it's defined
 		// add a link in rt to this ?
-		h.Server.Logger.Warn().Msgf("Go runtime stats at %s", h.Server.URL.JoinPath(webview.GoStatsRoute))
-		if !h.WebStats {
-			url = h.Server.URL.JoinPath(webview.GoStatsRoute)
+		j.Server.Logger.Warn().Msgf("Go runtime stats at %s", j.Server.URL.JoinPath(webview.GoStatsRoute))
+		if !j.WebStats {
+			url = j.Server.URL.JoinPath(webview.GoStatsRoute)
 		}
 	}
-	if h.OpenBrowser {
-		h.Server.Logger.Warn().Msgf("opening browser at %s", url)
+	if j.OpenBrowser {
+		j.Server.Logger.Warn().Msgf("opening browser at %s", url)
 		return utils.Openbrowser(url.String(), nil, nil)
 	}
 	return nil
