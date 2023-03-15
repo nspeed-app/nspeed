@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/netip"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -245,23 +244,23 @@ func GetNetInterfaces(names []string) ([]net.Interface, error) {
 }
 
 // copied from https://github.com/prometheus/node_exporter/collector/device_filter.go
-type netInterfaceFilter struct {
-	ignorePattern *regexp.Regexp
-	acceptPattern *regexp.Regexp
-}
+// type netInterfaceFilter struct {
+// 	ignorePattern *regexp.Regexp
+// 	acceptPattern *regexp.Regexp
+// }
 
-func newNetInterfaceFilter(ignoredPattern, acceptPattern string) (f netInterfaceFilter, err error) {
-	if ignoredPattern != "" {
-		f.ignorePattern, err = regexp.Compile(ignoredPattern)
-	}
+// func newNetInterfaceFilter(ignoredPattern, acceptPattern string) (f netInterfaceFilter, err error) {
+// 	if ignoredPattern != "" {
+// 		f.ignorePattern, err = regexp.Compile(ignoredPattern)
+// 	}
 
-	if err != nil && acceptPattern != "" {
-		f.acceptPattern, err = regexp.Compile(acceptPattern)
-	}
-	return f, err
-}
+// 	if err != nil && acceptPattern != "" {
+// 		f.acceptPattern, err = regexp.Compile(acceptPattern)
+// 	}
+// 	return f, err
+// }
 
-func (f *netInterfaceFilter) IgnoreInterface(name string) bool {
-	return ((f.ignorePattern != nil && f.ignorePattern.MatchString(name)) ||
-		(f.acceptPattern != nil && !f.acceptPattern.MatchString(name)))
-}
+// func (f *netInterfaceFilter) IgnoreInterface(name string) bool {
+// 	return ((f.ignorePattern != nil && f.ignorePattern.MatchString(name)) ||
+// 		(f.acceptPattern != nil && !f.acceptPattern.MatchString(name)))
+// }

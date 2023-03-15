@@ -393,16 +393,19 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 	result, err := json.MarshalIndent(m, "", "\t")
 	if err != nil {
-		fmt.Fprintf(w, "error formating metrics: %v", err)
+		_, err = fmt.Fprintf(w, "error formating metrics: %v", err)
+		if err != nil {
+			wm.Logger.Error().Err(err).Msgf("Upload: error sending reply")
+			return
+		}
+		return
 	}
+
 	_, err = w.Write(result)
 
-	fmt.Fprintln(w, "debug:")
-
-	w.Write([]byte(GenerateJSONReport(&Metrics{wm}, false)))
-
 	if err != nil {
-		j.Logger.Error().Err(err).Msgf("Uload error writing result")
+		wm.Logger.Error().Err(err).Msgf("Upload: error writing result")
+		return
 	}
 }
 
