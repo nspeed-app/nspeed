@@ -71,7 +71,7 @@ func Max[T constraints.Ordered](x, y T) T {
 
 // Map implementes the classic non iterator "map a function" to each element of a slice
 func Map[U any, V any](lu []U, f func(U) V) []V {
-	var lv []V = make([]V, len(lu))
+	var lv = make([]V, len(lu))
 	for i, u := range lu {
 		lv[i] = f(u)
 	}

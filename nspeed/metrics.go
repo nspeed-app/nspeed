@@ -521,6 +521,7 @@ func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 
 func (wm *Metric) ToNetMetric(command string) NetMetric {
 	return NetMetric{
+		Command:  command,
 		ID:       wm.Job.ID(),
 		GroupID:  wm.Job.GroupID(),
 		Date:     wm.TransfertStartTime,
