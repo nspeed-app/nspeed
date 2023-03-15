@@ -2,7 +2,9 @@ package nspeed
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -19,6 +22,7 @@ import (
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/quic-go/qlog"
+	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -35,9 +39,16 @@ var TLSSelfConfig *tls.Config
 const (
 	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 40 // bytes
 	DefaultMaxDuration       = 10 * time.Second
-	//DefaultPort              = 7333
-	DirPath = "/dir/"
+	DefaultIdelTimeout       = 10 * time.Second
+	DirPath                  = "/dir/"
+	MaxResultCacheSize       = 10000
 )
+
+var StreamPathRegexp *regexp.Regexp
+
+func init() {
+	StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
+}
 
 // parameters of a server endpoint
 // todo: rename & refactor ?
@@ -47,6 +58,7 @@ type HostParameters struct {
 	ForceIPVersion   int   // 0 (none), 4 (force IPv4)  or 6 (force IPv6)
 	MaxBodySize      int64 // max inbound size and outbound size for streaming (not fileserve)- todo: split into 2 distinct settings?
 	MaxDuration      time.Duration
+	IdleTimeout      time.Duration
 	ServeTLS         bool
 	H2C              bool
 	HTTP11           bool
@@ -68,6 +80,7 @@ func NewHostParameters() *HostParameters {
 		//Port:        DefaultPort,
 		MaxBodySize: DefaultMaxBodySize,
 		MaxDuration: DefaultMaxDuration,
+		IdleTimeout: DefaultIdelTimeout,
 	}
 }
 
@@ -75,24 +88,25 @@ func NewHostParameters() *HostParameters {
 // implements Job interface
 type JobHTTPServer struct {
 	JobData
-	Parameters       *HostParameters
-	Server           *http.Server
-	Mux              *http.ServeMux
-	Cancel           context.CancelFunc
-	Close            func(t time.Duration)
-	Logger           *zerolog.Logger
-	StreamPathRegexp *regexp.Regexp
-	TotalRequests    int
-	mutex            sync.Mutex
-	api              *APIHost
-	addr             string
-	URL              *url.URL
-	listener         *net.Listener
-	udpConn          *net.UDPConn
+	Parameters    *HostParameters
+	Server        *http.Server
+	Mux           *http.ServeMux
+	Cancel        context.CancelFunc
+	Close         func(t time.Duration)
+	Logger        *zerolog.Logger
+	TotalRequests int
+	mutex         sync.Mutex
+	api           *APIHost
+	addr          string
+	URL           *url.URL
+	listener      *net.Listener
+	udpConn       *net.UDPConn
 	// allow extension
-	InitHook func() error
-	RunHook  func(context.Context) error
-	JobList  *JobList
+	InitHook    func() error
+	RunHook     func(context.Context) error
+	JobList     *JobList
+	wm          *Metric
+	ResultCache map[string]*Metric
 }
 
 func (j *JobHTTPServer) GetTarget() string {
@@ -125,12 +139,6 @@ func (j *JobHTTPServer) GenerateMetric(wm *Metric) (NetMetric, error) {
 }
 
 func (j *JobHTTPServer) IsInfinite() bool {
-	if j.Parameters.MaxRequests > 0 {
-		return false
-	}
-	if j.Parameters.RunDuration > 0 {
-		return false
-	}
 	return true
 }
 
@@ -191,7 +199,8 @@ func (j *JobHTTPServer) CreateHandler() http.Handler {
 	if j.Logger != nil {
 		handler = logger(j.Logger, handler)
 	}
-
+	// investigate using http.TimeoutHandler
+	// handler = http.TimeoutHandler(handler, j.Parameters.MaxDuration, "...")
 	return handler
 }
 
@@ -205,7 +214,7 @@ func (j *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	j.Logger.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
 
 	if method == "GET" {
-		match := j.StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
+		match := StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
 		j.Logger.Debug().Strs("match", match).Send()
 		// keep this test in sync with the regexp
 		if len(match) == 3 {
@@ -295,6 +304,16 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	// content-length
 	w.Header().Set("Content-Length", strconv.FormatInt(numBytes, 10))
 
+	// x-request-guid
+	ip, err := netip.ParseAddrPort(r.RemoteAddr)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cant parse your ip:port (%s)", err), http.StatusBadRequest)
+		return
+	}
+	remoteHash := md5.Sum([]byte(ip.Addr().String()))
+	guid := xid.New().String() + "-" + hex.EncodeToString(remoteHash[:])
+	w.Header().Set("x-request-guid", guid)
+
 	// status
 	w.WriteHeader(http.StatusOK) // this could also be done by the first w.Write()
 
@@ -306,6 +325,10 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			Target:  fmt.Sprintf("download %s to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
 			Job:     j,
 		},
+		Logger: j.Logger.With().
+			Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
+			Str("x-request-guid", guid).
+			Logger(),
 	}
 	wm.TransfertStartTime = time.Now()
 	wm.FirstResponseByte = wm.TransfertStartTime
@@ -413,9 +436,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 func (j *JobHTTPServer) Init(wm *Metric) error {
 
-	// todo: this should be a global and Once
-	j.StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
-
+	j.wm = wm
 	j.Logger = &wm.Logger //
 
 	j.TotalRequests = 0 // just in case we reuse
@@ -444,10 +465,12 @@ func (j *JobHTTPServer) Init(wm *Metric) error {
 	// since Addr of http.Server is a single value we only use the first address
 	listenAddr := net.JoinHostPort(host, strconv.Itoa(j.Parameters.Port))
 	j.Server = &http.Server{
-		Addr:         listenAddr,
-		Handler:      j.CreateHandler(),
-		WriteTimeout: j.Parameters.MaxDuration,
-		ReadTimeout:  j.Parameters.MaxDuration,
+		Addr:              listenAddr,
+		Handler:           j.CreateHandler(),
+		WriteTimeout:      j.Parameters.MaxDuration, // to handle this per request
+		ReadTimeout:       j.Parameters.MaxDuration, // idem
+		ReadHeaderTimeout: j.Parameters.MaxDuration,
+		IdleTimeout:       j.Parameters.IdleTimeout,
 	}
 
 	if j.Parameters.H2C {
@@ -489,7 +512,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		<-ctx.Done()
 		j.Logger.Debug().Msgf("shutdown started by context : %s", ctx.Err())
 
-		j.Close(j.Parameters.MaxDuration + j.Parameters.MaxDuration*time.Second) //todo check with global timeout too
+		j.Close(j.Parameters.MaxDuration + 1*time.Second) //todo check with global timeout too
 
 		close(exitCh)
 	}()
@@ -544,6 +567,9 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	if err == nil {
 		j.Logger.Info().Msgf("shutdown finished")
 	}
+
+	// signal parent and send metrics
+	j.wm.ResultChan <- j.wm
 	return nil
 }
 

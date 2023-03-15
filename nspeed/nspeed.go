@@ -226,6 +226,10 @@ mainloop:
 			if wm.Done {
 				wm.Logger.Info().Msgf("job ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.Expired, runtime.NumGoroutine(), rc)
 			}
+			if rc <= 0 {
+				wm.Logger.Info().Msgf("no more jobs - exiting")
+				break mainloop
+			}
 		case <-cWaitgroupSLEnded:
 			log.Debug().Msgf("all sl workers ended (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
 			if !IsInfinite {

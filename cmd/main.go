@@ -334,7 +334,7 @@ mainloop:
 			break mainloop
 		}
 	}
-	log.Debug().Msgf("main loop ended. active jobs: %d / active goroutines: %d", len(wcWorkers), runtime.NumGoroutine())
+	log.Trace().Msgf("main loop ended. total jobs: %d / active goroutines: %d", len(wcWorkers), runtime.NumGoroutine())
 
 	// pre delay
 	if *optPostDelay != 0 && ctx.Err() == nil {
