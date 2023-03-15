@@ -61,7 +61,7 @@ func (j *APIHost) IsInfinite() bool {
 	return true
 }
 
-func (j *APIHost) GetMetric() (NetMetric, error) {
+func (j *APIHost) GenerateMetric(_ *Metric) (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")
 }
 

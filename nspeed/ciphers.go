@@ -222,7 +222,7 @@ func (j *JobCiphers) GetTarget() string {
 	return fmt.Sprintf("ciphers %s", j.Target)
 }
 
-func (j *JobCiphers) GetMetric() (NetMetric, error) {
+func (j *JobCiphers) GenerateMetric(_ *Metric) (NetMetric, error) {
 	return NetMetric{}, fmt.Errorf("not yet implemented")
 }
 

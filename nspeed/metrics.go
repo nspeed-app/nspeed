@@ -24,7 +24,7 @@ type Job interface {
 	IsInfinite() bool
 	Init(*Metric) error
 	Run(context.Context, *sync.WaitGroup) error
-	GetMetric() (NetMetric, error)
+	GenerateMetric(*Metric) (NetMetric, error)
 	//common, implemented here
 	ID() string
 	SetID(string)
@@ -129,6 +129,26 @@ type Metric struct {
 	// history
 	Tick  time.Duration
 	Serie []MetricsData
+}
+
+// StartTicker starts a ticker for this Metric
+func (wm *Metric) StartTicker(done chan bool) {
+	if wm.Tick <= 0 {
+		return
+	}
+	ticker := time.NewTicker(wm.Tick)
+	wm.Logger.Trace().Msgf("starting ticker at rate %s", wm.Tick)
+	go func() {
+		defer wm.Logger.Warn().Msg("go ticker ended")
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				wm.UpdateData()
+			}
+		}
+	}()
 }
 
 // UpdateData adds the lastest data to the history and also returns it
@@ -499,6 +519,46 @@ func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 	return string(json)
 }
 
+func (wm *Metric) ToNetMetric(command string) NetMetric {
+	return NetMetric{
+		ID:       wm.Job.ID(),
+		GroupID:  wm.Job.GroupID(),
+		Date:     wm.TransfertStartTime,
+		RXBytes:  uint64(wm.TotalRead),
+		TXBytes:  uint64(wm.TotalWrite),
+		RXHBps:   utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
+		TXHBps:   utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		RXBps:    utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
+		TXBps:    utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		Duration: wm.ElapsedTime,
+		Latency:  -1,
+		Target:   wm.Target,
+		Protocol: wm.Protocol,
+		Samples:  wm.ToSamples(),
+	}
+
+}
+
+func (wm *Metric) ToSamples() []NetMetricSample {
+	if wm.Serie == nil {
+		return nil
+	}
+	nms := make([]NetMetricSample, len(wm.Serie))
+	for i, s := range wm.Serie {
+		n := NetMetricSample{}
+		n.RXBytes = uint64(s.TotalRead)
+		n.TXBytes = uint64(s.TotalWrite)
+		n.Duration = s.ElapsedTime
+		if i > 0 {
+			n.RXBytes = uint64(s.TotalRead) - nms[i-1].RXBytes
+			n.TXBytes = uint64(s.TotalWrite) - nms[i-1].TXBytes
+			n.Duration = s.ElapsedTime - nms[i-1].Duration
+		}
+		nms[i] = n
+	}
+	return nms
+}
+
 func (wm *Metric) SerieReport() (report string) {
 	var ReadCount, WriteCount, TotalRead, TotalWrite int64
 	var ElapsedTime time.Duration
@@ -656,12 +716,12 @@ type NetMetric struct {
 type NetMetricSample struct {
 	RXBytes  uint64        `json:"rxbytes"`
 	TXBytes  uint64        `json:"txbytes"`
-	Latency  uint64        `json:"latency"`
+	Latency  int64         `json:"latency"`
 	Duration time.Duration `json:"duration"` // in ms or ns ? - should be constant - keep?
 }
 
 func (wm *Metric) MarshalJSON() ([]byte, error) {
-	nm, err := wm.Job.GetMetric()
+	nm, err := wm.Job.GenerateMetric(wm)
 	if err != nil {
 		return nil, err
 	}

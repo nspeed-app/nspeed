@@ -3,6 +3,7 @@ package nspeed
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -119,8 +120,8 @@ func (j *JobHTTPServer) PrintString(_, _ bool) string {
 	return "HTTP SERVER " + j.ID()
 }
 
-func (j *JobHTTPServer) GetMetric() (NetMetric, error) {
-	return NetMetric{}, fmt.Errorf("not yet implemented")
+func (j *JobHTTPServer) GenerateMetric(wm *Metric) (NetMetric, error) {
+	return wm.ToNetMetric("unknown origin"), nil
 }
 
 func (j *JobHTTPServer) IsInfinite() bool {
@@ -344,28 +345,62 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 
 // handle upload
 func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
-	j.Logger.Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
-	wm := Metric{
-		MetricsData: MetricsData{
-			Done:    false,
-			Expired: false,
-			Target:  fmt.Sprintf("upload from %s", r.RemoteAddr),
-			Job:     j,
-		},
-	}
-	wm.FirstResponseByte = time.Now()
 
-	n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, &wm), BigBuffer)
+	j.Logger.Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
+
+	// metric for this request
+	wm := &Metric{
+		MetricsData: MetricsData{
+			Done:               false,
+			Expired:            false,
+			Target:             fmt.Sprintf("upload from %s, path = %s", r.RemoteAddr, r.RequestURI),
+			Job:                j,
+			TransfertStartTime: time.Now(),
+			FirstResponseByte:  time.Now(),
+		},
+		Protocol: r.Proto,
+		Logger:   j.Logger.With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger(),
+	}
+
+	// to signal the ticker
+	done := make(chan bool)
+
+	// start a ticker if a valid rate parameter is present
+	var err error
+	if rate := r.URL.Query().Get("rate"); rate != "" {
+		j.Logger.Info().Msgf("Upload: %s from %s - set rate to %s", r.Method, r.RemoteAddr, rate)
+		wm.Tick, err = time.ParseDuration(rate)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("bad value '%s' for rate", rate), http.StatusBadRequest)
+			return
+		}
+	}
+
+	wm.StartTicker(done)
+	// do the upload
+	n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, wm), BigBuffer)
+	// signal the evenutal ticker
+	close(done)
+
 	wm.ElapsedTime = time.Since(wm.FirstResponseByte)
 	wm.TotalRead = n
 	wm.Error = err
 	wm.Valid = true
 	wm.LogFinal(j.Logger)
-	result, err := wm.MarshalJSON()
+
+	// put this in a function
+	m := wm.ToNetMetric(fmt.Sprintf("%s from %s (%d bytes)", r.Method, r.RemoteAddr, r.ContentLength))
+
+	result, err := json.MarshalIndent(m, "", "\t")
 	if err != nil {
 		fmt.Fprintf(w, "error formating metrics: %v", err)
 	}
 	_, err = w.Write(result)
+
+	fmt.Fprintln(w, "debug:")
+
+	w.Write([]byte(GenerateJSONReport(&Metrics{wm}, false)))
+
 	if err != nil {
 		j.Logger.Error().Err(err).Msgf("Uload error writing result")
 	}

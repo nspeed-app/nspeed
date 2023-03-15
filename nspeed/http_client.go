@@ -159,25 +159,25 @@ func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 
 func (j *JobHTTPClient) IsInfinite() bool { return false }
 
-func (j *JobHTTPClient) GetMetric() (NetMetric, error) {
-	if j.wm.Error != nil {
+func (j *JobHTTPClient) GenerateMetric(wm *Metric) (NetMetric, error) {
+	if wm.Error != nil {
 		return NetMetric{}, fmt.Errorf("job has error %w", j.wm.Error)
 	}
 	n := NetMetric{
 		Command:  j.CommandString(),
 		ID:       j.ID(),
 		GroupID:  j.GroupID(),
-		Date:     j.wm.TransfertStartTime,
-		RXBytes:  uint64(j.wm.TotalRead),
-		TXBytes:  uint64(j.wm.TotalRead),
-		RXHBps:   utils.FormatBitperSecond(j.wm.TotalRead, j.wm.ElapsedTime),
-		TXHBps:   utils.FormatBitperSecond(j.wm.TotalWrite, j.wm.ElapsedTime),
-		RXBps:    utils.BitperSecond(j.wm.TotalRead, j.wm.ElapsedTime),
-		TXBps:    utils.BitperSecond(j.wm.TotalWrite, j.wm.ElapsedTime),
-		Duration: j.wm.ElapsedTime,
+		Date:     wm.TransfertStartTime,
+		RXBytes:  uint64(wm.TotalRead),
+		TXBytes:  uint64(wm.TotalWrite),
+		RXHBps:   utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
+		TXHBps:   utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		RXBps:    utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
+		TXBps:    utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		Duration: wm.ElapsedTime,
 		Latency:  j.tr.connectDone.Sub(j.tr.connectStart),
 		Target:   j.GetDestination(),
-		Protocol: j.wm.Protocol,
+		Protocol: wm.Protocol,
 	}
 	return n, nil
 }
