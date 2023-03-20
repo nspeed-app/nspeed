@@ -521,21 +521,22 @@ func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 
 func (wm *Metric) ToNetMetric(command string) NetMetric {
 	return NetMetric{
-		Command:  command,
-		ID:       wm.Job.ID(),
-		GroupID:  wm.Job.GroupID(),
-		Date:     wm.TransfertStartTime,
-		RXBytes:  uint64(wm.TotalRead),
-		TXBytes:  uint64(wm.TotalWrite),
-		RXHBps:   utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
-		TXHBps:   utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
-		RXBps:    utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
-		TXBps:    utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
-		Duration: wm.ElapsedTime,
-		Latency:  -1,
-		Target:   wm.Target,
-		Protocol: wm.Protocol,
-		Samples:  wm.ToSamples(),
+		Command:    command,
+		ID:         wm.Job.ID(),
+		GroupID:    wm.Job.GroupID(),
+		Date:       wm.TransfertStartTime,
+		RXBytes:    uint64(wm.TotalRead),
+		TXBytes:    uint64(wm.TotalWrite),
+		RXHBps:     utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
+		TXHBps:     utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		RXBps:      utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
+		TXBps:      utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		Duration:   wm.ElapsedTime,
+		Latency:    -1,
+		Target:     wm.Target,
+		Protocol:   wm.Protocol,
+		SampleRate: uint64(wm.Tick),
+		Samples:    wm.ToSamples(),
 	}
 
 }
@@ -697,21 +698,22 @@ func GenerateHTMLReport(out io.Writer, wcWorkers Metrics) {
 */
 
 type NetMetric struct {
-	Command  string        `json:"command"`
-	ID       string        `json:"id"`
-	GroupID  string        `json:"gid"`
-	Date     time.Time     `json:"date"`
-	RXBytes  uint64        `json:"rxbytes"`
-	TXBytes  uint64        `json:"txbytes"`
-	Duration time.Duration `json:"duration"`
-	RXHBps   string        `json:"rxhbps"`
-	TXHBps   string        `json:"ryhbps"`
-	RXBps    int64         `json:"rxbps"`
-	TXBps    int64         `json:"rybps"`
-	Latency  time.Duration `json:"latency"`
-	Target   string        `json:"target"`
-	Protocol string        `json:"protocol"`
-	Samples  []NetMetricSample
+	Command    string        `json:"command"`
+	ID         string        `json:"id"`
+	GroupID    string        `json:"gid"`
+	Date       time.Time     `json:"date"`
+	RXBytes    uint64        `json:"rxbytes"`
+	TXBytes    uint64        `json:"txbytes"`
+	Duration   time.Duration `json:"duration"`
+	RXHBps     string        `json:"rxhbps"`
+	TXHBps     string        `json:"ryhbps"`
+	RXBps      int64         `json:"rxbps"`
+	TXBps      int64         `json:"rybps"`
+	Latency    time.Duration `json:"latency"`
+	Target     string        `json:"target"`
+	Protocol   string        `json:"protocol"`
+	SampleRate uint64        `json:"samplerate"`
+	Samples    []NetMetricSample
 }
 
 type NetMetricSample struct {

@@ -323,8 +323,7 @@ mainloop:
 			progressHandler(m)
 		case sig := <-shutdownCh:
 			log.Warn().Msgf("global shutdown started by signal: %s", sig)
-			cancel()
-			break mainloop
+			cancel() // this should end RunJobs which will signal waitChan
 		case err := <-errs:
 			log.Warn().Err(err).Msgf("error with webview")
 			cancel()

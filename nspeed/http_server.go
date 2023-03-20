@@ -41,8 +41,9 @@ const (
 	DefaultMaxDuration       = 10 * time.Second
 	DefaultIdelTimeout       = 10 * time.Second
 	DirPath                  = "/dir/"
-	MaxResultCacheSize       = 10000
+	GUIDHeader               = "X-Nspeed-Guid"
 	TTLGuidTimeout           = 5 * time.Second
+	TTLGuidMaxSize           = 10000
 )
 
 var StreamPathRegexp *regexp.Regexp
@@ -50,7 +51,7 @@ var TTLGUIDCache *utils.TTLCache[string, *Metric]
 
 func init() {
 	StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
-	TTLGUIDCache = utils.NewTTLCache[string, *Metric](20)
+	TTLGUIDCache = utils.NewTTLCache[string, *Metric](20, TTLGuidMaxSize)
 }
 
 // parameters of a server endpoint
@@ -217,6 +218,15 @@ func (j *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	j.Logger.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
 
 	if method == "GET" {
+		a, ok := r.Header[GUIDHeader]
+		if ok {
+			if len(a) == 1 {
+				j.SendCachedMetrics(w, r, a[0])
+				return
+			}
+			http.Error(w, "too many x-nspeed-guid header", http.StatusBadRequest)
+			return
+		}
 		match := StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
 		j.Logger.Debug().Strs("match", match).Send()
 		// keep this test in sync with the regexp
@@ -315,7 +325,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	}
 	remoteHash := md5.Sum([]byte(ip.Addr().String()))
 	guid := xid.New().String() + "-" + hex.EncodeToString(remoteHash[:])
-	w.Header().Set("x-request-guid", guid)
+	w.Header().Set(GUIDHeader, guid)
 
 	// status
 	w.WriteHeader(http.StatusOK) // this could also be done by the first w.Write()
@@ -333,37 +343,59 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			Str("x-request-guid", guid).
 			Logger(),
 	}
+
+	// handle rate parameter
+	done, err := j.ParseRate(w, r, &wm)
+	if err != nil {
+		wm.Logger.Error().Err(err).Msgf("Upload: bad rate value")
+		http.Error(w, fmt.Sprintf("bad rate parameter"), http.StatusBadRequest)
+		return
+	}
+
 	wm.TransfertStartTime = time.Now()
 	wm.FirstResponseByte = wm.TransfertStartTime
 	wm.ContentWriteSize = numBytes //todo: investigate what happens when timed out
-	//f := w.(http.Flusher)
-	// send the buffer as many times as needed --> todo: why don't we io.copy to a wm like the client ?
-	var numChunk = numBytes / chunkSize
-	wm.StepSize = chunkSize
-	for i := int64(0); i < numChunk; i++ {
-		n, err := w.Write(chunk)
-		wm.TotalWrite += int64(n)
-		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
-		if err != nil {
-			wm.Error = err
-			wm.Expired = true
-			break
+
+	method := r.URL.Query().Get("method")
+
+	if method != "1" {
+		//f := w.(http.Flusher)
+		// send the buffer as many times as needed --> todo: why don't we io.copy to a wm like the client ?
+		var numChunk = numBytes / chunkSize
+		wm.StepSize = chunkSize
+		for i := int64(0); i < numChunk; i++ {
+			n, err := w.Write(chunk)
+			wm.TotalWrite += int64(n)
+			wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+			if err != nil {
+				wm.Error = err
+				wm.Expired = true
+				break
+			}
+			wm.WriteCount++
 		}
-		wm.WriteCount++
+
+		// send the modulo is any or not interrupted/timed out
+		// fmt.Println("modulo :", numBytes % chunkSize)
+		if numBytes%chunkSize > 0 && !wm.Expired {
+			n, err := w.Write(chunk[:numBytes%chunkSize])
+			//f.Flush()
+			wm.TotalWrite += int64(n)
+			wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+			if err != nil {
+				wm.Error = err
+				wm.Expired = true
+			}
+		}
+	} else {
+		n, err := io.CopyBuffer(w, &wm, BigBuffer)
+		wm.Error = err
+		if n != numBytes {
+			wm.Expired = true
+		}
 	}
 
-	// send the modulo is any or not interrupted/timed out
-	// fmt.Println("modulo :", numBytes % chunkSize)
-	if numBytes%chunkSize > 0 && !wm.Expired {
-		n, err := w.Write(chunk[:numBytes%chunkSize])
-		//f.Flush()
-		wm.TotalWrite += int64(n)
-		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
-		if err != nil {
-			wm.Error = err
-			wm.Expired = true
-		}
-	}
+	close(done)
 	wm.Done = true
 	wm.Valid = true
 	wm.LogFinal(j.Logger)
@@ -375,6 +407,52 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			return
 		}
 	}
+}
+
+func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, r *http.Request, guid string) {
+
+	j.Logger.Trace().Msgf("getting and deleting guid: %s", guid)
+	wm, ok := TTLGUIDCache.Get(guid)
+	if !ok {
+		http.Error(w, fmt.Sprintf("no such guid (%s)", guid), http.StatusBadRequest)
+		return
+	}
+	err := j.SendMetric(w, r, wm)
+	_ = TTLGUIDCache.Delete(guid)
+	if err != nil {
+		wm.Logger.Error().Err(err).Msgf("Upload: error writing result")
+		return
+	}
+}
+
+func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, r *http.Request, wm *Metric) error {
+	m := wm.ToNetMetric(fmt.Sprintf("%s from %s (%d bytes)", r.Method, r.RemoteAddr, r.ContentLength))
+	result, err := json.MarshalIndent(m, "", "\t")
+	if err != nil {
+		_, err = fmt.Fprintf(w, "error formating metrics: %v", err)
+		if err != nil {
+			wm.Logger.Error().Err(err).Msgf("Upload: error sending reply")
+			return err
+		}
+		return err
+	}
+	_, err = w.Write(result)
+	return err
+}
+
+func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *Metric) (chan bool, error) {
+	var err error
+	if rate := r.URL.Query().Get("rate"); rate != "" {
+		j.Logger.Info().Msgf("Upload: %s from %s - set rate to %s", r.Method, r.RemoteAddr, rate)
+		wm.Tick, err = time.ParseDuration(rate)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("bad value '%s' for rate", rate), http.StatusBadRequest)
+			return nil, err
+		}
+	}
+	done := make(chan bool)
+	wm.StartTicker(done)
+	return done, nil
 }
 
 // handle upload
@@ -396,21 +474,12 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 		Logger:   j.Logger.With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger(),
 	}
 
-	// to signal the ticker
-	done := make(chan bool)
-
-	// start a ticker if a valid rate parameter is present
-	var err error
-	if rate := r.URL.Query().Get("rate"); rate != "" {
-		j.Logger.Info().Msgf("Upload: %s from %s - set rate to %s", r.Method, r.RemoteAddr, rate)
-		wm.Tick, err = time.ParseDuration(rate)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("bad value '%s' for rate", rate), http.StatusBadRequest)
-			return
-		}
+	// handle rate parameter
+	done, err := j.ParseRate(w, r, wm)
+	if err != nil {
+		wm.Logger.Error().Err(err).Msgf("Upload: bad rate value")
+		return
 	}
-
-	wm.StartTicker(done)
 	// do the upload
 	n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, wm), BigBuffer)
 	// signal the evenutal ticker
@@ -422,20 +491,8 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	wm.Valid = true
 	wm.LogFinal(j.Logger)
 
-	// put this in a function
-	m := wm.ToNetMetric(fmt.Sprintf("%s from %s (%d bytes)", r.Method, r.RemoteAddr, r.ContentLength))
-
-	result, err := json.MarshalIndent(m, "", "\t")
-	if err != nil {
-		_, err = fmt.Fprintf(w, "error formating metrics: %v", err)
-		if err != nil {
-			wm.Logger.Error().Err(err).Msgf("Upload: error sending reply")
-			return
-		}
-		return
-	}
-
-	_, err = w.Write(result)
+	// send the metrics
+	err = j.SendMetric(w, r, wm)
 
 	if err != nil {
 		wm.Logger.Error().Err(err).Msgf("Upload: error writing result")
