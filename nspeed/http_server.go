@@ -333,10 +333,13 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	// prepare metrics handler
 	wm := Metric{
 		MetricsData: MetricsData{
-			Done:    false,
-			Expired: false,
-			Target:  fmt.Sprintf("download %s to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
-			Job:     j,
+			Job:              j,
+			Done:             false,
+			Expired:          false,
+			Cancelled:        false,
+			Target:           fmt.Sprintf("stream %s bytes to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
+			ContentWriteSize: numBytes,
+			StepSize:         chunkSize,
 		},
 		Logger: j.Logger.With().
 			Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
@@ -348,7 +351,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	done, err := j.ParseRate(w, r, &wm)
 	if err != nil {
 		wm.Logger.Error().Err(err).Msgf("Upload: bad rate value")
-		http.Error(w, fmt.Sprintf("bad rate parameter"), http.StatusBadRequest)
+		http.Error(w, "bad rate parameter", http.StatusBadRequest)
 		return
 	}
 
@@ -358,7 +361,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 
 	method := r.URL.Query().Get("method")
 
-	if method != "1" {
+	if method == "old" {
 		//f := w.(http.Flusher)
 		// send the buffer as many times as needed --> todo: why don't we io.copy to a wm like the client ?
 		var numChunk = numBytes / chunkSize
@@ -388,7 +391,21 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			}
 		}
 	} else {
-		n, err := io.CopyBuffer(w, &wm, BigBuffer)
+
+		// var src io.Reader = &wm
+		// if _, ok := src.(io.WriterTo); ok {
+		// 	fmt.Println("WriteTo will be used")
+		// }
+		// if _, ok := w.(io.ReaderFrom); ok {
+		// 	fmt.Println("ReadFrom will be used")
+		// }
+
+		// this will disable the ReadFrom of w (http.ResponseWriter)
+		// see func (w *response) ReadFrom(src io.Reader) in net/http/server.go
+		type writerOnly struct {
+			io.Writer
+		}
+		n, err := io.CopyBuffer(writerOnly{w}, &wm, chunk)
 		wm.Error = err
 		if n != numBytes {
 			wm.Expired = true

@@ -68,7 +68,7 @@ func (jl *JobList) AddJobs(jobs ...Job) error {
 	var js []Job
 	for i, j := range jobs {
 		if j == nil {
-			return fmt.Errorf("Addjob: nil argument")
+			return fmt.Errorf("func Addjob: nil argument")
 		}
 		if j.ID() == "" {
 			j.SetID(gid)
