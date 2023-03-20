@@ -42,12 +42,15 @@ const (
 	DefaultIdelTimeout       = 10 * time.Second
 	DirPath                  = "/dir/"
 	MaxResultCacheSize       = 10000
+	TTLGuidTimeout           = 5 * time.Second
 )
 
 var StreamPathRegexp *regexp.Regexp
+var TTLGUIDCache *utils.TTLCache[string, *Metric]
 
 func init() {
 	StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
+	TTLGUIDCache = utils.NewTTLCache[string, *Metric](20)
 }
 
 // parameters of a server endpoint
@@ -364,6 +367,14 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	wm.Done = true
 	wm.Valid = true
 	wm.LogFinal(j.Logger)
+	if TTLGUIDCache != nil {
+		err := TTLGUIDCache.Set(guid, &wm, TTLGuidTimeout)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("cant set ttl cache : %s", err), http.StatusBadRequest)
+			wm.Logger.Error().Err(err).Msg("cant set ttl cache")
+			return
+		}
+	}
 }
 
 // handle upload
