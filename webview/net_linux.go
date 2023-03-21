@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"syscall"
 )
 
 func HasNetStats() error {
@@ -27,4 +28,12 @@ func GetNetStats(interfaces []net.Interface, dir string) []float64 {
 		values = append(values, float64(value))
 	}
 	return values
+}
+
+func GetSockOpt(fd uintptr, value int) (int, error) {
+	val, err := syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, value)
+	if err != nil {
+		return 0, err
+	}
+	return val, nil
 }

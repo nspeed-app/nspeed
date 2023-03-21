@@ -28,6 +28,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"nspeed.app/utils"
+	"nspeed.app/webview"
 )
 
 // name of product, used in user-agent
@@ -687,18 +688,18 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 		Control: func(network, address string, conn syscall.RawConn) error {
 			var operr error
 			if err := conn.Control(func(fd uintptr) {
-				//operr = syscall.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF, 1)
-				buf, err := syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+				buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
 				if err != nil {
+					j.Logger.Error().Err(err).Msgf("getsockopt rcvbuf")
 					return
 				}
 				j.Logger.Info().Msgf("getsockopt rcvbuf = %d", buf)
-				buf, err = syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
+				buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
 				if err != nil {
+					j.Logger.Error().Err(err).Msgf("getsockopt sndbuf")
 					return
 				}
 				j.Logger.Info().Msgf("getsockopt sndbuf = %d", buf)
-
 			}); err != nil {
 				return err
 			}

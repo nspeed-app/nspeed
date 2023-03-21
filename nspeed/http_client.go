@@ -25,6 +25,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
 	"nspeed.app/utils"
+	"nspeed.app/webview"
 )
 
 // this will be used to set a big value for MaxReadFrameSize (HTTP/2)
@@ -233,12 +234,18 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 			j.Logger.Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
 			var operr error
 			if err := c.Control(func(fd uintptr) {
-				//operr = syscall.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.TCP_QUICKACK, 1)
-				buf, err := syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+				buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
 				if err != nil {
+					j.Logger.Error().Err(err).Msgf("getsockopt rcvbuf")
 					return
 				}
 				j.Logger.Info().Msgf("getsockopt rcvbuf = %d", buf)
+				buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
+				if err != nil {
+					j.Logger.Error().Err(err).Msgf("getsockopt sndbuf")
+					return
+				}
+				j.Logger.Info().Msgf("getsockopt sndbuf = %d", buf)
 			}); err != nil {
 				return err
 			}

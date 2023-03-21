@@ -1,9 +1,9 @@
 package webview
 
 import (
-	"net"
-
 	"golang.zx2c4.com/wireguard/windows/tunnel/winipcfg"
+	"net"
+	"syscall"
 )
 
 func HasNetStats() error {
@@ -45,4 +45,12 @@ func GetNetStats(itfs []net.Interface, dir string) []float64 {
 		}
 	}
 	return values
+}
+
+func GetSockOpt(fd uintptr, value int) (int, error) {
+	val, err := syscall.GetsockoptInt(syscall.Handle(fd), syscall.SOL_SOCKET, value)
+	if err != nil {
+		return 0, err
+	}
+	return val, err
 }
