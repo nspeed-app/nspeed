@@ -24,6 +24,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
+	"golang.org/x/sys/unix"
 	"nspeed.app/utils"
 )
 
@@ -164,20 +165,22 @@ func (j *JobHTTPClient) GenerateMetric(wm *Metric) (NetMetric, error) {
 		return NetMetric{}, fmt.Errorf("job has error %w", j.wm.Error)
 	}
 	n := NetMetric{
-		Command:  j.CommandString(),
-		ID:       j.ID(),
-		GroupID:  j.GroupID(),
-		Date:     wm.TransfertStartTime,
-		RXBytes:  uint64(wm.TotalRead),
-		TXBytes:  uint64(wm.TotalWrite),
-		RXHBps:   utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
-		TXHBps:   utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
-		RXBps:    utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
-		TXBps:    utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
-		Duration: wm.ElapsedTime,
-		Latency:  j.tr.connectDone.Sub(j.tr.connectStart),
-		Target:   j.GetDestination(),
-		Protocol: wm.Protocol,
+		Command:    j.CommandString(),
+		ID:         j.ID(),
+		GroupID:    j.GroupID(),
+		Date:       wm.TransfertStartTime,
+		RXBytes:    uint64(wm.TotalRead),
+		TXBytes:    uint64(wm.TotalWrite),
+		RXHBps:     utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
+		TXHBps:     utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		RXBps:      utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
+		TXBps:      utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		Duration:   wm.ElapsedTime,
+		Latency:    j.tr.connectDone.Sub(j.tr.connectStart),
+		Target:     j.GetDestination(),
+		Protocol:   wm.Protocol,
+		Cipher:     wm.Cipher,
+		TLSVersion: wm.TLSVersion,
 	}
 	return n, nil
 }
@@ -229,7 +232,18 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 		LocalAddr:     LocalAddr,     // "-a" for client
 		Control: func(network string, address string, c syscall.RawConn) error {
 			j.Logger.Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
-			return nil
+			var operr error
+			if err := c.Control(func(fd uintptr) {
+				//operr = syscall.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.TCP_QUICKACK, 1)
+				buf, err := syscall.GetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF)
+				if err != nil {
+					return
+				}
+				j.Logger.Info().Msgf("getsockopt rcvbuf = %d", buf)
+			}); err != nil {
+				return err
+			}
+			return operr
 		},
 	}
 
@@ -567,6 +581,9 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	// or HEAD shouldn't count as a request server side ?
 	if wm.Error == nil && resp != nil {
 		wm.Protocol = resp.Proto
+		wm.Cipher = TLSCipherSuite(resp.TLS)
+		wm.TLSVersion = utils.TLSVersionFriendlyName(TLSVersion(resp.TLS))
+
 		j.Logger.Info().
 			Str("protocol", wm.Protocol).
 			Send()

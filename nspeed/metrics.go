@@ -718,7 +718,7 @@ type NetMetric struct {
 	RXHBps     string        `json:"rxhbps"`
 	TXHBps     string        `json:"ryhbps"`
 	RXBps      int64         `json:"rxbps"`
-	TXBps      int64         `json:"rybps"`
+	TXBps      int64         `json:"txbps"`
 	RXChunk    int64         `json:"rxchunk"`
 	TXChunk    int64         `json:"txchunk"`
 	RXCount    int64         `json:"rxcount"`

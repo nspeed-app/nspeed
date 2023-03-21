@@ -110,7 +110,7 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 	fs.StringVar(&hf.URL, urlFlag, "", "target url for the command")
 	fs.StringVar(&hf.ID, "id", "", "name/id of this command")
 
-	//fs.StringVar(&hf.RemoteHost, "remote", "", "use a remote nspeed client (hostname or hostname:port)")
+	//fs.StringVar(&hf.RemoteHost, "remote", "", "use a remote nspeed instance (hostname:port)")
 	return fs, &hf
 }
 

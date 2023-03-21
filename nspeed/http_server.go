@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -26,6 +27,7 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"golang.org/x/sys/unix"
 	"nspeed.app/utils"
 )
 
@@ -625,7 +627,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		j.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
 	}
 
-	err := j.Listen()
+	err := j.Listen(ctx)
 	if err != nil {
 		j.Logger.Fatal().Msgf("failed to listen: %s", err)
 		return err
@@ -664,7 +666,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 }
 
 // Listen opens the listening conn
-func (j *JobHTTPServer) Listen() error {
+func (j *JobHTTPServer) Listen(ctx context.Context) error {
 
 	if j.Parameters.HTTP3 {
 		return j.HTTP3Listen()
@@ -682,7 +684,24 @@ func (j *JobHTTPServer) Listen() error {
 		}
 	}
 
-	ln, err := net.Listen("tcp", j.addr)
+	lc := net.ListenConfig{
+		Control: func(network, address string, conn syscall.RawConn) error {
+			var operr error
+			if err := conn.Control(func(fd uintptr) {
+				//operr = syscall.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF, 1)
+				buf, err := syscall.GetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF)
+				if err != nil {
+					return
+				}
+				j.Logger.Info().Msgf("getsockopt rcvbuf = %d", buf)
+			}); err != nil {
+				return err
+			}
+			return operr
+		},
+	}
+
+	ln, err := lc.Listen(ctx, "tcp", j.addr)
 	if err != nil {
 		return err
 	}
