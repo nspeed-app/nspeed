@@ -356,7 +356,7 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 	if j.Command == "POST" || j.Command == "PUT" {
 		wm.ContentWriteSize = j.ContentSize
 		wm.ContentReadSize = 0
-		wm.StepSize = 256 * 1024 // todo:
+		wm.WriteStepSize = 256 * 1024 // todo:
 		wm.TotalWrite = 0
 		body = wm
 	}

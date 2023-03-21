@@ -35,3 +35,19 @@ func init() {
 		// MinVersion:   tls.VersionTLS13,
 	}
 }
+
+// TLSCipherSuite return the CipherSuite name used or empty string if none
+func TLSCipherSuite(cs *tls.ConnectionState) string {
+	if cs == nil {
+		return ""
+	}
+	return tls.CipherSuiteName(cs.CipherSuite)
+}
+
+// TLSCipherSuite return the CipherSuite name used or empty string if none
+func TLSVersion(cs *tls.ConnectionState) uint16 {
+	if cs == nil {
+		return 0
+	}
+	return cs.Version
+}

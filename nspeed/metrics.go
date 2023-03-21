@@ -107,7 +107,8 @@ type MetricsData struct {
 	WriteCount         int64
 	TotalRead          int64
 	TotalWrite         int64
-	StepSize           int64
+	ReadStepSize       int64
+	WriteStepSize      int64
 	TransfertStartTime time.Time
 	ElapsedTime        time.Duration
 	FirstResponseByte  time.Time
@@ -124,6 +125,8 @@ type Metric struct {
 	mutex      sync.Mutex
 	Valid      bool
 	Protocol   string
+	Cipher     string
+	TLSVersion string
 	Error      error
 	Instances  int
 	// history
@@ -139,7 +142,7 @@ func (wm *Metric) StartTicker(done chan bool) {
 	ticker := time.NewTicker(wm.Tick)
 	wm.Logger.Trace().Msgf("starting ticker at rate %s", wm.Tick)
 	go func() {
-		defer wm.Logger.Warn().Msg("go ticker ended")
+		defer wm.Logger.Trace().Msg("go ticker ended")
 		for {
 			select {
 			case <-done:
@@ -197,8 +200,8 @@ func (wm *Metric) Write(p []byte) (int, error) {
 	s := int64(n)
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
-	if s > wm.StepSize {
-		wm.StepSize = s
+	if s > wm.ReadStepSize {
+		wm.ReadStepSize = s
 	}
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	wm.TotalRead += s
@@ -214,7 +217,7 @@ func (wm *Metric) FixMeReadFrom(r io.Reader) (n int64, err error) {
 	wm.mutex.Lock()
 	wm.TotalRead = 0
 	wm.ReadCount = 0
-	wm.StepSize = 0
+	wm.ReadStepSize = 0
 	wm.TransfertStartTime = time.Now()
 	wm.mutex.Unlock()
 	for {
@@ -223,8 +226,8 @@ func (wm *Metric) FixMeReadFrom(r io.Reader) (n int64, err error) {
 		wm.mutex.Lock()
 		wm.ReadCount++
 		wm.TotalRead += s
-		if wm.StepSize < s {
-			wm.StepSize = s
+		if wm.ReadStepSize < s {
+			wm.ReadStepSize = s
 		}
 		wm.mutex.Unlock()
 		if err != nil {
@@ -232,7 +235,7 @@ func (wm *Metric) FixMeReadFrom(r io.Reader) (n int64, err error) {
 		}
 	}
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
-	fmt.Printf("ReadFrom used with %d Read and %d max buff", wm.ReadCount, wm.StepSize)
+	fmt.Printf("ReadFrom used with %d Read and %d max buff", wm.ReadCount, wm.ReadStepSize)
 	return wm.TotalRead, nil
 }
 
@@ -251,8 +254,9 @@ func (wm *Metric) LogProgress(logger *zerolog.Logger) {
 		Int64("ContentReadSize", m.ContentReadSize).
 		Int64("TotalWrite", m.TotalWrite).
 		Int64("ContentWriteSize", m.ContentWriteSize).
-		Int64("stepsize", m.StepSize).
+		Int64("ReadStepsize", m.ReadStepSize).
 		Int64("ReadCount", m.ReadCount).
+		Int64("WriteStepsize", m.WriteStepSize).
 		Int64("WriteCount", m.WriteCount).
 		Send()
 }
@@ -374,7 +378,7 @@ func (wm *Metric) read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	todo := utils.Min(utils.Min(int64(maxstep), wm.StepSize), lefttodo)
+	todo := utils.Min(utils.Min(int64(maxstep), wm.WriteStepSize), lefttodo)
 
 	wm.TotalWrite += todo
 
@@ -386,7 +390,7 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 	wm.mutex.Lock()
 	wm.TransfertStartTime = time.Now()
 	wm.TotalWrite = 0
-	wm.StepSize = 0
+	wm.WriteStepSize = 0
 	wm.WriteCount = 0
 	wm.ElapsedTime = 0
 	wm.mutex.Unlock()
@@ -405,8 +409,8 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 			return wm.TotalWrite + written, err
 		}
 		wm.mutex.Lock()
-		if written > wm.StepSize {
-			wm.StepSize = written
+		if written > wm.WriteStepSize {
+			wm.WriteStepSize = written
 		}
 		wm.TotalWrite = wm.TotalWrite + written
 		wm.WriteCount++
@@ -416,7 +420,7 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 			break
 		}
 	}
-	log.Debug().Msgf("WriteTo done: %d Write ops and %d max buff size. Total = %d bytes in %s\n", wm.WriteCount, wm.StepSize, wm.TotalWrite, wm.ElapsedTime)
+	log.Debug().Msgf("WriteTo done: %d Write ops and %d max buff size. Total = %d bytes in %s\n", wm.WriteCount, wm.WriteStepSize, wm.TotalWrite, wm.ElapsedTime)
 	return wm.TotalWrite, nil
 }
 
@@ -527,14 +531,20 @@ func (wm *Metric) ToNetMetric(command string) NetMetric {
 		Date:       wm.TransfertStartTime,
 		RXBytes:    uint64(wm.TotalRead),
 		TXBytes:    uint64(wm.TotalWrite),
+		Duration:   wm.ElapsedTime,
 		RXHBps:     utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
 		TXHBps:     utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
 		RXBps:      utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
 		TXBps:      utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
-		Duration:   wm.ElapsedTime,
+		RXChunk:    wm.ReadStepSize,
+		TXChunk:    wm.WriteStepSize,
+		RXCount:    wm.ReadCount,
+		TXCount:    wm.WriteCount,
 		Latency:    -1,
 		Target:     wm.Target,
 		Protocol:   wm.Protocol,
+		Cipher:     wm.Cipher,
+		TLSVersion: wm.TLSVersion,
 		SampleRate: uint64(wm.Tick),
 		Samples:    wm.ToSamples(),
 	}
@@ -709,9 +719,15 @@ type NetMetric struct {
 	TXHBps     string        `json:"ryhbps"`
 	RXBps      int64         `json:"rxbps"`
 	TXBps      int64         `json:"rybps"`
+	RXChunk    int64         `json:"rxchunk"`
+	TXChunk    int64         `json:"txchunk"`
+	RXCount    int64         `json:"rxcount"`
+	TXCount    int64         `json:"txcount"`
 	Latency    time.Duration `json:"latency"`
 	Target     string        `json:"target"`
 	Protocol   string        `json:"protocol"`
+	TLSVersion string        `json:"tlsversion"`
+	Cipher     string        `json:"cipher"`
 	SampleRate uint64        `json:"samplerate"`
 	Samples    []NetMetricSample
 }

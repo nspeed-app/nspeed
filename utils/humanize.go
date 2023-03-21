@@ -113,6 +113,7 @@ var tlsversionMap = map[uint16]struct {
 	shortName    string
 	friendlyName string
 }{
+	0:      {"", ""},
 	0x0300: {"SSL30", "SSL 3.0"},
 	0x0301: {"TLS10", "TLS 1.0"},
 	0x0302: {"TLS11", "TLS 1.1"},

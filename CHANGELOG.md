@@ -4,27 +4,28 @@
 - using goreleaser
 - using GOAMD64 levels: (see https://github.com/golang/go/wiki/MinimumRequirements#amd64 ). for now only level1 (_v1) is built.
 - less info displayed with `-version`. Use `-version full` for more infos.
-- **breaking changes in behavior**: 'infinite' commands (commands that usually never end like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://google.com/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the programm will not stop until killed (=deamon mode)
-- cleaned out text output, reformatted cpu output. Verbose & debug messages now dislpay the job name at the beginning of the line. 
+- **breaking changes in behavior**: 'infinite' commands (commands that usually never end like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://google.com/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the program will not stop until killed (=daemon mode)
+- cleaned out text output, reformatted cpu output. Verbose & debug messages now display the job name at the beginning of the line. 
 - **new flags**: `-display-log-level` and `-display-log-time` to toggle their respective fields.
-- **breaking change**: the `-tick duration` flag is now a duration instead of an integer of seconds (default remain 1 second). It doesn't control the sampling rate of `-cpu` anymore (see `-cpurate`). The `-tick` rate is controling the rate of trace & debug messages.
+- **breaking change**: the `-tick duration` flag is now a duration instead of an integer of seconds (default remain 1 second). It doesn't control the sampling rate of `-cpu` anymore (see `-cpurate`). The `-tick` rate is the rate of trace & debug messages.
 - **new flag**: `-rate duration` used to set the frequency generating the time series data for json/html output Default is 1s.
 - **new flag**: `-cpurate duration` used to set the cpu sampling rate (implies `-cpu`)
-- **new flag**: `-html filename` to record the results to an interactive html file (implies `-pre 1s` and `-post 1s` flags unless set explicity to something else). Use `-rate` to add timeseries.
+- **new flag**: `-html filename` to record the results to an interactive html file (implies `-pre 1s` and `-post 1s` flags unless set explicitly to something else). Use `-rate` to add time series.
 - **new flag**: `-json filename` to record the results to a json file. Use `-rate` for time series.
-- **new flag**: `-dns-server address[:port]` to specify a dns server (literal ip address with optionnal port)
+- **new flag**: `-dns-server address[:port]` to specify a dns server (literal ip address with optional port)
 - **new flag**: `-ungroup` show each stream result of a multi-streams command (see client below) 
 ## bench
 - new `bench` command (abbrev `b`) : allow to launch loopback tests (get/put on a localhost server). see `nspeed bench -h` for details.
 ## server
  - added `-http1.1` and `-http2` flags to enforce the HTTP version used
- - *breanking change*: the default port is now a *random , available port instead of 7333*. Use `-p` to specific a port.
+ - *breaking change*: the default port is now a *random , available port instead of 7333*. Use `-p` to specific a port.
  - added `-id string` flag: allows to set a uniq id/name for this server (can be used in `nspeed:` url scheme)
- - upload to the server (`PUT` and `POST`) now return metrics data in json format
+ - An upload to the server (`PUT` and `POST`) now returns metrics data in json format
+ - A download from a server returns a special header named `x-nspeed-guid` which value is a short-lived unique identifier of this download Sending a request to the server  with the same header will return a the metrics data in json of this download. The delay is 5 seconds.
 ## Client
 - *breaking changes*: `-http11` flag renamed to `-http1.1`
 - *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
-- in conjonction with the new server `-id` flag, a special new url scheme `nspeed:name` is now supported to reference the url address of the corresponding server (draft)
+- in conjunction with the new server `-id` flag, a special new url scheme `nspeed:name` is now supported to reference the url address of the corresponding server (draft)
 - added flag: `-connect-timeout` maximum duration for the initial connection (=timeout before dial abort)
 - added `-http2` flag to force using HTTP/2
 - added `-id string` flag: allows to set a uniq id/name for this command
@@ -35,12 +36,12 @@
 ## general
 - experimental support of HTTP/3 using quic-go ( see HTTP/3 section )
 - internal optimization to buffer sizes and http/2 issues (tracking various Go HTTP/2 performance issue being addressed by the Go team)
-- using Go 1.19. `nspeed -version` now also displays the Go version used to build the binary as well as OS/Arch informations
+- using Go 1.19. `nspeed -version` now also displays the Go version used to build the binary as well as OS/Arch information
 - new `-pre duration` option: wait `duration` before starting command(s) (`duration` uses Go syntax: "2s" for 2 seconds for instance)
 - new `-post duration` option: wait `duration` after all commands have ended
-- new `-info` flag to display some os/hardware informations.
+- new `-info` flag to display some os/hardware information
 - new `-text filename` flag: report the results to a text file (use `-` for stdout which is the default)
-- new `-trace` flag: display lot of debug/trace informations (wip - mainly used for quic/http3 tracing)
+- new `-trace` flag: display lot of debug/trace information (wip - mainly used for quic/http3 tracing)
 - switch to psutil v3
 - fix global timeout
 ## API
@@ -54,7 +55,7 @@
 ## Client
 - **breaking change**: HTTP client can now do `PUT` or `POST` with corresponding matching command names. A new `post` command was added to do the POST HTTP method and the previously `put` command does now a 'PUT' method instead of a POST
 - new option `-http3` to enable HTTP/3 (this will force HTTP/3 if the server support it and fallback to HTTP/2 or HTTP/1.1 if not). Implies `-self` if no TLS cert & key files are provided.
-- console ouput displays news information per job: final target IP, latency and protocol
+- console output displays news information per job: final target IP, latency and protocol
 - default to `https://` if no scheme provided (`nspeed get google.com` is the same as `nspeed get https://google.com`)
 
 ## ciphers
@@ -63,7 +64,7 @@
 - displays AES hardware support
 
 ## HTTP/3
-The implementation used is https://github.com/quic-go/quic-go. In trace mode (`-trace`) qlog trace files are generated in the current directory. They can be analized with https://qvis.quictools.info/
+The implementation used is https://github.com/quic-go/quic-go. In trace mode (`-trace`) QLog trace files are generated in the current directory. They can be analyzed with https://qvis.quictools.info/
 
 # v0.9
 ## general
@@ -75,7 +76,7 @@ The implementation used is https://github.com/quic-go/quic-go. In trace mode (`-
  - a new `api` command allowing NSpeed to be controlled by a simple HTTP request (REST). The `api` command create a new API endpoint with default value (localhost,7333). The `server` command can also be an API endpoint with the new `-api` flag. See [API.md](API.md) for more information about the API.
  - for now the `api` only return text strings. Later the a standard metrics format will be used.
 ## client
- - `get` and `put` mandatory arguments (`-url` and `-url` and `-size` respectivly) can now be prefixed with a flag keyword allowing to change their order. for instance `nspeed get -4 http://google.com` is equivalent to `nspeed get -url http://google.com -4`
+ - `get` and `put` mandatory arguments (`-url` and `-url` and `-size` respectively) can now be prefixed with a flag keyword allowing to change their order. for instance `nspeed get -4 http://google.com` is equivalent to `nspeed get -url http://google.com -4`
  - IP version displayed in text results
 ## server
 - `api` flag: see the `api` command
@@ -106,7 +107,7 @@ The implementation used is https://github.com/quic-go/quic-go. In trace mode (`-
 - paths in url for upload (`/p`) & download (`/g`) removed. just use the root path `/` for both (see the updated README.md examples)
 - download paths can now have an extension. For instance `/10G.iso`. The Content-Type header will be set accordingly to https://golang.org/pkg/mime/#TypeByExtension.
 - query parameters: 
-  - `ct` query parameter added: set the returned content-type header, for instance: http://localhost:7333/1k.jpg?ct=text/plain will return a content-type of `text/plain` instead of `image/jpeg` ("ct" has precedence oever the extension. With no precedence or `ct` parameter, the default content-type is `application/octet-stream` ).
+  - `ct` query parameter added: set the returned content-type header, for instance: http://localhost:7333/1k.jpg?ct=text/plain will return a content-type of `text/plain` instead of `image/jpeg` ("ct" has precedence over the extension. With no precedence or `ct` parameter, the default content-type is `application/octet-stream` ).
   - `chunk_size` query parameter limited to 1 MiB (it's allocated once, this will be tuned later)
   - `seed` query parameter removed (this will return later)
 ## client
@@ -126,7 +127,7 @@ The implementation used is https://github.com/quic-go/quic-go. In trace mode (`-
  - new '-log filename' flag to write result to a structured file (not finalized)
  - colorized cpu with the -verbose option
  ## server
-  -"-d duration" duration after which the server shutdown (duration must have a unit: s,m or h and or combinaison : 5h20m for instance)
+  -"-d duration" duration after which the server shutdown (duration must have at least one unit of: s,m or h or a combination `5h20m5s` for instance)
   -"-n value" number of requests after which  the server shutdown
 ## client
   - "-w duration" wait delay before starting the command

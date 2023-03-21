@@ -339,8 +339,11 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			Cancelled:        false,
 			Target:           fmt.Sprintf("stream %s bytes to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
 			ContentWriteSize: numBytes,
-			StepSize:         chunkSize,
+			WriteStepSize:    chunkSize,
 		},
+		Protocol:   r.Proto,
+		Cipher:     TLSCipherSuite(r.TLS),
+		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
 		Logger: j.Logger.With().
 			Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
 			Str("x-request-guid", guid).
@@ -365,7 +368,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		//f := w.(http.Flusher)
 		// send the buffer as many times as needed --> todo: why don't we io.copy to a wm like the client ?
 		var numChunk = numBytes / chunkSize
-		wm.StepSize = chunkSize
+		wm.WriteStepSize = chunkSize
 		for i := int64(0); i < numChunk; i++ {
 			n, err := w.Write(chunk)
 			wm.TotalWrite += int64(n)
@@ -487,8 +490,10 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 			TransfertStartTime: time.Now(),
 			FirstResponseByte:  time.Now(),
 		},
-		Protocol: r.Proto,
-		Logger:   j.Logger.With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger(),
+		Protocol:   r.Proto,
+		Cipher:     TLSCipherSuite(r.TLS),
+		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
+		Logger:     j.Logger.With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger(),
 	}
 
 	// handle rate parameter

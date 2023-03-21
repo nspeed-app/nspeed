@@ -38,7 +38,7 @@ If there is at least one short-lived command, the program will end when all shor
     # download 2 different targets
     nspeed get https://bouygues.testdebit.info/10G/10G.iso get https://scaleway.testdebit.info/10G/10G.iso
 
-    # downlaod the same target in IPv4 and IPv6 at the same time
+    # download the same target in IPv4 and IPv6 at the same time
     nspeed get -4 https://bouygues.testdebit.info/100M/100M.iso get -6 https://bouygues.testdebit.info/100M/100M.iso
 
     # upload two 1GB to a single target (use "1g" for 1GB (1000*1000*1000 bytes) and "1G" for 1GiB (1024*1024*1024 bytes)
@@ -48,42 +48,50 @@ If there is at least one short-lived command, the program will end when all shor
     # download & upload at the same time
     nspeed put https://bouygues.testdebit.info/ 1g get https://bouygues.testdebit.info/1G/1G.iso
 
-    # start a server with default settings (host: 127.0.0.1, port: 7333, max time 10s , max size 1.1 TB)
+    # start a server with default settings (host: 127.0.0.1, port: random, max time 10s , max size 1.1 TB)
     nspeed server
     
     # start a server at port 8888 with max time of 5 seconds and 1 GB max size accepted
     nspeed server -p 8080 -t 5 -s 1g
 
-    # start a server listening on all interfaces but in IPv6 only
+    # start a server listening on all interfaces but in IPv6 only, random port
     nspeed server -6 -a=""
 
-    # start a server listening on a specific IPv4 address
+    # start a server listening on a specific IPv4 address, random port
     nspeed server -a 192.168.1.3
 
-    # start two instances of server, one listening on a specific IPv6 address and one on a specific IPv4 address
+    # start two instances of server, one listening on a specific IPv6 address and one on a specific IPv4 address, random port
     nspeed server -a 2001:1234:5678::3 server -a 192.168.1.3
 
     # download 1GB from a nspeed server (the server generate content based on the url path: format is "/size[.ext][?ct=content-type]")
-    nspeed get http://localhost:7333/1g
+    nspeed get http://localhost:7333/1g server -p 7333
 
     # download 20 x 100MiB from a nspeed server
-    nspeed get -n 20 http://localhost:7333/100M server
+    nspeed get -n 20 http://localhost:7333/100M server -p 7333
 
     # with curl, download 1GiB from a nspeed local server
+    # launch in another terminal: nspeed server -p 7333
     curl -o /dev/null http://localhost:7333/1G
 
     # with curl, upload a local file "/path/to/file" to a nspeed server (with progress and result speed)
+    # launch in another terminal: nspeed server -p 7333
     curl -T /path/to/file http://localhost:7333/ | tee
 
     # same as above but without sending the filename to the server
+    # launch in another terminal: nspeed server -p 7333
     curl -X POST --data-binary /path/to/file http://localhost:7333/ | tee
 
-    # download 1 GB from the local server and stop it
-    nspeed server get http://localhost:7333/1g
+    # download 1 GB from the local server using a random port
+    nspeed server -id s1 get nspeed://s1/1g
 
-    # with curl, download 1k bytes as content-type "text/plain" but with extention "jpg" from a nspeed server
+    # with curl, download 1k bytes as content-type "text/plain" but with extension "jpg" from a nspeed server
+    # launch in another terminal: nspeed server -p 7333
     curl -o /dev/null http://localhost:7333/1k.jpg?ct=text/plain
     
+    # with curl (min version 7.83.0), download 1 GB from a local nspeed server and get the server side metrics in json
+    # run "./nspeed server -p 7333" before
+    curl -s -w "x-nspeed-guid: %header{x-nspeed-guid}\n"  -o /dev/null  http://[::1]:7333/1g | curl -H @- http://[::1]:7333
+    # the first curl do the download and receive a unique id in the response headers
 ## Installation
 
 Binary distribution available here: [dl.nspeed.app](https://dl.nspeed.app) or in the [release section](https://github.com/nspeed-app/nspeed/releases)
@@ -94,12 +102,12 @@ On Unix systems make the file executable with: `chmod +x nspeed`
 Source code with be released with v1.0
 
 ## What's next?
-- [x] web UI (local & remote) - partitally implemented
+- [x] web UI (local & remote) - partially implemented
 - [x] remote agent
 - [ ] P2P (WebRTC)
 - [x] QUIC & HTTP/3 (preview - depends on https://github.com/lucas-clemente/quic-go )
 - [ ] formatted metrics (might be OpenTelemetry)
-- [ ] network & hardware information (routes, pci bandwidth, NIC info, erros, etc)
+- [ ] network & hardware information (routes, pci bandwidth, NIC info, errors, etc)
 - [ ] gateway/router info & crosstalk information if available (ARCEP box API may be)
 
 ## Acknowledgement
