@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"golang.org/x/sys/unix"
 	"net"
+	"syscall"
 )
 
 func HasNetStats() error {
@@ -82,4 +83,12 @@ type ifData64 struct {
 	Recvtiming uint32
 	Xmittiming uint32
 	Lastchange unix.Timeval32
+}
+
+func GetSockOpt(fd uintptr, value int) (int, error) {
+	val, err := syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, value)
+	if err != nil {
+		return 0, err
+	}
+	return val, nil
 }
