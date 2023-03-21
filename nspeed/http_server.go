@@ -27,7 +27,6 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"golang.org/x/sys/unix"
 	"nspeed.app/utils"
 )
 
@@ -689,11 +688,17 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 			var operr error
 			if err := conn.Control(func(fd uintptr) {
 				//operr = syscall.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF, 1)
-				buf, err := syscall.GetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF)
+				buf, err := syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 				if err != nil {
 					return
 				}
 				j.Logger.Info().Msgf("getsockopt rcvbuf = %d", buf)
+				buf, err = syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_SNDBUF)
+				if err != nil {
+					return
+				}
+				j.Logger.Info().Msgf("getsockopt sndbuf = %d", buf)
+
 			}); err != nil {
 				return err
 			}

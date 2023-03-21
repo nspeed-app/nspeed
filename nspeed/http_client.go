@@ -24,7 +24,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
-	"golang.org/x/sys/unix"
 	"nspeed.app/utils"
 )
 
@@ -235,7 +234,7 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 			var operr error
 			if err := c.Control(func(fd uintptr) {
 				//operr = syscall.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.TCP_QUICKACK, 1)
-				buf, err := syscall.GetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_RCVBUF)
+				buf, err := syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
 				if err != nil {
 					return
 				}
