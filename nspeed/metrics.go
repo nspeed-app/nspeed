@@ -466,22 +466,22 @@ func (wc *Metrics) MarshalJSON() ([]byte, error) {
 }
 
 // Clone deep copies a Metric
-func (wc *Metric) Clone() *Metric {
+func (wm *Metric) Clone() *Metric {
 	c := Metric{
-		MetricsData: wc.MetricsData,
+		MetricsData: wm.MetricsData,
 		ResultChan:  nil,
-		Logger:      wc.Logger,
-		Valid:       wc.Valid,
-		Protocol:    wc.Protocol,
-		Cipher:      wc.Cipher,
-		TLSVersion:  wc.TLSVersion,
-		Error:       wc.Error,
-		Instances:   wc.Instances,
-		Interface:   wc.Interface,
-		SourceAddr:  wc.SourceAddr,
-		Gateway:     wc.Gateway,
-		Tick:        wc.Tick,
-		Serie:       wc.Serie,
+		Logger:      wm.Logger,
+		Valid:       wm.Valid,
+		Protocol:    wm.Protocol,
+		Cipher:      wm.Cipher,
+		TLSVersion:  wm.TLSVersion,
+		Error:       wm.Error,
+		Instances:   wm.Instances,
+		Interface:   wm.Interface,
+		SourceAddr:  wm.SourceAddr,
+		Gateway:     wm.Gateway,
+		Tick:        wm.Tick,
+		Serie:       wm.Serie,
 	}
 	return &c
 }
