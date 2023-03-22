@@ -465,6 +465,27 @@ func (wc *Metrics) MarshalJSON() ([]byte, error) {
 	return json.Marshal(todo)
 }
 
+// Clone deep copies a Metric
+func (wc *Metric) Clone() *Metric {
+	c := Metric{
+		MetricsData: wc.MetricsData,
+		ResultChan:  nil,
+		Logger:      wc.Logger,
+		Valid:       wc.Valid,
+		Protocol:    wc.Protocol,
+		Cipher:      wc.Cipher,
+		TLSVersion:  wc.TLSVersion,
+		Error:       wc.Error,
+		Instances:   wc.Instances,
+		Interface:   wc.Interface,
+		SourceAddr:  wc.SourceAddr,
+		Gateway:     wc.Gateway,
+		Tick:        wc.Tick,
+		Serie:       wc.Serie,
+	}
+	return &c
+}
+
 // Group replace instances of the groups with the sum of metrics
 func (wc *Metrics) Group() *Metrics {
 	if wc == nil {
@@ -472,9 +493,6 @@ func (wc *Metrics) Group() *Metrics {
 	}
 	rwc := make(Metrics, 0, len(*wc))
 	groups := make(map[string]*Metric)
-	totalRead := int64(0)
-	totalWrite := int64(0)
-	elapsedTime := time.Duration(0)
 
 	for _, wm := range *wc {
 		if wm == nil {
@@ -486,24 +504,21 @@ func (wc *Metrics) Group() *Metrics {
 		if wm.Error != nil {
 			continue
 		}
-		totalRead += wm.TotalRead
-		totalWrite += wm.TotalWrite
-		if wm.ElapsedTime > elapsedTime {
-			elapsedTime = wm.ElapsedTime
-		}
 		if wm.Job.GroupID() != wm.Job.ID() {
 			g, ok := groups[wm.Job.GroupID()]
 			if !ok {
-				g = &Metric{
-					MetricsData: wm.MetricsData,
-					Protocol:    wm.Protocol, // might not be uniq
-					Tick:        wm.Tick,
-				}
+				g = wm.Clone()
+				g.Instances = 1
 				groups[wm.Job.GroupID()] = g
 				rwc = append(rwc, g)
+				continue
 			}
 			g.TotalRead += wm.TotalRead
 			g.TotalWrite += wm.TotalWrite
+			g.ReadCount += wm.ReadCount
+			g.ReadStepSize = -1
+			g.WriteCount += wm.WriteCount
+			g.WriteStepSize = -1
 			g.Instances = g.Instances + 1
 			if wm.ElapsedTime > g.ElapsedTime {
 				g.ElapsedTime = wm.ElapsedTime
@@ -533,6 +548,7 @@ func (wm *Metric) ToNetMetric(command string) NetMetric {
 		Command:    command,
 		ID:         wm.Job.ID(),
 		GroupID:    wm.Job.GroupID(),
+		Streams:    uint64(wm.Instances),
 		Date:       wm.TransfertStartTime,
 		RXBytes:    uint64(wm.TotalRead),
 		TXBytes:    uint64(wm.TotalWrite),
@@ -546,14 +562,13 @@ func (wm *Metric) ToNetMetric(command string) NetMetric {
 		RXCount:    wm.ReadCount,
 		TXCount:    wm.WriteCount,
 		Latency:    -1,
-		Target:     wm.Target,
+		Remote:     wm.Target,
 		Protocol:   wm.Protocol,
 		Cipher:     wm.Cipher,
 		TLSVersion: wm.TLSVersion,
 		SampleRate: uint64(wm.Tick),
 		Samples:    wm.ToSamples(),
 	}
-
 	if wm.Interface != nil {
 		nm.Interface = wm.Interface.Name
 	}
@@ -564,7 +579,6 @@ func (wm *Metric) ToNetMetric(command string) NetMetric {
 		nm.SrcAddr = wm.SourceAddr.String()
 	}
 	return nm
-
 }
 
 func (wm *Metric) ToSamples() []NetMetricSample {
@@ -626,7 +640,6 @@ func (wm *Metric) SerieReport() (report string) {
 func SeriesReport(wcWorkers Metrics) (report string) {
 	for _, wm := range wcWorkers {
 		report = report + wm.SerieReport() // fmt.Sprintf("%d - %s - has %d data to report\n", wm.Index, wm.Job.ID(), len(wm.Serie))
-
 	}
 	return
 }
@@ -723,10 +736,13 @@ func GenerateHTMLReport(out io.Writer, wcWorkers Metrics) {
      -> format all metrics in same data struct or use interfaces ?
 */
 
+// missing: expected bytes (Content-Length when time'out)
+
 type NetMetric struct {
 	Command    string        `json:"command"`
 	ID         string        `json:"id"`
 	GroupID    string        `json:"gid"`
+	Streams    uint64        `json:"streams"`
 	Date       time.Time     `json:"date"`
 	RXBytes    uint64        `json:"rxbytes"`
 	TXBytes    uint64        `json:"txbytes"`
@@ -740,7 +756,7 @@ type NetMetric struct {
 	RXCount    int64         `json:"rxcount"`
 	TXCount    int64         `json:"txcount"`
 	Latency    time.Duration `json:"latency"`
-	Target     string        `json:"target"`
+	Remote     string        `json:"remote"`
 	Protocol   string        `json:"protocol"`
 	TLSVersion string        `json:"tlsversion"`
 	Cipher     string        `json:"cipher"`

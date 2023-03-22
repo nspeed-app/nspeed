@@ -160,28 +160,30 @@ func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 
 func (j *JobHTTPClient) IsInfinite() bool { return false }
 
+// todo : merge with ToNetMetric
 func (j *JobHTTPClient) GenerateMetric(wm *Metric) (NetMetric, error) {
 	if wm.Error != nil {
 		return NetMetric{}, fmt.Errorf("job has error %w", j.wm.Error)
 	}
-	n := NetMetric{
-		Command:    j.CommandString(),
-		ID:         j.ID(),
-		GroupID:    j.GroupID(),
-		Date:       wm.TransfertStartTime,
-		RXBytes:    uint64(wm.TotalRead),
-		TXBytes:    uint64(wm.TotalWrite),
-		RXHBps:     utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
-		TXHBps:     utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
-		RXBps:      utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
-		TXBps:      utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
-		Duration:   wm.ElapsedTime,
-		Latency:    j.tr.connectDone.Sub(j.tr.connectStart),
-		Target:     j.GetDestination(),
-		Protocol:   wm.Protocol,
-		Cipher:     wm.Cipher,
-		TLSVersion: wm.TLSVersion,
-	}
+	n := wm.ToNetMetric(j.CommandString())
+	// n := NetMetric{
+	// 	Command:    j.CommandString(),
+	// 	ID:         j.ID(),
+	// 	GroupID:    j.GroupID(),
+	// 	Date:       wm.TransfertStartTime,
+	// 	RXBytes:    uint64(wm.TotalRead),
+	// 	TXBytes:    uint64(wm.TotalWrite),
+	// 	RXHBps:     utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
+	// 	TXHBps:     utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
+	// 	RXBps:      utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
+	// 	TXBps:      utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
+	// 	Duration:   wm.ElapsedTime,
+	n.Latency = j.tr.connectDone.Sub(j.tr.connectStart)
+	n.Remote = j.GetDestination()
+	// 	Protocol:   wm.Protocol,
+	// 	Cipher:     wm.Cipher,
+	// 	TLSVersion: wm.TLSVersion,
+	// }
 	return n, nil
 }
 
@@ -439,7 +441,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 			j.tr.ConnInfo = connInfo
 			j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(j.GetDestination())
 			wm.Logger.Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
-			wm.Logger.Warn().Msgf("got interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
+			wm.Logger.Debug().Msgf("GotConn - interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
 		},
 		GotFirstResponseByte: func() {
 			wm.mutex.Lock()
