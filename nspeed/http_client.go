@@ -437,7 +437,9 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 			defer wm.mutex.Unlock()
 			j.tr.gotConn = time.Now()
 			j.tr.ConnInfo = connInfo
+			j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(j.GetDestination())
 			wm.Logger.Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
+			wm.Logger.Warn().Msgf("got interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
 		},
 		GotFirstResponseByte: func() {
 			wm.mutex.Lock()

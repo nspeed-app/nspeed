@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/google/gopacket/routing"
+	"github.com/libp2p/go-netroute"
 	"github.com/rs/zerolog/log"
 )
 
@@ -264,3 +266,30 @@ func GetNetInterfaces(names []string) ([]net.Interface, error) {
 // 	return ((f.ignorePattern != nil && f.ignorePattern.MatchString(name)) ||
 // 		(f.acceptPattern != nil && !f.acceptPattern.MatchString(name)))
 // }
+
+var router routing.Router
+
+func init() {
+	var err error
+	router, err = netroute.New()
+	if err != nil {
+		log.Error().Err(err).Msgf("no routing information")
+	}
+}
+
+func GetRoute(dest string) (iface *net.Interface, gw netip.Addr, src netip.Addr) {
+	if router == nil {
+		return
+	}
+	ap, err := netip.ParseAddrPort(dest)
+	if err != nil {
+		return
+	}
+	iface, g, s, err := router.Route(ap.Addr().AsSlice())
+	if err != nil {
+		return
+	}
+	gw, _ = netip.AddrFromSlice(g)
+	src, _ = netip.AddrFromSlice(s)
+	return
+}

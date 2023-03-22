@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"text/tabwriter"
@@ -129,6 +131,9 @@ type Metric struct {
 	TLSVersion string
 	Error      error
 	Instances  int
+	Interface  *net.Interface
+	SourceAddr netip.Addr
+	Gateway    netip.Addr
 	// history
 	Tick  time.Duration
 	Serie []MetricsData
@@ -310,7 +315,7 @@ func (wm *Metric) PrintFinal(w io.Writer, verbose bool) {
 	}
 }
 
-// initialize metrics
+// InitNew (re)initializes a metric
 func (wm *Metric) InitNew() {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
@@ -524,7 +529,7 @@ func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 }
 
 func (wm *Metric) ToNetMetric(command string) NetMetric {
-	return NetMetric{
+	nm := NetMetric{
 		Command:    command,
 		ID:         wm.Job.ID(),
 		GroupID:    wm.Job.GroupID(),
@@ -548,6 +553,17 @@ func (wm *Metric) ToNetMetric(command string) NetMetric {
 		SampleRate: uint64(wm.Tick),
 		Samples:    wm.ToSamples(),
 	}
+
+	if wm.Interface != nil {
+		nm.Interface = wm.Interface.Name
+	}
+	if wm.Gateway.IsValid() {
+		nm.Gateway = wm.Gateway.String()
+	}
+	if wm.SourceAddr.IsValid() {
+		nm.SrcAddr = wm.SourceAddr.String()
+	}
+	return nm
 
 }
 
@@ -728,6 +744,9 @@ type NetMetric struct {
 	Protocol   string        `json:"protocol"`
 	TLSVersion string        `json:"tlsversion"`
 	Cipher     string        `json:"cipher"`
+	Interface  string        `json:"interface"`
+	Gateway    string        `json:"gateway"`
+	SrcAddr    string        `json:"sourceaddr"`
 	SampleRate uint64        `json:"samplerate"`
 	Samples    []NetMetricSample
 }

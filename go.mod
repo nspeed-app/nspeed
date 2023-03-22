@@ -7,6 +7,8 @@ require (
 	github.com/go-echarts/go-echarts v1.0.0
 	github.com/go-echarts/go-echarts/v2 v2.2.5
 	github.com/go-echarts/statsview v0.3.4
+	github.com/google/gopacket v1.1.19
+	github.com/libp2p/go-netroute v0.2.1
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/quic-go/quic-go v0.33.0
 	github.com/rs/xid v1.4.0
