@@ -218,7 +218,7 @@ func (j *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		a, ok := r.Header[GUIDHeader]
 		if ok {
 			if len(a) == 1 {
-				j.SendCachedMetrics(w, r, a[0])
+				j.SendCachedMetrics(w, a[0])
 				return
 			}
 			http.Error(w, "too many x-nspeed-guid header", http.StatusBadRequest)
@@ -429,7 +429,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	}
 }
 
-func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, r *http.Request, guid string) {
+func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, guid string) {
 
 	j.Logger().Trace().Msgf("getting and deleting guid: %s", guid)
 	wm, ok := TTLGUIDCache.Get(guid)
@@ -437,7 +437,7 @@ func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, r *http.Request
 		http.Error(w, fmt.Sprintf("no such guid (%s)", guid), http.StatusBadRequest)
 		return
 	}
-	err := j.SendMetric(w, r, wm)
+	err := j.SendMetric(w, wm)
 	_ = TTLGUIDCache.Delete(guid)
 	if err != nil {
 		wm.Logger.Error().Err(err).Msgf("Upload: error writing result")
@@ -445,7 +445,7 @@ func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, r *http.Request, wm *Metric) error {
+func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *Metric) error {
 	m := wm.ToNetMetric()
 	result, err := json.MarshalIndent(m, "", "\t")
 	if err != nil {
@@ -514,7 +514,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	wm.LogFinal(j.Logger())
 
 	// send the metrics
-	err = j.SendMetric(w, r, wm)
+	err = j.SendMetric(w, wm)
 
 	if err != nil {
 		wm.Logger.Error().Err(err).Msgf("Upload: error writing result")

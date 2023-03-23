@@ -75,7 +75,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	// run infinite jobs
 	log.Debug().Msgf("total jobs = %d", len(jobs))
 	for i, j := range jobs {
-		log.Debug().Msgf(" %d, %+v", i, j)
+		log.Debug().Msgf(" %s, %s", i, j.GoString())
 		if !j.IsInfinite() {
 			continue
 		}
@@ -140,7 +140,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 		}
 		isInfinite = false //we got at least one finite job
 		if !opt.Test {
-			j.Logger().Debug().Msgf("spawning workload %s %t", j.ID(), j.GetTarget())
+			j.Logger().Debug().Msgf("spawning workload %s %s", j.ID(), j.GetTarget())
 			wgsl.Add(1)
 			go func(j Job, wg *sync.WaitGroup) {
 				err := j.Run(ctx, results, wg)
@@ -151,7 +151,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 				}
 			}(j, &wgsl)
 		} else {
-			j.Logger().Debug().Msgf("test mode: skipping workload %s %t", j.GetTarget(), j.GetTarget())
+			j.Logger().Debug().Msgf("test mode: skipping workload %s %s", j.GetTarget(), j.GetTarget())
 		}
 	}
 
