@@ -357,7 +357,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
-		report := nspeed.GenerateTextReport(wcWorkers, *optVerbose, *optUngroup)
+		report := nspeed.GenerateTextReport(wcWorkers, *optUngroup)
 		_, err = f.WriteString(report)
 		if err == nil {
 			_, err = f.WriteString(nspeed.SeriesReport(wcWorkers))

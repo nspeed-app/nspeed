@@ -35,8 +35,8 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	}
 	sort.Strings(jobIds)
 
+	// this will collect result from jobs
 	results := make(chan *Metric, njobs)
-	wcWorkers := make(Metrics, 0, njobs)
 
 	for _, id := range jobIds {
 		job := jl.Jobs[id]
@@ -45,20 +45,17 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 				Done:    false,
 				Expired: false,
 				Target:  job.GetTarget(),
-				Job:     job,
 			},
-			ResultChan: results,
-			Logger:     log.With().Str("job", id).Logger(),
-			Tick:       opt.Tick,
+			Logger: log.With().Str("job", id).Logger(),
+			Tick:   opt.Tick,
 		}
-		wcWorkers = append(wcWorkers, &wm)
+		//wcWorkers = append(wcWorkers, &wm)
 		msg := fmt.Sprintf("id=%s,gid=%s,%#v", id, job.GroupID(), job)
 		if opt.Test {
 			wm.Logger.Warn().Msg(msg)
 		} else {
 			wm.Logger.Info().Msg(msg)
 		}
-		//fmt.Printf("  %d-%#v\n", idx, job)
 	}
 
 	// cancel will allows to shutdown everything by calling cancel()
@@ -76,16 +73,16 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	// PART1: INFINITE JOBS
 	// create & init workers for jobs (synchronously one after the others)
 	// run infinite jobs
-	log.Debug().Msgf("wcWorkers has %d jobs", len(wcWorkers))
-	for i, wm := range wcWorkers {
-		log.Debug().Msgf(" %d, %+v", i, wm)
-		if !wm.Job.IsInfinite() {
+	log.Debug().Msgf("total jobs = %d", len(jobs))
+	for i, j := range jobs {
+		log.Debug().Msgf(" %d, %+v", i, j)
+		if !j.IsInfinite() {
 			continue
 		}
-		wm.Logger.Debug().Msgf("creating worker %s %t", wm.Target, wm.Done)
-		err := wm.Job.Init(wm)
+		j.Logger().Debug().Msgf("creating worker %s %s", j.ID(), j.GetTarget())
+		err := j.Init()
 		if err != nil {
-			log.Error().Msgf("error %s for %s", err, wm.Target)
+			log.Error().Msgf("error %s for %s", err, j.GetTarget())
 			return nil, err
 		}
 	}
@@ -94,23 +91,23 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	// we use 2 waitgroup, one for short-lived jobs (get, put,etc), one for infinite jobs (server, api)
 	var wgi sync.WaitGroup // infinite
 
-	for _, wm := range wcWorkers {
-		if !wm.Job.IsInfinite() {
+	for _, j := range jobs {
+		if !j.IsInfinite() {
 			continue
 		}
 		if !opt.Test {
-			wm.Logger.Debug().Msgf("spawning infinite workload %s %t", wm.Target, wm.Done)
+			j.Logger().Debug().Msgf("spawning infinite workload %s %s", j.ID(), j.GetTarget())
 			wgi.Add(1)
-			go func(w *Metric, wg *sync.WaitGroup) {
-				err := w.Job.Run(ctx, wg)
+			go func(j Job, wg *sync.WaitGroup) {
+				err := j.Run(ctx, results, wg)
 				if err != nil {
-					log.Error().Msgf("error '%s' for '%s'", err, w.Target)
+					log.Error().Msgf("error '%s' for '%s'", err, j.GetTarget())
 					cancel()
 					return
 				}
-			}(wm, &wgi)
+			}(j, &wgi)
 		} else {
-			wm.Logger.Debug().Msgf("test mode: skipping workload %s %t", wm.Target, wm.Done)
+			j.Logger().Debug().Msgf("test mode: skipping workload %s %s", j.ID(), j.GetTarget())
 		}
 	}
 	// wait for all infite jobs to signal they're ready
@@ -120,41 +117,41 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 
 	// PART2: SHORT LIVED JOBS
 	// spawn short lived jobs
-	for _, wm := range wcWorkers {
-		if wm.Job.IsInfinite() {
+	for _, j := range jobs {
+		if j.IsInfinite() {
 			continue
 		}
-		wm.Logger.Debug().Msgf("creating worker %s %t", wm.Target, wm.Done)
-		err := wm.Job.Init(wm)
+		j.Logger().Debug().Msgf("creating worker %s %s", j.ID(), j.GetTarget())
+		err := j.Init()
 		if err != nil {
 			if opt.Test && errors.Is(err, errNotRunning) {
-				wm.Logger.Warn().Msgf("(ok in test mode): error %s for %s", err, wm.Target)
+				j.Logger().Warn().Msgf("(ok in test mode): error %s for %s", err, j.GetTarget())
 			} else {
-				wm.Logger.Error().Msgf("error %s for %s", err, wm.Target)
+				j.Logger().Error().Msgf("error %s for %s", err, j.GetTarget())
 			}
 		}
 	}
 
 	var wgsl sync.WaitGroup // short lived sync group
-	IsInfinite := true      // will be false if at least one job is not infinite
-	for _, wm := range wcWorkers {
-		if wm.Job.IsInfinite() {
+	isInfinite := true      // will be false if at least one job is not infinite
+	for _, j := range jobs {
+		if j.IsInfinite() {
 			continue
 		}
-		IsInfinite = false //we got at least one finite job
+		isInfinite = false //we got at least one finite job
 		if !opt.Test {
-			wm.Logger.Debug().Msgf("spawning workload %s %t", wm.Target, wm.Done)
+			j.Logger().Debug().Msgf("spawning workload %s %t", j.ID(), j.GetTarget())
 			wgsl.Add(1)
-			go func(w *Metric, wg *sync.WaitGroup) {
-				err := w.Job.Run(ctx, wg)
+			go func(j Job, wg *sync.WaitGroup) {
+				err := j.Run(ctx, results, wg)
 				if err != nil {
-					w.Logger.Error().Msgf("error '%s' for '%s'", err, w.Target)
+					j.Logger().Error().Msgf("error '%s' for '%s'", err, j.GetTarget())
 					cancel()
 					return
 				}
-			}(wm, &wgsl)
+			}(j, &wgsl)
 		} else {
-			wm.Logger.Debug().Msgf("test mode: skipping workload %s %t", wm.Target, wm.Done)
+			j.Logger().Debug().Msgf("test mode: skipping workload %s %t", j.GetTarget(), j.GetTarget())
 		}
 	}
 
@@ -195,12 +192,13 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 		return nil, nil
 	}
 
-	if IsInfinite {
+	if isInfinite {
 		fmt.Println("running - hit ctrl-C or send a kill signal to end")
 	} else {
 		fmt.Println("running...")
 	}
 	rc := njobs
+	wcWorkers := make(Metrics, 0, njobs)
 mainloop:
 	for {
 		log.Trace().Msgf("mainloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
@@ -222,9 +220,10 @@ mainloop:
 		case <-progressTickerChannel:
 			message <- wcWorkers
 		case wm := <-results:
+			wcWorkers = append(wcWorkers, wm)
 			rc--
 			if wm.Done {
-				wm.Logger.Info().Msgf("job ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.Expired, runtime.NumGoroutine(), rc)
+				wm.Logger.Info().Msgf("job %s ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.ID, wm.Expired, runtime.NumGoroutine(), rc)
 			}
 			if rc <= 0 {
 				wm.Logger.Info().Msgf("no more jobs - exiting")
@@ -232,7 +231,7 @@ mainloop:
 			}
 		case <-cWaitgroupSLEnded:
 			log.Debug().Msgf("all sl workers ended (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
-			if !IsInfinite {
+			if !isInfinite {
 				break mainloop
 			}
 			// we want this case to block the select forever

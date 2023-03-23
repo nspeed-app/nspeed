@@ -68,7 +68,6 @@ type JobHTTPClient struct {
 	SkipTLSCheck     bool
 	UseTLSSelfConfig bool
 	Delay            time.Duration
-	Logger           *zerolog.Logger
 	HTTPVersion      int
 	H2C              bool
 	jobList          *JobList
@@ -160,38 +159,22 @@ func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 
 func (j *JobHTTPClient) IsInfinite() bool { return false }
 
-// todo : merge with ToNetMetric
-func (j *JobHTTPClient) GenerateMetric(wm *Metric) (NetMetric, error) {
-	if wm.Error != nil {
-		return NetMetric{}, fmt.Errorf("job has error %w", j.wm.Error)
-	}
-	n := wm.ToNetMetric(j.CommandString())
-	// n := NetMetric{
-	// 	Command:    j.CommandString(),
-	// 	ID:         j.ID(),
-	// 	GroupID:    j.GroupID(),
-	// 	Date:       wm.TransfertStartTime,
-	// 	RXBytes:    uint64(wm.TotalRead),
-	// 	TXBytes:    uint64(wm.TotalWrite),
-	// 	RXHBps:     utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
-	// 	TXHBps:     utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
-	// 	RXBps:      utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
-	// 	TXBps:      utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
-	// 	Duration:   wm.ElapsedTime,
-	n.Latency = j.tr.connectDone.Sub(j.tr.connectStart)
-	n.Remote = j.GetDestination()
-	// 	Protocol:   wm.Protocol,
-	// 	Cipher:     wm.Cipher,
-	// 	TLSVersion: wm.TLSVersion,
-	// }
-	return n, nil
-}
-
 // init a HTTP Job
-func (j *JobHTTPClient) Init(wm *Metric) error {
+func (j *JobHTTPClient) Init() error {
 
-	j.Logger = &wm.Logger
-	j.wm = wm
+	// todo move this to run ? and get ride of .wm?
+	j.wm = &Metric{
+		MetricsData: MetricsData{
+			Done:    false,
+			Expired: false,
+			Target:  j.GetTarget(),
+			ID:      j.ID(),
+			GroupID: j.GroupID(),
+			Command: j.CommandString(),
+		},
+		Logger: *j.Logger(),
+		//Tick:       opt.Tick, fixme
+	}
 
 	// prepend https scheme if no scheme
 	if !strings.Contains(j.Target, "://") {
@@ -202,7 +185,7 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 	if err != nil {
 		return err
 	}
-	j.Logger.Debug().Msgf("target is: %s", j.finalTarget)
+	j.Logger().Debug().Msgf("target is: %s", j.finalTarget)
 
 	// source address
 	var LocalAddr net.Addr
@@ -216,7 +199,7 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 		fhostIPAddrs := utils.FilterAddresses(la, j.IPversion)
 
 		if len(fhostIPAddrs) == 0 {
-			j.Logger.Error().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", la, fhostIPAddrs, j.IPversion)
+			j.Logger().Error().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", la, fhostIPAddrs, j.IPversion)
 			return errors.New("no valid candidate address found")
 		}
 
@@ -233,21 +216,21 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 		FallbackDelay: -1,            // don't use Happy Eyeballs
 		LocalAddr:     LocalAddr,     // "-a" for client
 		Control: func(network string, address string, c syscall.RawConn) error {
-			j.Logger.Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
+			j.Logger().Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
 			var operr error
 			if err := c.Control(func(fd uintptr) {
 				buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
 				if err != nil {
-					j.Logger.Error().Err(err).Msgf("getsockopt rcvbuf")
+					j.Logger().Error().Err(err).Msgf("getsockopt rcvbuf")
 					return
 				}
-				j.Logger.Info().Msgf("getsockopt rcvbuf = %d", buf)
+				j.Logger().Info().Msgf("getsockopt rcvbuf = %d", buf)
 				buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
 				if err != nil {
-					j.Logger.Error().Err(err).Msgf("getsockopt sndbuf")
+					j.Logger().Error().Err(err).Msgf("getsockopt sndbuf")
 					return
 				}
-				j.Logger.Info().Msgf("getsockopt sndbuf = %d", buf)
+				j.Logger().Info().Msgf("getsockopt sndbuf = %d", buf)
 			}); err != nil {
 				return err
 			}
@@ -267,7 +250,7 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 		DisableCompression:    true,
 		//  transforms network "tcp" / "udp" to "tcp4"/"udp4" or "tcp6"/"udp6" if IPVerson is set.
 		DialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
-			j.Logger.Info().Msgf("DialContext %s %s %d ", network, address, j.IPversion)
+			j.Logger().Info().Msgf("DialContext %s %s %d ", network, address, j.IPversion)
 			if network == "udp" || network == "tcp" {
 				// dont assume j.IPversion  is sanitized
 				if j.IPversion == 6 || j.IPversion == 4 {
@@ -281,7 +264,7 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 
 	if j.UseTLSSelfConfig {
 		netTransport.TLSClientConfig = TLSSelfConfig.Clone()
-		j.Logger.Info().Msgf("using TLSSelfConfig")
+		j.Logger().Info().Msgf("using TLSSelfConfig")
 		// for tls 1.3 we can't change cipher suites with current Go implementation: https://go.dev/blog/tls-cipher-suites
 		// so something like this won't work:
 		// netTransport.TLSClientConfig.CipherSuites = []uint16{tls.TLS_CHACHA20_POLY1305_SHA256}
@@ -289,11 +272,11 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 	}
 	if j.SkipTLSCheck {
 		netTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-		j.Logger.Info().Msgf("skipping TLS Check")
+		j.Logger().Info().Msgf("skipping TLS Check")
 	}
 
 	if netTransport.TLSClientConfig != nil {
-		j.Logger.Debug().Msgf("TLSConfig: defined")
+		j.Logger().Debug().Msgf("TLSConfig: defined")
 	}
 
 	// interface to the transport so we can switch if needed
@@ -303,7 +286,7 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 		// get a http2 transport
 		t2, err := http2.ConfigureTransports(netTransport)
 		if err != nil {
-			j.Logger.Warn().Msgf("something bad happened that shouldn't : %s", err)
+			j.Logger().Warn().Msgf("something bad happened that shouldn't : %s", err)
 			return err
 		}
 		// default settings of frame size impacts performance, so we bump it
@@ -332,14 +315,14 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 		if j.HTTPVersion == 3 {
 			quicConf := &quic.Config{}
 			if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-				quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(j.Logger))
+				quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(j.Logger()))
 			}
 			rtTransport = &http3.RoundTripper{
 				DisableCompression: true,
 				TLSClientConfig:    netTransport.TLSClientConfig,
 				QuicConfig:         quicConf,
 				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-					j.Logger.Debug().Msgf("HTTP3: %s,%v", addr, cfg)
+					j.Logger().Debug().Msgf("HTTP3: %s,%v", addr, cfg)
 					return quic.DialAddrEarlyContext(ctx, addr, tlsCfg, cfg)
 				},
 			}
@@ -361,11 +344,11 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			loc, err := req.Response.Location()
 			if err != nil {
-				j.Logger.Info().Msgf("redirected with error %v", err)
+				j.Logger().Info().Msgf("redirected with error %v", err)
 			} else {
-				j.Logger.Info().Msgf("redirected to %s", loc.String())
+				j.Logger().Info().Msgf("redirected to %s", loc.String())
 			}
-			wm.InitNew() //todo: evaluate
+			j.wm.InitNew() //todo: evaluate
 			j.numRedirect++
 			j.finalTarget = loc.String()
 			return nil // http.ErrUseLastResponse
@@ -376,11 +359,11 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 	var body io.ReadCloser
 	body = http.NoBody
 	if j.Command == "POST" || j.Command == "PUT" {
-		wm.ContentWriteSize = j.ContentSize
-		wm.ContentReadSize = 0
-		wm.WriteStepSize = 256 * 1024 // todo:
-		wm.TotalWrite = 0
-		body = wm
+		j.wm.ContentWriteSize = j.ContentSize
+		j.wm.ContentReadSize = 0
+		j.wm.WriteStepSize = 256 * 1024 // todo:
+		j.wm.TotalWrite = 0
+		body = j.wm
 	}
 
 	req, err := http.NewRequest(j.Command, j.finalTarget, body)
@@ -404,7 +387,7 @@ func (j *JobHTTPClient) Init(wm *Metric) error {
 	return nil
 }
 
-func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
+func (j *JobHTTPClient) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitGroup) error {
 
 	defer wg.Done()
 	if j.req == nil {
@@ -494,18 +477,18 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
-			j.Logger.Trace().Msgf("ClientTrace-got 1xx: %d %+v", code, header)
+			j.Logger().Trace().Msgf("ClientTrace-got 1xx: %d %+v", code, header)
 			return nil
 		},
 
 		WroteHeaderField: func(key string, value []string) {
-			j.Logger.Trace().Msgf("ClientTrace-WroteHeaderField %s = %v", key, value)
+			j.Logger().Trace().Msgf("ClientTrace-WroteHeaderField %s = %v", key, value)
 		},
 		WroteHeaders: func() {
-			j.Logger.Trace().Msgf("ClientTrace-WroteHeaders")
+			j.Logger().Trace().Msgf("ClientTrace-WroteHeaders")
 		},
 		Wait100Continue: func() {
-			j.Logger.Trace().Msgf("ClientTrace-Wait100Continue")
+			j.Logger().Trace().Msgf("ClientTrace-Wait100Continue")
 		},
 		WroteRequest: func(wri httptrace.WroteRequestInfo) {
 			j.wm.Logger.Trace().Err(wri.Err).Msgf("ClientTrace-WroteRequest")
@@ -515,9 +498,9 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 	// this is where we wait
 	if j.Delay > 0 {
-		j.Logger.Debug().Dur("delay", j.Delay).Msg("waiting")
+		j.Logger().Debug().Dur("delay", j.Delay).Msg("waiting")
 		time.Sleep(j.Delay)
-		j.Logger.Debug().Msg("waking up")
+		j.Logger().Debug().Msg("waking up")
 	}
 
 	// add timeout
@@ -534,44 +517,49 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	// resp, err := client.Transport.RoundTrip(req)
 	wm.InitNew()
 
-	utils.PrintMemUsage(j.Logger, "before Do")
+	utils.PrintMemUsage(j.Logger(), "before Do")
 	resp, err := j.client.Do(j.req)
-	utils.PrintMemUsage(j.Logger, "after Do")
+	utils.PrintMemUsage(j.Logger(), "after Do")
 
-	j.Logger.Debug().Msgf("client.Do: %v - %v", err, wm.Error)
+	j.Logger().Debug().Msgf("client.Do: %v - %v", err, wm.Error)
 	j.tr.end = time.Now()
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		wm.Expired = true
-		j.Logger.Info().Msgf("timer expired client side")
+		j.Logger().Info().Msgf("timer expired client side")
 	} else if errors.Is(err, syscall.ECONNRESET) {
 		wm.Expired = true
-		j.Logger.Info().Msgf("something expired server side")
+		j.Logger().Info().Msgf("something expired server side")
 	} else if errors.Is(err, context.Canceled) {
 		wm.Expired = true
 		wm.Cancelled = true
-		j.Logger.Info().Msgf("parent got cancelled")
+		j.Logger().Info().Msgf("parent got cancelled")
 	} else if err != nil {
 		wm.Error = err
-		j.Logger.Info().Err(err).Send()
+		j.Logger().Info().Err(err).Send()
 		// todo: get body for more info ()
+	}
+
+	if j.tr.ConnInfo.Conn != nil {
+		wm.Remote = j.tr.ConnInfo.Conn.RemoteAddr().String()
+		wm.AvgLatency = j.tr.connectDone.Sub(j.tr.connectStart)
 	}
 
 	// completed or expired (timeout)
 	if wm.Error == nil && !wm.Cancelled {
 		if j.tr.ConnInfo.Conn != nil {
-			j.Logger.Info().
+			j.Logger().Info().
 				Stringer("LocalAddr", j.tr.ConnInfo.Conn.LocalAddr()).
 				Stringer("RemoteAddr", j.tr.ConnInfo.Conn.RemoteAddr()).Send()
 		}
-		j.Logger.Info().
+		j.Logger().Info().
 			Dur("DNSInfoTime", j.tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
 			Dur("ConnInfoTime", j.tr.gotConn.Sub(refdate)).
 			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
 			Send()
 
 		for _, a := range j.tr.DNSInfo.Addrs {
-			j.Logger.Info().Stringer("dnsinfo", &a).Send()
+			j.Logger().Info().Stringer("dnsinfo", &a).Send()
 		}
 
 		if j.tr.ConnInfo.Reused {
@@ -579,7 +567,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		}
 
 		if j.tr.TLSDone {
-			j.Logger.Info().
+			j.Logger().Info().
 				Str("crypto", utils.TLSVersionName(j.tr.TLS.Version)).
 				Str("cipher", tls.CipherSuiteName(j.tr.TLS.CipherSuite)).
 				Dur("TLSDuration", j.tr.tlsDone.Sub(refdate)).Send()
@@ -594,27 +582,27 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		wm.Cipher = TLSCipherSuite(resp.TLS)
 		wm.TLSVersion = utils.TLSVersionFriendlyName(TLSVersion(resp.TLS))
 
-		j.Logger.Info().
+		j.Logger().Info().
 			Str("protocol", wm.Protocol).
 			Send()
-		j.Logger.Debug().
+		j.Logger().Debug().
 			Int64("ContentLength", resp.ContentLength).
 			Str("ContentLength-Decimal", utils.ByteCountDecimal(resp.ContentLength)+"B").
 			Str("ContentLength-Binary", utils.ByteCountBinary(resp.ContentLength)+"B").
 			Send()
 
 		// dump resp if trace on
-		if ShouldLog(j.Logger, zerolog.TraceLevel) {
+		if ShouldLog(j.Logger(), zerolog.TraceLevel) {
 			dump, err := httputil.DumpResponse(resp, false)
 			if err != nil {
-				j.Logger.Fatal().Err(err).Send()
+				j.Logger().Fatal().Err(err).Send()
 			}
-			j.Logger.Debug().Msgf("Response:\n%s", dump)
+			j.Logger().Debug().Msgf("Response:\n%s", dump)
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			wm.Error = errors.New("http status code: " + resp.Status)
-			j.Logger.Debug().Msg(resp.Status)
+			j.Logger().Debug().Msg(resp.Status)
 			wm.Valid = false
 		} else {
 			if j.Command == "GET" {
@@ -636,22 +624,22 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 				if err == context.DeadlineExceeded {
 					wm.Expired = true
-					j.Logger.Info().Str("cause", "timer expired client side")
+					j.Logger().Info().Str("cause", "timer expired client side")
 				} else if err == io.ErrUnexpectedEOF {
 					wm.Expired = true
-					j.Logger.Info().Str("cause", "something expired server side")
+					j.Logger().Info().Str("cause", "something expired server side")
 				} else if err != nil {
-					j.Logger.Error().Err(err)
+					j.Logger().Error().Err(err)
 					wm.Valid = false
 					wm.Error = err
 				} else {
-					j.Logger.Info().Str("cause", "completed normally")
+					j.Logger().Info().Str("cause", "completed normally")
 					if totalread != wm.TotalRead {
-						j.Logger.Warn().Msgf("iocopy result differs from interface: %d - %d", totalread, wm.TotalRead)
+						j.Logger().Warn().Msgf("iocopy result differs from interface: %d - %d", totalread, wm.TotalRead)
 					}
 				}
 			}
-			// if (j.Command == "PUT" || j.Command == "POST") && j.Logger.GetLevel() <= zerolog.TraceLevel {
+			// if (j.Command == "PUT" || j.Command == "POST") && j.Logger().GetLevel() <= zerolog.TraceLevel {
 
 			// 	b, err := io.ReadAll(resp.Body)
 			// 	if err != nil {
@@ -670,9 +658,10 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		}
 	}
 	wm.Done = true
-	utils.PrintMemUsage(j.Logger, "client ended")
-	wm.LogFinal(j.Logger)
-	wm.ResultChan <- wm
+
+	utils.PrintMemUsage(j.Logger(), "client ended")
+	wm.LogFinal(j.Logger())
+	wc <- wm
 	return nil
 }
 

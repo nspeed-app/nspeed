@@ -99,7 +99,6 @@ type JobHTTPServer struct {
 	Mux           *http.ServeMux
 	Cancel        context.CancelFunc
 	Close         func(t time.Duration)
-	Logger        *zerolog.Logger
 	TotalRequests int
 	mutex         sync.Mutex
 	api           *APIHost
@@ -140,10 +139,6 @@ func (j *JobHTTPServer) PrintString(_, _ bool) string {
 	return "HTTP SERVER " + j.ID()
 }
 
-func (j *JobHTTPServer) GenerateMetric(wm *Metric) (NetMetric, error) {
-	return wm.ToNetMetric("unknown origin"), nil
-}
-
 func (j *JobHTTPServer) IsInfinite() bool {
 	return true
 }
@@ -158,7 +153,7 @@ func (j *JobHTTPServer) OnRequestStart() bool {
 	done := j.Parameters.MaxRequests > 0 && j.TotalRequests > j.Parameters.MaxRequests
 
 	if done {
-		j.Logger.Info().Msgf("%d max total requests reached", j.TotalRequests)
+		j.Logger().Info().Msgf("%d max total requests reached", j.TotalRequests)
 		return false
 	}
 	return true
@@ -170,7 +165,7 @@ func (j *JobHTTPServer) OnRequestEnd() {
 	defer j.mutex.Unlock()
 	done := j.Parameters.MaxRequests > 0 && j.TotalRequests >= j.Parameters.MaxRequests
 	if done {
-		j.Logger.Info().Msgf("%d max total requests reached", j.TotalRequests)
+		j.Logger().Info().Msgf("%d max total requests reached", j.TotalRequests)
 		j.Cancel()
 	}
 }
@@ -186,7 +181,7 @@ func (j *JobHTTPServer) CreateHandler() http.Handler {
 
 	// serve static files h.Parameters.Directory
 	if j.Parameters.Directory != "" {
-		j.Logger.Info().Msgf("serving directory '%s' at %s", j.Parameters.Directory, DirPath)
+		j.Logger().Info().Msgf("serving directory '%s' at %s", j.Parameters.Directory, DirPath)
 		mux.Handle(DirPath, http.StripPrefix(DirPath, http.FileServer(http.Dir(j.Parameters.Directory))))
 	}
 
@@ -202,8 +197,8 @@ func (j *JobHTTPServer) CreateHandler() http.Handler {
 	handler = limitRequestSize(j.Parameters.MaxBodySize, handler)
 	handler = preflight(handler)
 	handler = limitNumRequests(j.OnRequestStart, j.OnRequestEnd, handler)
-	if j.Logger != nil {
-		handler = logger(j.Logger, handler)
+	if j.Logger() != nil {
+		handler = logger(j.Logger(), handler)
 	}
 	// investigate using http.TimeoutHandler
 	// handler = http.TimeoutHandler(handler, j.Parameters.MaxDuration, "...")
@@ -217,7 +212,7 @@ func (j *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		method = "GET"
 	}
 
-	j.Logger.Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
+	j.Logger().Info().Msgf("rootHandler: %s - %s", method, r.URL.Path)
 
 	if method == "GET" {
 		a, ok := r.Header[GUIDHeader]
@@ -230,7 +225,7 @@ func (j *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		match := StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
-		j.Logger.Debug().Strs("match", match).Send()
+		j.Logger().Debug().Strs("match", match).Send()
 		// keep this test in sync with the regexp
 		if len(match) == 3 {
 			j.StreamBytes(w, r, match[1], match[2])
@@ -261,7 +256,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		return
 	}
 	numBytes := int64(n)
-	j.Logger.Info().Msgf("streaming %s bytes (= %d bytes) with extention: %s", size, numBytes, extension)
+	j.Logger().Info().Msgf("streaming %s bytes (= %d bytes) with extention: %s", size, numBytes, extension)
 
 	if numBytes < 1 {
 		numBytes = 1
@@ -294,7 +289,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", MaxChunkSize), http.StatusBadRequest)
 			return
 		}
-		j.Logger.Info().Msgf("chunk_size set to %d", chunkSize)
+		j.Logger().Info().Msgf("chunk_size set to %d", chunkSize)
 	}
 	// end danger zone
 
@@ -335,18 +330,21 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	// prepare metrics handler
 	wm := Metric{
 		MetricsData: MetricsData{
-			Job:              j,
+			Command:          fmt.Sprintf("%s %s from %s (%d bytes)", r.Method, r.URL.Path, r.RemoteAddr, numBytes),
 			Done:             false,
 			Expired:          false,
 			Cancelled:        false,
 			Target:           fmt.Sprintf("stream %s bytes to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
+			Remote:           r.RemoteAddr,
 			ContentWriteSize: numBytes,
 			WriteStepSize:    chunkSize,
+			ID:               guid,
+			GroupID:          guid,
 		},
 		Protocol:   r.Proto,
 		Cipher:     TLSCipherSuite(r.TLS),
 		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
-		Logger: j.Logger.With().
+		Logger: (*j.Logger()).With().
 			Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
 			Str("x-request-guid", guid).
 			Logger(),
@@ -420,7 +418,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	close(done)
 	wm.Done = true
 	wm.Valid = true
-	wm.LogFinal(j.Logger)
+	wm.LogFinal(j.Logger())
 	if TTLGUIDCache != nil {
 		err := TTLGUIDCache.Set(guid, &wm, TTLGuidTimeout)
 		if err != nil {
@@ -433,7 +431,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 
 func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, r *http.Request, guid string) {
 
-	j.Logger.Trace().Msgf("getting and deleting guid: %s", guid)
+	j.Logger().Trace().Msgf("getting and deleting guid: %s", guid)
 	wm, ok := TTLGUIDCache.Get(guid)
 	if !ok {
 		http.Error(w, fmt.Sprintf("no such guid (%s)", guid), http.StatusBadRequest)
@@ -448,7 +446,7 @@ func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, r *http.Request
 }
 
 func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, r *http.Request, wm *Metric) error {
-	m := wm.ToNetMetric(fmt.Sprintf("%s from %s (%d bytes)", r.Method, r.RemoteAddr, r.ContentLength))
+	m := wm.ToNetMetric()
 	result, err := json.MarshalIndent(m, "", "\t")
 	if err != nil {
 		_, err = fmt.Fprintf(w, "error formating metrics: %v", err)
@@ -465,7 +463,7 @@ func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, r *http.Request, wm *M
 func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *Metric) (chan bool, error) {
 	var err error
 	if rate := r.URL.Query().Get("rate"); rate != "" {
-		j.Logger.Info().Msgf("Upload: %s from %s - set rate to %s", r.Method, r.RemoteAddr, rate)
+		j.Logger().Info().Msgf("Upload: %s from %s - set rate to %s", r.Method, r.RemoteAddr, rate)
 		wm.Tick, err = time.ParseDuration(rate)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("bad value '%s' for rate", rate), http.StatusBadRequest)
@@ -480,22 +478,22 @@ func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *Me
 // handle upload
 func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
-	j.Logger.Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
+	j.Logger().Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
 
 	// metric for this request
 	wm := &Metric{
 		MetricsData: MetricsData{
+			Command:            fmt.Sprintf("%s %s from %s (%d)", r.Method, r.URL.Path, r.RemoteAddr, r.ContentLength),
 			Done:               false,
 			Expired:            false,
 			Target:             fmt.Sprintf("upload from %s, path = %s", r.RemoteAddr, r.RequestURI),
-			Job:                j,
 			TransfertStartTime: time.Now(),
 			FirstResponseByte:  time.Now(),
 		},
 		Protocol:   r.Proto,
 		Cipher:     TLSCipherSuite(r.TLS),
 		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
-		Logger:     j.Logger.With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger(),
+		Logger:     j.Logger().With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger(),
 	}
 
 	// handle rate parameter
@@ -513,7 +511,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	wm.TotalRead = n
 	wm.Error = err
 	wm.Valid = true
-	wm.LogFinal(j.Logger)
+	wm.LogFinal(j.Logger())
 
 	// send the metrics
 	err = j.SendMetric(w, r, wm)
@@ -526,10 +524,19 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 // implements the http server
 
-func (j *JobHTTPServer) Init(wm *Metric) error {
+func (j *JobHTTPServer) Init() error {
 
-	j.wm = wm
-	j.Logger = &wm.Logger //
+	j.wm = &Metric{
+		MetricsData: MetricsData{
+			Done:    false,
+			Expired: false,
+			Target:  j.GetTarget(),
+			ID:      j.ID(),
+			GroupID: j.GroupID(),
+		},
+		Logger: *j.Logger(),
+		//Tick:       opt.Tick,
+	}
 
 	j.TotalRequests = 0 // just in case we reuse
 
@@ -537,7 +544,7 @@ func (j *JobHTTPServer) Init(wm *Metric) error {
 
 	// empty host is a special case
 
-	j.Logger.Debug().Msgf("host parameter is:'%s'", host)
+	j.Logger().Debug().Msgf("host parameter is:'%s'", host)
 	if host != "" {
 		// if host is an interface name
 		hostIPAddrs, err := utils.ResolveInterfaceHostAddress(j.Parameters.Host)
@@ -548,7 +555,7 @@ func (j *JobHTTPServer) Init(wm *Metric) error {
 		fhostIPAddrs := utils.FilterAddresses(hostIPAddrs, j.Parameters.ForceIPVersion)
 
 		if len(fhostIPAddrs) == 0 {
-			j.Logger.Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, j.Parameters.ForceIPVersion)
+			j.Logger().Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, j.Parameters.ForceIPVersion)
 			return errors.New("no valid candidate address found")
 		}
 		host = fhostIPAddrs[0].String()
@@ -571,11 +578,11 @@ func (j *JobHTTPServer) Init(wm *Metric) error {
 
 	if j.Parameters.API {
 		j.api = &APIHost{Parameters: j.Parameters, Server: j}
-		return j.api.Init(wm)
+		return j.api.Init()
 	}
 	return nil
 }
-func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
+func (j *JobHTTPServer) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitGroup) error {
 
 	ctx, j.Cancel = context.WithCancel(ctx)
 
@@ -584,7 +591,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 		ctx2, cancel := context.WithTimeout(ctx, j.Parameters.RunDuration)
 		defer cancel()
 		ctx = ctx2
-		j.Logger.Debug().Msgf("server will shutdown in: %v", j.Parameters.RunDuration)
+		j.Logger().Debug().Msgf("server will shutdown in: %v", j.Parameters.RunDuration)
 	}
 	// exitCh will be closed when it is safe to exit, after graceful shutdown
 	exitCh := make(chan struct{})
@@ -596,13 +603,13 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 		j.Server.SetKeepAlivesEnabled(false)
 		if err := j.Server.Shutdown(lctx); err != nil {
-			j.Logger.Debug().Msgf("shutdown error: %s", err)
+			j.Logger().Debug().Msgf("shutdown error: %s", err)
 		}
 	}
 
 	go func() {
 		<-ctx.Done()
-		j.Logger.Debug().Msgf("shutdown started by context : %s", ctx.Err())
+		j.Logger().Debug().Msgf("shutdown started by context : %s", ctx.Err())
 
 		j.Close(j.Parameters.MaxDuration + 1*time.Second) //todo check with global timeout too
 
@@ -613,23 +620,23 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	if j.Parameters.UseTLSSelfConfig {
 		if TLSSelfConfig != nil {
 			j.Server.TLSConfig = TLSSelfConfig.Clone()
-			j.Logger.Info().Msgf("using TLSSelfConfig")
+			j.Logger().Info().Msgf("using TLSSelfConfig")
 		} else {
 			// this shouldn't happen if parameters check are done correctly
-			j.Logger.Fatal().Msgf("no self certificate installed")
+			j.Logger().Fatal().Msgf("no self certificate installed")
 		}
 	} else if j.Parameters.ServeTLS {
 		// todo: this should be done earlier may be ?
 		cer, err := tls.LoadX509KeyPair(j.Parameters.TLSCertFile, j.Parameters.TLSKeyFile)
 		if err != nil {
-			j.Logger.Fatal().Err(err).Msgf("error loading cert/key files")
+			j.Logger().Fatal().Err(err).Msgf("error loading cert/key files")
 		}
 		j.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
 	}
 
 	err := j.Listen(ctx)
 	if err != nil {
-		j.Logger.Fatal().Msgf("failed to listen: %s", err)
+		j.Logger().Fatal().Msgf("failed to listen: %s", err)
 		return err
 	}
 
@@ -639,7 +646,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 	if j.RunHook != nil {
 		err := j.RunHook(ctx)
 		if err != nil {
-			j.Logger.Warn().Msgf("failed to serve: %s", err)
+			j.Logger().Warn().Msgf("failed to serve: %s", err)
 			return err
 		}
 	}
@@ -650,18 +657,18 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) error {
 
 	if err != nil {
 		if err != errors.New("quic: Server closed") { // temporary quic fix
-			j.Logger.Warn().Msgf("failed to serve: %s", err)
+			j.Logger().Warn().Msgf("failed to serve: %s", err)
 		}
 	}
 
 	// we get here if shutdown or error
 	<-exitCh
 	if err == nil {
-		j.Logger.Info().Msgf("shutdown finished")
+		j.Logger().Info().Msgf("shutdown finished")
 	}
 
 	// signal parent and send metrics
-	j.wm.ResultChan <- j.wm
+	wc <- j.wm
 	return nil
 }
 
@@ -690,16 +697,16 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 			if err := conn.Control(func(fd uintptr) {
 				buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
 				if err != nil {
-					j.Logger.Error().Err(err).Msgf("getsockopt rcvbuf")
+					j.Logger().Error().Err(err).Msgf("getsockopt rcvbuf")
 					return
 				}
-				j.Logger.Info().Msgf("getsockopt rcvbuf = %d", buf)
+				j.Logger().Info().Msgf("getsockopt rcvbuf = %d", buf)
 				buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
 				if err != nil {
-					j.Logger.Error().Err(err).Msgf("getsockopt sndbuf")
+					j.Logger().Error().Err(err).Msgf("getsockopt sndbuf")
 					return
 				}
-				j.Logger.Info().Msgf("getsockopt sndbuf = %d", buf)
+				j.Logger().Info().Msgf("getsockopt sndbuf = %d", buf)
 			}); err != nil {
 				return err
 			}
@@ -714,10 +721,10 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 	j.listener = &ln
 	if j.Parameters.ServeTLS {
 		j.URL = &url.URL{Scheme: "https", Host: ln.Addr().String()}
-		j.Logger.Warn().Msgf("server %s listening on %s (H2C = %t)", j.ID(), j.URL.String(), j.Parameters.H2C)
+		j.Logger().Warn().Msgf("server %s listening on %s (H2C = %t)", j.ID(), j.URL.String(), j.Parameters.H2C)
 	} else {
 		j.URL = &url.URL{Scheme: "http", Host: ln.Addr().String()}
-		j.Logger.Warn().Msgf("server %s listening on %s", j.ID(), j.URL.String())
+		j.Logger().Warn().Msgf("server %s listening on %s", j.ID(), j.URL.String())
 	}
 
 	return nil
@@ -777,7 +784,7 @@ func (j *JobHTTPServer) HTTP2Serve() error {
 
 	idx := utils.IndexOf(j.Server.TLSConfig.NextProtos, "http/1.1")
 	if idx != -1 {
-		j.Logger.Warn().Msgf("removing http/1.1 from server.TLSConfig")
+		j.Logger().Warn().Msgf("removing http/1.1 from server.TLSConfig")
 		j.Server.TLSConfig.NextProtos = append(j.Server.TLSConfig.NextProtos[:idx], j.Server.TLSConfig.NextProtos[idx+1:]...)
 	}
 
@@ -816,7 +823,7 @@ func (j *JobHTTPServer) HTTP3Listen() error {
 		return err
 	}
 	j.URL = &url.URL{Scheme: "https", Host: j.udpConn.LocalAddr().String()}
-	j.Logger.Warn().Msgf("server listening on %s (HTTP/3 on UDP)", j.URL.String())
+	j.Logger().Warn().Msgf("server listening on %s (HTTP/3 on UDP)", j.URL.String())
 	return nil
 }
 
@@ -831,7 +838,7 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 
 	// setup debug trace
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(j.Logger))
+		quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(j.Logger()))
 	}
 
 	quicServer := &http3.Server{
@@ -844,21 +851,21 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 	h := j.Server.Handler
 	j.Server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := quicServer.SetQuicHeaders(w.Header())
-		j.Logger.Debug().Msgf("SetQuicHeaders called")
+		j.Logger().Debug().Msgf("SetQuicHeaders called")
 		if err != nil {
-			j.Logger.Fatal().Err(err)
+			j.Logger().Fatal().Err(err)
 		}
 		h.ServeHTTP(w, r)
 	})
 
 	// this blocks or fail
-	j.Logger.Info().Msgf("nspeed serving https://%s (http3 on udp)", j.Server.Addr)
+	j.Logger().Info().Msgf("nspeed serving https://%s (http3 on udp)", j.Server.Addr)
 
 	j.Close = func(shutdownTimeout time.Duration) {
-		j.Logger.Debug().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")
+		j.Logger().Debug().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")
 		// nyi: quicServer.CloseGracefully(shutdownTimeout)
 		err := quicServer.Close()
-		j.Logger.Info().Err(err).Msg("quicServer Close called")
+		j.Logger().Info().Err(err).Msg("quicServer Close called")
 	}
 	return quicServer.Serve(j.udpConn)
 }

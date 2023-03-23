@@ -135,7 +135,7 @@ func (s *JobHTTPServer) HTTP2serve() error {
 
 	config := s.Server.TLSConfig.Clone()
 
-	s.Logger.Debug().Msgf("listening with %v\n", config.NextProtos)
+	s.Logger().Debug().Msgf("listening with %v\n", config.NextProtos)
 	l := tls.NewListener(*s.listener, config)
 
 	origListener := l

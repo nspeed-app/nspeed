@@ -24,10 +24,11 @@ type Job interface {
 	GoString() string
 	PrintString(bool, bool) string
 	IsInfinite() bool
-	Init(*Metric) error
-	Run(context.Context, *sync.WaitGroup) error
-	GenerateMetric(*Metric) (NetMetric, error)
+	Init() error
+	Run(context.Context, chan *Metric, *sync.WaitGroup) error
 	//common, implemented here
+	Logger() *zerolog.Logger
+	SetLogger(*zerolog.Logger)
 	ID() string
 	SetID(string)
 	GroupID() string
@@ -38,14 +39,26 @@ type Job interface {
 // it provides ID/GID storage
 type JobData struct {
 	Job
-	id    string
-	group string
+	id     string
+	group  string
+	logger *zerolog.Logger
 }
 
 func (j *JobData) ID() string            { return j.id }
 func (j *JobData) SetID(id string)       { j.id = id }
 func (j *JobData) GroupID() string       { return j.group }
 func (j *JobData) SetGroupID(gid string) { j.group = gid }
+
+// Logger returns a dedicated Logger or the default one
+func (j *JobData) Logger() *zerolog.Logger {
+	if j.logger == nil {
+		return &log.Logger
+	}
+	return j.logger
+}
+func (j *JobData) SetLogger(logger *zerolog.Logger) {
+	j.logger = logger
+}
 
 // a list of jobs
 type JobList struct {
@@ -98,7 +111,9 @@ func (jl *JobList) AddJobs(jobs ...Job) error {
 
 // MetricsData -
 type MetricsData struct {
-	Job                Job
+	ID                 string
+	GroupID            string
+	Command            string
 	Done               bool // job ended
 	Expired            bool // job timed out or other side ended
 	Cancelled          bool
@@ -114,6 +129,8 @@ type MetricsData struct {
 	TransfertStartTime time.Time
 	ElapsedTime        time.Duration
 	FirstResponseByte  time.Time
+	AvgLatency         time.Duration
+	Remote             string
 }
 
 // Metric main metrics struct
@@ -122,7 +139,6 @@ type MetricsData struct {
 // & check openmetrics suff
 type Metric struct {
 	MetricsData
-	ResultChan chan *Metric
 	Logger     zerolog.Logger
 	mutex      sync.Mutex
 	Valid      bool
@@ -298,7 +314,7 @@ func (wm *Metric) LogFinal(logger *zerolog.Logger) {
 	}
 }
 
-func (wm *Metric) PrintFinal(w io.Writer, verbose bool) {
+func (wm *Metric) PrintFinal(w io.Writer) {
 	if wm.Valid {
 		fmt.Fprintf(w, "Read: %s ", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
 		fmt.Fprintf(w, "Write: %s ", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
@@ -307,15 +323,15 @@ func (wm *Metric) PrintFinal(w io.Writer, verbose bool) {
 		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
 		// fmt.Fprintf(w, "WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
 		fmt.Fprintf(w, "duration: %v ", wm.ElapsedTime.Seconds())
-		fmt.Fprintf(w, "command: %s", wm.Job.PrintString(verbose, false))
+		fmt.Fprintf(w, "command: %s", "TODO"+wm.Target)
 		fmt.Fprintf(w, "\n")
 
 	} else {
-		fmt.Fprintf(w, "job %s error: %v\n", wm.Job.ID(), wm.Error)
+		fmt.Fprintf(w, "job %s error: %v\n", "TODO", wm.Error)
 	}
 }
 
-// InitNew (re)initializes a metric
+// InitNew (re)initializes a metric - todo rename
 func (wm *Metric) InitNew() {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
@@ -469,7 +485,6 @@ func (wc *Metrics) MarshalJSON() ([]byte, error) {
 func (wm *Metric) Clone() *Metric {
 	c := Metric{
 		MetricsData: wm.MetricsData,
-		ResultChan:  nil,
 		Logger:      wm.Logger,
 		Valid:       wm.Valid,
 		Protocol:    wm.Protocol,
@@ -504,12 +519,12 @@ func (wc *Metrics) Group() *Metrics {
 		if wm.Error != nil {
 			continue
 		}
-		if wm.Job.GroupID() != wm.Job.ID() {
-			g, ok := groups[wm.Job.GroupID()]
+		if wm.GroupID != wm.ID {
+			g, ok := groups[wm.GroupID]
 			if !ok {
 				g = wm.Clone()
 				g.Instances = 1
-				groups[wm.Job.GroupID()] = g
+				groups[wm.GroupID] = g
 				rwc = append(rwc, g)
 				continue
 			}
@@ -543,11 +558,15 @@ func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 	return string(json)
 }
 
-func (wm *Metric) ToNetMetric(command string) NetMetric {
+func (wm *Metric) MarshalJSON() ([]byte, error) {
+	return json.Marshal(wm.ToNetMetric())
+}
+
+func (wm *Metric) ToNetMetric() NetMetric {
 	nm := NetMetric{
-		Command:    command,
-		ID:         wm.Job.ID(),
-		GroupID:    wm.Job.GroupID(),
+		Command:    wm.Command,
+		ID:         wm.ID,
+		GroupID:    wm.GroupID,
 		Streams:    uint64(wm.Instances),
 		Date:       wm.TransfertStartTime,
 		RXBytes:    uint64(wm.TotalRead),
@@ -561,8 +580,8 @@ func (wm *Metric) ToNetMetric(command string) NetMetric {
 		TXChunk:    wm.WriteStepSize,
 		RXCount:    wm.ReadCount,
 		TXCount:    wm.WriteCount,
-		Latency:    -1,
-		Remote:     wm.Target,
+		Latency:    wm.AvgLatency,
+		Remote:     wm.Remote,
 		Protocol:   wm.Protocol,
 		Cipher:     wm.Cipher,
 		TLSVersion: wm.TLSVersion,
@@ -619,7 +638,7 @@ func (wm *Metric) SerieReport() (report string) {
 			ElapsedTime = w.ElapsedTime - ElapsedTime
 		}
 		report += fmt.Sprintf("serie:%s %d %d %d %d %s %s %s\n",
-			wm.Job.ID(),
+			wm.ID,
 			TotalRead,
 			ReadCount,
 			TotalWrite,
@@ -629,7 +648,7 @@ func (wm *Metric) SerieReport() (report string) {
 			ElapsedTime)
 	}
 	report += fmt.Sprintf("total: %s %d %d %d %d %s\n",
-		wm.Job.ID(),
+		wm.ID,
 		wm.TotalRead,
 		wm.ReadCount,
 		wm.TotalWrite,
@@ -645,7 +664,7 @@ func SeriesReport(wcWorkers Metrics) (report string) {
 }
 
 // generate a tabular formatted text report
-func GenerateTextReport(wcWorkers Metrics, verbose bool, showGroup bool) string {
+func GenerateTextReport(wcWorkers Metrics, showGroup bool) string {
 	// main speed report - todo: refactor in a function
 
 	var out bytes.Buffer
@@ -663,7 +682,7 @@ func GenerateTextReport(wcWorkers Metrics, verbose bool, showGroup bool) string 
 			continue
 		}
 		if wm.Error != nil {
-			log.Warn().Err(wm.Error).Msgf("job %s ended", wm.Job.ID())
+			log.Warn().Err(wm.Error).Msgf("job %s ended", wm.ID)
 			continue
 		}
 		inGroup := false
@@ -672,13 +691,13 @@ func GenerateTextReport(wcWorkers Metrics, verbose bool, showGroup bool) string 
 		if wm.ElapsedTime > elapsedTime {
 			elapsedTime = wm.ElapsedTime
 		}
-		if wm.Job.GroupID() != wm.Job.ID() {
+		if wm.GroupID != wm.ID {
 			inGroup = true
-			g, ok := groups[wm.Job.GroupID()]
+			g, ok := groups[wm.GroupID]
 			if !ok {
 				g = &reportGroup{}
-				groups[wm.Job.GroupID()] = g
-				g.Command = wm.Job.PrintString(verbose, true)
+				groups[wm.GroupID] = g
+				g.Command = wm.Target + "TODO"
 			}
 			g.TotalRead += wm.TotalRead
 			g.TotalWrite += wm.TotalWrite
@@ -687,7 +706,7 @@ func GenerateTextReport(wcWorkers Metrics, verbose bool, showGroup bool) string 
 			}
 		}
 		if !inGroup || showGroup {
-			speedReport(w, wm.Job.GroupID(), wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Job.PrintString(verbose, false))
+			speedReport(w, wm.GroupID, wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Target+"TODO")
 		}
 
 	}
@@ -772,14 +791,6 @@ type NetMetricSample struct {
 	TXBytes  uint64        `json:"txbytes"`
 	Latency  int64         `json:"latency"`
 	Duration time.Duration `json:"duration"` // in ms or ns ? - should be constant - keep?
-}
-
-func (wm *Metric) MarshalJSON() ([]byte, error) {
-	nm, err := wm.Job.GenerateMetric(wm)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(nm)
 }
 
 /*  echarts.apache.org

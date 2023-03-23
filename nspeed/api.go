@@ -61,11 +61,7 @@ func (j *APIHost) IsInfinite() bool {
 	return true
 }
 
-func (j *APIHost) GenerateMetric(_ *Metric) (NetMetric, error) {
-	return NetMetric{}, fmt.Errorf("not yet implemented")
-}
-
-func (j *APIHost) Init(wm *Metric) error {
+func (j *APIHost) Init() error {
 	if j.Parameters == nil {
 		j.Parameters = NewHostParameters()
 		j.Parameters.APIOnly = true
@@ -73,7 +69,7 @@ func (j *APIHost) Init(wm *Metric) error {
 	if j.Server == nil {
 		j.Parameters.APIOnly = true
 		j.Server = &JobHTTPServer{Parameters: j.Parameters}
-		err := j.Server.Init(wm)
+		err := j.Server.Init()
 		if err != nil {
 			return err
 		}
@@ -95,14 +91,14 @@ func (j *APIHost) Init(wm *Metric) error {
 	return nil
 }
 
-func (j *APIHost) Run(ctx context.Context, wg *sync.WaitGroup) error {
+func (j *APIHost) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitGroup) error {
 	if j.Server == nil {
 		return errors.New("API: no server")
 	}
 	j.Server.RunHook = func(c context.Context) error {
 		return j.PostRun()
 	}
-	return j.Server.Run(ctx, wg)
+	return j.Server.Run(ctx, wc, wg)
 }
 
 func (j *APIHost) apiHelpHandler(w http.ResponseWriter, _ *http.Request) {
@@ -116,7 +112,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		method = "GET"
 	}
 	path := r.URL.Path
-	j.Server.Logger.Warn().Msgf("apiHandler: %s - %s from %s", method, path, r.RemoteAddr)
+	j.Logger().Warn().Msgf("apiHandler: %s - %s from %s", method, path, r.RemoteAddr)
 
 	if method != "GET" {
 		http.Error(w, "no such method", http.StatusNotImplemented)
@@ -228,7 +224,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		j.Server.Logger.Warn().Msgf("apiHandler: run: %s", args)
+		j.Logger().Warn().Msgf("apiHandler: run: %s", args)
 
 		a, ok := r.URL.Query()["args"]
 
@@ -239,7 +235,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		var args []string
 		for i := range a {
-			j.Server.Logger.Warn().Msgf("apiHandler: run: %d - %s", i, a[i])
+			j.Logger().Warn().Msgf("apiHandler: run: %d - %s", i, a[i])
 			args = append(args, strings.Fields(a[i])...)
 		}
 
@@ -249,7 +245,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "error parsing run command: %s\n", err)
 			return
 		}
-		j.Server.Logger.Warn().
+		j.Logger().Warn().
 			Str("remoteAddress", r.RemoteAddr).
 			Str("command", "run").
 			Strs("args", args).
@@ -267,12 +263,6 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "error parsing json reply from %s: %s\n", r.RemoteAddr, err)
 		}
 		fmt.Fprintf(w, "%s", json)
-		// fmt.Fprintf(w, "api @%s - ended: %s: %d\n", r.Host, time.Now().String(), len(wcWorkers))
-		// for _, wm := range wcWorkers {
-		// 	fmt.Fprintf(w, "api @%s - result:", r.Host)
-		// 	wm.PrintFinal(w, true)
-		// }
-		//todo: send results back
 		return
 	}
 	http.Error(w, "unknown API command", http.StatusNotFound)
@@ -282,18 +272,18 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 func (j *APIHost) PostRun() error {
 	url := j.Server.URL.JoinPath(StatsPath)
 	if j.WebStats {
-		j.Server.Logger.Warn().Msgf("real time web stats at %s", url)
+		j.Logger().Warn().Msgf("real time web stats at %s", url)
 	}
 	if j.WebStatsDebug {
 		// we should get the route from wher it's defined
 		// add a link in rt to this ?
-		j.Server.Logger.Warn().Msgf("Go runtime stats at %s", j.Server.URL.JoinPath(webview.GoStatsRoute))
+		j.Logger().Warn().Msgf("Go runtime stats at %s", j.Server.URL.JoinPath(webview.GoStatsRoute))
 		if !j.WebStats {
 			url = j.Server.URL.JoinPath(webview.GoStatsRoute)
 		}
 	}
 	if j.OpenBrowser {
-		j.Server.Logger.Warn().Msgf("opening browser at %s", url)
+		j.Logger().Warn().Msgf("opening browser at %s", url)
 		return utils.Openbrowser(url.String(), nil, nil)
 	}
 	return nil

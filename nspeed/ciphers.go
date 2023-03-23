@@ -164,11 +164,9 @@ type JobCiphers struct {
 	host    string
 	port    string
 	Timeout time.Duration
-	wm      *Metric
 }
 
-func (j *JobCiphers) Init(wm *Metric) error {
-
+func (j *JobCiphers) Init() error {
 	u, err := utils.ParseURL(j.Target, "https")
 	if err != nil {
 		return err
@@ -183,19 +181,17 @@ func (j *JobCiphers) Init(wm *Metric) error {
 		j.Timeout = 3 * time.Second
 	}
 
-	j.wm = wm
-
 	return nil
 }
 
 // print the ciphers list of hostname (dial address)
-func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup) error {
+func (j *JobCiphers) Run(_ context.Context, wm chan *Metric, wg *sync.WaitGroup) error {
 
 	defer wg.Done()
 	if j.Delay > 0 {
-		j.wm.Logger.Debug().Uint("delay", j.Delay).Msg("waiting")
+		j.Logger().Debug().Uint("delay", j.Delay).Msg("waiting")
 		time.Sleep(time.Duration(j.Delay) * time.Second)
-		j.wm.Logger.Debug().Msg("waking up")
+		j.Logger().Debug().Msg("waking up")
 	}
 
 	log.Info().Bool("HardwareAES", HasAESGCMHardwareSupport).Send()
@@ -205,25 +201,22 @@ func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup) error {
 	if err != nil {
 		return err
 	}
-	LogCipher(j.host, j.port, utils.TLSVersionFriendlyName(tls.VersionTLS12), range12, j.wm.Logger)
+	LogCipher(j.host, j.port, utils.TLSVersionFriendlyName(tls.VersionTLS12), range12, j.Logger())
 
 	range13, err := supportedTLS13Ciphers(j.host, j.port, j.Timeout)
 	if err != nil {
 		return err
 	}
-	LogCipher(j.host, j.port, utils.TLSVersionFriendlyName(tls.VersionTLS13), range13, j.wm.Logger)
+	LogCipher(j.host, j.port, utils.TLSVersionFriendlyName(tls.VersionTLS13), range13, j.Logger())
 
-	j.wm.ResultChan <- j.wm
+	// this command has no metric result
+	wm <- nil
 
 	return nil
 }
 
 func (j *JobCiphers) GetTarget() string {
 	return fmt.Sprintf("ciphers %s", j.Target)
-}
-
-func (j *JobCiphers) GenerateMetric(_ *Metric) (NetMetric, error) {
-	return NetMetric{}, fmt.Errorf("not yet implemented")
 }
 
 func (j *JobCiphers) GoString() string {
@@ -244,7 +237,7 @@ func (j *JobCiphers) IsInfinite() bool {
 }
 
 // print out the cipher list and target using a Logger
-func LogCipher(host, port, tlsVersion string, ciphers []uint16, log zerolog.Logger) {
+func LogCipher(host, port, tlsVersion string, ciphers []uint16, log *zerolog.Logger) {
 	finalTarget := net.JoinHostPort(host, port)
 	for _, c := range ciphers {
 		log.Info().Msgf("%s supports %s %s", finalTarget, tlsVersion, tls.CipherSuiteName(c))
