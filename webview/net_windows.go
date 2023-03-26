@@ -48,7 +48,13 @@ func GetNetStats(itfs []net.Interface, dir string) []float64 {
 	return values
 }
 
+//sys	GetSockOpt() (ret error) = winsock2.getsockopt
+//sys	SetSockOpt() (ret error) = winsock2.setsockopt
+
 func GetSockOpt(fd uintptr, value int) (int, error) {
+	// val := winsock2.Getsockopt(s T.SOCKET,
+	// 	level, optname int, optval *T.Char, optlen *int)
+
 	val, err := syscall.GetsockoptInt(syscall.Handle(fd), syscall.SOL_SOCKET, value)
 	if err != nil {
 		return 0, err
