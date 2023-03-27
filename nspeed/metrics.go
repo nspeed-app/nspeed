@@ -323,11 +323,11 @@ func (wm *Metric) PrintFinal(w io.Writer) {
 		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
 		// fmt.Fprintf(w, "WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
 		fmt.Fprintf(w, "duration: %v ", wm.ElapsedTime.Seconds())
-		fmt.Fprintf(w, "command: %s", "TODO"+wm.Target)
+		fmt.Fprintf(w, "command: %s", "TODO1"+wm.Target)
 		fmt.Fprintf(w, "\n")
 
 	} else {
-		fmt.Fprintf(w, "job %s error: %v\n", "TODO", wm.Error)
+		fmt.Fprintf(w, "job %s error: %v\n", "TODO2", wm.Error)
 	}
 }
 
@@ -465,6 +465,7 @@ type reportGroup struct {
 	TotalRead   int64
 	TotalWrite  int64
 	Command     string
+	Instances   int
 }
 
 type Metrics []*Metric
@@ -697,8 +698,9 @@ func GenerateTextReport(wcWorkers Metrics, showGroup bool) string {
 			if !ok {
 				g = &reportGroup{}
 				groups[wm.GroupID] = g
-				g.Command = wm.Target + "TODO"
+				g.Command = wm.Command
 			}
+			g.Instances++
 			g.TotalRead += wm.TotalRead
 			g.TotalWrite += wm.TotalWrite
 			if wm.ElapsedTime > g.ElapsedTime {
@@ -706,12 +708,12 @@ func GenerateTextReport(wcWorkers Metrics, showGroup bool) string {
 			}
 		}
 		if !inGroup || showGroup {
-			speedReport(w, wm.GroupID, wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Target+"TODO")
+			speedReport(w, wm.GroupID, wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Command)
 		}
 
 	}
 	for gid, g := range groups {
-		speedReport(w, gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, g.Command)
+		speedReport(w, gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, strconv.Itoa(g.Instances)+" x "+g.Command)
 	}
 	fmt.Fprintf(w, "\t\t\t\t\t\t\n")
 	if totalRead == 0 && totalWrite == 0 {

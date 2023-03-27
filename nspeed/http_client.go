@@ -127,6 +127,7 @@ func (j *JobHTTPClient) GetDestination() string {
 }
 
 // Pretty print command and some infos
+// todo: fix me
 func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 
 	formatOut := func(r string) string {
@@ -664,6 +665,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitG
 		}
 	}
 	wm.Done = true
+	j.wm.Command = j.PrintString(false, false)
 
 	utils.PrintMemUsage(j.Logger(), "client ended")
 	wm.LogFinal(j.Logger())
