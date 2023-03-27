@@ -23,20 +23,24 @@ type Options struct {
 
 var GlobalOptions Options
 
-// RunJobs runs all the jobs, this is a synchronous function
+// RunJobs runs all the jobs, one batch at a time, this is a synchronous function
 func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (Metrics, error) {
 
 	jobs := jl.Jobs
-	njobs := len(jobs)
+	nJobs := len(jobs)
+	nBatches := len(jl.Batches)
+	if nBatches <= 0 {
+		return nil, fmt.Errorf("no batch found")
+	}
 
-	jobIds := make([]string, 0, njobs)
+	jobIds := make([]string, 0, nJobs)
 	for k := range jl.Jobs {
 		jobIds = append(jobIds, k)
 	}
 	sort.Strings(jobIds)
 
 	// this will collect result from jobs
-	results := make(chan *Metric, njobs)
+	results := make(chan *Metric, nJobs)
 
 	for _, id := range jobIds {
 		job := jl.Jobs[id]
@@ -198,8 +202,8 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	} else {
 		fmt.Println("running...")
 	}
-	rc := njobs
-	wcWorkers := make(Metrics, 0, njobs)
+	rc := nJobs
+	wcWorkers := make(Metrics, 0, nJobs)
 mainloop:
 	for {
 		log.Trace().Msgf("mainloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)

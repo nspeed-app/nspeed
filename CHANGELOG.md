@@ -1,4 +1,5 @@
 # v0.0.11
+- **new commmad**: `from file` will read commands from the file (use `-` for stdin) 
 - **new command**: `bench` (abbr `b`) (see corresponding bench section below)
 - using semantic version (before it would have been **v0.11** -> now it's **v0.0.11**)
 - using goreleaser

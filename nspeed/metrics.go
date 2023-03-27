@@ -33,6 +33,8 @@ type Job interface {
 	SetID(string)
 	GroupID() string
 	SetGroupID(string)
+	Batch() int
+	SetBatch(batch int)
 }
 
 // JobData should be embeded in every struct implementing Job interface
@@ -41,6 +43,7 @@ type JobData struct {
 	Job
 	id     string
 	group  string
+	batch  int
 	logger *zerolog.Logger
 }
 
@@ -48,6 +51,8 @@ func (j *JobData) ID() string            { return j.id }
 func (j *JobData) SetID(id string)       { j.id = id }
 func (j *JobData) GroupID() string       { return j.group }
 func (j *JobData) SetGroupID(gid string) { j.group = gid }
+func (j *JobData) Batch() int            { return j.batch }
+func (j *JobData) SetBatch(batch int)    { j.batch = batch }
 
 // Logger returns a dedicated Logger or the default one
 func (j *JobData) Logger() *zerolog.Logger {
@@ -60,28 +65,45 @@ func (j *JobData) SetLogger(logger *zerolog.Logger) {
 	j.logger = logger
 }
 
+type Batch struct {
+	PreDelay  time.Duration
+	PostDelay time.Duration
+}
+
 // a list of jobs
 type JobList struct {
-	Jobs   map[string]Job
-	Groups map[string][]Job
+	Jobs    map[string]Job
+	Groups  map[string][]Job
+	Batches []Batch
 }
 
 func NewJoblist() *JobList {
 	return &JobList{
-		Jobs:   make(map[string]Job),
-		Groups: make(map[string][]Job),
+		Jobs:    make(map[string]Job),
+		Groups:  make(map[string][]Job),
+		Batches: make([]Batch, 0, 1),
 	}
+}
+
+// AddBatch adds a new batch
+func (jl *JobList) AddBatch(batch Batch) {
+	jl.Batches = append(jl.Batches, batch)
 }
 
 // AddJobs adds jobs as a group, preventing duplicate id/gid
 // if a job name is empty, generate a unique one
 // this is hard to read, rewrite properly
 func (jl *JobList) AddJobs(jobs ...Job) error {
+	if len(jl.Batches) == 0 {
+		return fmt.Errorf("addjob but no batch yet")
+	}
+	batch := len(jl.Batches)
 	gid := "#" + strconv.Itoa(len(jl.Groups))
 	n := len(jobs)
 
 	var js []Job
 	for i, j := range jobs {
+		j.SetBatch(batch)
 		if j == nil {
 			return fmt.Errorf("func Addjob: nil argument")
 		}

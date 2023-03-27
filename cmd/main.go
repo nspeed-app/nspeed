@@ -207,6 +207,10 @@ func Main() {
 		}
 	}
 	jl := nspeed.NewJoblist()
+	jl.AddBatch(nspeed.Batch{
+		PreDelay:  *optPreDelay,
+		PostDelay: *optPostDelay,
+	})
 	err := nspeed.ParseCommands(flag.Args(), jl, nil, false)
 	if err != nil {
 		fmt.Println(err)

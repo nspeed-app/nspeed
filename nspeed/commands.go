@@ -1,6 +1,7 @@
 package nspeed
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"flag"
@@ -26,6 +27,8 @@ const serveCommand = "server"
 const ciphersCommand = "ciphers"
 const apiCommand = "api"
 const benchmarkCommand = "bench"
+const fromCommand = "from"
+const thenCommand = "then"
 
 // const latencyCommand = "latency"
 // const tracerouteCommand = "traceroute"
@@ -51,6 +54,8 @@ var Commands = map[string]Command{
 	// tracerouteCommand: {tracerouteCommand, 2, true},
 	apiCommand:       {apiCommand, 1, false},
 	benchmarkCommand: {benchmarkCommand, 1, true},
+	fromCommand:      {fromCommand, 1, false},
+	thenCommand:      {thenCommand, 1, false},
 }
 
 var CommandDescriptions = map[string]string{
@@ -63,6 +68,8 @@ var CommandDescriptions = map[string]string{
 	// tracerouteCommand: "discover route to destination (not yet implemented)",
 	apiCommand:       "enable an API endpoint",
 	benchmarkCommand: "perform preselected commands",
+	fromCommand:      "read command from file (use - for stdin)",
+	thenCommand:      "executes all previous commands then continue",
 }
 
 // global flags
@@ -574,6 +581,69 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 				return args, err
 			}
 		}
+		return args, nil
+	case fromCommand:
+		fs := flag.NewFlagSet(command, flag.ContinueOnError)
+
+		fs.Usage = func() {
+			fmt.Fprintf(fs.Output(), "Usage of %s: ", fromCommand)
+			fmt.Fprintf(fs.Output(), "  %s filename\n", fromCommand)
+			fs.PrintDefaults()
+			fmt.Fprintf(fs.Output(), "\n")
+		}
+		if err := fs.Parse(cmdargs); err != nil {
+			return cmdargs, err
+		}
+		args := fs.Args()
+		if len(args) < 1 {
+			fs.Usage()
+			return args, errors.New("missing filename")
+		}
+		fileName := args[0]
+		args = args[1:]
+		log.Warn().Msgf("fromCommand, file to process = %s", fileName)
+
+		// process file
+		cmdFile := os.Stdin
+		if fileName != "-" {
+			var err error
+			cmdFile, err = os.Open(fileName)
+			if err != nil {
+				return args, fmt.Errorf("can't open file %s (%s)", fileName, err)
+			}
+		}
+		{
+			defer cmdFile.Close()
+
+			cmdScan := bufio.NewScanner(cmdFile)
+
+			for cmdScan.Scan() {
+				err := ParseCommands(strings.Fields(cmdScan.Text()), jl, output, false)
+				if err != nil {
+					return args, err
+				}
+			}
+		}
+		return args, nil
+	case thenCommand:
+		fs := flag.NewFlagSet(command, flag.ContinueOnError)
+
+		fs.Usage = func() {
+			fmt.Fprintf(fs.Output(), "Usage of %s: ", thenCommand)
+			fmt.Fprintf(fs.Output(), "  %s [options]\n", thenCommand)
+			fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
+			fs.PrintDefaults()
+			fmt.Fprintf(fs.Output(), "\n")
+		}
+		batch := Batch{}
+		fs.DurationVar(&batch.PreDelay, "pre", 0, "duration to wait before starting commands")
+		fs.DurationVar(&batch.PostDelay, "post", 0, "duration to wait after commands ended")
+
+		if err := fs.Parse(cmdargs); err != nil {
+			return cmdargs, err
+		}
+		jl.AddBatch(batch)
+		args := fs.Args()
 		return args, nil
 	// case latencyCommand, tracerouteCommand:
 	// 	return args, nil, errors.New("not yet implemented")
