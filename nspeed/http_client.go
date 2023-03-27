@@ -185,7 +185,7 @@ func (j *JobHTTPClient) Init() error {
 	if err != nil {
 		return err
 	}
-	j.Logger().Debug().Msgf("target is: %s", j.finalTarget)
+	j.Logger().Info().Msgf("real target is: %s", j.finalTarget)
 
 	// source address
 	var LocalAddr net.Addr
@@ -520,9 +520,10 @@ func (j *JobHTTPClient) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitG
 	utils.PrintMemUsage(j.Logger(), "before Do")
 	resp, err := j.client.Do(j.req)
 	utils.PrintMemUsage(j.Logger(), "after Do")
-
-	j.Logger().Debug().Msgf("client.Do: %v - %v", err, wm.Error)
 	j.tr.end = time.Now()
+
+	err = fixH2H3Errors(err, j.req.Method, j.Logger())
+	j.Logger().Debug().Msgf("client.Do: %v - %v", err, wm.Error)
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		wm.Expired = true
@@ -622,23 +623,27 @@ func (j *JobHTTPClient) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitG
 				//todo: invesstigate why the following gives results too high
 				totalread, err := io.CopyBuffer(wm, resp.Body, BigBuffer)
 
-				if err == context.DeadlineExceeded {
+				j.Logger().Info().Err(err).Msgf("copybuffer ended")
+
+				err = fixH2H3Errors(err, j.req.Method, j.Logger())
+				if errors.Is(err, context.DeadlineExceeded) {
 					wm.Expired = true
-					j.Logger().Info().Str("cause", "timer expired client side")
+					j.Logger().Info().Str("cause", "timer expired client side").Msg("ended")
 				} else if err == io.ErrUnexpectedEOF {
 					wm.Expired = true
-					j.Logger().Info().Str("cause", "something expired server side")
+					j.Logger().Info().Str("cause", "something expired server side").Msg("ended")
 				} else if err != nil {
 					j.Logger().Error().Err(err)
 					wm.Valid = false
 					wm.Error = err
 				} else {
-					j.Logger().Info().Str("cause", "completed normally")
+					j.Logger().Info().Str("cause", "completed normally").Msg("ended")
 					if totalread != wm.TotalRead {
 						j.Logger().Warn().Msgf("iocopy result differs from interface: %d - %d", totalread, wm.TotalRead)
 					}
 				}
 			}
+			// todo: get the server response for put/post here
 			// if (j.Command == "PUT" || j.Command == "POST") && j.Logger().GetLevel() <= zerolog.TraceLevel {
 
 			// 	b, err := io.ReadAll(resp.Body)
@@ -654,6 +659,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitG
 			// 		fmt.Println("----------------------------------------------------------------------------")
 			// 	}
 			// }
+			j.Logger().Debug().Msgf("closing Metric")
 			wm.Close()
 		}
 	}
@@ -690,4 +696,31 @@ func ResolveSchemes(idmap map[string]Job, target string) (string, error) {
 		return url.String(), nil
 	}
 	return target, nil
+}
+
+// fixH2H3Errors tried to unify the behavior of HTTP/1, HTTP/2 and HTTP/3
+func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
+	// HTTP/3 and ErrorCode == errorRequestCanceled
+	var qerr *quic.StreamError
+	if errors.As(err, &qerr) && qerr.ErrorCode == 0x10c {
+		l.Debug().Msgf("quic.StreamError: %d changed to context.DeadlineExceeded ", qerr.ErrorCode)
+		return context.DeadlineExceeded
+	}
+
+	// HTTP/2 & INTERNAL_ERROR & 'received from peer' => server timeout (WriteTimeout for instance)
+	// this is not good, waiting on: https://github.com/golang/go/issues/21389
+	// for a PUT/POST timeout client side we also get INTERNAL_ERROR instead of syscall.ECONNRESET
+	if h2err, ok := err.(http2.StreamError); ok {
+		l.Debug().Msgf("h2 stream error %s", h2err)
+		if h2err.Code == http2.ErrCodeInternal {
+			if h2err.Cause != nil && h2err.Cause.Error() == "received from peer" {
+				if method == "GET" {
+					l.Info().Msgf("h2 stream error changed to EOF")
+					return io.ErrUnexpectedEOF
+				}
+				return syscall.ECONNRESET
+			}
+		}
+	}
+	return err
 }

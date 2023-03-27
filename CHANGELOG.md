@@ -11,12 +11,13 @@
 - **new flag**: `-rate duration` used to set the frequency generating the time series data for json/html output Default is 1s.
 - **new flag**: `-cpurate duration` used to set the cpu sampling rate (implies `-cpu`)
 - **new flag**: `-html filename` to record the results to an interactive html file (implies `-pre 1s` and `-post 1s` flags unless set explicitly to something else). Use `-rate` to add time series.
-- **new flag**: `-json filename` to record the results to a json file. Use `-rate` for time series.
+- **new flag**: `-json filename` to record the results to a json file. Use `-rate` to add time series.
 - **new flag**: `-dns-server address[:port]` to specify a dns server (literal ip address with optional port)
 - **new flag**: `-ungroup` show each stream result of a multi-streams command (see client below) 
 ## bench
 - new `bench` command (abbrev `b`) : allow to launch loopback tests (get/put on a localhost server). see `nspeed bench -h` for details.
 ## server
+- *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
  - added `-http1.1` and `-http2` flags to enforce the HTTP version used
  - *breaking change*: the default port is now a *random , available port instead of 7333*. Use `-p` to specific a port.
  - added `-id string` flag: allows to set a uniq id/name for this server (can be used in `nspeed:` url scheme)

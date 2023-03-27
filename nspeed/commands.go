@@ -343,7 +343,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		useIPv6 := fs.Bool("6", false, "use IPv6 only")
 		fs.IntVar(&host.Port, "p", 0, "Port number to listen on")
 		maxsize := fs.String("s", utils.FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
-		maxtime := fs.Uint("t", uint(DefaultMaxDuration.Seconds()), "Maximum duration in seconds a response may take")
+		maxtime := fs.Uint("m", uint(DefaultMaxDuration.Seconds()), "Maximum duration in seconds a response may take")
 		fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
 		fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = infinite)")
 		fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
@@ -514,6 +514,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		useIPv6 := fs.Bool("6", false, "use IPv6 only")
 		nStreams := fs.Int("n", 1, "number of streams")
 		size := fs.String("s", "20g", "number of bytes")
+		timeOut := fs.Uint("m", 8, "maximum duration in seconds the command is allowed to take")
 
 		if err := fs.Parse(cmdargs); err != nil {
 			return cmdargs, err
@@ -523,12 +524,12 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			fs.Usage()
 			return cmdargs, errors.New("specify IPv4 or IPv6 but not both")
 		}
-		forcedIPVersion := ""
+		argsLine := fmt.Sprintf("-m %d", *timeOut)
 		if *useIPv6 {
-			forcedIPVersion = " -6"
+			argsLine = " -6"
 		}
 		if *useIPv4 {
-			forcedIPVersion = " -4"
+			argsLine = " -4"
 		}
 
 		// we parse the size just to check it's valid
@@ -547,7 +548,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 
 		id := 1
 		values := BenchmarkArgs{
-			Args: forcedIPVersion,
+			Args: argsLine,
 			N:    *nStreams,
 			Size: *size,
 			ID:   id,

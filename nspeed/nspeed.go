@@ -49,6 +49,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 			Logger: log.With().Str("job", id).Logger(),
 			Tick:   opt.Tick,
 		}
+		job.SetLogger(&wm.Logger)
 		//wcWorkers = append(wcWorkers, &wm)
 		msg := fmt.Sprintf("id=%s,gid=%s,%#v", id, job.GroupID(), job)
 		if opt.Test {

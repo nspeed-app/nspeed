@@ -394,6 +394,12 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			}
 		}
 	} else {
+		rc := http.NewResponseController(w)
+		err := rc.SetWriteDeadline(time.Now().Add(j.Parameters.MaxDuration))
+		wm.Logger.Info().Msgf("setting write deadline of %s\n", j.Parameters.MaxDuration)
+		if err != nil {
+			wm.Logger.Error().Err(err).Msgf("cant set deadline")
+		}
 
 		// var src io.Reader = &wm
 		// if _, ok := src.(io.WriterTo); ok {
@@ -502,6 +508,15 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 		wm.Logger.Error().Err(err).Msgf("Upload: bad rate value")
 		return
 	}
+
+	//
+	rc := http.NewResponseController(w)
+	err = rc.SetReadDeadline(time.Now().Add(j.Parameters.MaxDuration))
+	wm.Logger.Info().Msgf("setting read deadline of %s\n", j.Parameters.MaxDuration)
+	if err != nil {
+		wm.Logger.Error().Err(err).Msgf("cant set read deadline")
+	}
+
 	// do the upload
 	n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, wm), BigBuffer)
 	// signal the evenutal ticker
@@ -566,9 +581,9 @@ func (j *JobHTTPServer) Init() error {
 	j.Server = &http.Server{
 		Addr:              listenAddr,
 		Handler:           j.CreateHandler(),
-		WriteTimeout:      j.Parameters.MaxDuration, // to handle this per request
-		ReadTimeout:       j.Parameters.MaxDuration, // idem
-		ReadHeaderTimeout: j.Parameters.MaxDuration,
+		WriteTimeout:      0,               //j.Parameters.MaxDuration, // to handle this per request
+		ReadTimeout:       0,               //j.Parameters.MaxDuration, // idem
+		ReadHeaderTimeout: 2 * time.Second, //j.Parameters.MaxDuration,
 		IdleTimeout:       j.Parameters.IdleTimeout,
 	}
 
