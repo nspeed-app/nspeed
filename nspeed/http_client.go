@@ -702,27 +702,82 @@ func ResolveSchemes(idmap map[string]Job, target string) (string, error) {
 
 // fixH2H3Errors tried to unify the behavior of HTTP/1, HTTP/2 and HTTP/3
 func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
+	// if err != nil {
+	// 	fmt.Printf("error to change: %s %s\n", err, reflect.TypeOf(err))
+	// }
 	// HTTP/3 and ErrorCode == errorRequestCanceled
 	var qerr *quic.StreamError
 	if errors.As(err, &qerr) && qerr.ErrorCode == 0x10c {
-		l.Debug().Msgf("quic.StreamError: %d changed to context.DeadlineExceeded ", qerr.ErrorCode)
+		l.Warn().Msgf("quic.StreamError: %d changed to context.DeadlineExceeded ", qerr.ErrorCode)
 		return context.DeadlineExceeded
 	}
 
 	// HTTP/2 & INTERNAL_ERROR & 'received from peer' => server timeout (WriteTimeout for instance)
-	// this is not good, waiting on: https://github.com/golang/go/issues/21389
+	// this is not good, see: https://github.com/golang/go/issues/21389
 	// for a PUT/POST timeout client side we also get INTERNAL_ERROR instead of syscall.ECONNRESET
 	if h2err, ok := err.(http2.StreamError); ok {
 		l.Debug().Msgf("h2 stream error %s", h2err)
 		if h2err.Code == http2.ErrCodeInternal {
 			if h2err.Cause != nil && h2err.Cause.Error() == "received from peer" {
 				if method == "GET" {
-					l.Info().Msgf("h2 stream error changed to EOF")
+					l.Warn().Msgf("h2 stream error changed to EOF")
 					return io.ErrUnexpectedEOF
 				}
 				return syscall.ECONNRESET
 			}
 		}
+		if h2err.Code == http2.ErrCodeStreamClosed {
+			if h2err.Cause != nil && h2err.Cause.Error() == "received from peer" {
+				l.Warn().Msgf("h2 stream closed changed to EOF")
+				return io.ErrUnexpectedEOF
+			}
+		}
 	}
 	return err
 }
+
+/*
+
+net/http errors returned in case of timeouts:
+method:
+   client.Do (c->s) then io.Read response body (s->c)
+   we catch the err after the .Do and the .Read
+   we set timer so the timeout happend during c->s
+   then during s->c
+
+client side timeouts:
+caused by a http.Request with a context deadline
+
+http/1.1:
+	c->s: context deadline exceeded type: *url.Error
+	s->c: context deadline exceeded type: context.deadlineExceededError
+http/1.1 + tls:
+	c->s: context deadline exceeded type: *url.Error
+	s->c: context deadline exceeded type: context.deadlineExceededError
+http/2:
+	c->s: context deadline exceeded type: *url.Error
+	s->c: context deadline exceeded type: context.deadlineExceededError
+http/3:
+	c->s: stream 0 canceled by local with error code 268 *url.Error
+	s->c: stream 0 canceled by local with error code 268 *quic.StreamError
+
+server side timeouts:
+
+caused by a http.Server.WriteTimeout or ReadTimeout
+or
+http.NewResponseController.SetWriteDeadline/SetReadDeadline
+
+http/1.1:
+  c->s: no error !
+  s->c: io.ErrUnexpectedEOF
+http/1.1 + tls:
+  c->s: "write: connection reset by peer"  type: *url.Error
+  s->c: "tls: bad record MAC" type: *tls.permanentError
+http/2:
+  c->s: "stream error: stream ID 1; INTERNAL_ERROR; received from peer" type: *url.Error
+  s->c: "stream ID 1; INTERNAL_ERROR; received from peer" type: http2.StreamError
+http/3:
+  WriteTimeout & ReadTimeout not handled
+  SetWriteDeadline/SetReadDeadline not supported
+
+*/

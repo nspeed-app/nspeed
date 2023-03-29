@@ -514,7 +514,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	err = rc.SetReadDeadline(time.Now().Add(j.Parameters.MaxDuration))
 	wm.Logger.Info().Msgf("setting read deadline of %s\n", j.Parameters.MaxDuration)
 	if err != nil {
-		wm.Logger.Error().Err(err).Msgf("cant set read deadline")
+		wm.Logger.Warn().Err(err).Msgf("cant set read deadline")
 	}
 
 	// do the upload
@@ -581,7 +581,7 @@ func (j *JobHTTPServer) Init() error {
 	j.Server = &http.Server{
 		Addr:              listenAddr,
 		Handler:           j.CreateHandler(),
-		WriteTimeout:      0,               //j.Parameters.MaxDuration, // to handle this per request
+		WriteTimeout:      0,               //j.Parameters.MaxDuration, // todo handle this per request
 		ReadTimeout:       0,               //j.Parameters.MaxDuration, // idem
 		ReadHeaderTimeout: 2 * time.Second, //j.Parameters.MaxDuration,
 		IdleTimeout:       j.Parameters.IdleTimeout,
