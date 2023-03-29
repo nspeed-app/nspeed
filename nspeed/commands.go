@@ -599,17 +599,17 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			fs.Usage()
 			return args, errors.New("missing filename")
 		}
-		fileName := args[0]
+		uri := args[0]
 		args = args[1:]
-		log.Warn().Msgf("fromCommand, file to process = %s", fileName)
+		log.Debug().Msgf("fromCommand, url/file to process = %s", uri)
 
 		// process file
-		cmdFile := os.Stdin
-		if fileName != "-" {
+		cmdFile := io.ReadCloser(os.Stdin)
+		if uri != "-" {
 			var err error
-			cmdFile, err = os.Open(fileName)
+			cmdFile, err = utils.OpenURI(uri)
 			if err != nil {
-				return args, fmt.Errorf("can't open file %s (%s)", fileName, err)
+				return args, fmt.Errorf("can't open uri %s (%s)", uri, err)
 			}
 		}
 		{
@@ -617,8 +617,12 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 
 			cmdScan := bufio.NewScanner(cmdFile)
 
+			log.Warn().Msgf("reading commands from %s", uri)
+			line := 1
 			for cmdScan.Scan() {
+				log.Info().Msgf("  line %d: %s", line, cmdScan.Text())
 				err := ParseCommands(strings.Fields(cmdScan.Text()), jl, output, false)
+				line++
 				if err != nil {
 					return args, err
 				}

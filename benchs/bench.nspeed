@@ -1,0 +1,5 @@
+server -id s1 server -self -id s2 server -http3 -id s3
+get nspeed://s1/1g then put nspeed://s1 1g
+get nspeed://s2/1g then put nspeed://s2 1g
+get -http3 nspeed://s3/1g then put -http3 nspeed://s3 1g
+

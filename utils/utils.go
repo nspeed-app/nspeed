@@ -2,8 +2,10 @@ package utils
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"os"
 	"runtime"
 
@@ -126,4 +128,17 @@ func IndexOf[T comparable](ss []T, s T) (idx int) {
 		}
 	}
 	return -1
+}
+
+// OpenURI opens an url or a file
+func OpenURI(uri string) (io.ReadCloser, error) {
+	url, err := url.Parse(uri)
+	if err != nil || url.Scheme == "" {
+		return os.Open(uri)
+	}
+	resp, err := http.Get(uri)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
 }
