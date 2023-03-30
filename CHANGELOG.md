@@ -1,4 +1,4 @@
-# v0.0.11
+# v0.0.11 (draft)
 - **new command**: `from uri` (abbr. `f`) will read commands from the file/url (use `-` for stdin)
 - **new command**: `then [options]` (abbr. `t`) execute previous command(s) before continuing.
 - **new command**: `bench` (abbr `b`) (see corresponding bench section below)
