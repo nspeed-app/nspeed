@@ -618,18 +618,18 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			cmdScan := bufio.NewScanner(cmdFile)
 
 			log.Warn().Msgf("reading commands from %s", uri)
-			line := 1
+			lineNumber := 1
 			for cmdScan.Scan() {
-				log.Info().Msgf("  line %d: %s", line, cmdScan.Text())
-				err := ParseCommands(strings.Fields(cmdScan.Text()), jl, output, false)
+				line := utils.ToArgv(cmdScan.Text())
+				err := ParseCommands(line, jl, output, false)
 				if err != nil {
 					return args, err
 				}
-				err = jl.AddBatch(&Batch{Name: fmt.Sprintf("line %d of %s", line, uri)})
+				err = jl.AddBatch(&Batch{Name: fmt.Sprintf("line %d of %s", lineNumber, uri)})
 				if err != nil {
 					return args, err
 				}
-				line++
+				lineNumber++
 			}
 		}
 		return args, nil
@@ -674,6 +674,9 @@ func ParseCommands(rawArgs []string, joblist *JobList, output io.Writer, fromAPI
 
 	for len(args) != 0 {
 		command := args[0]
+		if len(command) > 1 && command[0] == '#' {
+			return nil
+		}
 		args = args[1:]
 		cmd, err := IsCommand(command)
 		if err != nil {

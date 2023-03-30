@@ -1,0 +1,4 @@
+then -n 'test download local mono' get http://mafreebox.freebox.fr/gen/10G
+then -n 'test download local multi' get -n 4 http://mafreebox.freebox.fr/gen/10G
+then -n 'test download scaleway BBR mono' get https://scaleway.testdebit.info/10G/10G.iso
+then -n 'test download scaleway BBR multi' get -n 4 https://scaleway.testdebit.info/10G/10G.iso
