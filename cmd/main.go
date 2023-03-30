@@ -52,6 +52,7 @@ var optUngroup = flag.Bool("ungroup", false, "show members of groups")
 
 var optPreDelay = flag.Duration("pre", 0, "duration to wait before starting commands")
 var optPostDelay = flag.Duration("post", 0, "duration to wait after all commands ended")
+var optName = flag.String("n", "", "name of the first batch")
 
 var optLogTimestamps = flag.Bool("display-log-time", false, "display logging timestamps")
 var optLogLevels = flag.Bool("display-log-level", true, "display logging levels")
@@ -207,11 +208,16 @@ func Main() {
 		}
 	}
 	jl := nspeed.NewJoblist()
-	jl.AddBatch(nspeed.Batch{
+	err := jl.AddBatch(&nspeed.Batch{
 		PreDelay:  *optPreDelay,
 		PostDelay: *optPostDelay,
+		Name:      *optName,
 	})
-	err := nspeed.ParseCommands(flag.Args(), jl, nil, false)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	err = nspeed.ParseCommands(flag.Args(), jl, nil, false)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -337,7 +343,7 @@ mainloop:
 			break mainloop
 		}
 	}
-	log.Trace().Msgf("main loop ended. total jobs: %d / active goroutines: %d", len(wcWorkers), runtime.NumGoroutine())
+	log.Debug().Msgf("main loop ended. total results: %d / active goroutines: %d", len(wcWorkers), runtime.NumGoroutine())
 
 	// pre delay
 	if *optPostDelay != 0 && ctx.Err() == nil {
@@ -361,7 +367,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
-		report := nspeed.GenerateTextReport(wcWorkers, *optUngroup)
+		report := nspeed.GenerateTextReport(jl, wcWorkers, *optUngroup)
 		_, err = f.WriteString(report)
 		if err == nil {
 			_, err = f.WriteString(nspeed.SeriesReport(wcWorkers))

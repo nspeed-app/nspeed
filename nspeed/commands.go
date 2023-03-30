@@ -622,10 +622,14 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			for cmdScan.Scan() {
 				log.Info().Msgf("  line %d: %s", line, cmdScan.Text())
 				err := ParseCommands(strings.Fields(cmdScan.Text()), jl, output, false)
-				line++
 				if err != nil {
 					return args, err
 				}
+				err = jl.AddBatch(&Batch{Name: fmt.Sprintf("line %d of %s", line, uri)})
+				if err != nil {
+					return args, err
+				}
+				line++
 			}
 		}
 		return args, nil
@@ -642,11 +646,14 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		batch := Batch{}
 		fs.DurationVar(&batch.PreDelay, "pre", 0, "duration to wait before starting commands")
 		fs.DurationVar(&batch.PostDelay, "post", 0, "duration to wait after commands ended")
-
+		fs.StringVar(&batch.Name, "n", "", "name of this batch")
 		if err := fs.Parse(cmdargs); err != nil {
 			return cmdargs, err
 		}
-		jl.AddBatch(batch)
+		err := jl.AddBatch(&batch)
+		if err != nil {
+			return cmdargs, err
+		}
 		args := fs.Args()
 		return args, nil
 	// case latencyCommand, tracerouteCommand:

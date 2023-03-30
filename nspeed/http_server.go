@@ -398,7 +398,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		err := rc.SetWriteDeadline(time.Now().Add(j.Parameters.MaxDuration))
 		wm.Logger.Info().Msgf("setting write deadline of %s\n", j.Parameters.MaxDuration)
 		if err != nil {
-			wm.Logger.Error().Err(err).Msgf("cant set deadline")
+			wm.Logger.Info().Err(err).Msgf("cant set deadline")
 		}
 
 		// var src io.Reader = &wm
@@ -514,7 +514,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	err = rc.SetReadDeadline(time.Now().Add(j.Parameters.MaxDuration))
 	wm.Logger.Info().Msgf("setting read deadline of %s\n", j.Parameters.MaxDuration)
 	if err != nil {
-		wm.Logger.Warn().Err(err).Msgf("cant set read deadline")
+		wm.Logger.Info().Err(err).Msgf("cant set read deadline")
 	}
 
 	// do the upload

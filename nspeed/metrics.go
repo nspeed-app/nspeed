@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"sort"
 	"strconv"
 	"sync"
 	"text/tabwriter"
@@ -62,32 +63,61 @@ func (j *JobData) Logger() *zerolog.Logger {
 	return j.logger
 }
 func (j *JobData) SetLogger(logger *zerolog.Logger) {
-	j.logger = logger
+	if j.logger != nil && logger != nil {
+		j.logger.Info().Msgf("overwriting a logger")
+	}
+	newlogger := logger.With().Str("jobid", j.ID()).Logger()
+	j.logger = &newlogger
 }
 
 type Batch struct {
+	Name      string
 	PreDelay  time.Duration
 	PostDelay time.Duration
 }
 
 // a list of jobs
 type JobList struct {
-	Jobs    map[string]Job
-	Groups  map[string][]Job
-	Batches []Batch
+	Jobs              map[string]Job
+	Groups            map[string][]Job
+	Batches           []*Batch
+	currentBatchEmpty bool
 }
 
 func NewJoblist() *JobList {
 	return &JobList{
-		Jobs:    make(map[string]Job),
-		Groups:  make(map[string][]Job),
-		Batches: make([]Batch, 0, 1),
+		Jobs:              make(map[string]Job),
+		Groups:            make(map[string][]Job),
+		Batches:           make([]*Batch, 0, 1),
+		currentBatchEmpty: false,
 	}
 }
 
 // AddBatch adds a new batch
-func (jl *JobList) AddBatch(batch Batch) {
-	jl.Batches = append(jl.Batches, batch)
+//
+//	store batches by index
+//	check for unique names
+//	discard empty ones
+func (jl *JobList) AddBatch(batch *Batch) error {
+	if batch == nil {
+		return fmt.Errorf("nil batch")
+	}
+	if batch.Name != "" {
+		for _, b := range jl.Batches {
+			if b.Name == batch.Name {
+				return fmt.Errorf("batch already %s exists", batch.Name)
+			}
+		}
+	} else {
+		batch.Name = "#" + strconv.Itoa(len(jl.Batches))
+	}
+	if !jl.currentBatchEmpty {
+		jl.Batches = append(jl.Batches, batch)
+	} else {
+		jl.Batches[len(jl.Batches)-1] = batch
+	}
+	jl.currentBatchEmpty = true
+	return nil
 }
 
 // AddJobs adds jobs as a group, preventing duplicate id/gid
@@ -97,13 +127,14 @@ func (jl *JobList) AddJobs(jobs ...Job) error {
 	if len(jl.Batches) == 0 {
 		return fmt.Errorf("addjob but no batch yet")
 	}
-	batch := len(jl.Batches)
+	batch := len(jl.Batches) - 1
 	gid := "#" + strconv.Itoa(len(jl.Groups))
 	n := len(jobs)
 
 	var js []Job
 	for i, j := range jobs {
 		j.SetBatch(batch)
+		jl.currentBatchEmpty = false
 		if j == nil {
 			return fmt.Errorf("func Addjob: nil argument")
 		}
@@ -135,6 +166,7 @@ func (jl *JobList) AddJobs(jobs ...Job) error {
 type MetricsData struct {
 	ID                 string
 	GroupID            string
+	Batch              int
 	Command            string
 	Done               bool // job ended
 	Expired            bool // job timed out or other side ended
@@ -590,6 +622,7 @@ func (wm *Metric) ToNetMetric() NetMetric {
 		Command:    wm.Command,
 		ID:         wm.ID,
 		GroupID:    wm.GroupID,
+		Batch:      wm.Batch,
 		Streams:    uint64(wm.Instances),
 		Date:       wm.TransfertStartTime,
 		RXBytes:    uint64(wm.TotalRead),
@@ -686,8 +719,34 @@ func SeriesReport(wcWorkers Metrics) (report string) {
 	return
 }
 
+// generate a report per batch (sorted), filtering failed jobs
+func GenerateTextReport(jl *JobList, wcWorkers Metrics, showGroup bool) (out string) {
+	if jl == nil {
+		return "no job list"
+	}
+	batches := make(map[int]int, 1)
+	for _, wm := range wcWorkers {
+		if !wm.Valid {
+			continue
+		}
+		if wm.Error != nil {
+			continue
+		}
+		batches[wm.Batch] += 1
+	}
+	batchnums := make([]int, 0, len(batches))
+	for k := range batches {
+		batchnums = append(batchnums, k)
+	}
+	sort.Ints(batchnums)
+	for _, batch := range batchnums {
+		out += fmt.Sprintf("batch %s:\n", jl.Batches[batch].Name) + GenerateTextReportBatch(batch, wcWorkers, showGroup) + "\n"
+	}
+	return
+}
+
 // generate a tabular formatted text report
-func GenerateTextReport(wcWorkers Metrics, showGroup bool) string {
+func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) string {
 	// main speed report - todo: refactor in a function
 
 	var out bytes.Buffer
@@ -701,6 +760,9 @@ func GenerateTextReport(wcWorkers Metrics, showGroup bool) string {
 	initSpeedReport(w)
 
 	for _, wm := range wcWorkers {
+		if wm.Batch != batch {
+			continue
+		}
 		if !wm.Valid {
 			continue
 		}
@@ -785,6 +847,7 @@ type NetMetric struct {
 	Command    string        `json:"command"`
 	ID         string        `json:"id"`
 	GroupID    string        `json:"gid"`
+	Batch      int           `json:"batch"`
 	Streams    uint64        `json:"streams"`
 	Date       time.Time     `json:"date"`
 	RXBytes    uint64        `json:"rxbytes"`

@@ -240,7 +240,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		jl := NewJoblist()
-		jl.AddBatch(Batch{})
+		jl.AddBatch(&Batch{})
 		err := ParseCommands(args, jl, w, true)
 		if err != nil {
 			fmt.Fprintf(w, "error parsing run command: %s\n", err)
