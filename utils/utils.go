@@ -145,7 +145,7 @@ func OpenURI(uri string) (io.ReadCloser, error) {
 
 // ToArgv converts string s into an argv for exec.
 // copied from : https://github.com/mgutz/str (MIT License)
-func ToArgv(s string) []string {
+func ToArgv(s string) ([]string, error) {
 	const (
 		InArg = iota
 		InArgQuote
@@ -216,7 +216,7 @@ func ToArgv(s string) []string {
 						// just add \ to end for windows
 						currentArg += c
 					} else {
-						panic("Escape character at end string")
+						return nil, fmt.Errorf("Escape character at end string")
 					}
 				} else {
 					if runtime.GOOS == "windows" {
@@ -247,8 +247,8 @@ func ToArgv(s string) []string {
 	if currentState == InArg {
 		argv = append(argv, currentArg)
 	} else if currentState == InArgQuote {
-		panic("Starting quote has no ending quote.")
+		return nil, fmt.Errorf("Starting quote has no ending quote.")
 	}
 
-	return argv
+	return argv, nil
 }

@@ -620,8 +620,11 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			log.Warn().Msgf("reading commands from %s", uri)
 			lineNumber := 1
 			for cmdScan.Scan() {
-				line := utils.ToArgv(cmdScan.Text())
-				err := ParseCommands(line, jl, output, false)
+				line, err := utils.ToArgv(cmdScan.Text())
+				if err != nil {
+					return args, err
+				}
+				err = ParseCommands(line, jl, output, false)
 				if err != nil {
 					return args, err
 				}

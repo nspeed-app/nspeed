@@ -133,7 +133,8 @@ func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 	formatOut := func(r string) string {
 		latency := j.tr.connectDone.Sub(j.tr.connectStart).Milliseconds()
 		latencyMicroRem := j.tr.connectDone.Sub(j.tr.connectStart).Microseconds() % 1000
-		details := fmt.Sprintf("%s (%s - %d.%d ms - %s)", r, j.GetDestination(), latency, latencyMicroRem, j.wm.Protocol)
+		ipv := utils.IPVersion(j.GetDestination())
+		details := fmt.Sprintf("%s (%s - %d.%d ms - %s - %s)", r, ipv, latency, latencyMicroRem, j.wm.Protocol, j.wm.TLSVersion)
 		if j.numRedirect > 0 && verbose {
 			return fmt.Sprintf("%s from %s", details, j.Target)
 		}

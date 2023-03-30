@@ -293,3 +293,17 @@ func GetRoute(dest string) (iface *net.Interface, gw netip.Addr, src netip.Addr)
 	src, _ = netip.AddrFromSlice(s)
 	return
 }
+
+func IPVersion(addr string) string {
+	ap, err := netip.ParseAddrPort(addr)
+	if err != nil {
+		return ""
+	}
+	if ap.Addr().Is4() {
+		return "IPv4"
+	}
+	if ap.Addr().Is6() {
+		return "IPv6"
+	}
+	return ""
+}
