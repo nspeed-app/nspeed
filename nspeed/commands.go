@@ -677,7 +677,7 @@ func ParseCommands(rawArgs []string, joblist *JobList, output io.Writer, fromAPI
 
 	for len(args) != 0 {
 		command := args[0]
-		if len(command) > 1 && command[0] == '#' {
+		if len(command) > 0 && command[0] == '#' {
 			return nil
 		}
 		args = args[1:]
