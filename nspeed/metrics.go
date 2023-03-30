@@ -732,7 +732,7 @@ func GenerateTextReport(jl *JobList, wcWorkers Metrics, showGroup bool) (out str
 		if wm.Error != nil {
 			continue
 		}
-		batches[wm.Batch] += 1
+		batches[wm.Batch]++
 	}
 	batchnums := make([]int, 0, len(batches))
 	for k := range batches {

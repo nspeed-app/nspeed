@@ -104,7 +104,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	sljob := 0
 	for {
 
-		nj, err := runBatch(ctx, batch, jl, true, *&opt.Test, &wgi, results)
+		nj, err := runBatch(ctx, batch, jl, true, opt.Test, &wgi, results)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -116,7 +116,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 
 		// spawn short lived jobs
 		var wgsl sync.WaitGroup // short lived sync group
-		nj, err = runBatch(ctx, batch, jl, false, *&opt.Test, &wgsl, results)
+		nj, err = runBatch(ctx, batch, jl, false, opt.Test, &wgsl, results)
 		if err != nil {
 			cancel()
 			return nil, err

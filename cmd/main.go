@@ -369,9 +369,9 @@ mainloop:
 		}
 		report := nspeed.GenerateTextReport(jl, wcWorkers, *optUngroup)
 		_, err = f.WriteString(report)
-		if err == nil {
-			//_, err = f.WriteString(nspeed.SeriesReport(wcWorkers))
-		}
+		// if err == nil {
+		// 	_, err = f.WriteString(nspeed.SeriesReport(wcWorkers))
+		// }
 		if err != nil {
 			log.Error().Err(err).Msgf("error writing text report")
 		}
