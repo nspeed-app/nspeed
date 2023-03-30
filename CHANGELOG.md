@@ -1,5 +1,5 @@
 # v0.0.11
-- **new command**: `from uri` (abbr. `f`) \will read commands from the file/url (use `-` for stdin)
+- **new command**: `from uri` (abbr. `f`) will read commands from the file/url (use `-` for stdin)
 - **new command**: `then [options]` (abbr. `t`) execute previous command(s) before continuing.
 - **new command**: `bench` (abbr `b`) (see corresponding bench section below)
 - using semantic version (before it would have been **v0.11** -> now it's **v0.0.11**)
