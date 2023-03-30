@@ -712,13 +712,13 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 			if err := conn.Control(func(fd uintptr) {
 				buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
 				if err != nil {
-					j.Logger().Error().Err(err).Msgf("getsockopt rcvbuf")
+					j.Logger().Info().Err(err).Msgf("getsockopt rcvbuf")
 					return
 				}
 				j.Logger().Info().Msgf("getsockopt rcvbuf = %d", buf)
 				buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
 				if err != nil {
-					j.Logger().Error().Err(err).Msgf("getsockopt sndbuf")
+					j.Logger().Info().Err(err).Msgf("getsockopt sndbuf")
 					return
 				}
 				j.Logger().Info().Msgf("getsockopt sndbuf = %d", buf)
