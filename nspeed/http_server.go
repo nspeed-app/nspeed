@@ -70,6 +70,7 @@ type HostParameters struct {
 	HTTP11           bool
 	HTTP2            bool
 	HTTP3            bool
+	AltSvc           string
 	UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
 	TLSCertFile      string
 	TLSKeyFile       string
@@ -205,6 +206,27 @@ func (j *JobHTTPServer) CreateHandler() http.Handler {
 	return handler
 }
 
+// return informations to the clients
+func (j *JobHTTPServer) LandingPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	rr := struct {
+		Server string
+		Method string
+		Proto  string
+		Remote string
+		Cipher string
+	}{
+		Server: "nspeed " + Version,
+		Method: r.Method,
+		Proto:  r.Proto,
+		Remote: r.RemoteAddr,
+	}
+	if r.TLS != nil {
+		rr.Cipher = tls.CipherSuiteName(r.TLS.CipherSuite)
+	}
+	json.NewEncoder(w).Encode(rr)
+}
+
 // handle '/' .. get : stream bytes, post/put - upload bytes
 func (j *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
@@ -222,6 +244,10 @@ func (j *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			http.Error(w, "too many x-nspeed-guid header", http.StatusBadRequest)
+			return
+		}
+		if r.URL.Path == "/" {
+			j.LandingPage(w, r)
 			return
 		}
 		match := StreamPathRegexp.FindStringSubmatch(r.URL.Path[1:])
@@ -462,6 +488,7 @@ func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *Metric) error {
 		}
 		return err
 	}
+	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(result)
 	return err
 }
@@ -787,9 +814,7 @@ func (j *JobHTTPServer) HTTP2Serve() error {
 	// can't do unless we rewrite Serve because of we can't add
 	// our own proto handler for http/1.1 (see )
 
-	//revive:disable
 	fmt.Println("using http/2 only with patched crypto")
-	//revive:enable
 
 	err := http2.ConfigureServer(j.Server, &http2.Server{})
 

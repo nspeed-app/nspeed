@@ -131,9 +131,13 @@ func (j *JobHTTPClient) GetDestination() string {
 func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 
 	formatOut := func(r string) string {
-		latency := j.tr.connectDone.Sub(j.tr.connectStart).Milliseconds()
-		latencyMicroRem := j.tr.connectDone.Sub(j.tr.connectStart).Microseconds() % 1000
-		ipv := utils.IPVersion(j.GetDestination())
+		if j.wm.AvgLatency == 0 {
+			//todo: move this elsewhere
+			j.wm.AvgLatency = j.tr.connectDone.Sub(j.tr.connectStart)
+		}
+		latency := j.wm.AvgLatency.Milliseconds()
+		latencyMicroRem := j.wm.AvgLatency.Microseconds() % 1000
+		ipv := utils.IPVersion(j.wm.Remote)
 		details := fmt.Sprintf("%s (%s - %d.%d ms - %s - %s)", r, ipv, latency, latencyMicroRem, j.wm.Protocol, j.wm.TLSVersion)
 		if j.numRedirect > 0 && verbose {
 			return fmt.Sprintf("%s from %s", details, j.Target)
@@ -244,7 +248,7 @@ func (j *JobHTTPClient) Init() error {
 	// var netTransport = http.DefaultTransport.(*http.Transport).Clone()
 	var netTransport = &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
-		ForceAttemptHTTP2:     j.HTTPVersion != 1, // what about -http3?
+		ForceAttemptHTTP2:     j.HTTPVersion == 2, // what about -http3?
 		MaxIdleConns:          100,
 		IdleConnTimeout:       10 * time.Second, // add parameter for this ?
 		TLSHandshakeTimeout:   5 * time.Second,  // this seems long ?
@@ -318,13 +322,16 @@ func (j *JobHTTPClient) Init() error {
 			quicConf := &quic.Config{}
 			if zerolog.GlobalLevel() <= zerolog.TraceLevel {
 				quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(j.Logger()))
+			} else {
+				quicConf.Tracer = &quicTracer{wm: j.wm}
 			}
+
 			rtTransport = &http3.RoundTripper{
 				DisableCompression: true,
 				TLSClientConfig:    netTransport.TLSClientConfig,
 				QuicConfig:         quicConf,
 				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-					j.Logger().Debug().Msgf("HTTP3: %s,%v", addr, cfg)
+					j.Logger().Debug().Msgf("HTTP3 dialing to: %s", addr)
 					return quic.DialAddrEarlyContext(ctx, addr, tlsCfg, cfg)
 				},
 			}

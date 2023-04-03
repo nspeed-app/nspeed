@@ -233,7 +233,7 @@ func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test b
 		}
 		njobs++
 		if !test {
-			j.Logger().Debug().Msgf("spawning infinite workload %s %s", j.ID(), j.GetTarget())
+			j.Logger().Debug().Msgf("spawning workload %s %s (infinite=%t)", j.ID(), j.GetTarget(), j.IsInfinite())
 			wg.Add(1)
 			go func(j Job, wg *sync.WaitGroup) {
 				err := j.Run(ctx, results, wg)

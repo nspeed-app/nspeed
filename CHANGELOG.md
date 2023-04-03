@@ -19,11 +19,12 @@
 ## bench
 - new `bench` command (abbrev `b`) : allow to launch loopback tests (get/put on a localhost server). see `nspeed bench -h` for details.
 ## server
-- *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
+ - *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
  - added `-http1.1` and `-http2` flags to enforce the HTTP version used
  - *breaking change*: the default port is now a *random , available port instead of 7333*. Use `-p` to specific a port.
  - added `-id string` flag: allows to set a uniq id/name for this server (can be used in `nspeed:` url scheme)
  - An upload to the server (`PUT` and `POST`) now returns metrics data in json format
+ - a request of the root path ('/') will now return some informations in json (instead of "Not found (no regexp match)")
  - A download from a server returns a special header named `x-nspeed-guid` which value is a short-lived unique identifier of this download Sending a request to the server  with the same header will return a the metrics data in json of this download. The delay is 5 seconds.
 ## Client
 - *breaking changes*: `-http11` flag renamed to `-http1.1`

@@ -352,7 +352,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		maxsize := fs.String("s", utils.FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
 		maxtime := fs.Uint("m", uint(DefaultMaxDuration.Seconds()), "Maximum duration in seconds a response may take")
 		fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
-		fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = infinite)")
+		fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = run forever)")
 		fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
 		fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
 		fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
@@ -361,7 +361,8 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		fs.BoolVar(&host.HTTP11, "http1.1", false, "listen only in HTTP/1.1 (this will disable HTTP/2) - implies -self is no cert/key ")
 		fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key ")
 		fs.BoolVar(&host.HTTP3, "http3", false, "also listen using HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
-		fs.BoolVar(&host.API, "api", false, "enable API endpoint (/api url)")
+		fs.BoolVar(&host.API, "api", false, "enable API endpoint (activate /api url)")
+		fs.StringVar(&host.AltSvc, "alt", "", "add alt-svc endpoints (use id names, comma separated)")
 		id := fs.String("id", "", "unique ID/name of this server")
 		if err := fs.Parse(cmdargs); err != nil {
 			return cmdargs, err
