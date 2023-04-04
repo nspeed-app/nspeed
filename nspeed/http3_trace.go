@@ -8,6 +8,7 @@ import (
 	"net"
 
 	"github.com/quic-go/quic-go/logging"
+	"nspeed.app/utils"
 )
 
 type quicTracer struct {
@@ -16,26 +17,29 @@ type quicTracer struct {
 }
 
 func (t *quicTracer) TracerForConnection(context.Context, logging.Perspective, logging.ConnectionID) logging.ConnectionTracer {
-	return &quicConnectionTracer{M: t.wm}
+	return &quicConnectionTracer{wm: t.wm}
 }
 
 type quicConnectionTracer struct {
 	logging.NullConnectionTracer
-	M *Metric
+	wm *Metric
 }
 
-func (n *quicConnectionTracer) StartedConnection(local, remote net.Addr, srcConnID, destConnID logging.ConnectionID) {
-	n.M.Logger.Debug().Msgf("QUIC: connected to %s", remote)
-	if n.M == nil {
+func (t *quicConnectionTracer) StartedConnection(local, remote net.Addr, srcConnID, destConnID logging.ConnectionID) {
+	t.wm.Logger.Info().Msgf("QUIC: connected to %s from %s (ids=%s-%s)", remote, local, srcConnID, destConnID)
+	if t.wm == nil {
 		return
 	}
-	n.M.Remote = remote.String()
+	t.wm.Remote = remote.String()
+	t.wm.Interface, t.wm.Gateway, t.wm.SourceAddr = utils.GetRoute(remote.String())
+
 }
 
-func (n *quicConnectionTracer) UpdatedMetrics(rttStats *logging.RTTStats, cwnd logging.ByteCount, bytesInFlight logging.ByteCount, packetsInFlight int) {
-	n.M.Logger.Debug().Msgf("QUIC: rtt = %s", rttStats.LatestRTT())
-	if n.M == nil {
+func (t *quicConnectionTracer) UpdatedMetrics(rttStats *logging.RTTStats, cwnd logging.ByteCount, bytesInFlight logging.ByteCount, packetsInFlight int) {
+	// Trace might not occurs here but in qlog
+	t.wm.Logger.Trace().Msgf("QUIC: rtt = %s - window=%d bif=%d pif=%d", rttStats.LatestRTT(), cwnd, bytesInFlight, packetsInFlight)
+	if t.wm == nil {
 		return
 	}
-	n.M.AvgLatency = rttStats.SmoothedRTT()
+	t.wm.AvgLatency = rttStats.SmoothedRTT()
 }

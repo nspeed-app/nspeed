@@ -277,11 +277,12 @@ func init() {
 	}
 }
 
-func GetRoute(dest string) (iface *net.Interface, gw netip.Addr, src netip.Addr) {
+// GetRoute return routing info for destination which must be "ip:port" combo
+func GetRoute(destination string) (iface *net.Interface, gw netip.Addr, src netip.Addr) {
 	if router == nil {
 		return
 	}
-	ap, err := netip.ParseAddrPort(dest)
+	ap, err := netip.ParseAddrPort(destination)
 	if err != nil {
 		return
 	}
@@ -294,8 +295,9 @@ func GetRoute(dest string) (iface *net.Interface, gw netip.Addr, src netip.Addr)
 	return
 }
 
-func IPVersion(addr string) string {
-	ap, err := netip.ParseAddrPort(addr)
+// IPVersion pretty prints the IP version of the address
+func IPVersion(address string) string {
+	ap, err := netip.ParseAddrPort(address)
 	if err != nil {
 		return ""
 	}

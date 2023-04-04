@@ -224,7 +224,7 @@ func (j *JobHTTPServer) LandingPage(w http.ResponseWriter, r *http.Request) {
 	if r.TLS != nil {
 		rr.Cipher = tls.CipherSuiteName(r.TLS.CipherSuite)
 	}
-	json.NewEncoder(w).Encode(rr)
+	_ = json.NewEncoder(w).Encode(rr)
 }
 
 // handle '/' .. get : stream bytes, post/put - upload bytes
