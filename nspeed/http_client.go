@@ -216,8 +216,8 @@ func (j *JobHTTPClient) Init() error {
 		}
 	}
 
-	// dialer
-	var dialer = &net.Dialer{
+	// this is our dialer
+	dialer := &net.Dialer{
 		Timeout:       j.DialTimeout, //
 		FallbackDelay: -1,            // don't use Happy Eyeballs
 		LocalAddr:     LocalAddr,     // "-a" for client
@@ -244,6 +244,19 @@ func (j *JobHTTPClient) Init() error {
 		},
 	}
 
+	// this is our dialContext for transports.
+	dialContext := func(ctx context.Context, network string, address string) (net.Conn, error) {
+		j.Logger().Info().Msgf("DialContext %s %s %d ", network, address, j.IPversion)
+		if network == "udp" || network == "tcp" {
+			// dont assume j.IPversion  is sanitized
+			if j.IPversion == 6 || j.IPversion == 4 {
+				network += strconv.Itoa(j.IPversion)
+			}
+			// else should fatal ?
+		}
+		return dialer.DialContext(ctx, network, address)
+	}
+
 	// we clone to avoid ConfigureTransports to crash
 	// var netTransport = http.DefaultTransport.(*http.Transport).Clone()
 	var netTransport = &http.Transport{
@@ -255,17 +268,7 @@ func (j *JobHTTPClient) Init() error {
 		ExpectContinueTimeout: 1 * time.Second,
 		DisableCompression:    true,
 		//  transforms network "tcp" / "udp" to "tcp4"/"udp4" or "tcp6"/"udp6" if IPVerson is set.
-		DialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
-			j.Logger().Info().Msgf("DialContext %s %s %d ", network, address, j.IPversion)
-			if network == "udp" || network == "tcp" {
-				// dont assume j.IPversion  is sanitized
-				if j.IPversion == 6 || j.IPversion == 4 {
-					network = network + strconv.Itoa(j.IPversion)
-				}
-				// else should fatal ?
-			}
-			return dialer.DialContext(ctx, network, address)
-		},
+		DialContext: dialContext,
 	}
 
 	if j.UseTLSSelfConfig {
@@ -326,13 +329,35 @@ func (j *JobHTTPClient) Init() error {
 				quicConf.Tracer = &quicTracer{wm: j.wm}
 			}
 
+			// with use http3.RoundTripper but it doesnt expose its udpConn member field so we must use our own
+			var udpConn *net.UDPConn
+			defer func() {
+				if udpConn != nil {
+					fmt.Println("closing local udp conn")
+					udpConn.Close()
+				}
+			}()
+
 			rtTransport = &http3.RoundTripper{
 				DisableCompression: true,
 				TLSClientConfig:    netTransport.TLSClientConfig,
 				QuicConfig:         quicConf,
 				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
-					j.Logger().Debug().Msgf("HTTP3 dialing to: %s", addr)
-					return quic.DialAddrEarlyContext(ctx, addr, tlsCfg, cfg)
+					udpAddr, err := netTransport.DialContext(ctx, "udp", addr)
+					if err != nil {
+						return nil, err
+					}
+					if udpConn == nil {
+						// check for Zone on IPv6 link-local for instance, some OS might need the Zone too
+						udpConn, err = net.ListenUDP("udp", nil)
+						if err != nil {
+							return nil, err
+						}
+					}
+					// use same dialer as other http version
+
+					j.Logger().Debug().Msgf("HTTP3 dialing %s -> %s", addr, udpAddr.RemoteAddr().String())
+					return quic.DialEarlyContext(ctx, udpConn, udpAddr.RemoteAddr(), addr, tlsCfg, cfg)
 				},
 			}
 		}

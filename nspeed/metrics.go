@@ -726,10 +726,12 @@ func GenerateTextReport(jl *JobList, wcWorkers Metrics, showGroup bool) (out str
 	}
 	batches := make(map[int]int, 1)
 	for _, wm := range wcWorkers {
-		if !wm.Valid {
+		if wm.Error != nil {
+			out += fmt.Sprintf("batch %d, job %s, error = %s\n", wm.Batch, wm.ID, wm.Error)
 			continue
 		}
-		if wm.Error != nil {
+		if !wm.Valid {
+			out += fmt.Sprintf("batch %d, job %s, not valid\n", wm.Batch, wm.ID)
 			continue
 		}
 		batches[wm.Batch]++

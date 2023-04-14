@@ -162,7 +162,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 			case <-progressTickerChannel:
 				message <- wcWorkers
 			case wm := <-results:
-				wm.Logger.Debug().Msgf("got a result for job %s batch %d", wm.ID, batch)
+				wm.Logger.Debug().Msgf("got a result for job %s batch %d (err=%s)", wm.ID, batch, wm.Error)
 				wm.Batch = batch
 				wcWorkers = append(wcWorkers, wm)
 				rc--

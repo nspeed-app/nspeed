@@ -1,0 +1,34 @@
+doc: https://api.bbox.fr/doc/apirouter/#api-WAN
+
+steps to get wan link specs:
+
+1. https://mabbox.bytel.fr/api/v1/wan/ip
+type = wan.link.type
+
+then
+
+2. https://mabbox.bytel.fr/api/v1/wan/<type>/stats
+type=
+ ffth |
+ xdsl |
+
+response: [{"wan":{"ftth":{"mode":"1000baseT-FD","state":"Up"}}}]
+
+also
+maxBandwidth from https://mabbox.bytel.fr/api/v1/wan/ip/stats for tx & rx
+
+client to gateway:
+https://mabbox.bytel.fr/api/v1/hosts/me
+
+-> curl -s https://mabbox.bytel.fr/api/v1/hosts/me | jq ".[0].host.wireless"
+   .host.link
+   then
+   .host.link.wireless |
+   .host.link.ethernet
+
+authentification:
+curl -v -X POST -d password=******** https://mabbox.bytel.fr/api/v1/login
+if OK  save cookie BBOX_ID
+
+then use 
+curl -s --cookie "BBOX_ID=...." https://mabbox.bytel.fr/api/v1/....
