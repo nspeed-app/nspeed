@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -141,6 +142,15 @@ func OpenURI(uri string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return resp.Body, nil
+}
+
+// ReadURI opens and read an url and return its content
+func ReadURI(uri string) ([]byte, error) {
+	r, err := OpenURI(uri)
+	if err != nil {
+		return nil, err
+	}
+	return ioutil.ReadAll(r)
 }
 
 // ToArgv converts string s into an argv for exec.
