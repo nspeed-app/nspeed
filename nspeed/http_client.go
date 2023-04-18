@@ -421,11 +421,11 @@ func (j *JobHTTPClient) Init() error {
 	return nil
 }
 
-func (j *JobHTTPClient) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitGroup) error {
+func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, error) {
 
 	defer wg.Done()
 	if j.req == nil {
-		return errors.New("no request")
+		return nil, errors.New("no request")
 	}
 
 	if ctx != nil {
@@ -702,8 +702,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitG
 
 	utils.PrintMemUsage(j.Logger(), "client ended")
 	wm.LogFinal(j.Logger())
-	wc <- wm
-	return nil
+	return wm, nil
 }
 
 var errNotRunning = errors.New("named job not running")

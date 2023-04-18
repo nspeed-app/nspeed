@@ -26,7 +26,7 @@ type Job interface {
 	PrintString(bool, bool) string
 	IsInfinite() bool
 	Init() error
-	Run(context.Context, chan *Metric, *sync.WaitGroup) error
+	Run(context.Context, *sync.WaitGroup) (*Metric, error)
 	//common, implemented here
 	Logger() *zerolog.Logger
 	SetLogger(*zerolog.Logger)

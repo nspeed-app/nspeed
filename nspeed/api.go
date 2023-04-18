@@ -91,14 +91,14 @@ func (j *APIHost) Init() error {
 	return nil
 }
 
-func (j *APIHost) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitGroup) error {
+func (j *APIHost) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, error) {
 	if j.Server == nil {
-		return errors.New("API: no server")
+		return nil, errors.New("API: no server")
 	}
 	j.Server.RunHook = func(c context.Context) error {
 		return j.PostRun()
 	}
-	return j.Server.Run(ctx, wc, wg)
+	return j.Server.Run(ctx, wg)
 }
 
 func (j *APIHost) apiHelpHandler(w http.ResponseWriter, _ *http.Request) {

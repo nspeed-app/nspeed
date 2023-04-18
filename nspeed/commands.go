@@ -629,7 +629,14 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 				if err != nil {
 					return args, err
 				}
-				err = jl.AddBatch(&Batch{Name: fmt.Sprintf("line %d of %s", lineNumber, uri)})
+				name := fmt.Sprintf("line %d of %s", lineNumber, uri)
+				fmt.Printf("%d,%t\n", len(jl.Batches), jl.currentBatchEmpty)
+				// if 'then file/url' is the first command then dont create a new batch for its first line
+				if lineNumber == 1 && len(jl.Batches) > 0 && jl.currentBatchEmpty {
+					jl.Batches[len(jl.Batches)].Name = name
+				} else {
+					err = jl.AddBatch(&Batch{Name: name})
+				}
 				if err != nil {
 					return args, err
 				}

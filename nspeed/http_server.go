@@ -625,7 +625,7 @@ func (j *JobHTTPServer) Init() error {
 	}
 	return nil
 }
-func (j *JobHTTPServer) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitGroup) error {
+func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, error) {
 
 	ctx, j.Cancel = context.WithCancel(ctx)
 
@@ -680,7 +680,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitG
 	err := j.Listen(ctx)
 	if err != nil {
 		j.Logger().Fatal().Msgf("failed to listen: %s", err)
-		return err
+		return nil, err
 	}
 
 	// signal parent we're listening
@@ -690,7 +690,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitG
 		err := j.RunHook(ctx)
 		if err != nil {
 			j.Logger().Warn().Msgf("failed to serve: %s", err)
-			return err
+			return nil, err
 		}
 	}
 
@@ -710,9 +710,8 @@ func (j *JobHTTPServer) Run(ctx context.Context, wc chan *Metric, wg *sync.WaitG
 		j.Logger().Info().Msgf("shutdown finished")
 	}
 
-	// signal parent and send metrics
-	wc <- j.wm
-	return nil
+	// send metrics
+	return j.wm, nil
 }
 
 // Listen opens the listening conn

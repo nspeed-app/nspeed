@@ -102,28 +102,36 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 
 	batch := 0
 	sljob := 0
+	lljob := 0
 	for {
-
-		nj, err := runBatch(ctx, batch, jl, true, opt.Test, &wgi, results)
+		log.Info().Msgf("processing batch %d", batch)
+		llnj, err := runBatch(ctx, batch, jl, true, opt.Test, &wgi, results)
 		if err != nil {
 			cancel()
 			return nil, err
 		}
+		lljob += llnj
 		// wait for all infite jobs to signal they're ready
-		log.Info().Msgf("waiting on %d infinite  jobs to be ready", nj)
+		log.Info().Msgf("waiting on %d infinite jobs to be ready", llnj)
 		wgi.Wait()
 		log.Info().Msg("all infinite jobs are ready")
 
 		// spawn short lived jobs
 		var wgsl sync.WaitGroup // short lived sync group
-		nj, err = runBatch(ctx, batch, jl, false, opt.Test, &wgsl, results)
+		// we add ourself to the waitgroup
+		wgsl.Add(1)
+		slnj, err := runBatch(ctx, batch, jl, false, opt.Test, &wgsl, results)
 		if err != nil {
 			cancel()
 			return nil, err
 		}
-		sljob += nj
+		sljob += slnj
+
+		// isInfinite if last batch and no sljob seen
 		isInfinite := sljob == 0 && batch == nBatches-1
-		// this waits for all (non infinite) jobs to end then sends a signal (purpose is to 'select' a waitgroup)
+
+		// this waits for all (non infinite) jobs to end then sends a signal
+		// (purpose is to be able to 'select' the waitgroup)
 		cWaitgroupSLEnded := make(chan struct{})
 		go func() {
 			defer close(cWaitgroupSLEnded)
@@ -139,11 +147,16 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 		if isInfinite {
 			fmt.Println("running - hit ctrl-C or send a kill signal to end")
 		} else {
-			fmt.Printf("running batch %s...\n", jl.Batches[batch].Name)
+			fmt.Printf("running %s...\n", jl.Batches[batch].Name)
 		}
+
 	batchloop:
 		for {
 			log.Trace().Msgf("mainloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
+			if slnj+llnj == 0 {
+				log.Warn().Msgf("batch %s (%d) is empty", jl.Batches[batch].Name, batch)
+				break batchloop
+			}
 			select {
 			case <-ctx.Done():
 				log.Debug().Msgf("parent cancelled us")
@@ -162,33 +175,49 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 			case <-progressTickerChannel:
 				message <- wcWorkers
 			case wm := <-results:
+				// test for wm==nil ?
 				wm.Logger.Debug().Msgf("got a result for job %s batch %d (err=%s)", wm.ID, batch, wm.Error)
 				wm.Batch = batch
 				wcWorkers = append(wcWorkers, wm)
 				rc--
+				slnj--
 				if wm.Done {
 					wm.Logger.Info().Msgf("job %s ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.ID, wm.Expired, runtime.NumGoroutine(), rc)
+				}
+				if slnj <= 0 {
+					// all these jobs have sent their result so end the wait group
+					log.Info().Msgf("all sl workers send their results for batch %d (rc = %d)", batch, rc)
+					wgsl.Done()
 				}
 				if rc <= 0 {
 					wm.Logger.Info().Msgf("no more jobs - exiting")
 					break batchloop
 				}
 			case <-cWaitgroupSLEnded:
-				log.Debug().Msgf("all sl workers ended (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
+				log.Info().Msgf("all sl workers ended (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
 				if !isInfinite {
+					log.Info().Msgf("no infinite, exiting")
 					break batchloop
 				}
 				// we want this case to block the select forever
 				cWaitgroupSLEnded = nil
 			}
 		}
-		log.Debug().Msgf("batch %d/%d ended", batch, nBatches)
+		log.Info().Msgf("batch %d/%d ended", batch, nBatches)
 		batch++
 		if batch >= nBatches {
+			cancel()
 			break
 		}
 	}
 	log.Info().Msgf("exited mainloop with %d results (%d remaining active goroutines, rc = %d)", len(wcWorkers), runtime.NumGoroutine(), rc)
+	for len(wcWorkers) < nJobs {
+		wm := <-results
+		if wm != nil {
+			wm.Logger.Info().Msgf("draining result")
+			wcWorkers = append(wcWorkers, wm)
+		}
+	}
 
 	// all done or canceled, return
 	return wcWorkers, nil
@@ -236,11 +265,13 @@ func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test b
 			j.Logger().Debug().Msgf("spawning workload %s %s (infinite=%t)", j.ID(), j.GetTarget(), j.IsInfinite())
 			wg.Add(1)
 			go func(j Job, wg *sync.WaitGroup) {
-				err := j.Run(ctx, results, wg)
+				wm, err := j.Run(ctx, wg)
 				if err != nil {
 					log.Error().Msgf("error '%s' for '%s'", err, j.GetTarget())
 					return
 				}
+				j.Logger().Info().Msgf("sending result")
+				results <- wm
 			}(j, wg)
 		} else {
 			j.Logger().Debug().Msgf("test mode: skipping workload %s %s", j.ID(), j.GetTarget())
