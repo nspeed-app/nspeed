@@ -545,7 +545,8 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// do the upload
-	n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, wm), BigBuffer)
+	//n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, wm), BigBuffer)
+	n, err := io.CopyBuffer(wm, r.Body, BigBuffer)
 	// signal the evenutal ticker
 	close(done)
 
