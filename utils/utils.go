@@ -3,7 +3,6 @@ package utils
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/exp/constraints"
 )
 
 // StringArray is just a []string. Used for parsing multiple ocurrences of the same string flag (see flag.Var)
@@ -45,6 +43,7 @@ func (f *SmartFile) Close() error {
 	return err
 }
 
+// FileCreate is like os.Create() but treats filename "-" as stdout
 func FileCreate(filename string) (*SmartFile, error) {
 	if filename == "-" {
 		return &SmartFile{os.Stdout, true}, nil
@@ -56,31 +55,7 @@ func FileCreate(filename string) (*SmartFile, error) {
 	return &SmartFile{fd, false}, nil
 }
 
-// min/max with generics
-// since not YET in std lib...
-func Min[T constraints.Ordered](x, y T) T {
-	if x < y {
-		return x
-	}
-	return y
-}
-
-func Max[T constraints.Ordered](x, y T) T {
-	if x > y {
-		return x
-	}
-	return y
-}
-
-// Map implementes the classic non iterator "map a function" to each element of a slice
-func Map[U any, V any](lu []U, f func(U) V) []V {
-	var lv = make([]V, len(lu))
-	for i, u := range lu {
-		lv[i] = f(u)
-	}
-	return lv
-}
-
+// DumpRequest is a shortcut to httputil.DumpRequestOut
 func DumpRequest(req *http.Request, body bool) {
 	dump, err := httputil.DumpRequestOut(req, body)
 	if err != nil {
@@ -107,30 +82,6 @@ func PrintMemUsage(log *zerolog.Logger, mess string) {
 		m.NumGC)
 }
 
-// Partition splits an array into 2 arrays based on a predicate function
-func Partition[T any](array []T, test func(T) bool) (matched []T, notmatched []T) {
-	for _, t := range array {
-		if test(t) {
-			matched = append(matched, t)
-		} else {
-			notmatched = append(notmatched, t)
-		}
-	}
-	return
-}
-
-// IndexOf searches for an element in a slice and returns its index or -1 if not found
-// todo: find and use the 'canonical' name for this function
-// todo: watch for future equivalence in std lib
-func IndexOf[T comparable](ss []T, s T) (idx int) {
-	for idx, v := range ss {
-		if v == s {
-			return idx
-		}
-	}
-	return -1
-}
-
 // OpenURI opens an url or a file
 func OpenURI(uri string) (io.ReadCloser, error) {
 	url, err := url.Parse(uri)
@@ -150,7 +101,7 @@ func ReadURI(uri string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ioutil.ReadAll(r)
+	return io.ReadAll(r)
 }
 
 // ToArgv converts string s into an argv for exec.

@@ -45,11 +45,14 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 		logger := log.With().Str("job", idx).Logger()
 		job.SetLogger(&logger)
 		//wcWorkers = append(wcWorkers, &wm)
-		msg := fmt.Sprintf("id=%s,gid=%s,batch=%s(%d),%#v", idx, job.GroupID(), jl.Batches[job.Batch()].Name, job.Batch(), job)
+		msg := fmt.Sprintf("id=%s,gid=%s,batch=%s(%d)", idx, job.GroupID(), jl.Batches[job.Batch()].Name, job.Batch())
+		msg2 := job.GoString()
 		if opt.Test {
 			logger.Warn().Msg(msg)
+			logger.Warn().Msg(msg2)
 		} else {
 			logger.Info().Msg(msg)
+			logger.Info().Msg(msg2)
 		}
 	}
 
@@ -104,7 +107,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	sljob := 0
 	lljob := 0
 	for {
-		log.Info().Msgf("processing batch %d", batch)
+		log.Info().Msgf("processing batch '%s' (%d)", jl.Batches[batch].Name, batch)
 		llnj, err := runBatch(ctx, batch, jl, true, opt.Test, &wgi, results)
 		if err != nil {
 			cancel()
@@ -140,22 +143,22 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 		}()
 
 		if opt.Test {
-			fmt.Println("test mode - nothing done")
+			log.Warn().Msg("test mode - nothing done")
 			return nil, nil
 		}
 
 		if isInfinite {
-			fmt.Println("running - hit ctrl-C or send a kill signal to end")
+			log.Warn().Msg("running - hit ctrl-C or send a kill signal to end")
 		} else {
-			fmt.Printf("running %s...\n", jl.Batches[batch].Name)
+			log.Warn().Msgf("running jobs of '%s' (%d)...", jl.Batches[batch].Name, batch)
 		}
 
 	batchloop:
 		for {
 			log.Trace().Msgf("mainloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
-			if slnj+llnj == 0 {
-				log.Warn().Msgf("batch %s (%d) is empty", jl.Batches[batch].Name, batch)
-				break batchloop
+			if slnj == 0 {
+				log.Info().Msgf("batch %s (%d) has more SL to do", jl.Batches[batch].Name, batch)
+				wgsl.Done()
 			}
 			select {
 			case <-ctx.Done():
@@ -183,11 +186,6 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 				slnj--
 				if wm.Done {
 					wm.Logger.Info().Msgf("job %s ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.ID, wm.Expired, runtime.NumGoroutine(), rc)
-				}
-				if slnj <= 0 {
-					// all these jobs have sent their result so end the wait group
-					log.Info().Msgf("all sl workers send their results for batch %d (rc = %d)", batch, rc)
-					wgsl.Done()
 				}
 				if rc <= 0 {
 					wm.Logger.Info().Msgf("no more jobs - exiting")

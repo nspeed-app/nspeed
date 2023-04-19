@@ -25,7 +25,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
 	"nspeed.app/utils"
-	"nspeed.app/webview"
 )
 
 // this will be used to set a big value for MaxReadFrameSize (HTTP/2)
@@ -191,7 +190,7 @@ func (j *JobHTTPClient) Init() error {
 	if err != nil {
 		return err
 	}
-	j.Logger().Info().Msgf("real target is: %s", j.finalTarget)
+	j.Logger().Debug().Msgf("real target is: %s", j.finalTarget)
 
 	// source address
 	var LocalAddr net.Addr
@@ -221,32 +220,32 @@ func (j *JobHTTPClient) Init() error {
 		Timeout:       j.DialTimeout, //
 		FallbackDelay: -1,            // don't use Happy Eyeballs
 		LocalAddr:     LocalAddr,     // "-a" for client
-		Control: func(network string, address string, c syscall.RawConn) error {
-			j.Logger().Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
-			var operr error
-			if err := c.Control(func(fd uintptr) {
-				buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
-				if err != nil {
-					j.Logger().Info().Err(err).Msgf("getsockopt rcvbuf")
-					return
-				}
-				j.Logger().Info().Msgf("getsockopt rcvbuf = %d", buf)
-				buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
-				if err != nil {
-					j.Logger().Info().Err(err).Msgf("getsockopt sndbuf")
-					return
-				}
-				j.Logger().Info().Msgf("getsockopt sndbuf = %d", buf)
-			}); err != nil {
-				return err
-			}
-			return operr
-		},
+		// Control: func(network string, address string, c syscall.RawConn) error {
+		// 	j.Logger().Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
+		// 	var operr error
+		// 	if err := c.Control(func(fd uintptr) {
+		// 		buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
+		// 		if err != nil {
+		// 			j.Logger().Trace().Err(err).Msgf("getsockopt rcvbuf")
+		// 			return
+		// 		}
+		// 		j.Logger().Info().Msgf("getsockopt rcvbuf = %d", buf)
+		// 		buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
+		// 		if err != nil {
+		// 			j.Logger().Trace().Err(err).Msgf("getsockopt sndbuf")
+		// 			return
+		// 		}
+		// 		j.Logger().Trace().Msgf("getsockopt sndbuf = %d", buf)
+		// 	}); err != nil {
+		// 		return err
+		// 	}
+		// 	return operr
+		// },
 	}
 
 	// this is our dialContext for transports.
 	dialContext := func(ctx context.Context, network string, address string) (net.Conn, error) {
-		j.Logger().Info().Msgf("DialContext %s %s %d ", network, address, j.IPversion)
+		j.Logger().Trace().Msgf("DialContext %s %s %d ", network, address, j.IPversion)
 		if network == "udp" || network == "tcp" {
 			// dont assume j.IPversion  is sanitized
 			if j.IPversion == 6 || j.IPversion == 4 {
@@ -583,18 +582,18 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 	// completed or expired (timeout)
 	if wm.Error == nil && !wm.Cancelled {
 		if j.tr.ConnInfo.Conn != nil {
-			j.Logger().Info().
+			j.Logger().Debug().
 				Stringer("LocalAddr", j.tr.ConnInfo.Conn.LocalAddr()).
 				Stringer("RemoteAddr", j.tr.ConnInfo.Conn.RemoteAddr()).Send()
 		}
-		j.Logger().Info().
+		j.Logger().Debug().
 			Dur("DNSInfoTime", j.tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
 			Dur("ConnInfoTime", j.tr.gotConn.Sub(refdate)).
 			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
 			Send()
 
 		for _, a := range j.tr.DNSInfo.Addrs {
-			j.Logger().Info().Stringer("dnsinfo", &a).Send()
+			j.Logger().Debug().Stringer("dnsinfo", &a).Send()
 		}
 
 		if j.tr.ConnInfo.Reused {
@@ -602,7 +601,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 		}
 
 		if j.tr.TLSDone {
-			j.Logger().Info().
+			j.Logger().Debug().
 				Str("crypto", utils.TLSVersionName(j.tr.TLS.Version)).
 				Str("cipher", tls.CipherSuiteName(j.tr.TLS.CipherSuite)).
 				Dur("TLSDuration", j.tr.tlsDone.Sub(refdate)).Send()
@@ -617,7 +616,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 		wm.Cipher = TLSCipherSuite(resp.TLS)
 		wm.TLSVersion = utils.TLSVersionFriendlyName(TLSVersion(resp.TLS))
 
-		j.Logger().Info().
+		j.Logger().Debug().
 			Str("protocol", wm.Protocol).
 			Send()
 		j.Logger().Debug().
@@ -657,7 +656,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 				//todo: invesstigate why the following gives results too high
 				totalread, err := io.CopyBuffer(wm, resp.Body, BigBuffer)
 
-				j.Logger().Info().Err(err).Msgf("copybuffer ended")
+				j.Logger().Debug().Err(err).Msgf("copybuffer ended with %d totalread", totalread)
 
 				err = fixH2H3Errors(err, j.req.Method, j.Logger())
 				if errors.Is(err, context.DeadlineExceeded) {

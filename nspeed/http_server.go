@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -28,7 +27,6 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"nspeed.app/utils"
-	"nspeed.app/webview"
 )
 
 // name of product, used in user-agent
@@ -734,26 +732,26 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 	}
 
 	lc := net.ListenConfig{
-		Control: func(network, address string, conn syscall.RawConn) error {
-			var operr error
-			if err := conn.Control(func(fd uintptr) {
-				buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
-				if err != nil {
-					j.Logger().Info().Err(err).Msgf("getsockopt rcvbuf")
-					return
-				}
-				j.Logger().Info().Msgf("getsockopt rcvbuf = %d", buf)
-				buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
-				if err != nil {
-					j.Logger().Info().Err(err).Msgf("getsockopt sndbuf")
-					return
-				}
-				j.Logger().Info().Msgf("getsockopt sndbuf = %d", buf)
-			}); err != nil {
-				return err
-			}
-			return operr
-		},
+		// Control: func(network, address string, conn syscall.RawConn) error {
+		// 	var operr error
+		// 	if err := conn.Control(func(fd uintptr) {
+		// 		buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
+		// 		if err != nil {
+		// 			j.Logger().Trace().Err(err).Msgf("getsockopt rcvbuf")
+		// 			return
+		// 		}
+		// 		j.Logger().Info().Msgf("getsockopt rcvbuf = %d", buf)
+		// 		buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
+		// 		if err != nil {
+		// 			j.Logger().Trace().Err(err).Msgf("getsockopt sndbuf")
+		// 			return
+		// 		}
+		// 		j.Logger().Trace().Msgf("getsockopt sndbuf = %d", buf)
+		// 	}); err != nil {
+		// 		return err
+		// 	}
+		// 	return operr
+		// },
 	}
 
 	ln, err := lc.Listen(ctx, "tcp", j.addr)

@@ -75,6 +75,9 @@ var CommandDescriptions = map[string]string{
 // global flags
 var OptTLSSelf = false
 
+// global ID for batches
+var batchID = 1
+
 // common GET/PUT flags that need treatment/checks
 type httpFlags struct {
 	Timeout     uint
@@ -554,12 +557,11 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		benchs := strings.Split(args[0], ",")
 		args = args[1:]
 
-		id := 1
 		values := BenchmarkArgs{
 			Args: argsLine,
 			N:    *nStreams,
 			Size: *size,
-			ID:   id,
+			ID:   batchID,
 		}
 		for _, arg := range benchs {
 			ct, ok := benchmarksTemplates[arg]
@@ -574,8 +576,8 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 				log.Fatal().Err(err).Send()
 			}
 			cmd := strings.Fields(c.String())
-			id++
-			values.ID = id
+			batchID++
+			values.ID = batchID
 			log.Info().Msgf("benchmark: %s", cmd)
 			err := ParseCommands(cmd, jl, output, false)
 			if err != nil {
@@ -621,7 +623,22 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			log.Warn().Msgf("reading commands from %s", uri)
 			lineNumber := 1
 			for cmdScan.Scan() {
-				line, err := utils.ToArgv(cmdScan.Text())
+				rline := cmdScan.Text()
+				if strings.TrimSpace(rline) == "" {
+					lineNumber++
+					continue
+				}
+				line, err := utils.ToArgv(rline)
+				if err != nil {
+					return args, err
+				}
+				name := fmt.Sprintf("line %d of %s", lineNumber, uri)
+
+				if jl.currentBatchEmpty {
+					jl.Batches[len(jl.Batches)-1].Name = name
+				} else {
+					err = jl.AddBatch(&Batch{Name: name})
+				}
 				if err != nil {
 					return args, err
 				}
@@ -629,18 +646,11 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 				if err != nil {
 					return args, err
 				}
-				name := fmt.Sprintf("line %d of %s", lineNumber, uri)
-				fmt.Printf("%d,%t\n", len(jl.Batches), jl.currentBatchEmpty)
-				// if 'then file/url' is the first command then dont create a new batch for its first line
-				if lineNumber == 1 && len(jl.Batches) > 0 && jl.currentBatchEmpty {
-					jl.Batches[len(jl.Batches)].Name = name
-				} else {
-					err = jl.AddBatch(&Batch{Name: name})
-				}
-				if err != nil {
-					return args, err
-				}
 				lineNumber++
+			}
+			// nothing found in the file
+			if lineNumber == 1 {
+				return args, fmt.Errorf("no command found in file %s", uri)
 			}
 		}
 		return args, nil

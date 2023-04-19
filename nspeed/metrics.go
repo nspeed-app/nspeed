@@ -105,7 +105,7 @@ func (jl *JobList) AddBatch(batch *Batch) error {
 	if batch.Name != "" {
 		for _, b := range jl.Batches {
 			if b.Name == batch.Name {
-				return fmt.Errorf("batch already %s exists", batch.Name)
+				return fmt.Errorf("batch named '%s' already exists", batch.Name)
 			}
 		}
 	} else {
@@ -805,7 +805,7 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 	if totalRead == 0 && totalWrite == 0 {
 		fmt.Println("no metrics to report")
 	} else {
-		speedReport(w, "Total", elapsedTime, totalRead, totalWrite, "")
+		speedReport(w, "Average", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
 	}
 	return out.String()
