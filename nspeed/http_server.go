@@ -208,16 +208,18 @@ func (j *JobHTTPServer) CreateHandler() http.Handler {
 func (j *JobHTTPServer) LandingPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	rr := struct {
-		Server string
-		Method string
-		Proto  string
-		Remote string
-		Cipher string
+		Server  string
+		Method  string
+		Proto   string
+		Remote  string
+		Cipher  string
+		Headers http.Header
 	}{
-		Server: "nspeed " + Version,
-		Method: r.Method,
-		Proto:  r.Proto,
-		Remote: r.RemoteAddr,
+		Server:  "nspeed " + Version,
+		Method:  r.Method,
+		Proto:   r.Proto,
+		Remote:  r.RemoteAddr,
+		Headers: r.Header,
 	}
 	if r.TLS != nil {
 		rr.Cipher = tls.CipherSuiteName(r.TLS.CipherSuite)
@@ -611,6 +613,7 @@ func (j *JobHTTPServer) Init() error {
 		ReadTimeout:       0,               //j.Parameters.MaxDuration, // idem
 		ReadHeaderTimeout: 2 * time.Second, //j.Parameters.MaxDuration,
 		IdleTimeout:       j.Parameters.IdleTimeout,
+		//ConnState:        todo,
 	}
 
 	if j.Parameters.H2C {

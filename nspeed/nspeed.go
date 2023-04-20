@@ -156,10 +156,6 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	batchloop:
 		for {
 			log.Trace().Msgf("mainloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
-			if slnj == 0 {
-				log.Info().Msgf("batch %s (%d) has more SL to do", jl.Batches[batch].Name, batch)
-				wgsl.Done()
-			}
 			select {
 			case <-ctx.Done():
 				log.Debug().Msgf("parent cancelled us")
@@ -184,6 +180,10 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 				wcWorkers = append(wcWorkers, wm)
 				rc--
 				slnj--
+				if slnj == 0 {
+					log.Info().Msgf("batch %s (%d) has more SL to do", jl.Batches[batch].Name, batch)
+					wgsl.Done()
+				}
 				if wm.Done {
 					wm.Logger.Info().Msgf("job %s ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.ID, wm.Expired, runtime.NumGoroutine(), rc)
 				}
