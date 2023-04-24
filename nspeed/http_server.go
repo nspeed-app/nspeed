@@ -805,17 +805,10 @@ func (j *JobHTTPServer) serve() error {
 	} else {
 		return j.Server.Serve(*j.listener)
 	}
-
 }
 
 // nolint
 func (j *JobHTTPServer) HTTP2Serve() error {
-	//return errors.New("enforcing HTTP/2 is not implemented yet")
-	return j.HTTP2serve()
-	// can't do unless we rewrite Serve because of we can't add
-	// our own proto handler for http/1.1 (see )
-
-	fmt.Println("using http/2 only with patched crypto")
 
 	err := http2.ConfigureServer(j.Server, &http2.Server{})
 
@@ -830,6 +823,16 @@ func (j *JobHTTPServer) HTTP2Serve() error {
 	}
 
 	config := j.Server.TLSConfig.Clone()
+
+	// we could use tls.Config.GetConfigForClient also
+	// this will usually drops the client with an ssl error 32 on its side
+	config.VerifyConnection = func(cs tls.ConnectionState) error {
+		//fmt.Println("HELLO:", cs.NegotiatedProtocol)
+		if cs.NegotiatedProtocol != "h2" {
+			return fmt.Errorf("tls: client doesn't support h2")
+		}
+		return nil
+	}
 
 	tlsListener := tls.NewListener(*j.listener, config)
 	return j.Server.Serve(tlsListener)
