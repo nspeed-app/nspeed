@@ -750,8 +750,8 @@ func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
 	// }
 	// HTTP/3 and ErrorCode == errorRequestCanceled
 	var qerr *quic.StreamError
-	if errors.As(err, &qerr) && qerr.ErrorCode == 0x10c {
-		l.Warn().Msgf("quic.StreamError: %d changed to context.DeadlineExceeded ", qerr.ErrorCode)
+	if errors.As(err, &qerr) && http3.ErrCode(qerr.ErrorCode) == http3.ErrCodeRequestCanceled {
+		l.Info().Msgf("quic.StreamError: %d changed to context.DeadlineExceeded ", qerr.ErrorCode)
 		return context.DeadlineExceeded
 	}
 
@@ -763,7 +763,7 @@ func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
 		if h2err.Code == http2.ErrCodeInternal {
 			if h2err.Cause != nil && h2err.Cause.Error() == "received from peer" {
 				if method == "GET" {
-					l.Warn().Msgf("h2 stream error changed to EOF")
+					l.Info().Msgf("h2 stream error changed to EOF")
 					return io.ErrUnexpectedEOF
 				}
 				return syscall.ECONNRESET
@@ -771,7 +771,7 @@ func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
 		}
 		if h2err.Code == http2.ErrCodeStreamClosed {
 			if h2err.Cause != nil && h2err.Cause.Error() == "received from peer" {
-				l.Warn().Msgf("h2 stream closed changed to EOF")
+				l.Info().Msgf("h2 stream closed changed to EOF")
 				return io.ErrUnexpectedEOF
 			}
 		}
