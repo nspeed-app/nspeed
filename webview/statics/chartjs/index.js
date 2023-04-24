@@ -1,6 +1,6 @@
 //@ts-check
-import { } from "./chart.min.js"; // 3.5.1 is latest working with linked crosshair
-import { } from "./chartjs-plugin-crosshair.js";
+// import { } from "./chart.min.js"; // 3.5.1 is latest working with linked crosshair
+// import { } from "./chartjs-plugin-crosshair.js";
 //import { } from "./chartjs-plugin-autocolors.js";
 //import { }  from "https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0";
 

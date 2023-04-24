@@ -1,0 +1,10 @@
+{
+  "name": "nspeed-charting",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "chart.js": "https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.umd.min.js",
+    "chartjs-plugin-crosshair.js": "https://cdn.jsdelivr.net/npm/chartjs-plugin-crosshair@1.2.0/dist/chartjs-plugin-crosshair.min.js"
+  }
+}

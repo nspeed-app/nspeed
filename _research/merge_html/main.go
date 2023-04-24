@@ -3,28 +3,19 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"nspeed.app/utils"
 )
 
-const src = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>NSpeed Webview</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
-    <script src="webview/statics/nspeed.js"></script>
-</head>
-
-<body>
-HELLO
-</body>
-</html>
-`
-
 func main() {
-	s, err := utils.InlineScript(src)
+	filename := os.Args[1]
+	html, err := os.ReadFile(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	s, err := utils.InlineScript(string(html), filepath.Dir(filename))
 	if err != nil {
 		log.Fatal(err)
 	}
