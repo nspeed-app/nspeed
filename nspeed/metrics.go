@@ -210,14 +210,14 @@ type Metric struct {
 }
 
 // StartTicker starts a ticker for this Metric
-func (wm *Metric) StartTicker(done chan bool) {
+func (wm *Metric) StartTicker(done chan any) {
 	if wm.Tick <= 0 {
 		return
 	}
 	ticker := time.NewTicker(wm.Tick)
-	wm.Logger.Trace().Msgf("starting ticker at rate %s", wm.Tick)
+	wm.Logger.Debug().Msgf("starting ticker at rate %s", wm.Tick)
 	go func() {
-		defer wm.Logger.Trace().Msg("go ticker ended")
+		defer wm.Logger.Debug().Msg("go ticker ended")
 		for {
 			select {
 			case <-done:
@@ -731,7 +731,7 @@ func GenerateTextReport(jl *JobList, wcWorkers Metrics, showGroup bool) (out str
 			continue
 		}
 		if !wm.Valid {
-			out += fmt.Sprintf("batch %d, job %s, not valid\n", wm.Batch, wm.ID)
+			//out += fmt.Sprintf("batch %d, job %s, not valid\n", wm.Batch, wm.ID)
 			continue
 		}
 		batches[wm.Batch]++

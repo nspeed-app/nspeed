@@ -59,7 +59,7 @@ func init() {
 type HostParameters struct {
 	Host             string
 	Port             int
-	ForceIPVersion   int   // 0 (none), 4 (force IPv4)  or 6 (force IPv6)
+	ForceIPVersion   int   // 0 (use global setting), 4 (force IPv4)  or 6 (force IPv6)
 	MaxBodySize      int64 // max inbound size and outbound size for streaming (not fileserve)- todo: split into 2 distinct settings?
 	MaxDuration      time.Duration
 	IdleTimeout      time.Duration
@@ -493,7 +493,7 @@ func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *Metric) error {
 	return err
 }
 
-func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *Metric) (chan bool, error) {
+func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *Metric) (chan any, error) {
 	var err error
 	if rate := r.URL.Query().Get("rate"); rate != "" {
 		j.Logger().Info().Msgf("Upload: %s from %s - set rate to %s", r.Method, r.RemoteAddr, rate)
@@ -503,7 +503,7 @@ func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *Me
 			return nil, err
 		}
 	}
-	done := make(chan bool)
+	done := make(chan any)
 	wm.StartTicker(done)
 	return done, nil
 }
@@ -587,6 +587,11 @@ func (j *JobHTTPServer) Init() error {
 
 	// empty host is a special case
 
+	ipVersion := GlobalOptions.IPVersion
+	if j.Parameters.ForceIPVersion == 4 || j.Parameters.ForceIPVersion == 6 {
+		ipVersion = j.Parameters.ForceIPVersion
+	}
+
 	j.Logger().Debug().Msgf("host parameter is:'%s'", host)
 	if host != "" {
 		// if host is an interface name
@@ -595,14 +600,15 @@ func (j *JobHTTPServer) Init() error {
 			return err
 		}
 
-		fhostIPAddrs := utils.FilterAddresses(hostIPAddrs, j.Parameters.ForceIPVersion)
+		fhostIPAddrs := utils.FilterAddresses(hostIPAddrs, ipVersion)
 
 		if len(fhostIPAddrs) == 0 {
-			j.Logger().Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, j.Parameters.ForceIPVersion)
+			j.Logger().Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, ipVersion)
 			return errors.New("no valid candidate address found")
 		}
 		host = fhostIPAddrs[0].String()
 	}
+	// todo: we need to enforce ipversion if host==""
 
 	// since Addr of http.Server is a single value we only use the first address
 	listenAddr := net.JoinHostPort(host, strconv.Itoa(j.Parameters.Port))
@@ -757,7 +763,10 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 		// },
 	}
 
-	ln, err := lc.Listen(ctx, "tcp", j.addr)
+	// enforce ipVersion here
+	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.ForceIPVersion, GlobalOptions.IPVersion)
+
+	ln, err := lc.Listen(ctx, network, j.addr)
 	if err != nil {
 		return err
 	}
@@ -827,7 +836,6 @@ func (j *JobHTTPServer) HTTP2Serve() error {
 	// we could use tls.Config.GetConfigForClient also
 	// this will usually drops the client with an ssl error 32 on its side
 	config.VerifyConnection = func(cs tls.ConnectionState) error {
-		//fmt.Println("HELLO:", cs.NegotiatedProtocol)
 		if cs.NegotiatedProtocol != "h2" {
 			return fmt.Errorf("tls: client doesn't support h2")
 		}
@@ -849,13 +857,7 @@ func (j *JobHTTPServer) HTTP3Listen() error {
 		return errors.New("udp connection already listening")
 	}
 
-	networkUDP := "udp"
-	if j.Parameters.ForceIPVersion == 4 {
-		networkUDP = "udp4"
-	}
-	if j.Parameters.ForceIPVersion == 6 {
-		networkUDP = "udp6"
-	}
+	networkUDP := utils.AddIPVersionToNetwork("udp", j.Parameters.ForceIPVersion, GlobalOptions.IPVersion)
 
 	// Open the listeners
 	udpAddr, err := net.ResolveUDPAddr(networkUDP, j.Server.Addr)

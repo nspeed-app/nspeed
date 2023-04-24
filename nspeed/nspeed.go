@@ -19,6 +19,7 @@ type Options struct {
 	Timeout          time.Duration
 	Test             bool
 	TLSSelf          bool
+	IPVersion        int // 0, 4 or 6
 }
 
 var GlobalOptions Options

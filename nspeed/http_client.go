@@ -56,7 +56,7 @@ type JobHTTPClient struct {
 	JobData
 	Command          string
 	Repeat           int
-	IPversion        int
+	IPVersion        int
 	Host             string
 	Target           string
 	Timeout          time.Duration
@@ -89,7 +89,7 @@ func (j *JobHTTPClient) CommandString() string {
 	s := fmt.Sprintf("HTTP client {Method: %s, URL: %s, IPversion: %d, Address: %s, timeout: %s, delay: %s, h2c: %t, http:%s}",
 		j.Command,
 		j.Target,
-		j.IPversion,
+		j.IPVersion,
 		j.Host,
 		j.Timeout.String(),
 		j.Delay.String(),
@@ -178,7 +178,7 @@ func (j *JobHTTPClient) Init() error {
 			Command: j.CommandString(),
 		},
 		Logger: *j.Logger(),
-		//Tick:       opt.Tick, fixme
+		Tick:   GlobalOptions.Tick,
 	}
 
 	// prepend https scheme if no scheme
@@ -201,10 +201,10 @@ func (j *JobHTTPClient) Init() error {
 			return errors.New("bad local host address: " + j.Host)
 		}
 
-		fhostIPAddrs := utils.FilterAddresses(la, j.IPversion)
+		fhostIPAddrs := utils.FilterAddresses(la, j.IPVersion)
 
 		if len(fhostIPAddrs) == 0 {
-			j.Logger().Error().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", la, fhostIPAddrs, j.IPversion)
+			j.Logger().Error().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", la, fhostIPAddrs, j.IPVersion)
 			return errors.New("no valid candidate address found")
 		}
 
@@ -243,16 +243,20 @@ func (j *JobHTTPClient) Init() error {
 		// },
 	}
 
+	// sanatize IPVersion
+	ipVersion := 0
+	if j.IPVersion == 6 || j.IPVersion == 4 {
+		ipVersion = j.IPVersion
+	} else if j.IPVersion != 0 {
+		return errors.New("unknown ip version requested")
+	}
+
 	// this is our dialContext for transports.
 	dialContext := func(ctx context.Context, network string, address string) (net.Conn, error) {
-		j.Logger().Trace().Msgf("DialContext %s %s %d ", network, address, j.IPversion)
 		if network == "udp" || network == "tcp" {
-			// dont assume j.IPversion  is sanitized
-			if j.IPversion == 6 || j.IPversion == 4 {
-				network += strconv.Itoa(j.IPversion)
-			}
-			// else should fatal ?
+			network = utils.AddIPVersionToNetwork(network, ipVersion, GlobalOptions.IPVersion)
 		}
+		j.Logger().Trace().Msgf("DialContext %s %s %d ", network, address, j.IPVersion)
 		return dialer.DialContext(ctx, network, address)
 	}
 
@@ -549,9 +553,17 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 	refdate = time.Now()
 	// resp, err := client.Transport.RoundTrip(req)
 	wm.InitNew()
-
+	done := make(chan any)
+	if j.Command == "PUT" || j.Command == "POST" {
+		wm.StartTicker(done)
+	}
 	utils.PrintMemUsage(j.Logger(), "before Do")
 	resp, err := j.client.Do(j.req)
+
+	if j.Command == "PUT" || j.Command == "POST" {
+		close(done)
+	}
+
 	utils.PrintMemUsage(j.Logger(), "after Do")
 	j.tr.end = time.Now()
 
@@ -645,7 +657,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 						resp.Body.Close()
 					}
 				}()
-
+				wm.StartTicker(done)
 				wm.ContentReadSize = resp.ContentLength
 
 				// this is where the GET transfert happens.
@@ -655,7 +667,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 				//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 				//todo: invesstigate why the following gives results too high
 				totalread, err := io.CopyBuffer(wm, resp.Body, BigBuffer)
-
+				close(done)
 				j.Logger().Debug().Err(err).Msgf("copybuffer ended with %d totalread", totalread)
 
 				err = fixH2H3Errors(err, j.req.Method, j.Logger())

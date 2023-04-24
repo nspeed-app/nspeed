@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/google/gopacket/routing"
@@ -308,4 +309,19 @@ func IPVersion(address string) string {
 		return "IPv6"
 	}
 	return ""
+}
+
+// AddIPVersionToNetwork adds the ipVersion to network. if ipVersion is zero, globalVersion is used
+// "udp", 0, 0  -> "udp4"
+// "udp", 0, 4  -> "udp4"
+// "udp", 6, 4  -> "udp6"
+func AddIPVersionToNetwork(network string, ipVersion int, globalVersion int) string {
+	ipV := globalVersion
+	if ipVersion != 0 {
+		ipV = ipVersion
+	}
+	if ipV == 0 {
+		return network
+	}
+	return network + strconv.Itoa(ipV)
 }

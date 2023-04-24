@@ -59,6 +59,9 @@ var optLogLevels = flag.Bool("display-log-level", true, "display logging levels"
 
 var optDNSServer = flag.String("dns-server", "", "specify a dns server to use (literal ip or literal ip:port)")
 
+var optIPv4 = flag.Bool("4", false, "use IPv4 only")
+var optIPv6 = flag.Bool("6", false, "use IPv6 only")
+
 //var optHostnames utils.StringArray
 
 // Main as main
@@ -201,12 +204,41 @@ func Main() {
 		log.Logger = log.Output(consoleWriter)
 	}
 
+	// force IPv4 or IPv6
+	if *optIPv4 && *optIPv6 {
+		log.Fatal().Msg("specify IPv4 or IPv6 but not both")
+	}
 	//
 	if *optDNSServer != "" {
 		if err := utils.SetDNSServer(*optDNSServer); err != nil {
 			log.Fatal().Err(err).Msg("error setting dns server")
 		}
 	}
+
+	// cpu sampling rate
+	cpuRate := *optCPURate
+	if *optCPU {
+		if cpuRate == 0 {
+			cpuRate = time.Second
+		}
+	}
+	optIPVersion := 0
+	if *optIPv4 {
+		optIPVersion = 4
+	}
+	if *optIPv6 {
+		optIPVersion = 6
+	}
+	nspeed.GlobalOptions = nspeed.Options{
+		ProgressInterval: *optProgressRate,
+		Tick:             *optSamplingRate,
+		CPU:              cpuRate,
+		Timeout:          time.Duration(*optTimeout) * time.Second,
+		Test:             *optTest,
+		TLSSelf:          false,
+		IPVersion:        optIPVersion,
+	}
+
 	jl := nspeed.NewJoblist()
 	err := jl.AddBatch(&nspeed.Batch{
 		PreDelay:  *optPreDelay,
@@ -217,6 +249,7 @@ func Main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	// todo: nspeed.GlobalOptions is used during ParseCommands (for ipversion mainly)
 	err = nspeed.ParseCommands(flag.Args(), jl, nil, false)
 	if err != nil {
 		fmt.Println(err)
@@ -241,22 +274,6 @@ func Main() {
 	// }
 
 	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
-
-	// cpu sampling rate
-	cpuRate := *optCPURate
-	if *optCPU {
-		if cpuRate == 0 {
-			cpuRate = time.Second
-		}
-	}
-	nspeed.GlobalOptions = nspeed.Options{
-		ProgressInterval: *optProgressRate,
-		Tick:             *optSamplingRate,
-		CPU:              cpuRate,
-		Timeout:          time.Duration(*optTimeout) * time.Second,
-		Test:             *optTest,
-		TLSSelf:          false,
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

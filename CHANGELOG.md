@@ -16,6 +16,7 @@
 - **new flag**: `-json filename` to record the results to a json file. Use `-rate` to add time series.
 - **new flag**: `-dns-server address[:port]` to specify a dns server (literal ip address with optional port)
 - **new flag**: `-ungroup` show each stream result of a multi-streams command (see client below) 
+- **new falg**: `-4/-6` to use IPv4 only or IPv6 only (doesn't override these options at the command level)
 ## bench
 - new `bench` command (abbrev `b`) : allow to launch loopback tests (get/put on a localhost server). see `nspeed bench -h` for details.
 ## server

@@ -150,11 +150,12 @@ func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *JobHTTPClien
 		//fs.Usage()
 		return errors.New("specify IPv4 or IPv6 but not both")
 	}
+
 	if hf.UseIPv4 {
-		job.IPversion = 4
+		job.IPVersion = 4
 	}
 	if hf.UseIPv6 {
-		job.IPversion = 6
+		job.IPVersion = 6
 	}
 
 	if hf.UseHTTP11 && hf.UseHTTP2 ||
@@ -494,6 +495,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			fs.Usage()
 			return cmdargs, errors.New("specify IPv4 or IPv6 but not both")
 		}
+
 		if *useIPv4 {
 			host.ForceIPVersion = 4
 		}
