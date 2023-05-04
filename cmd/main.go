@@ -62,7 +62,17 @@ var optDNSServer = flag.String("dns-server", "", "specify a dns server to use (l
 var optIPv4 = flag.Bool("4", false, "use IPv4 only")
 var optIPv6 = flag.Bool("6", false, "use IPv6 only")
 
-//var optHostnames utils.StringArray
+type LineInfoHook struct{}
+
+func (h LineInfoHook) Run(e *zerolog.Event, l zerolog.Level, msg string) {
+	_, file, line, ok := runtime.Caller(3)
+	if ok {
+		//todo: remove heading path
+		e.Str("line", fmt.Sprintf("%s:%d", file, line))
+	} else {
+		e.Str("line", "nok")
+	}
+}
 
 // Main as main
 func Main() {
@@ -129,6 +139,7 @@ func Main() {
 	}
 
 	// Logging stuff
+	var logHook zerolog.Hook
 	consoleLevel := zerolog.WarnLevel
 
 	if *optVerbose {
@@ -136,9 +147,11 @@ func Main() {
 	}
 	if *optDebug {
 		consoleLevel = zerolog.DebugLevel
+		logHook = LineInfoHook{}
 	}
 	if *optTrace {
 		consoleLevel = zerolog.TraceLevel
+		logHook = LineInfoHook{}
 	}
 	zerolog.SetGlobalLevel(consoleLevel)
 
@@ -193,6 +206,7 @@ func Main() {
 	// file output, "-" = stdout or filename
 	// level is always info (for now)
 	// todo : remove 'level'
+	// todo: stderr
 	if *optLogOutput != "" {
 		f, err := utils.FileCreate(*optLogOutput)
 		if err != nil {
@@ -203,7 +217,7 @@ func Main() {
 	} else {
 		log.Logger = log.Output(consoleWriter)
 	}
-
+	log.Logger = log.Logger.Hook(logHook)
 	// force IPv4 or IPv6
 	if *optIPv4 && *optIPv6 {
 		log.Fatal().Msg("specify IPv4 or IPv6 but not both")
