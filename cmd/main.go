@@ -62,17 +62,8 @@ var optDNSServer = flag.String("dns-server", "", "specify a dns server to use (l
 var optIPv4 = flag.Bool("4", false, "use IPv4 only")
 var optIPv6 = flag.Bool("6", false, "use IPv6 only")
 
-type LineInfoHook struct{}
-
-func (h LineInfoHook) Run(e *zerolog.Event, l zerolog.Level, msg string) {
-	_, file, line, ok := runtime.Caller(3)
-	if ok {
-		//todo: remove heading path
-		e.Str("line", fmt.Sprintf("%s:%d", file, line))
-	} else {
-		e.Str("line", "nok")
-	}
-}
+// todo: automate this
+var thisFileRelToModule = "../.."
 
 // Main as main
 func Main() {
@@ -147,11 +138,11 @@ func Main() {
 	}
 	if *optDebug {
 		consoleLevel = zerolog.DebugLevel
-		logHook = LineInfoHook{}
+		logHook = nspeed.NewLineInfoHook(thisFileRelToModule)
 	}
 	if *optTrace {
 		consoleLevel = zerolog.TraceLevel
-		logHook = LineInfoHook{}
+		logHook = nspeed.NewLineInfoHook(thisFileRelToModule)
 	}
 	zerolog.SetGlobalLevel(consoleLevel)
 

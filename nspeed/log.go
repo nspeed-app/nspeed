@@ -1,7 +1,10 @@
 package nspeed
 
 import (
+	"fmt"
 	"io"
+	"path/filepath"
+	"runtime"
 
 	"github.com/rs/zerolog"
 )
@@ -47,4 +50,35 @@ func ShouldLog(l *zerolog.Logger, lvl zerolog.Level) bool {
 		return false
 	}
 	return !(lvl < l.GetLevel() || lvl < zerolog.GlobalLevel())
+}
+
+type LineInfoHook struct {
+	base string
+	skip int
+}
+
+func (h LineInfoHook) Run(e *zerolog.Event, l zerolog.Level, msg string) {
+	_, file, line, ok := runtime.Caller(h.skip)
+	if !ok {
+		return
+	}
+	relFile, err := filepath.Rel(h.base, file)
+	if err != nil {
+		relFile = file
+	}
+	e.Str("line", fmt.Sprintf("%s:%d", relFile, line))
+}
+
+func NewLineInfoHook(rel string) *LineInfoHook {
+	lih := LineInfoHook{
+		skip: 3,
+	}
+	_, file, _, ok := runtime.Caller(2)
+	if !ok {
+		return nil
+	}
+	lih.base = filepath.Join(filepath.Dir(file), rel)
+	fmt.Println("file:", file)
+	fmt.Println("base:", lih.base)
+	return &lih
 }
