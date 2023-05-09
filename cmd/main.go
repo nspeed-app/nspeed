@@ -62,7 +62,8 @@ var optDNSServer = flag.String("dns-server", "", "specify a dns server to use (l
 var optIPv4 = flag.Bool("4", false, "use IPv4 only")
 var optIPv6 = flag.Bool("6", false, "use IPv6 only")
 
-// todo: automate this
+// todo: automate this.
+// relative path of this file to go.mod
 var thisFileRelToModule = "../.."
 
 // Main as main
@@ -208,7 +209,9 @@ func Main() {
 	} else {
 		log.Logger = log.Output(consoleWriter)
 	}
-	log.Logger = log.Logger.Hook(logHook)
+	if logHook != nil {
+		log.Logger = log.Logger.Hook(logHook)
+	}
 	// force IPv4 or IPv6
 	if *optIPv4 && *optIPv6 {
 		log.Fatal().Msg("specify IPv4 or IPv6 but not both")
