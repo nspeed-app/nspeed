@@ -376,7 +376,7 @@ func (wm *Metric) PrintFinal(w io.Writer) {
 		fmt.Fprintf(w, "TotalWrite: %d ", wm.TotalWrite)
 		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
 		// fmt.Fprintf(w, "WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
-		fmt.Fprintf(w, "duration: %v ", wm.ElapsedTime.Seconds())
+		fmt.Fprintf(w, "duration: %s ", wm.ElapsedTime)
 		fmt.Fprintf(w, "command: %s", "TODO1"+wm.Target)
 		fmt.Fprintf(w, "\n")
 
