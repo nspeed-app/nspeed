@@ -6,7 +6,6 @@
 
 const autocolors = window['chartjs-plugin-autocolors'];
 
-
 var x = 1; //minutes interval
 var times = []; // time array
 var tt = 0; // start time
