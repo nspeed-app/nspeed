@@ -391,6 +391,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	method := r.URL.Query().Get("method")
 
 	if method == "old" {
+		wm.Logger.Info().Err(err).Msgf("using old method")
 		//f := w.(http.Flusher)
 		// send the buffer as many times as needed --> todo: why don't we io.copy to a wm like the client ?
 		var numChunk = numBytes / chunkSize

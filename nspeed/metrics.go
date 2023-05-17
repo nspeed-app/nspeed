@@ -661,15 +661,20 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 		return nil
 	}
 	nms := make([]NetMetricSample, len(wm.Serie))
+	var prevElapsed time.Duration
 	for i, s := range wm.Serie {
 		n := NetMetricSample{}
-		n.RXBytes = uint64(s.TotalRead)
-		n.TXBytes = uint64(s.TotalWrite)
-		n.Duration = s.ElapsedTime
+		if i == 0 {
+			n.RXBytes = uint64(s.TotalRead)
+			n.TXBytes = uint64(s.TotalWrite)
+			n.Duration = s.ElapsedTime
+			prevElapsed = s.ElapsedTime
+		}
 		if i > 0 {
 			n.RXBytes = uint64(s.TotalRead) - nms[i-1].RXBytes
 			n.TXBytes = uint64(s.TotalWrite) - nms[i-1].TXBytes
-			n.Duration = s.ElapsedTime - nms[i-1].Duration
+			n.Duration = s.ElapsedTime - prevElapsed
+			prevElapsed = s.ElapsedTime
 		}
 		nms[i] = n
 	}
@@ -813,6 +818,10 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 
 func GenerateHTMLReport(out io.Writer, wcWorkers Metrics) {
 	//todo:
+	// r, err := utils.InlineScript("", "")
+	// if err!=nil{
+
+	// }
 }
 
 // normalized metrics:

@@ -45,7 +45,7 @@ var optTest = flag.Bool("test", false, "just test arguments, do nothing")
 
 var optTLSSelf = flag.Bool("self", false, "use embed self-signed certificate")
 
-// var optHTMLReport = flag.String("html", "", "output stats in a html file (use - for stdout)")
+var optHTMLReport = flag.String("html", "", "output stats in a html file (use - for stdout)")
 var optJSONReport = flag.String("json", "", "output stats in a json file (use - for stdout)")
 var optTextReport = flag.String("text", "-", "output stats as text (use - for stdout)")
 var optUngroup = flag.Bool("ungroup", false, "show members of groups")
@@ -271,15 +271,16 @@ func Main() {
 	}
 
 	//html report: by default, add delays before & after
-	// if *optHTMLReport != "" {
-	// 	// add 1 seconds before  and 1 seconds after unless pre/post flags are set
-	// 	if *optPreDelay == 0 {
-	// 		*optPreDelay = 1 * time.Second
-	// 	}
-	// 	if *optPostDelay == 0 {
-	// 		*optPostDelay = 1 * time.Second
-	// 	}
-	// }
+	if *optHTMLReport != "" {
+		// add 1 seconds before  and 1 seconds after unless pre/post flags are set
+		// todo: dont overwrite a user defined 0 delay
+		if *optPreDelay == 0 {
+			*optPreDelay = 1 * time.Second
+		}
+		if *optPostDelay == 0 {
+			*optPostDelay = 1 * time.Second
+		}
+	}
 
 	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
 
@@ -422,13 +423,13 @@ mainloop:
 	}
 
 	// html report:
-	// if *optHTMLReport != "" {
-	// 	f, err := nspeed.FileCreate(*optHTMLReport)
-	// 	if err != nil {
-	// 		log.Fatal().Msgf("could not open html report file (%s): %v", *optHTMLReport, err)
-	// 	}
-	// 	nspeed.GenerateHTMLReport(f, wcWorkers)
-	// }
+	if *optHTMLReport != "" {
+		f, err := utils.FileCreate(*optHTMLReport)
+		if err != nil {
+			log.Fatal().Msgf("could not open html report file (%s): %v", *optHTMLReport, err)
+		}
+		nspeed.GenerateHTMLReport(f, wcWorkers)
+	}
 
 	// todo: defer this block
 	if *optMemprofile != "" {
