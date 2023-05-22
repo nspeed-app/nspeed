@@ -21,7 +21,7 @@ for (var i = 0; tt < minutes * 60; i++) {
   tt = tt + x;
 }
 var labels = times
-//console.log(times);
+console.log(times);
 
 function generateDataset(label, color) {
   var data = [];
@@ -41,6 +41,7 @@ function generateDataset(label, color) {
     data: data,
     interpolate: true
   };
+  console.log(dataset);
   return dataset;
 }
 
