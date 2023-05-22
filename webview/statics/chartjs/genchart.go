@@ -3,6 +3,7 @@ package chartjs
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"text/template"
 )
 
@@ -22,14 +23,20 @@ const (
 // template files
 const (
 	chartTmplText = `
-var {{.Name}} = new Chart(document.getElementById("{{.Name}}ID").getContext("2d"), {
-	type: "{{.Type}}",
+	<div>
+ 	 <canvas id='{{.Name}}ID'></canvas>
+	</div>
+	<script>
+ var {{.Name}} = new Chart(document.getElementById('{{.Name}}ID'), {
+	type: '{{.Type}}',
 	options: {{.Options}},
 	data: {
 	  labels: {{.Labels}},
 	  datasets: {{.Datasets}}
 	}
   });
+  </script>
+
 `
 	datasetTmplText = `
 {
@@ -91,7 +98,7 @@ func GenDataset(color, label, data string) (string, error) {
 		Color string
 		Label string
 		Data  string
-	}{color, label, data}
+	}{color, JSString(label), data}
 
 	var out bytes.Buffer
 	err := Templates[datasetTmplName].Execute(&out, dataset)
@@ -103,3 +110,11 @@ func GenDataset(color, label, data string) (string, error) {
 
 // label: array of string of time value
 // data: data of the unit (scale to formatBytes)
+
+func JSArray(vals ...string) string {
+	return "[" + strings.Join(vals, ",") + "]"
+}
+
+func JSString(s string) string {
+	return "'" + s + "'"
+}
