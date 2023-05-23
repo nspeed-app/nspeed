@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"nspeed.app/utils"
+	"nspeed.app/webview/statics/chartjs"
 )
 
 type Job interface {
@@ -662,7 +663,7 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 	}
 	nms := make([]NetMetricSample, len(wm.Serie))
 	var prevElapsed time.Duration
-	var nextDate = wm.TransfertStartTime
+	var nextTime = wm.TransfertStartTime
 	for i, s := range wm.Serie {
 		n := NetMetricSample{}
 		if i == 0 {
@@ -677,8 +678,8 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 			n.Duration = s.ElapsedTime - prevElapsed
 			prevElapsed = s.ElapsedTime
 		}
-		n.Date = nextDate
-		nextDate = n.Date.Add(s.ElapsedTime)
+		n.Time = nextTime
+		nextTime = n.Time.Add(s.ElapsedTime)
 		nms[i] = n
 	}
 	return nms
@@ -819,12 +820,33 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 	return out.String()
 }
 
-func GenerateHTMLReport(out io.Writer, wcWorkers Metrics) {
-	//todo:
-	// r, err := utils.InlineScript("", "")
-	// if err!=nil{
-
-	// }
+func GenerateHTMLReport(htmlFilename string, wcWorkers Metrics, ungroup bool) {
+	var out *utils.SmartFile
+	var err error
+	if htmlFilename != ":" {
+		out, err = utils.FileCreate(htmlFilename)
+		if err != nil {
+			log.Fatal().Msgf("could not create html file (%s): %v", htmlFilename, err)
+		}
+	}
+	json := GenerateJSONReport(&wcWorkers, ungroup)
+	html := chartjs.ChartJSON(json)
+	if out != nil {
+		html, err = utils.InlineScript(html, "")
+		if err != nil {
+			log.Fatal().Msgf("could inline html file (%s): %v", htmlFilename, err)
+		}
+		_, err = out.WriteString(html)
+		if err != nil {
+			log.Fatal().Msgf("could not write to html file (%s): %v", htmlFilename, err)
+		}
+		log.Info().Msgf("html generated to %s", htmlFilename)
+	} else {
+		err := utils.OpenHTML(html)
+		if err != nil {
+			log.Fatal().Msgf("could not open html: %v", err)
+		}
+	}
 }
 
 // normalized metrics:
@@ -891,7 +913,7 @@ type NetMetricSample struct {
 	RXBytes  uint64        `json:"rxbytes"`
 	TXBytes  uint64        `json:"txbytes"`
 	Latency  int64         `json:"latency"`
-	Date     time.Time     `json:"date"`
+	Time     time.Time     `json:"date"`
 	Duration time.Duration `json:"duration"` // in ms or ns ? - should be constant - keep?
 }
 

@@ -4,12 +4,23 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"nspeed.app/utils"
 	"nspeed.app/webview/statics/chartjs"
 )
 
-const js = "https://cdn.jsdelivr.net/npm/chart.js"
+var js = []string{
+	"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.5.1/chart.js",
+	"https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.js",
+	"https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js",
+}
+
+func addScript(src string) string {
+	return `
+ 		<script src="` + src + `"></script>
+`
+}
 
 const htmlHeader = `
 <html>
@@ -32,12 +43,20 @@ func main() {
 		log.Panic(err)
 	}
 
-	s, err := chartjs.GenChart("a", "labels", chartjs.JSArray(ds1), "")
+	optionScales := `{
+        scales: {
+            x: {
+                type: 'timeseries',
+            }
+        }
+    }`
+
+	s, err := chartjs.GenChart("a", "bar", "labels", chartjs.JSArray(ds1), optionScales)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	html := htmlHeader + "<script src=\"" + js + "\"></script>" + fromSamples(string(stdin)) + s + htmlFooter
+	html := htmlHeader + strings.Join(utils.Map(js, addScript), "\n") + fromSamples(string(stdin)) + s + htmlFooter
 	//fmt.Println(html)
 
 	utils.OpenHTML(html)
@@ -49,40 +68,10 @@ func fromSamples(json string) string {
 	 var labels = jsonfile[0].Samples.map(function(e) {
  		return e.date;
      });
-     var data = jsonfile[0].jsonarray.map(function(e) {
+     var data = jsonfile[0].Samples.map(function(e) {
   	     return e.rxbytes;
      });
 	`
 	r += "</script>"
 	return r
 }
-
-// var jsonfile = {
-// 	"jsonarray": [{
-// 	   "name": "Joe",
-// 	   "age": 12
-// 	}, {
-// 	   "name": "Tom",
-// 	   "age": 14
-// 	}]
-//  };
-
-//  var labels = jsonfile.jsonarray.map(function(e) {
-// 	return e.name;
-//  });
-//  var data = jsonfile.jsonarray.map(function(e) {
-// 	return e.age;
-//  });
-
-//  var ctx = canvas.getContext('2d');
-//  var config = {
-// 	type: 'line',
-// 	data: {
-// 	   labels: labels,
-// 	   datasets: [{
-// 		  label: 'Graph Line',
-// 		  data: data,
-// 		  backgroundColor: 'rgba(0, 119, 204, 0.3)'
-// 	   }]
-// 	}
-//  };

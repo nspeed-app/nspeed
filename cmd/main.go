@@ -424,11 +424,7 @@ mainloop:
 
 	// html report:
 	if *optHTMLReport != "" {
-		f, err := utils.FileCreate(*optHTMLReport)
-		if err != nil {
-			log.Fatal().Msgf("could not open html report file (%s): %v", *optHTMLReport, err)
-		}
-		nspeed.GenerateHTMLReport(f, wcWorkers)
+		nspeed.GenerateHTMLReport(*optHTMLReport, wcWorkers, *optUngroup)
 	}
 
 	// todo: defer this block

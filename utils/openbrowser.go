@@ -61,6 +61,7 @@ func OpenHTML(html string) error {
 	// cancel() will allow to shutdown the server
 	// ctx will allow to wait for cancel() to be called
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// serve html content and then cancel() the server
 	getRoot := func(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +84,6 @@ func OpenHTML(html string) error {
 	if err != nil {
 		return err
 	}
-	//	}()
 
 	go func() {
 		// wait for cancel() to be called
