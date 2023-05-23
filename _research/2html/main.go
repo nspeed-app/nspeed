@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"io"
 	"log"
+	"os"
 
 	"nspeed.app/utils"
 	"nspeed.app/webview/statics/chartjs"
@@ -21,23 +22,39 @@ const htmlFooter = `
 </html>`
 
 func main() {
-	ds1, err := chartjs.GenDataset("'#4DC9F6'", "# of Votes", "[12, 19, 3, 5, 2, 3]")
+
+	stdin, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		log.Panic(err)
 	}
-	ds2, err := chartjs.GenDataset("'#00a950'", "# of Non Votes", "[1, 2, 48, 2, 12, 43]")
-	if err != nil {
-		log.Panic(err)
-	}
-	s, err := chartjs.GenChart("a", "['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange']", chartjs.JSArray(ds1, ds2), "")
+	ds1, err := chartjs.GenDataset("'#4DC9F6'", "TEST", "data")
 	if err != nil {
 		log.Panic(err)
 	}
 
-	html := htmlHeader + "<script src=\"" + js + "\"></script>" + s + htmlFooter
-	fmt.Println(html)
+	s, err := chartjs.GenChart("a", "labels", chartjs.JSArray(ds1), "")
+	if err != nil {
+		log.Panic(err)
+	}
+
+	html := htmlHeader + "<script src=\"" + js + "\"></script>" + fromSamples(string(stdin)) + s + htmlFooter
+	//fmt.Println(html)
 
 	utils.OpenHTML(html)
+}
+
+func fromSamples(json string) string {
+	r := "<script> var jsonfile = " + json
+	r += `
+	 var labels = jsonfile[0].Samples.map(function(e) {
+ 		return e.date;
+     });
+     var data = jsonfile[0].jsonarray.map(function(e) {
+  	     return e.rxbytes;
+     });
+	`
+	r += "</script>"
+	return r
 }
 
 // var jsonfile = {

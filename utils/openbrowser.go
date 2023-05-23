@@ -24,11 +24,12 @@ func runCmd(prog string, stdout io.Writer, stderr io.Writer, args ...string) err
 }
 
 // OpenBrowser tried to open the url with the default web browser of the system.
+// This is non blocking and will spawn a browser.
 func OpenBrowser(url string, stdout io.Writer, stderr io.Writer) error {
 	var err error
 	switch runtime.GOOS {
 	case "linux":
-		providers := []string{"xdg-open", "x-www-browser", "www-browser"}
+		providers := []string{"xdg-open", "x-www-browser", "www-browser", "open"}
 
 		// There are multiple possible providers to open a browser on linux
 		// One of them is xdg-open, another is x-www-browser, then there's www-browser, etc.
@@ -63,27 +64,32 @@ func OpenHTML(html string) error {
 
 	// serve html content and then cancel() the server
 	getRoot := func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, html)
+		_, _ = io.WriteString(w, html)
 		cancel()
 	}
 	http.HandleFunc("/", getRoot)
 	server.Handler = http.DefaultServeMux
 
 	ln, err := net.Listen("tcp", "localhost:0")
+	defer func() {
+		_ = ln.Close()
+	}()
 	if err != nil {
 		return err
 	}
 
 	//spawn the browser
-	go func() {
-		OpenBrowser("http://"+ln.Addr().String(), nil, nil)
-	}()
+	err = OpenBrowser("http://"+ln.Addr().String(), nil, nil)
+	if err != nil {
+		return err
+	}
+	//	}()
 
 	go func() {
 		// wait for cancel() to be called
 		<-ctx.Done()
 		// kill the server,we should eventually use a timeout here
-		server.Shutdown(context.Background())
+		_ = server.Shutdown(context.Background())
 	}()
 
 	// serve and wait for error or cancel() called

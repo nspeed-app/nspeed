@@ -662,6 +662,7 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 	}
 	nms := make([]NetMetricSample, len(wm.Serie))
 	var prevElapsed time.Duration
+	var nextDate = wm.TransfertStartTime
 	for i, s := range wm.Serie {
 		n := NetMetricSample{}
 		if i == 0 {
@@ -676,6 +677,8 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 			n.Duration = s.ElapsedTime - prevElapsed
 			prevElapsed = s.ElapsedTime
 		}
+		n.Date = nextDate
+		nextDate = n.Date.Add(s.ElapsedTime)
 		nms[i] = n
 	}
 	return nms
@@ -888,6 +891,7 @@ type NetMetricSample struct {
 	RXBytes  uint64        `json:"rxbytes"`
 	TXBytes  uint64        `json:"txbytes"`
 	Latency  int64         `json:"latency"`
+	Date     time.Time     `json:"date"`
 	Duration time.Duration `json:"duration"` // in ms or ns ? - should be constant - keep?
 }
 
