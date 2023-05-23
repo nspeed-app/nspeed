@@ -290,7 +290,7 @@ func (j *APIHost) PostRun() error {
 	}
 	if j.OpenBrowser {
 		j.Logger().Warn().Msgf("opening browser at %s", url)
-		return utils.Openbrowser(url.String(), nil, nil)
+		return utils.OpenBrowser(url.String(), nil, nil)
 	}
 	return nil
 }

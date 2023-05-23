@@ -2,10 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
-	"net"
-	"net/http"
 
 	"nspeed.app/utils"
 	"nspeed.app/webview/statics/chartjs"
@@ -40,19 +37,35 @@ func main() {
 	html := htmlHeader + "<script src=\"" + js + "\"></script>" + s + htmlFooter
 	fmt.Println(html)
 
-	getRoot := func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, html)
-	}
-	http.HandleFunc("/", getRoot)
-
-	ln, err := net.Listen("tcp", "[::1]:0")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("serving at http://", ln.Addr().String())
-	go func() {
-		utils.Openbrowser("http://"+ln.Addr().String(), nil, nil)
-	}()
-	_ = http.Serve(ln, http.DefaultServeMux)
-
+	utils.OpenHTML(html)
 }
+
+// var jsonfile = {
+// 	"jsonarray": [{
+// 	   "name": "Joe",
+// 	   "age": 12
+// 	}, {
+// 	   "name": "Tom",
+// 	   "age": 14
+// 	}]
+//  };
+
+//  var labels = jsonfile.jsonarray.map(function(e) {
+// 	return e.name;
+//  });
+//  var data = jsonfile.jsonarray.map(function(e) {
+// 	return e.age;
+//  });
+
+//  var ctx = canvas.getContext('2d');
+//  var config = {
+// 	type: 'line',
+// 	data: {
+// 	   labels: labels,
+// 	   datasets: [{
+// 		  label: 'Graph Line',
+// 		  data: data,
+// 		  backgroundColor: 'rgba(0, 119, 204, 0.3)'
+// 	   }]
+// 	}
+//  };

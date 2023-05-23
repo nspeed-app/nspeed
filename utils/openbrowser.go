@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"net"
+	"net/http"
 	"os/exec"
 	"runtime"
 )
@@ -11,7 +14,7 @@ import (
 // could import this pkg but it has as stdout/stdin issue
 // a PR https://github.com/pkg/browser/pull/30 was submited
 // but never approved.
-// so we copied everything we need in a single file here
+// so we copied everything we need in this single file here
 
 func runCmd(prog string, stdout io.Writer, stderr io.Writer, args ...string) error {
 	cmd := exec.Command(prog, args...)
@@ -20,7 +23,8 @@ func runCmd(prog string, stdout io.Writer, stderr io.Writer, args ...string) err
 	return cmd.Run()
 }
 
-func Openbrowser(url string, stdout io.Writer, stderr io.Writer) error {
+// OpenBrowser tried to open the url with the default web browser of the system.
+func OpenBrowser(url string, stdout io.Writer, stderr io.Writer) error {
 	var err error
 	switch runtime.GOOS {
 	case "linux":
@@ -34,13 +38,59 @@ func Openbrowser(url string, stdout io.Writer, stderr io.Writer) error {
 				return runCmd(provider, stdout, stderr, url)
 			}
 		}
-		err = exec.Command("xdg-open", url).Start()
+		err = fmt.Errorf("no web browser/method found")
 	case "windows":
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		return runCmd("rundll32", stdout, stderr, "url.dll,FileProtocolHandler", url)
+		//err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	case "darwin":
-		err = exec.Command("open", url).Start()
+		return runCmd("open", stdout, stderr, url)
+		//err = exec.Command("open", url).Start()
 	default:
 		err = fmt.Errorf("unsupported platform")
+	}
+	return err
+}
+
+// OpenHTML  will try to open the html content with the default web browser of the system.
+// To allow full HTML/JS/CSS to work, the html content is not opened as a local file but
+// served with a one-time use web server on localhost.
+func OpenHTML(html string) error {
+	server := &http.Server{}
+
+	// cancel() will allow to shutdown the server
+	// ctx will allow to wait for cancel() to be called
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// serve html content and then cancel() the server
+	getRoot := func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, html)
+		cancel()
+	}
+	http.HandleFunc("/", getRoot)
+	server.Handler = http.DefaultServeMux
+
+	ln, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return err
+	}
+
+	//spawn the browser
+	go func() {
+		OpenBrowser("http://"+ln.Addr().String(), nil, nil)
+	}()
+
+	go func() {
+		// wait for cancel() to be called
+		<-ctx.Done()
+		// kill the server,we should eventually use a timeout here
+		server.Shutdown(context.Background())
+	}()
+
+	// serve and wait for error or cancel() called
+	err = server.Serve(ln)
+	// server.Shutdown will make server.Serve return a http.ErrServerClosed
+	if err == http.ErrServerClosed {
+		err = nil
 	}
 	return err
 }
