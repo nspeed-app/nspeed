@@ -126,6 +126,7 @@ var js = []string{
 	"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.5.1/chart.js",
 	"https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.js",
 	"https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js",
+	"./webview/statics/nspeed.js",
 }
 
 func addScript(src string) string {
@@ -177,7 +178,7 @@ func fromSamples(json string) string {
  		return e.date;
      });
      var data = jsonfile[0].Samples.map(function(e) {
-  	     return e.rxbytes;
+  	     return e.rxbytes/e.duration;
      });
 	`
 	r += "</script>"

@@ -500,20 +500,6 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 	return wm.TotalWrite, nil
 }
 
-func initSpeedReport(w *tabwriter.Writer) {
-	fmt.Fprintf(w, "Id\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\tcommand\n")
-}
-func speedReport(w *tabwriter.Writer, id string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
-	fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
-		id,
-		utils.FormatBitperSecond(totalRead, elapsedTime),
-		utils.FormatBitperSecond(totalWrite, elapsedTime),
-		elapsedTime.Seconds(),
-		utils.ByteCountDecimal(totalRead),
-		utils.ByteCountDecimal(totalWrite),
-		target))
-}
-
 // group subtotals
 type reportGroup struct {
 	ElapsedTime time.Duration
@@ -758,7 +744,6 @@ func GenerateTextReport(jl *JobList, wcWorkers Metrics, showGroup bool) (out str
 
 // generate a tabular formatted text report
 func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) string {
-	// main speed report - todo: refactor in a function
 
 	var out bytes.Buffer
 
@@ -768,7 +753,20 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 	groups := make(map[string]*reportGroup)
 
 	w := tabwriter.NewWriter(&out, 0, 2, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
-	initSpeedReport(w)
+
+	// header line
+	fmt.Fprintf(w, "Id\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\tcommand\n")
+	// use this function to add lines
+	addLine := func(w *tabwriter.Writer, id string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
+		fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
+			id,
+			utils.FormatBitperSecond(totalRead, elapsedTime),
+			utils.FormatBitperSecond(totalWrite, elapsedTime),
+			elapsedTime.Seconds(),
+			utils.ByteCountDecimal(totalRead),
+			utils.ByteCountDecimal(totalWrite),
+			target))
+	}
 
 	for _, wm := range wcWorkers {
 		if wm.Batch != batch {
@@ -803,18 +801,18 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 			}
 		}
 		if !inGroup || showGroup {
-			speedReport(w, wm.GroupID, wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Command)
+			addLine(w, wm.GroupID, wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Command)
 		}
 
 	}
 	for gid, g := range groups {
-		speedReport(w, gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, strconv.Itoa(g.Instances)+" x "+g.Command)
+		addLine(w, gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, strconv.Itoa(g.Instances)+" x "+g.Command)
 	}
 	fmt.Fprintf(w, "\t\t\t\t\t\t\n")
 	if totalRead == 0 && totalWrite == 0 {
 		fmt.Println("no metrics to report")
 	} else {
-		speedReport(w, "Average", elapsedTime, totalRead, totalWrite, "")
+		addLine(w, "Average", elapsedTime, totalRead, totalWrite, "")
 		w.Flush()
 	}
 	return out.String()
