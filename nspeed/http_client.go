@@ -20,7 +20,6 @@ import (
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/quic-go/quic-go/qlog"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
@@ -327,9 +326,9 @@ func (j *JobHTTPClient) Init() error {
 		if j.HTTPVersion == 3 {
 			quicConf := &quic.Config{}
 			if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-				quicConf.Tracer = qlog.NewTracer(utils.QLogTracer(j.Logger()))
+				quicConf.Tracer = utils.GenerateQLogTracer(j.Logger())
 			} else {
-				quicConf.Tracer = &quicTracer{wm: j.wm}
+				quicConf.Tracer = NewQuicTracer(j.wm)
 			}
 
 			// with use http3.RoundTripper but it doesnt expose its udpConn member field so we must use our own
@@ -360,7 +359,8 @@ func (j *JobHTTPClient) Init() error {
 					// use same dialer as other http version
 
 					j.Logger().Debug().Msgf("HTTP3 dialing %s -> %s", addr, udpAddr.RemoteAddr().String())
-					return quic.DialEarlyContext(ctx, udpConn, udpAddr.RemoteAddr(), addr, tlsCfg, cfg)
+					//return quic.DialEarly(ctx, udpConn, udpAddr.RemoteAddr(), addr, tlsCfg, cfg)
+					return quic.DialEarly(ctx, udpConn, udpAddr.RemoteAddr(), tlsCfg, cfg)
 				},
 			}
 		}

@@ -43,3 +43,8 @@ func (t *quicConnectionTracer) UpdatedMetrics(rttStats *logging.RTTStats, cwnd l
 	}
 	t.wm.AvgLatency = rttStats.SmoothedRTT()
 }
+
+func NewQuicTracer(wm *Metric) func(context.Context, logging.Perspective, logging.ConnectionID) logging.ConnectionTracer {
+	qt := &quicTracer{wm: wm}
+	return qt.TracerForConnection
+}

@@ -2,29 +2,32 @@ package utils
 
 import (
 	"bufio"
+	"context"
 	"fmt"
-	"io"
 	"os"
 
+	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/logging"
+	"github.com/quic-go/quic-go/qlog"
 	"github.com/rs/zerolog"
 )
 
-func QLogTracer(log *zerolog.Logger) func(logging.Perspective, []byte) io.WriteCloser {
-	perspectiveNames := [...]string{"server", "client"}
-	perspectiveName := func(p logging.Perspective) string {
-		if p != 1 && p != 2 {
-			return "unknown"
+func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) logging.ConnectionTracer {
+	QLogTracer := func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) logging.ConnectionTracer {
+		perspectiveNames := [...]string{"server", "client"}
+		perspectiveName := func(p logging.Perspective) string {
+			if p != 1 && p != 2 {
+				return "unknown"
+			}
+			return perspectiveNames[p-1]
 		}
-		return perspectiveNames[p-1]
-	}
-	return func(p logging.Perspective, connID []byte) io.WriteCloser {
 		filename := fmt.Sprintf("%s_%x.qlog", perspectiveName(p), connID)
 		f, err := os.Create(filename)
 		if err != nil {
 			log.Fatal().Err(err).Send()
 		}
 		log.Trace().Msgf("Creating qlog file %s.\n", filename)
-		return NewBufferedWriteCloser(bufio.NewWriter(f), f)
+		return qlog.NewConnectionTracer(NewBufferedWriteCloser(bufio.NewWriter(f), f), p, connID)
 	}
+	return QLogTracer
 }
