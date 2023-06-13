@@ -270,18 +270,6 @@ func Main() {
 		return
 	}
 
-	//html report: by default, add delays before & after
-	if *optHTMLReport != "" {
-		// add 1 seconds before  and 1 seconds after unless pre/post flags are set
-		// todo: dont overwrite a user defined 0 delay
-		if *optPreDelay == 0 {
-			*optPreDelay = 1 * time.Second
-		}
-		if *optPostDelay == 0 {
-			*optPostDelay = 1 * time.Second
-		}
-	}
-
 	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
 
 	ctx, cancel := context.WithCancel(context.Background())

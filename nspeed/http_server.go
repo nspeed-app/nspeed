@@ -785,7 +785,7 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 // Serve accepts incoming connections for this server.
 func (j *JobHTTPServer) Serve() error {
 	err := j.serve()
-	if err == http.ErrServerClosed {
+	if err == http.ErrServerClosed { //|| err == quic.ErrServerClosed {
 		err = nil
 	}
 	return err

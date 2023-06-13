@@ -331,12 +331,13 @@ func (j *JobHTTPClient) Init() error {
 				quicConf.Tracer = NewQuicTracer(j.wm)
 			}
 
-			// with use http3.RoundTripper but it doesnt expose its udpConn member field so we must use our own
-			var udpConn *net.UDPConn
+			// with use http3.RoundTripper but it doesnt expose its qTransport member field so we must use our own
+			var qTransport *quic.Transport
 			defer func() {
-				if udpConn != nil {
-					fmt.Println("closing local udp conn")
-					udpConn.Close()
+				if qTransport != nil {
+					fmt.Println("closing local quic transport")
+					qTransport.Close()
+					qTransport = nil
 				}
 			}()
 
@@ -349,18 +350,18 @@ func (j *JobHTTPClient) Init() error {
 					if err != nil {
 						return nil, err
 					}
-					if udpConn == nil {
+					if qTransport == nil {
 						// check for Zone on IPv6 link-local for instance, some OS might need the Zone too
-						udpConn, err = net.ListenUDP("udp", nil)
+						udpConn, err := net.ListenUDP("udp", nil)
 						if err != nil {
 							return nil, err
 						}
+						qTransport = &quic.Transport{Conn: udpConn}
 					}
 					// use same dialer as other http version
 
 					j.Logger().Debug().Msgf("HTTP3 dialing %s -> %s", addr, udpAddr.RemoteAddr().String())
-					//return quic.DialEarly(ctx, udpConn, udpAddr.RemoteAddr(), addr, tlsCfg, cfg)
-					return quic.DialEarly(ctx, udpConn, udpAddr.RemoteAddr(), tlsCfg, cfg)
+					return qTransport.DialEarly(ctx, udpAddr.RemoteAddr(), tlsCfg, cfg)
 				},
 			}
 		}

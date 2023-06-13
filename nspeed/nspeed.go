@@ -154,9 +154,13 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 			log.Warn().Msgf("running jobs of '%s' (%d)...", jl.Batches[batch].Name, batch)
 		}
 
+		if slnj <= 0 {
+			log.Warn().Msgf("no SL jobs for batch %d", batch)
+			wgsl.Done()
+		}
 	batchloop:
 		for {
-			log.Trace().Msgf("mainloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
+			log.Trace().Msgf("batchloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
 			select {
 			case <-ctx.Done():
 				log.Debug().Msgf("parent cancelled us")
