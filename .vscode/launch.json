@@ -9,8 +9,8 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${fileDirname}",
-            "args": ["-webstats", "api"]
+            "program": "cmd/nspeed/main.go",
+            "args": ["get", "-http3","https://[::1]:7777/1"]
         }
     ]
 }
