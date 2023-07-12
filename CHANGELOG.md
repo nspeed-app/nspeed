@@ -1,3 +1,9 @@
+# v0.11.0
+- partial source release :
+    - module path is nspeed.app/nspeed
+    - only the utils package is released
+- version to semver format for Go import to work properly
+
 # v0.10
 ## general
 - experimental support of HTTP/3 using quic-go ( see HTTP/3 section )
