@@ -58,3 +58,6 @@ https://ui.perfetto.dev/
 webrtc:
 https://github.com/webrtc/samples/tree/gh-pages/src/content/datachannel/datatransfer
 from https://webrtc.github.io/samples/
+
+find http.Error with no return (using ripgreg: https://github.com/BurntSushi/ripgrep)
+rg --type=go --sort=path 'http\.Error\(' -A1

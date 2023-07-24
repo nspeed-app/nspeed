@@ -11,6 +11,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     - post
     - server
     - api
+    - bench
     - ciphers
 
     The ciphers command can not be combined with others and can only be called once. 
@@ -22,6 +23,7 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
         nspeed get [options] url 
         nspeed put [options] url size
         nspeed post [options] url size
+        nspeed bench benchmark[,benchmark]
     infinite:
         nspeed server [options]
         nspeed api [options]
@@ -101,29 +103,33 @@ On Unix systems make the file executable with: `chmod +x nspeed`
 
 Source code with be released with v1.0
 
-## What's next?
+## Features roadmap 
 - [x] web UI (local & remote) - partially implemented
 - [x] remote agent
 - [ ] P2P (WebRTC)
-- [x] QUIC & HTTP/3 (preview - depends on https://github.com/lucas-clemente/quic-go )
-- [ ] formatted metrics (might be OpenTelemetry)
+- [x] QUIC & HTTP/3 (unstable - depends on https://github.com/quic-go/quic-go - will use official Go implementation when available)
+- [x] formatted metrics (json)
 - [ ] network & hardware information (routes, pci bandwidth, NIC info, errors, etc)
 - [ ] gateway/router info & crosstalk information if available (ARCEP box API may be)
 
 ## Acknowledgement
 - All the authors of dependencies used (see go.mod)
 - Vivien Guéant & everyone at [lafibre.info](https://lafibre.info) for spawning the ideas and their feedback and testing.
-- Vivien Guéant & [L'ARCEP][arcep] for the ['2020 Open Internet' publication][rapport]
+- Vivien Guéant & [L'ARCEP][arcep] for the [2020 edition of 'Open Internet' publication][rapport]
 
-- Artyom Pervukhin ( https://github.com/artyom ) for hints
+- The [Go](https://go.dev/) team
+- The [quic-go](https://github.com/quic-go/quic-go) team
+
+- [Artyom Pervukhin](https://github.com/artyom) for hints
 - Francesc Campoy for the [JustForFunc series](https://www.youtube.com/c/JustForFunc/videos)
 - Joe Shaw for [Abusing go:linkname to customize TLS 1.3 cipher suites](https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/)
 
 - [Apache Echarts](https://echarts.apache.org/en/index.html)
 - [Chart.js](https://www.chartjs.org/)
 
+
 [arcep]: https://arcep.fr/
-[rapport]: https://en.arcep.fr/news/press-releases/view/n/internet-ouvert.html
+[rapport]: https://en.arcep.fr/news/press-releases/view/n/internet-ouvert-3.html
 
 ## Support or Contact
 

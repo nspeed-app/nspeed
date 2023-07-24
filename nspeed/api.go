@@ -272,6 +272,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Error(w, "unknown API command", http.StatusNotFound)
+	return
 }
 
 // PostRun is called when the endpoint server is running
