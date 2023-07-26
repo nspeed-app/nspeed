@@ -300,6 +300,7 @@ func (j *APIHost) PostRun() error {
 // todo: merge server and api commands ?
 func HTTPAPIParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
+	fs.SetOutput(output)
 	host := NewHostParameters()
 	j := APIHost{Parameters: host}
 

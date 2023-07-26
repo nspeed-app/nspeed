@@ -106,8 +106,7 @@ func preflight(h http.Handler) http.Handler {
 func HTTPClientParseGet(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	j := JobHTTPClient{JobData: JobData{jobList: jl}}
 	j.Command = "GET"
-	fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j)
-	fs.SetOutput(output)
+	fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j, output)
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
 		fmt.Fprintf(fs.Output(), "  %s [options] [-url] url\n", getCommand)
@@ -152,7 +151,7 @@ func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, outpu
 	if command == postCommand {
 		j.Command = "POST"
 	}
-	fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j)
+	fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j, output)
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "Usage of %s: ", command)
 		fmt.Fprintf(fs.Output(), "  %s [options] [-url] target [-size] size\n", command)
@@ -229,6 +228,7 @@ func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, outpu
 }
 func HTTPServerParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
+	fs.SetOutput(output)
 	host := NewHostParameters()
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "Usage of %s: ", serveCommand)
@@ -317,8 +317,10 @@ func HTTPServerParse(command string, cmdargs []string, jl *JobList, output io.Wr
 }
 
 // common GET/PUT flags
-func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *JobHTTPClient) (*flag.FlagSet, *httpFlags) {
+func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *JobHTTPClient, output io.Writer) (*flag.FlagSet, *httpFlags) {
 	fs := flag.NewFlagSet(command, errorHandling)
+	fs.SetOutput(output)
+
 	fs.IntVar(&job.Repeat, "n", 1, "number of times to process an item")
 	fs.StringVar(&job.Host, "a", "", "specific local address to use")
 	fs.BoolVar(&job.SkipTLSCheck, "k", false, "skip certificates validation")
