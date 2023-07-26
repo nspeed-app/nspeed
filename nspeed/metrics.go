@@ -46,6 +46,7 @@ type JobData struct {
 	id     string
 	group  string
 	batch  int
+	jobList          *JobList
 	logger *zerolog.Logger
 }
 

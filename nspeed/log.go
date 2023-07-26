@@ -57,7 +57,7 @@ type LineInfoHook struct {
 	skip int
 }
 
-func (h LineInfoHook) Run(e *zerolog.Event, l zerolog.Level, msg string) {
+func (h LineInfoHook) Run(e *zerolog.Event, _ zerolog.Level, _ string) {
 	_, file, line, ok := runtime.Caller(h.skip)
 	if !ok {
 		return

@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"runtime"
@@ -272,7 +274,6 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Error(w, "unknown API command", http.StatusNotFound)
-	return
 }
 
 // PostRun is called when the endpoint server is running
@@ -294,4 +295,61 @@ func (j *APIHost) PostRun() error {
 		return utils.OpenBrowser(url.String(), nil, nil)
 	}
 	return nil
+}
+
+// todo: merge server and api commands ?
+func HTTPAPIParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
+	fs := flag.NewFlagSet(command, flag.ContinueOnError)
+	host := NewHostParameters()
+	j := APIHost{Parameters: host}
+
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "Usage of %s: ", apiCommand)
+		fmt.Fprintf(fs.Output(), "  %s [options]\n", apiCommand)
+		fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
+		fs.PrintDefaults()
+		fmt.Fprintf(fs.Output(), "\n")
+	}
+
+	fs.StringVar(&host.Host, "a", "localhost", "Hostname or ip address to listen (use \"\" for all interfaces/all addresses)")
+	//flag.Lookup("address").NoOptDefVal = ""
+	useIPv4 := fs.Bool("4", false, "use IPv4 only")
+	useIPv6 := fs.Bool("6", false, "use IPv6 only")
+	fs.IntVar(&host.Port, "p", 0, "Port number to listen on")
+	fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
+	fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
+	fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
+	fs.BoolVar(&j.WebStats, "stats", false, "enable web stats at /rt url")
+	fs.BoolVar(&j.WebStatsOnly, "statsonly", false, "enable web stats only (implies -stats)")
+	fs.BoolVar(&j.WebStatsDebug, "statsdebug", false, "enable web stats debug (GO specifics info, implies -stats)")
+	fs.BoolVar(&j.OpenBrowser, "browse", false, "open browser (implies -stats) - work for localhost only for now (wip)")
+	interfaces := fs.String("statsinterfaces", "", "network interfaces to include (comma separated - default : all - implies -stats)")
+
+	if err := fs.Parse(cmdargs); err != nil {
+		return cmdargs, err
+	}
+
+	if j.WebStatsOnly || j.WebStatsDebug || j.OpenBrowser || *interfaces != "" {
+		j.WebStats = true
+	}
+
+	if *interfaces != "" {
+		j.WebStatsInterface = strings.Split(*interfaces, ",")
+	}
+	// force IPv4 or IPv6
+	if *useIPv4 && *useIPv6 {
+		fs.Usage()
+		return cmdargs, errors.New("specify IPv4 or IPv6 but not both")
+	}
+
+	if *useIPv4 {
+		host.ForceIPVersion = 4
+	}
+	if *useIPv6 {
+		host.ForceIPVersion = 6
+	}
+
+	args := fs.Args()
+	err := jl.AddJobs(&j)
+	return args, err
 }

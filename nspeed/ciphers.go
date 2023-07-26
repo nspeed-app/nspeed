@@ -6,7 +6,10 @@ package nspeed
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"net"
 	"runtime"
 	"sync"
@@ -245,4 +248,33 @@ func LogCipher(host, port, tlsVersion string, ciphers []uint16, log *zerolog.Log
 		log.Info().Msgf("%s doesn't support %s", finalTarget, tlsVersion)
 		fmt.Printf("%s doesn't support %s\n", finalTarget, tlsVersion)
 	}
+}
+
+func CiphersParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
+	fs := flag.NewFlagSet(command, flag.ContinueOnError)
+	j := JobCiphers{}
+
+	fs.UintVar(&j.Delay, "w", 0, "delay in seconds to wait before starting the command")
+
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), "Usage of %s: ", ciphersCommand)
+		fmt.Fprintf(fs.Output(), "  %s hostname[:port]\n", ciphersCommand)
+		fmt.Fprintf(fs.Output(), "argument is a hostname or an ip address with an optionnal port\n")
+		fmt.Fprintf(fs.Output(), "if no port number is specified, 443 will be used\n")
+		fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
+		fs.PrintDefaults()
+		fmt.Fprintf(fs.Output(), "\n")
+	}
+	if err := fs.Parse(cmdargs); err != nil {
+		return cmdargs, err
+	}
+	args := fs.Args()
+	if len(args) < 1 {
+		fs.Usage()
+		return args, errors.New("missing target")
+	}
+	j.Target = args[0]
+	args = args[1:]
+	err := jl.AddJobs(&j)
+	return args, err
 }

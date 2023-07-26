@@ -68,7 +68,6 @@ type JobHTTPClient struct {
 	Delay            time.Duration
 	HTTPVersion      int
 	H2C              bool
-	jobList          *JobList
 	// private
 	client      *http.Client
 	req         *http.Request
