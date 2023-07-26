@@ -175,7 +175,7 @@ func (j *JobHTTPClient) Init() error {
 			GroupID: j.GroupID(),
 			Command: j.CommandString(),
 		},
-		Logger: *j.Logger(),
+		Logger: j.Logger(),
 		Tick:   GlobalOptions.Tick,
 	}
 

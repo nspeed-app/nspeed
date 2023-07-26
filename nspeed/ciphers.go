@@ -190,7 +190,14 @@ func (j *JobCiphers) Init() error {
 // print the ciphers list of hostname (dial address)
 func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup) (*Metric, error) {
 
-	defer wg.Done()
+	wm := &Metric{}
+	wm.Logger = j.logger
+
+	defer func() {
+		wm.Done = true
+		wg.Done()
+	}()
+
 	if j.Delay > 0 {
 		j.Logger().Debug().Uint("delay", j.Delay).Msg("waiting")
 		time.Sleep(time.Duration(j.Delay) * time.Second)
@@ -202,18 +209,19 @@ func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup) (*Metric, error)
 
 	range12, err := supportedTLS12Ciphers(j.host, j.port, j.Timeout)
 	if err != nil {
-		return nil, err
+		wm.Error = err
+		return wm, err
 	}
 	LogCipher(j.host, j.port, utils.TLSVersionFriendlyName(tls.VersionTLS12), range12, j.Logger())
 
 	range13, err := supportedTLS13Ciphers(j.host, j.port, j.Timeout)
 	if err != nil {
-		return nil, err
+		wm.Error = err
+		return wm, err
 	}
 	LogCipher(j.host, j.port, utils.TLSVersionFriendlyName(tls.VersionTLS13), range13, j.Logger())
 
-	// this command has no metric result
-	return nil, nil
+	return wm, nil
 }
 
 func (j *JobCiphers) GetTarget() string {

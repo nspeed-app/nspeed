@@ -311,7 +311,7 @@ func Main() {
 				if !wm.Done {
 					rc++
 					if consoleLevel == zerolog.TraceLevel {
-						wm.LogProgress(&wm.Logger)
+						wm.LogProgress(wm.Logger)
 					}
 				}
 			}

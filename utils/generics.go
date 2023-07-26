@@ -52,3 +52,9 @@ func IndexOf[T comparable](ss []T, s T) (idx int) {
 	}
 	return -1
 }
+
+// Prt returns the address of its argument.
+// This, for instance, allows to return the address of the result of a function
+func Ptr[T any](x T) *T {
+	return &x
+}

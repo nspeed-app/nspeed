@@ -195,7 +195,7 @@ type MetricsData struct {
 // & check openmetrics suff
 type Metric struct {
 	MetricsData
-	Logger     zerolog.Logger
+	Logger     *zerolog.Logger
 	mutex      sync.Mutex
 	Valid      bool
 	Protocol   string

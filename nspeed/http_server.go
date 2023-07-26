@@ -369,10 +369,10 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		Protocol:   r.Proto,
 		Cipher:     TLSCipherSuite(r.TLS),
 		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
-		Logger: (*j.Logger()).With().
+		Logger: utils.Ptr(j.Logger().With().
 			Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
 			Str("x-request-guid", guid).
-			Logger(),
+			Logger()),
 	}
 
 	// handle rate parameter
@@ -526,7 +526,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 		Protocol:   r.Proto,
 		Cipher:     TLSCipherSuite(r.TLS),
 		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
-		Logger:     j.Logger().With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger(),
+		Logger:     utils.Ptr(j.Logger().With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger()),
 	}
 
 	// handle rate parameter
@@ -577,7 +577,7 @@ func (j *JobHTTPServer) Init() error {
 			ID:      j.ID(),
 			GroupID: j.GroupID(),
 		},
-		Logger: *j.Logger(),
+		Logger: j.Logger(),
 		//Tick:       opt.Tick,
 	}
 

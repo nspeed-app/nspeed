@@ -271,7 +271,6 @@ func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test b
 				wm, err := j.Run(ctx, wg)
 				if err != nil {
 					log.Error().Msgf("error '%s' for '%s'", err, j.GetTarget())
-					return
 				}
 				j.Logger().Info().Msgf("sending result")
 				results <- wm

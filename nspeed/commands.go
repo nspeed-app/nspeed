@@ -49,7 +49,7 @@ var Commands = map[string]Command{
 	putCommand:     {putCommand, 1, true, HTTPClientParsePutPost},
 	postCommand:    {postCommand, 1, true, HTTPClientParsePutPost},
 	serveCommand:   {serveCommand, 1, true, HTTPServerParse},
-	ciphersCommand: {ciphersCommand, 0, false, nil},
+	ciphersCommand: {ciphersCommand, 0, false, CiphersParse},
 	// latencyCommand:    {latencyCommand, 1, true},
 	// tracerouteCommand: {tracerouteCommand, 2, true},
 	apiCommand:       {apiCommand, 1, false, HTTPAPIParse},
