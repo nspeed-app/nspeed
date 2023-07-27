@@ -180,7 +180,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 				message <- wcWorkers
 			case wm := <-results:
 				// test for wm==nil ?
-				wm.Logger.Debug().Msgf("got a result for job %s batch %d (err=%s)", wm.ID, batch, wm.Error)
+				wm.Logger().Debug().Msgf("got a result for job %s batch %d (err=%s)", wm.ID, batch, wm.Error)
 				wm.Batch = batch
 				wcWorkers = append(wcWorkers, wm)
 				rc--
@@ -190,10 +190,10 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 					wgsl.Done()
 				}
 				if wm.Done {
-					wm.Logger.Info().Msgf("job %s ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.ID, wm.Expired, runtime.NumGoroutine(), rc)
+					wm.Logger().Info().Msgf("job %s ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.ID, wm.Expired, runtime.NumGoroutine(), rc)
 				}
 				if rc <= 0 {
-					wm.Logger.Info().Msgf("no more jobs - exiting")
+					wm.Logger().Info().Msgf("no more jobs - exiting")
 					break batchloop
 				}
 			case <-cWaitgroupSLEnded:
@@ -217,7 +217,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	for len(wcWorkers) < nJobs {
 		wm := <-results
 		if wm != nil {
-			wm.Logger.Info().Msgf("draining result")
+			wm.Logger().Info().Msgf("draining result")
 			wcWorkers = append(wcWorkers, wm)
 		}
 	}

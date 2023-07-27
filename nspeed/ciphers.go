@@ -191,7 +191,7 @@ func (j *JobCiphers) Init() error {
 func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup) (*Metric, error) {
 
 	wm := &Metric{}
-	wm.Logger = j.logger
+	wm.SetLogger(j.logger)
 
 	defer func() {
 		wm.Done = true

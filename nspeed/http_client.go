@@ -175,9 +175,9 @@ func (j *JobHTTPClient) Init() error {
 			GroupID: j.GroupID(),
 			Command: j.CommandString(),
 		},
-		Logger: j.Logger(),
-		Tick:   GlobalOptions.Tick,
+		Tick: GlobalOptions.Tick,
 	}
+	j.wm.SetLogger(j.Logger())
 
 	// prepend https scheme if no scheme
 	if !strings.Contains(j.Target, "://") {
@@ -445,14 +445,14 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.start = time.Now()
-			wm.Logger.Trace().Msgf("ClientTrace-DNSStart: %v", j.tr.start.Sub(refdate))
+			wm.Logger().Trace().Msgf("ClientTrace-DNSStart: %v", j.tr.start.Sub(refdate))
 		},
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.dnsDone = time.Now()
 			j.tr.DNSInfo = dnsInfo
-			wm.Logger.Trace().Msgf("ClientTrace-DNSDone: %v", j.tr.dnsDone.Sub(refdate))
+			wm.Logger().Trace().Msgf("ClientTrace-DNSDone: %v", j.tr.dnsDone.Sub(refdate))
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
 			wm.mutex.Lock()
@@ -460,22 +460,22 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 			j.tr.gotConn = time.Now()
 			j.tr.ConnInfo = connInfo
 			j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(j.GetDestination())
-			wm.Logger.Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
-			wm.Logger.Debug().Msgf("GotConn - interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
+			wm.Logger().Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
+			wm.Logger().Debug().Msgf("GotConn - interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
 		},
 		GotFirstResponseByte: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.responseStart = time.Now()
 			wm.FirstResponseByte = j.tr.responseStart // todo: does this belong here ?
-			wm.Logger.Trace().Msgf("ClientTrace-GotFirstResponseByte: %v", j.tr.responseStart.Sub(refdate))
+			wm.Logger().Trace().Msgf("ClientTrace-GotFirstResponseByte: %v", j.tr.responseStart.Sub(refdate))
 		},
 
 		TLSHandshakeStart: func() {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.tlsStart = time.Now()
-			wm.Logger.Trace().Msgf("ClientTrace-TLSHandshakeStart: %v", j.tr.tlsStart.Sub(refdate))
+			wm.Logger().Trace().Msgf("ClientTrace-TLSHandshakeStart: %v", j.tr.tlsStart.Sub(refdate))
 		},
 
 		TLSHandshakeDone: func(t tls.ConnectionState, err error) {
@@ -486,7 +486,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 				j.tr.tlsDone = time.Now()
 				j.tr.TLSDone = true
 				j.tr.TLS = t
-				wm.Logger.Trace().Msgf("ClientTrace-TLSHandshakeDone: %v (protocol = %s)", j.tr.tlsDone.Sub(refdate), t.NegotiatedProtocol)
+				wm.Logger().Trace().Msgf("ClientTrace-TLSHandshakeDone: %v (protocol = %s)", j.tr.tlsDone.Sub(refdate), t.NegotiatedProtocol)
 			} else {
 				j.tr.tls = false
 				//fmt.Printf("tls: %+v \n", err)
@@ -501,14 +501,14 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 				j.tr.start = j.tr.connectStart
 				j.tr.dnsDone = j.tr.start
 			}
-			wm.Logger.Trace().Msgf("ClientTrace-onnectStart: %v", time.Since(refdate))
+			wm.Logger().Trace().Msgf("ClientTrace-onnectStart: %v", time.Since(refdate))
 		},
 
 		ConnectDone: func(net, addr string, err error) {
 			wm.mutex.Lock()
 			defer wm.mutex.Unlock()
 			j.tr.connectDone = time.Now()
-			wm.Logger.Trace().Msgf("ClientTrace-ConnectDone: %v", j.tr.connectDone.Sub(refdate))
+			wm.Logger().Trace().Msgf("ClientTrace-ConnectDone: %v", j.tr.connectDone.Sub(refdate))
 		},
 
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
@@ -528,7 +528,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 			j.Logger().Trace().Msgf("ClientTrace-Wait100Continue")
 		},
 		WroteRequest: func(wri httptrace.WroteRequestInfo) {
-			j.wm.Logger.Trace().Err(wri.Err).Msgf("ClientTrace-WroteRequest")
+			j.wm.Logger().Trace().Err(wri.Err).Msgf("ClientTrace-WroteRequest")
 			// todo: can we catch stuff here ?!
 		},
 	}

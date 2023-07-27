@@ -369,16 +369,16 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		Protocol:   r.Proto,
 		Cipher:     TLSCipherSuite(r.TLS),
 		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
-		Logger: utils.Ptr(j.Logger().With().
-			Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
-			Str("x-request-guid", guid).
-			Logger()),
 	}
+	wm.SetLogger(utils.Ptr(j.Logger().With().
+		Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
+		Str("x-request-guid", guid).
+		Logger()))
 
 	// handle rate parameter
 	done, err := j.ParseRate(w, r, &wm)
 	if err != nil {
-		wm.Logger.Error().Err(err).Msgf("Upload: bad rate value")
+		wm.Logger().Error().Err(err).Msgf("Upload: bad rate value")
 		http.Error(w, "bad rate parameter", http.StatusBadRequest)
 		return
 	}
@@ -390,7 +390,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	method := r.URL.Query().Get("method")
 
 	if method == "old" {
-		wm.Logger.Info().Err(err).Msgf("using old method")
+		wm.Logger().Info().Err(err).Msgf("using old method")
 		//f := w.(http.Flusher)
 		// send the buffer as many times as needed --> todo: why don't we io.copy to a wm like the client ?
 		var numChunk = numBytes / chunkSize
@@ -422,9 +422,9 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	} else {
 		rc := http.NewResponseController(w)
 		err := rc.SetWriteDeadline(time.Now().Add(j.Parameters.MaxDuration))
-		wm.Logger.Info().Msgf("setting write deadline of %s\n", j.Parameters.MaxDuration)
+		wm.Logger().Info().Msgf("setting write deadline of %s\n", j.Parameters.MaxDuration)
 		if err != nil {
-			wm.Logger.Info().Err(err).Msgf("cant set deadline")
+			wm.Logger().Info().Err(err).Msgf("cant set deadline")
 		}
 
 		// var src io.Reader = &wm
@@ -455,7 +455,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		err := TTLGUIDCache.Set(guid, &wm, TTLGuidTimeout)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("cant set ttl cache : %s", err), http.StatusBadRequest)
-			wm.Logger.Error().Err(err).Msg("cant set ttl cache")
+			wm.Logger().Error().Err(err).Msg("cant set ttl cache")
 			return
 		}
 	}
@@ -472,7 +472,7 @@ func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, guid string) {
 	err := j.SendMetric(w, wm)
 	_ = TTLGUIDCache.Delete(guid)
 	if err != nil {
-		wm.Logger.Error().Err(err).Msgf("Upload: error writing result")
+		wm.Logger().Error().Err(err).Msgf("Upload: error writing result")
 		return
 	}
 }
@@ -483,7 +483,7 @@ func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *Metric) error {
 	if err != nil {
 		_, err = fmt.Fprintf(w, "error formating metrics: %v", err)
 		if err != nil {
-			wm.Logger.Error().Err(err).Msgf("Upload: error sending reply")
+			wm.Logger().Error().Err(err).Msgf("Upload: error sending reply")
 			return err
 		}
 		return err
@@ -526,22 +526,22 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 		Protocol:   r.Proto,
 		Cipher:     TLSCipherSuite(r.TLS),
 		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
-		Logger:     utils.Ptr(j.Logger().With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger()),
 	}
+	wm.SetLogger(utils.Ptr(j.Logger().With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger()))
 
 	// handle rate parameter
 	done, err := j.ParseRate(w, r, wm)
 	if err != nil {
-		wm.Logger.Error().Err(err).Msgf("Upload: bad rate value")
+		wm.Logger().Error().Err(err).Msgf("Upload: bad rate value")
 		return
 	}
 
 	//
 	rc := http.NewResponseController(w)
 	err = rc.SetReadDeadline(time.Now().Add(j.Parameters.MaxDuration))
-	wm.Logger.Info().Msgf("setting read deadline of %s\n", j.Parameters.MaxDuration)
+	wm.Logger().Info().Msgf("setting read deadline of %s\n", j.Parameters.MaxDuration)
 	if err != nil {
-		wm.Logger.Info().Err(err).Msgf("cant set read deadline")
+		wm.Logger().Info().Err(err).Msgf("cant set read deadline")
 	}
 
 	// do the upload
@@ -560,7 +560,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	err = j.SendMetric(w, wm)
 
 	if err != nil {
-		wm.Logger.Error().Err(err).Msgf("Upload: error writing result")
+		wm.Logger().Error().Err(err).Msgf("Upload: error writing result")
 		return
 	}
 }
@@ -577,9 +577,9 @@ func (j *JobHTTPServer) Init() error {
 			ID:      j.ID(),
 			GroupID: j.GroupID(),
 		},
-		Logger: j.Logger(),
 		//Tick:       opt.Tick,
 	}
+	j.wm.SetLogger(j.Logger())
 
 	j.TotalRequests = 0 // just in case we reuse
 

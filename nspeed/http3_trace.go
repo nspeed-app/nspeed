@@ -26,7 +26,7 @@ type quicConnectionTracer struct {
 }
 
 func (t *quicConnectionTracer) StartedConnection(local, remote net.Addr, srcConnID, destConnID logging.ConnectionID) {
-	t.wm.Logger.Info().Msgf("QUIC: connected to %s from %s (ids=%s-%s)", remote, local, srcConnID, destConnID)
+	t.wm.Logger().Info().Msgf("QUIC: connected to %s from %s (ids=%s-%s)", remote, local, srcConnID, destConnID)
 	if t.wm == nil {
 		return
 	}
@@ -37,7 +37,7 @@ func (t *quicConnectionTracer) StartedConnection(local, remote net.Addr, srcConn
 
 func (t *quicConnectionTracer) UpdatedMetrics(rttStats *logging.RTTStats, cwnd logging.ByteCount, bytesInFlight logging.ByteCount, packetsInFlight int) {
 	// Trace might not occurs here but in qlog
-	t.wm.Logger.Trace().Msgf("QUIC: rtt = %s - window=%d bif=%d pif=%d", rttStats.LatestRTT(), cwnd, bytesInFlight, packetsInFlight)
+	t.wm.Logger().Trace().Msgf("QUIC: rtt = %s - window=%d bif=%d pif=%d", rttStats.LatestRTT(), cwnd, bytesInFlight, packetsInFlight)
 	if t.wm == nil {
 		return
 	}
