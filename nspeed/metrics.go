@@ -637,6 +637,8 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 			target))
 	}
 
+	hasGroup := false
+	lines := 0
 	for _, wm := range wcWorkers {
 		if wm.Batch != batch {
 			continue
@@ -656,6 +658,7 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 		}
 		if wm.GroupID != wm.ID {
 			inGroup = true
+			hasGroup = true
 			g, ok := groups[wm.GroupID]
 			if !ok {
 				g = &reportGroup{}
@@ -671,19 +674,24 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 		}
 		if !inGroup || showGroup {
 			addLine(w, wm.GroupID, wm.ElapsedTime, wm.TotalRead, wm.TotalWrite, wm.Command)
+			lines++
 		}
-
+	}
+	if showGroup && hasGroup {
+		fmt.Fprintf(w, "Groups:\t\t\t\t\t\t\n")
 	}
 	for gid, g := range groups {
 		addLine(w, gid, g.ElapsedTime, g.TotalRead, g.TotalWrite, strconv.Itoa(g.Instances)+" x "+g.Command)
+		lines++
 	}
-	fmt.Fprintf(w, "\t\t\t\t\t\t\n")
+
 	if totalRead == 0 && totalWrite == 0 {
 		fmt.Println("no metrics to report")
-	} else {
+	} else if lines > 1 {
+		fmt.Fprintf(w, "\t\t\t\t\t\t\n")
 		addLine(w, "Average", elapsedTime, totalRead, totalWrite, "")
-		w.Flush()
 	}
+	w.Flush()
 	return out.String()
 }
 
