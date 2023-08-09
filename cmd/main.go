@@ -31,8 +31,8 @@ var optTrace = flag.Bool("trace", false, "maximum debug and tracing informations
 
 var optProgressRate = flag.Duration("tick", 1*time.Second, "display progress rate in duration (used for -debug, -trace and webstats")
 var optSamplingRate = flag.Duration("rate", 0, "data sampling rate in duration (used for time series generation)")
-var optCPURate = flag.Duration("cpurate", 0, "retrieve and display cpu rate (implies -cpu)")
-var optCPU = flag.Bool("cpu", false, "display cpu usage (default to 1s, use -cpurate to change)")
+var optCPURate = flag.Duration("cpurate", 0, "set cpu rate (implies -cpu)")
+var optCPU = flag.Bool("cpu", false, "display cpu usage (default is every second, use -cpurate to change)")
 
 var optColor = flag.Bool("color", false, "use colors in text output")
 
@@ -55,7 +55,7 @@ var optPostDelay = flag.Duration("post", 0, "duration to wait after all commands
 var optName = flag.String("n", "", "name of the first batch")
 
 var optLogTimestamps = flag.Bool("display-log-time", false, "display logging timestamps")
-var optLogLevels = flag.Bool("display-log-level", true, "display logging levels")
+var optLogLevels = flag.Bool("display-log-level", false, "display logging levels (always true if -verbose/-debug/-trace)")
 
 var optDNSServer = flag.String("dns-server", "", "specify a dns server to use (literal ip or literal ip:port)")
 
@@ -134,22 +134,28 @@ func Main() {
 	var logHook zerolog.Hook
 	consoleLevel := zerolog.WarnLevel
 
+	var displayLogLevels = *optLogLevels
+
 	if *optVerbose {
+		displayLogLevels = true
 		consoleLevel = zerolog.InfoLevel
 	}
 	if *optDebug {
+		displayLogLevels = true
 		consoleLevel = zerolog.DebugLevel
 		logHook = nspeed.NewLineInfoHook(thisFileRelToModule)
 	}
 	if *optTrace {
+		displayLogLevels = true
 		consoleLevel = zerolog.TraceLevel
 		logHook = nspeed.NewLineInfoHook(thisFileRelToModule)
 	}
 	zerolog.SetGlobalLevel(consoleLevel)
 
 	// remove these ugly "???" from zerolog level formatter
+
 	formatLevel := func(i any) string {
-		if !*optLogLevels {
+		if !displayLogLevels {
 			return ""
 		}
 		if i == nil {

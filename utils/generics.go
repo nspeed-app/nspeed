@@ -1,24 +1,6 @@
 package utils
 
-import "golang.org/x/exp/constraints"
-
 // a collection of generic functions noy yet in std lib
-
-// Min returns the smaller of x or y.
-func Min[T constraints.Ordered](x, y T) T {
-	if x < y {
-		return x
-	}
-	return y
-}
-
-// Max returns the larger of x or y.
-func Max[T constraints.Ordered](x, y T) T {
-	if x > y {
-		return x
-	}
-	return y
-}
 
 // Map applies function f to each element of array a
 func Map[U any, V any](a []U, f func(U) V) []V {

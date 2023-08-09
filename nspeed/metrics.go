@@ -323,7 +323,7 @@ func (wm *Metric) read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	todo := utils.Min(utils.Min(int64(maxstep), wm.WriteStepSize), lefttodo)
+	todo := min(int64(maxstep), wm.WriteStepSize, lefttodo)
 
 	wm.TotalWrite += todo
 
@@ -344,7 +344,7 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 
 	wm.Logger().Debug().Msgf("WriteTo loop starting for %d bytes (%d)\n", wm.TotalWrite, time.Since(wm.TransfertStartTime))
 	for {
-		todo := utils.Min(wm.ContentWriteSize-wm.TotalWrite, buflen)
+		todo := min(wm.ContentWriteSize-wm.TotalWrite, buflen)
 		if todo <= 0 {
 			break
 		}
