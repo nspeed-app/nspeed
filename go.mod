@@ -14,7 +14,6 @@ require (
 	github.com/rs/xid v1.5.0
 	github.com/rs/zerolog v1.30.0
 	github.com/shirou/gopsutil/v3 v3.23.7
-	golang.org/x/exp v0.0.0-20230809094429-853ea248256d
 	golang.org/x/net v0.14.0
 	golang.org/x/sys v0.11.0
 	golang.zx2c4.com/wireguard/windows v0.5.3
@@ -39,6 +38,7 @@ require (
 	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/crypto v0.12.0 // indirect
+	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db // indirect
 	golang.org/x/mod v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 	golang.org/x/tools v0.9.1 // indirect
