@@ -87,20 +87,30 @@ func ParseByteUnits(s string) (uint64, error) {
 	return 0, err
 }
 
-// FormatBitperSecond format bit per seconds in human readable format
+// FormatBitperSecond formats a number of bytes and a duration into "bit per second" in human readable format.
+// The result uses the standard decimal units of 1000 (k,M,G,etc).
 func FormatBitperSecond(bytes int64, duration time.Duration) string {
-	bps := BitperSecond(bytes, duration)
+	bps := BitPerSecondFromInt64(bytes, duration)
 	if bps != -1 {
 		return ByteCountDecimal(bps) + "bps"
 	}
 	return "(too fast)"
 }
 
-// convert to bps, return -1 if duration is too small
-func BitperSecond(bytes int64, duration time.Duration) int64 {
-	secs := duration.Seconds()
-	if secs > 0 {
-		return int64((float64(bytes)) * 8.0 / secs)
+// BitPerSecondFromUInt64 converts a number of int64 bytes and a duration to "bit per second".
+// Return -1 if duration is below 1ms
+func BitPerSecondFromInt64(bytes int64, duration time.Duration) int64 {
+	if bytes < 0 {
+		return -1
+	}
+	return BitPerSecondFromUInt64(uint64(bytes), duration)
+}
+
+// BitPerSecondFromUInt64 converts a number of uint64 bytes and a duration to "bit per second".
+// Return -1 if duration is below 1ms.
+func BitPerSecondFromUInt64(bytes uint64, duration time.Duration) int64 {
+	if duration.Milliseconds() > 0 {
+		return int64((float64(bytes)) * 8.0 / duration.Seconds())
 	}
 	return -1
 }
