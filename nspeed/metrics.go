@@ -486,8 +486,8 @@ func (wm *Metric) ToNetMetric() NetMetric {
 		Duration:   wm.ElapsedTime,
 		RXHBps:     utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
 		TXHBps:     utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
-		RXBps:      utils.BitperSecond(wm.TotalRead, wm.ElapsedTime),
-		TXBps:      utils.BitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		RXBps:      utils.BitPerSecondFromInt64(wm.TotalRead, wm.ElapsedTime),
+		TXBps:      utils.BitPerSecondFromInt64(wm.TotalWrite, wm.ElapsedTime),
 		RXChunk:    wm.ReadStepSize,
 		TXChunk:    wm.WriteStepSize,
 		RXCount:    wm.ReadCount,
@@ -519,7 +519,7 @@ func (wm *Metric) ToNetMetric() NetMetric {
 func (wm *Metric) ToSamples() []NetMetricSample {
 	nbSamples := 1
 	if wm.Serie != nil {
-		nbSamples = len(wm.Serie)+1
+		nbSamples = len(wm.Serie) + 1
 	}
 	nms := make([]NetMetricSample, nbSamples)
 	var prevElapsed time.Duration
@@ -544,12 +544,16 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 			n.Time = nextTime
 			nextTime = n.Time.Add(s.ElapsedTime)
 			nms[i] = n
+			nms[i].RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.RXBytes, n.Duration)) + "bps"
+			nms[i].TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.TXBytes, n.Duration)) + "bps"
 		}
 	}
 	nms[nbSamples-1].Duration = wm.ElapsedTime - prevElapsed
 	nms[nbSamples-1].Time = nextTime
 	nms[nbSamples-1].RXBytes = uint64(wm.TotalRead) - rxSoFar
 	nms[nbSamples-1].TXBytes = uint64(wm.TotalWrite) - txSoFar
+	nms[nbSamples-1].RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(nms[nbSamples-1].RXBytes, nms[nbSamples-1].Duration)) + "bps"
+	nms[nbSamples-1].TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(nms[nbSamples-1].TXBytes, nms[nbSamples-1].Duration)) + "bps"
 
 	return nms
 }
@@ -804,6 +808,8 @@ type NetMetricSample struct {
 	Latency  int64         `json:"latency"`
 	Time     time.Time     `json:"date"`
 	Duration time.Duration `json:"duration"` // in ms or ns ? - should be constant - keep?
+	RXhbps   string        `json:"rxhbps"`
+	TXhbps   string        `json:"txhbps"`
 }
 
 /*  echarts.apache.org
