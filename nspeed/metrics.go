@@ -512,31 +512,45 @@ func (wm *Metric) ToNetMetric() NetMetric {
 	return nm
 }
 
+// ToSamples converts the serie to samples
+// if no sampling or if rate was too big we still get the last/all sample
+// so at least 1 entry
+// todo: investigate if the last entry can be 0 (exact divsion between of total duration by rate)
 func (wm *Metric) ToSamples() []NetMetricSample {
-	if wm.Serie == nil {
-		return nil
+	nbSamples := 1
+	if wm.Serie != nil {
+		nbSamples = len(wm.Serie)+1
 	}
-	nms := make([]NetMetricSample, len(wm.Serie))
+	nms := make([]NetMetricSample, nbSamples)
 	var prevElapsed time.Duration
+	var rxSoFar, txSoFar uint64
 	var nextTime = wm.TransfertStartTime
-	for i, s := range wm.Serie {
-		n := NetMetricSample{}
-		if i == 0 {
-			n.RXBytes = uint64(s.TotalRead)
-			n.TXBytes = uint64(s.TotalWrite)
-			n.Duration = s.ElapsedTime
+	if wm.Serie != nil {
+		for i, s := range wm.Serie {
+			n := NetMetricSample{}
+			if i == 0 {
+				n.RXBytes = uint64(s.TotalRead)
+				n.TXBytes = uint64(s.TotalWrite)
+				n.Duration = s.ElapsedTime
+			}
+			if i > 0 {
+				n.RXBytes = uint64(s.TotalRead) - rxSoFar
+				n.TXBytes = uint64(s.TotalWrite) - txSoFar
+				n.Duration = s.ElapsedTime - prevElapsed
+			}
 			prevElapsed = s.ElapsedTime
+			rxSoFar += n.RXBytes
+			txSoFar += n.TXBytes
+			n.Time = nextTime
+			nextTime = n.Time.Add(s.ElapsedTime)
+			nms[i] = n
 		}
-		if i > 0 {
-			n.RXBytes = uint64(s.TotalRead) - nms[i-1].RXBytes
-			n.TXBytes = uint64(s.TotalWrite) - nms[i-1].TXBytes
-			n.Duration = s.ElapsedTime - prevElapsed
-			prevElapsed = s.ElapsedTime
-		}
-		n.Time = nextTime
-		nextTime = n.Time.Add(s.ElapsedTime)
-		nms[i] = n
 	}
+	nms[nbSamples-1].Duration = wm.ElapsedTime - prevElapsed
+	nms[nbSamples-1].Time = nextTime
+	nms[nbSamples-1].RXBytes = uint64(wm.TotalRead) - rxSoFar
+	nms[nbSamples-1].TXBytes = uint64(wm.TotalWrite) - txSoFar
+
 	return nms
 }
 
