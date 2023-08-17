@@ -3,20 +3,19 @@ package utils
 import (
 	"bytes"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
 // ReadURI opens and read an url and return its content
-func readURI(uri string, path string) ([]byte, error) {
+func readURI(uri string, fs fs.FS) ([]byte, error) {
 	url, err := url.Parse(uri)
 	if err != nil || url.Scheme == "" {
-		data, err := os.Open(filepath.Join(path, uri))
+		data, err := fs.Open(uri) //os.Open(filepath.Join(path, uri))
 		if err != nil {
 			return nil, err
 		}
@@ -46,23 +45,32 @@ func readURI(uri string, path string) ([]byte, error) {
 // <style>content of ...</style>
 //
 // parameter is parsed html to modify in place
-// see InlineScript for a string to string version
-func InlineHTML(n *html.Node, path string) error {
+// see InlineAssets for a string to string version
+func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
 	if n.Type == html.ElementNode {
 		// <script src="..."></script>
 		if n.Data == "script" {
 			newAttr := make([]html.Attribute, 0, len(n.Attr))
 			for _, s := range n.Attr {
 				if s.Key == "src" {
-					script, err := readURI(s.Val, path)
+					// check the source
+					url, err := url.Parse(s.Val)
 					if err != nil {
 						return err
 					}
-					js := html.Node{
-						Type: html.TextNode,
-						Data: "\n" + string(script) + "\n",
+					if (url.Host != "" && doRemote) || url.Host == "" {
+						script, err := readURI(s.Val, fs)
+						if err != nil {
+							return err
+						}
+						js := html.Node{
+							Type: html.TextNode,
+							Data: "\n" + string(script) + "\n",
+						}
+						n.FirstChild = &js
+					} else {
+						newAttr = append(newAttr, s)
 					}
-					n.FirstChild = &js
 				} else {
 					newAttr = append(newAttr, s)
 				}
@@ -85,7 +93,7 @@ func InlineHTML(n *html.Node, path string) error {
 				n.Data = "style"
 				n.Attr = nil
 
-				css, err := readURI(href, path)
+				css, err := readURI(href, fs)
 				if err != nil {
 					return err
 				}
@@ -98,7 +106,7 @@ func InlineHTML(n *html.Node, path string) error {
 		}
 	}
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		err := InlineHTML(child, path)
+		err := InlineHTML(child, fs, doRemote)
 		if err != nil {
 			return err
 		}
@@ -106,16 +114,16 @@ func InlineHTML(n *html.Node, path string) error {
 	return nil
 }
 
-// InlineScript takes parses source as HTML and replace all
+// InlineAssets takes parses source as HTML and replace all
 // script & style import elements with their content
-// and returns the corresponding HTML
-func InlineScript(source string, path string) (string, error) {
+// and returns the corresponding HTML.
+func InlineAssets(source string, fs fs.FS, doRemote bool) (string, error) {
 	root, err := html.Parse(strings.NewReader(source))
 	if err != nil {
 		panic(err)
 	}
 
-	err = InlineHTML(root, path)
+	err = InlineHTML(root, fs, doRemote)
 	if err != nil {
 		return "", err
 	}

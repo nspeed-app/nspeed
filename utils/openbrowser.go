@@ -54,7 +54,9 @@ func OpenBrowser(url string, stdout io.Writer, stderr io.Writer) error {
 
 // OpenHTML  will try to open the html content with the default web browser of the system.
 // To allow full HTML/JS/CSS to work, the html content is not opened as a local file but
-// served with a one-time use web server on localhost.
+// served with a one-time use web server on localhost (random port).
+// if secret is not empty, the web server will stay alive until a request with secret as path
+// is made.
 func OpenHTML(html string) error {
 	server := &http.Server{}
 
@@ -66,6 +68,9 @@ func OpenHTML(html string) error {
 	// serve html content and then cancel() the server
 	getRoot := func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, html)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
 		cancel()
 	}
 	http.HandleFunc("/", getRoot)

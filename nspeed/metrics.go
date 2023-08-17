@@ -15,8 +15,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"nspeed.app/chartjs"
 	"nspeed.app/utils"
-	"nspeed.app/webview/statics/chartjs"
 )
 
 // MetricsData -
@@ -528,32 +528,34 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 	if wm.Serie != nil {
 		for i, s := range wm.Serie {
 			n := NetMetricSample{}
+			duration := s.ElapsedTime
 			if i == 0 {
 				n.RXBytes = uint64(s.TotalRead)
 				n.TXBytes = uint64(s.TotalWrite)
-				n.Duration = s.ElapsedTime
 			}
 			if i > 0 {
 				n.RXBytes = uint64(s.TotalRead) - rxSoFar
 				n.TXBytes = uint64(s.TotalWrite) - txSoFar
-				n.Duration = s.ElapsedTime - prevElapsed
+				duration = s.ElapsedTime - prevElapsed
 			}
 			prevElapsed = s.ElapsedTime
 			rxSoFar += n.RXBytes
 			txSoFar += n.TXBytes
 			n.Time = nextTime
-			nextTime = n.Time.Add(s.ElapsedTime)
+			nextTime = n.Time.Add(duration)
+			n.RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.RXBytes, duration)) + "bps"
+			n.TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.TXBytes, duration)) + "bps"
+			n.Duration = duration.Seconds()
 			nms[i] = n
-			nms[i].RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.RXBytes, n.Duration)) + "bps"
-			nms[i].TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.TXBytes, n.Duration)) + "bps"
 		}
 	}
-	nms[nbSamples-1].Duration = wm.ElapsedTime - prevElapsed
+	duration := wm.ElapsedTime - prevElapsed
+	nms[nbSamples-1].Duration = duration.Seconds()
 	nms[nbSamples-1].Time = nextTime
 	nms[nbSamples-1].RXBytes = uint64(wm.TotalRead) - rxSoFar
 	nms[nbSamples-1].TXBytes = uint64(wm.TotalWrite) - txSoFar
-	nms[nbSamples-1].RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(nms[nbSamples-1].RXBytes, nms[nbSamples-1].Duration)) + "bps"
-	nms[nbSamples-1].TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(nms[nbSamples-1].TXBytes, nms[nbSamples-1].Duration)) + "bps"
+	nms[nbSamples-1].RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(nms[nbSamples-1].RXBytes, duration)) + "bps"
+	nms[nbSamples-1].TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(nms[nbSamples-1].TXBytes, duration)) + "bps"
 
 	return nms
 }
@@ -725,7 +727,7 @@ func GenerateHTMLReport(htmlFilename string, wcWorkers Metrics, ungroup bool) {
 	json := GenerateJSONReport(&wcWorkers, ungroup)
 	html := chartjs.ChartJSON(json)
 	if out != nil {
-		html, err = utils.InlineScript(html, "")
+		html, err = utils.InlineAssets(html, chartjs.StaticFiles, true)
 		if err != nil {
 			log.Fatal().Msgf("could inline html file (%s): %v", htmlFilename, err)
 		}
@@ -735,6 +737,10 @@ func GenerateHTMLReport(htmlFilename string, wcWorkers Metrics, ungroup bool) {
 		}
 		log.Info().Msgf("html generated to %s", htmlFilename)
 	} else {
+		html, err = utils.InlineAssets(html, chartjs.StaticFiles, false)
+		if err != nil {
+			log.Fatal().Msgf("could inline html file (%s): %v", htmlFilename, err)
+		}
 		err := utils.OpenHTML(html)
 		if err != nil {
 			log.Fatal().Msgf("could not open html: %v", err)
@@ -803,13 +809,13 @@ type NetMetric struct {
 }
 
 type NetMetricSample struct {
-	RXBytes  uint64        `json:"rxbytes"`
-	TXBytes  uint64        `json:"txbytes"`
-	Latency  int64         `json:"latency"`
-	Time     time.Time     `json:"date"`
-	Duration time.Duration `json:"duration"` // in ms or ns ? - should be constant - keep?
-	RXhbps   string        `json:"rxhbps"`
-	TXhbps   string        `json:"txhbps"`
+	RXBytes  uint64    `json:"rxbytes"`
+	TXBytes  uint64    `json:"txbytes"`
+	Latency  int64     `json:"latency"`
+	Time     time.Time `json:"date"`
+	Duration float64   `json:"duration"` // in ms or ns ? - should be constant - keep?
+	RXhbps   string    `json:"rxhbps"`
+	TXhbps   string    `json:"txhbps"`
 }
 
 /*  echarts.apache.org
