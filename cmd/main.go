@@ -305,12 +305,10 @@ func Main() {
 		log.Warn().Msgf("pre-delay ended")
 	}
 
-	waitChan := make(chan error)
-	var wcWorkers nspeed.Metrics
-
 	printHeaders := true
 	progressHandler := func(p any) {
 		switch m := p.(type) {
+		// this is bad, review/refactor
 		case []*nspeed.Metric:
 			rc := 0
 			for _, wm := range m {
@@ -321,7 +319,7 @@ func Main() {
 					}
 				}
 			}
-			log.Trace().Msgf("progress called (%d)", rc)
+			log.Debug().Msgf("progress called %d jobs (%d)", len(m), rc)
 		case nspeed.CPUMetric:
 			if cpuRate > 0 { // if this doesn't match, we did something wrong
 				cpuload, headers, _ := nspeed.PrintCPULoad(m.Pcts, *optColor)
@@ -334,10 +332,12 @@ func Main() {
 		}
 	}
 
+	// go routine to call nspeed.RunJobs. We interop & sync with progress and waitChan
+	// results will be in wcWorkers
+	waitChan := make(chan error)
 	progress := make(chan any)
-
+	var wcWorkers nspeed.Metrics //todo: rename this var
 	go func() {
-		// defer wg.Done()
 		var err error
 		wcWorkers, err = nspeed.RunJobs(ctx, jl, nspeed.GlobalOptions, progress)
 		if err != nil {

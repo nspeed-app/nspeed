@@ -25,6 +25,7 @@ type Options struct {
 var GlobalOptions Options
 
 // RunJobs runs all the jobs, one batch at a time, this is a synchronous function
+// update/progress can be obtained thru the optionnal message channel
 func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (Metrics, error) {
 
 	jobs := jl.Jobs
