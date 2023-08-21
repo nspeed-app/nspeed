@@ -301,6 +301,9 @@ func Main() {
 		select {
 		case <-ctx.Done():
 		case <-time.After(*optPreDelay):
+		case sig := <-shutdownCh:
+			log.Warn().Msgf("global shutdown started by signal: %s", sig)
+			return
 		}
 		log.Warn().Msgf("pre-delay ended")
 	}
@@ -365,7 +368,7 @@ mainloop:
 	}
 	log.Debug().Msgf("main loop ended. total results: %d / active goroutines: %d", len(wcWorkers), runtime.NumGoroutine())
 
-	// pre delay
+	// post delay -todo share more code with pre delay
 	if *optPostDelay != 0 && ctx.Err() == nil {
 		log.Warn().Msgf("post-delay started - sleeping %s", *optPostDelay)
 		select {
