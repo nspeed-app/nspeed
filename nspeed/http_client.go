@@ -745,6 +745,10 @@ func ResolveSchemes(idmap map[string]Job, target string) (string, error) {
 
 // fixH2H3Errors tried to unify the behavior of HTTP/1, HTTP/2 and HTTP/3
 func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
+	if err == nil {
+		return err
+	}
+
 	// if err != nil {
 	// 	fmt.Printf("error to change: %s %s\n", err, reflect.TypeOf(err))
 	// }
@@ -752,6 +756,12 @@ func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
 	var qerr *quic.StreamError
 	if errors.As(err, &qerr) && http3.ErrCode(qerr.ErrorCode) == http3.ErrCodeRequestCanceled {
 		l.Info().Msgf("quic.StreamError: %d changed to context.DeadlineExceeded ", qerr.ErrorCode)
+		return context.DeadlineExceeded
+	}
+
+	var h3err http3.Error
+	if errors.As(err, &h3err) && h3err.ErrorCode == http3.ErrCodeRequestCanceled {
+		l.Info().Msgf("http3.Error: %d changed to context.DeadlineExceeded ", h3err.ErrorCode)
 		return context.DeadlineExceeded
 	}
 

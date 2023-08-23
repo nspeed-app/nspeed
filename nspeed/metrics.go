@@ -456,7 +456,7 @@ func (wc *Metrics) Group() *Metrics {
 	return &rwc
 }
 
-// generate a tabular formatted text report
+// generate a single json from metrics
 func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 	wc := wcWorkers
 	if !ungroup {
@@ -467,6 +467,27 @@ func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 		return fmt.Sprintf("error: %v", err)
 	}
 	return string(json)
+}
+
+// generate a list json from metrics
+func GenerateJSONReports(wcWorkers *Metrics, ungroup bool) []string {
+	wc := *wcWorkers
+	if wc == nil {
+		return nil
+	}
+	if !ungroup {
+		wc = *wcWorkers.Group()
+	}
+	var result []string = make([]string, 0, len(wc))
+	for _, wm := range wc {
+		json, err := json.MarshalIndent(wm, "", "\t")
+		if err != nil {
+			result = append(result, fmt.Sprintf("error: %v", err))
+			continue
+		}
+		result = append(result, string(json))
+	}
+	return result
 }
 
 func (wm *Metric) MarshalJSON() ([]byte, error) {
@@ -724,7 +745,7 @@ func GenerateHTMLReport(htmlFilename string, wcWorkers Metrics, ungroup bool) {
 			log.Fatal().Msgf("could not create html file (%s): %v", htmlFilename, err)
 		}
 	}
-	json := GenerateJSONReport(&wcWorkers, ungroup)
+	json := GenerateJSONReports(&wcWorkers, ungroup)
 	html := chartjs.ChartJSON(json)
 	if out != nil {
 		html, err = utils.InlineAssets(html, chartjs.StaticFiles, true)

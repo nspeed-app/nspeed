@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -45,8 +46,8 @@ const (
 `
 	datasetTmplText = `
 {
-	backgroundColor: {{.Color}},
-	borderColor: {{.Color}},
+	// backgroundColor: {{.Color}},
+	// borderColor: {{.Color}},
 	showLine: true,
 	fill: false,
 	pointRadius: 2,
@@ -159,42 +160,52 @@ const htmlFooter = `
 	</body>
 </html>`
 
-func ChartJSON(json string) string {
-
-	ds1, err := GenDataset("'#4DC9F6'", "jsonfile[0].command", "data")
-	if err != nil {
-		log.Panic(err)
+func ChartJSON(jsons []string) string {
+	var dsl []string = make([]string, 0, len(jsons))
+	for i := range jsons {
+		is := strconv.Itoa(i)
+		ds, err := GenDataset("", "jsonfile["+is+"].command", "data"+is)
+		if err != nil {
+			log.Panic(err)
+		}
+		dsl = append(dsl, ds)
 	}
-
 	optionScales := `{
         scales: {
             x: {
                 type: 'timeseries',
+				stacked: true
+            },
+            y: {
+				stacked: true
             }
-        }
+		}
     }`
 
-	s, err := GenChart("a", "bar", "labels", JSArray(ds1), optionScales)
+	s, err := GenChart("a", "bar", "labels", JSArray(dsl...), optionScales)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	html := htmlHeader + strings.Join(utils.Map(js, addScript), "\n") + fromSamples(json) + s + htmlFooter
-	//fmt.Println(html)
+	html := htmlHeader + strings.Join(utils.Map(js, addScript), "\n") + fromSamples(jsons) + s + htmlFooter
+	fmt.Println(html)
 
 	return html
 }
 
-func fromSamples(json string) string {
-	r := "<script> var jsonfile = " + json
-	r += `
-	 var labels = jsonfile[0].Samples.map(function(e) {
+func fromSamples(jsons []string) string {
+	r := "<script> var jsonfile = " + JSArray(jsons...)
+	for i := range jsons {
+		is := strconv.Itoa(i)
+		r += `
+	 var labels = jsonfile[` + is + `].Samples.map(function(e) {
  		return e.date;
      });
-     var data = jsonfile[0].Samples.map(function(e) {
+     var data` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
   	     return e.rxbytes*8.0/e.duration;
      });
 	`
+	}
 	r += "</script>"
 	return r
 }

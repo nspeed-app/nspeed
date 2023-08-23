@@ -281,17 +281,11 @@ func Main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// shutdownCh triggers graceful shutdown on SIGINT or SIGTERM
-	// todo: use signal.NotifyContext  ?
-	shutdownCh := make(chan os.Signal, 1)
-	signal.Notify(shutdownCh, syscall.SIGINT, syscall.SIGTERM)
-
-	//////////////////
-	// main thread loop
-	// - wait for (partial) result from workers
-	// - wait for progress tick and print results
-	// - wait for all workers to have ended or timeout'ed
-	// - handle ctrl-c & errors
+	// osInterrupt triggers graceful shutdown on SIGINT or SIGTERM
+	// since we won't call signal.Reset(...), make sure all execution paths exit at some point
+	// otherwise add signal.Reset(...) after post-delay handling code
+	osInterrupt := make(chan os.Signal, 1)
+	signal.Notify(osInterrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	errs := make(chan error, 1)
 
@@ -301,7 +295,7 @@ func Main() {
 		select {
 		case <-ctx.Done():
 		case <-time.After(*optPreDelay):
-		case sig := <-shutdownCh:
+		case sig := <-osInterrupt:
 			log.Warn().Msgf("global shutdown started by signal: %s", sig)
 			return
 		}
@@ -349,12 +343,20 @@ func Main() {
 		waitChan <- err
 	}()
 	// assumes all jobs are running
+
+	//////////////////
+	// main thread loop
+	// - wait for (partial) result from workers
+	// - wait for progress tick and print results
+	// - wait for all workers to have ended or timeout'ed
+	// - handle ctrl-c & errors
+
 mainloop:
 	for {
 		select {
 		case m := <-progress:
 			progressHandler(m)
-		case sig := <-shutdownCh:
+		case sig := <-osInterrupt:
 			log.Warn().Msgf("global shutdown started by signal: %s", sig)
 			cancel() // this should end RunJobs which will signal waitChan
 		case err := <-errs:
@@ -373,7 +375,7 @@ mainloop:
 		log.Warn().Msgf("post-delay started - sleeping %s", *optPostDelay)
 		select {
 		case <-time.After(*optPostDelay):
-		case sig := <-shutdownCh:
+		case sig := <-osInterrupt:
 			log.Warn().Msgf("global shutdown started by signal: %s", sig)
 			cancel()
 		}
