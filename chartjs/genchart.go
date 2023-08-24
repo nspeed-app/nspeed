@@ -13,6 +13,31 @@ import (
 	"nspeed.app/utils"
 )
 
+var js = []string{
+	"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js",
+	"https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.js",
+	"https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js",
+	"nspeed.js",
+}
+
+//go:embed statics
+var staticFiles embed.FS
+
+var StaticFiles fs.FS
+
+func init() {
+	var err error
+	StaticFiles, err = fs.Sub(staticFiles, "statics")
+	if err != nil {
+		panic("jschart: failed to get embeded static filesystem: " + err.Error())
+	}
+}
+func addScript(src string) string {
+	return `
+ 		<script src="` + src + `"></script>
+`
+}
+
 // step 1
 // html:
 // <div class="split"><canvas id="chartID"></canvas></div>
@@ -33,7 +58,7 @@ const (
  	 <canvas id='{{.Name}}ID'></canvas>
 	</div>
 	<script>
- var {{.Name}} = new Chart(document.getElementById('{{.Name}}ID'), {
+	var {{.Name}} = new Chart(document.getElementById('{{.Name}}ID'), {
 	type: '{{.Type}}',
 	options: {{.Options}},
 	data: {
@@ -123,31 +148,6 @@ func JSArray(vals ...string) string {
 
 func JSString(s string) string {
 	return "'" + s + "'"
-}
-
-var js = []string{
-	"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.5.1/chart.js",
-	"https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.js",
-	"https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js",
-	"nspeed.js",
-}
-
-//go:embed statics
-var staticFiles embed.FS
-
-var StaticFiles fs.FS
-
-func init() {
-	var err error
-	StaticFiles, err = fs.Sub(staticFiles, "statics")
-	if err != nil {
-		panic("jschart: failed to get embeded static filesystem: " + err.Error())
-	}
-}
-func addScript(src string) string {
-	return `
- 		<script src="` + src + `"></script>
-`
 }
 
 const htmlHeader = `
