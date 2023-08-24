@@ -45,4 +45,4 @@ require (
 )
 
 //replace golang.org/x/net => ../golang-net
-replace github.com/quic-go/quic-go => ../quic-go
+//replace github.com/quic-go/quic-go => ../quic-go
