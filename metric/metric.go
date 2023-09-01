@@ -477,7 +477,7 @@ func GenerateJSONReports(wcWorkers *Metrics, ungroup bool) []string {
 	if !ungroup {
 		wc = *wcWorkers.Group()
 	}
-	var result []string = make([]string, 0, len(wc))
+	result := make([]string, 0, len(wc))
 	for _, wm := range wc {
 		json, err := json.MarshalIndent(wm, "", "\t")
 		if err != nil {

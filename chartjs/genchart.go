@@ -156,7 +156,7 @@ const htmlFooter = `
 
 func ChartJSON(jsons []string) string {
 
-	var dsl []string = make([]string, 0, len(jsons))
+	dsl := make([]string, 0, len(jsons))
 	for i := range jsons {
 		is := strconv.Itoa(i)
 		ds, err := GenDataset("", "jsonfile["+is+"].command", "data"+is)
@@ -190,7 +190,7 @@ func ChartJSON(jsons []string) string {
 
 func GenerateChart(wcWorkers *metric.Metrics, ungroup bool) string {
 
-	return ""
+	return "todo"
 }
 
 func fromSamples(jsons []string) string {
