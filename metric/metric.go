@@ -1,4 +1,4 @@
-package nspeed
+package metric
 
 import (
 	"bytes"
@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/netip"
-	"sort"
 	"strconv"
 	"sync"
 	"text/tabwriter"
@@ -15,7 +14,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/chartjs"
 	"nspeed.app/utils"
 )
 
@@ -60,9 +58,10 @@ type Metric struct {
 	Interface  *net.Interface
 	SourceAddr netip.Addr
 	Gateway    netip.Addr
-	// history
-	Tick   time.Duration
-	Serie  []MetricsData
+	// optional time series
+	Tick  time.Duration
+	Serie []MetricsData
+	// logger
 	logger *zerolog.Logger
 }
 
@@ -166,7 +165,7 @@ func (wm *Metric) FixMeReadFrom(r io.Reader) (n int64, err error) {
 	wm.TransfertStartTime = time.Now()
 	wm.mutex.Unlock()
 	for {
-		read, err := r.Read(BigBuffer)
+		read, err := r.Read(utils.BigBuffer)
 		s := int64(read)
 		wm.mutex.Lock()
 		wm.ReadCount++
@@ -340,7 +339,7 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 	wm.ElapsedTime = 0
 	wm.mutex.Unlock()
 
-	buflen := int64(len(BigBuffer))
+	buflen := int64(len(utils.BigBuffer))
 
 	wm.Logger().Debug().Msgf("WriteTo loop starting for %d bytes (%d)\n", wm.TotalWrite, time.Since(wm.TransfertStartTime))
 	for {
@@ -348,7 +347,7 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 		if todo <= 0 {
 			break
 		}
-		n, err := w.Write(BigBuffer[:todo])
+		n, err := w.Write(utils.BigBuffer[:todo])
 		written := int64(n)
 		if err != nil {
 			return wm.TotalWrite + written, err
@@ -625,35 +624,24 @@ func SeriesReport(wcWorkers Metrics) (report string) {
 }
 
 // generate a report per batch (sorted), filtering failed jobs
-func GenerateTextReport(jl *JobList, wcWorkers Metrics, showGroup bool) (out string) {
-	if jl == nil {
-		return "no job list"
+func GenerateTextReport(batchs map[int]string, wcWorkers *Metrics, showGroup bool) (out string) {
+	if wcWorkers == nil {
+		return
 	}
-	batches := make(map[int]int, 1)
-	for _, wm := range wcWorkers {
+	for _, wm := range *wcWorkers {
 		if wm.Error != nil {
 			out += fmt.Sprintf("batch %d, job %s, error = %s\n", wm.Batch, wm.ID, wm.Error)
 			continue
 		}
-		if !wm.Valid {
-			//out += fmt.Sprintf("batch %d, job %s, not valid\n", wm.Batch, wm.ID)
-			continue
-		}
-		batches[wm.Batch]++
 	}
-	batchnums := make([]int, 0, len(batches))
-	for k := range batches {
-		batchnums = append(batchnums, k)
-	}
-	sort.Ints(batchnums)
-	for _, batch := range batchnums {
-		out += fmt.Sprintf("batch %s:\n", jl.Batches[batch].Name) + GenerateTextReportBatch(batch, wcWorkers, showGroup) + "\n"
+	for idx, batch := range batchs {
+		out += fmt.Sprintf("batch %s:\n", batch) + GenerateTextReportBatch(idx, wcWorkers, showGroup) + "\n"
 	}
 	return
 }
 
 // generate a tabular formatted text report
-func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) string {
+func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) string {
 
 	var out bytes.Buffer
 
@@ -680,7 +668,7 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 
 	hasGroup := false
 	lines := 0
-	for _, wm := range wcWorkers {
+	for _, wm := range *wcWorkers {
 		if wm.Batch != batch {
 			continue
 		}
@@ -734,39 +722,6 @@ func GenerateTextReportBatch(batch int, wcWorkers Metrics, showGroup bool) strin
 	}
 	w.Flush()
 	return out.String()
-}
-
-func GenerateHTMLReport(htmlFilename string, wcWorkers Metrics, ungroup bool) {
-	var out *utils.SmartFile
-	var err error
-	if htmlFilename != ":" {
-		out, err = utils.FileCreate(htmlFilename)
-		if err != nil {
-			log.Fatal().Msgf("could not create html file (%s): %v", htmlFilename, err)
-		}
-	}
-	json := GenerateJSONReports(&wcWorkers, ungroup)
-	html := chartjs.ChartJSON(json)
-	if out != nil {
-		html, err = utils.InlineAssets(html, chartjs.StaticFiles, true)
-		if err != nil {
-			log.Fatal().Msgf("could inline html file (%s): %v", htmlFilename, err)
-		}
-		_, err = out.WriteString(html)
-		if err != nil {
-			log.Fatal().Msgf("could not write to html file (%s): %v", htmlFilename, err)
-		}
-		log.Info().Msgf("html generated to %s", htmlFilename)
-	} else {
-		html, err = utils.InlineAssets(html, chartjs.StaticFiles, false)
-		if err != nil {
-			log.Fatal().Msgf("could inline html file (%s): %v", htmlFilename, err)
-		}
-		err := utils.OpenHTML(html)
-		if err != nil {
-			log.Fatal().Msgf("could not open html: %v", err)
-		}
-	}
 }
 
 // normalized metrics:

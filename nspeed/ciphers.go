@@ -19,6 +19,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/cpu"
+	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
 
@@ -188,9 +189,9 @@ func (j *JobCiphers) Init() error {
 }
 
 // print the ciphers list of hostname (dial address)
-func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup) (*Metric, error) {
+func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
 
-	wm := &Metric{}
+	wm := &metric.Metric{}
 	wm.SetLogger(j.logger)
 
 	defer func() {

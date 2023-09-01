@@ -9,6 +9,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"nspeed.app/metric"
 )
 
 type Job interface {
@@ -18,7 +19,7 @@ type Job interface {
 	PrintString(bool, bool) string
 	IsInfinite() bool
 	Init() error
-	Run(context.Context, *sync.WaitGroup) (*Metric, error)
+	Run(context.Context, *sync.WaitGroup) (*metric.Metric, error)
 	//common, implemented here
 	Logger() *zerolog.Logger
 	SetLogger(*zerolog.Logger)
@@ -153,4 +154,24 @@ func (jl *JobList) AddJobs(jobs ...Job) error {
 	}
 	jl.Groups[gid] = js
 	return nil
+}
+
+// return batch index and name which have valid results
+func (jl *JobList) ResultBatches(wcWorkers *metric.Metrics) map[int]string {
+	if jl == nil {
+		return nil
+	}
+	batches := make(map[int]string)
+	for _, wm := range *wcWorkers {
+		if wm.Error != nil {
+			// fmt.Printf("batch %d, job %s, error = %s\n", wm.Batch, wm.ID, wm.Error)
+			continue
+		}
+		if !wm.Valid {
+			//out += fmt.Sprintf("batch %d, job %s, not valid\n", wm.Batch, wm.ID)
+			continue
+		}
+		batches[wm.Batch] = jl.Batches[wm.Batch].Name
+	}
+	return batches
 }

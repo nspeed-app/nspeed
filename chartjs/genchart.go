@@ -5,11 +5,12 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"log"
 	"strconv"
 	"strings"
 	"text/template"
 
+	"github.com/rs/zerolog/log"
+	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
 
@@ -37,13 +38,6 @@ func addScript(src string) string {
  		<script src="` + src + `"></script>
 `
 }
-
-// step 1
-// html:
-// <div class="split"><canvas id="chartID"></canvas></div>
-
-// step 2:
-// js:
 
 // template names
 const (
@@ -161,12 +155,13 @@ const htmlFooter = `
 </html>`
 
 func ChartJSON(jsons []string) string {
+
 	var dsl []string = make([]string, 0, len(jsons))
 	for i := range jsons {
 		is := strconv.Itoa(i)
 		ds, err := GenDataset("", "jsonfile["+is+"].command", "data"+is)
 		if err != nil {
-			log.Panic(err)
+			log.Panic().Err(err).Send()
 		}
 		dsl = append(dsl, ds)
 	}
@@ -184,13 +179,18 @@ func ChartJSON(jsons []string) string {
 
 	s, err := GenChart("a", "bar", "labels", JSArray(dsl...), optionScales)
 	if err != nil {
-		log.Panic(err)
+		log.Panic().Err(err).Send()
 	}
 
 	html := htmlHeader + strings.Join(utils.Map(js, addScript), "\n") + fromSamples(jsons) + s + htmlFooter
-	fmt.Println(html)
+	fmt.Println(fromSamples(jsons) + s)
 
 	return html
+}
+
+func GenerateChart(wcWorkers *metric.Metrics, ungroup bool) string {
+
+	return ""
 }
 
 func fromSamples(jsons []string) string {
@@ -208,4 +208,37 @@ func fromSamples(jsons []string) string {
 	}
 	r += "</script>"
 	return r
+}
+
+func GenerateHTMLReport(htmlFilename string, wcWorkers metric.Metrics, ungroup bool) {
+	var out *utils.SmartFile
+	var err error
+	if htmlFilename != ":" {
+		out, err = utils.FileCreate(htmlFilename)
+		if err != nil {
+			log.Fatal().Msgf("could not create html file (%s): %v", htmlFilename, err)
+		}
+	}
+	//json := GenerateJSONReports(&wcWorkers, ungroup)
+	html := GenerateChart(&wcWorkers, ungroup)
+	if out != nil {
+		html, err = utils.InlineAssets(html, StaticFiles, true)
+		if err != nil {
+			log.Fatal().Msgf("could inline html file (%s): %v", htmlFilename, err)
+		}
+		_, err = out.WriteString(html)
+		if err != nil {
+			log.Fatal().Msgf("could not write to html file (%s): %v", htmlFilename, err)
+		}
+		log.Info().Msgf("html generated to %s", htmlFilename)
+	} else {
+		html, err = utils.InlineAssets(html, StaticFiles, false)
+		if err != nil {
+			log.Fatal().Msgf("could inline html file (%s): %v", htmlFilename, err)
+		}
+		err := utils.OpenHTML(html)
+		if err != nil {
+			log.Fatal().Msgf("could not open html: %v", err)
+		}
+	}
 }

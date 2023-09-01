@@ -25,6 +25,7 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
 
@@ -46,11 +47,11 @@ const (
 )
 
 var StreamPathRegexp *regexp.Regexp
-var TTLGUIDCache *utils.TTLCache[string, *Metric]
+var TTLGUIDCache *utils.TTLCache[string, *metric.Metric]
 
 func init() {
 	StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
-	TTLGUIDCache = utils.NewTTLCache[string, *Metric](20, TTLGuidMaxSize)
+	TTLGUIDCache = utils.NewTTLCache[string, *metric.Metric](20, TTLGuidMaxSize)
 }
 
 // parameters of a server endpoint
@@ -108,8 +109,8 @@ type JobHTTPServer struct {
 	InitHook    func() error
 	RunHook     func(context.Context) error
 	JobList     *JobList
-	wm          *Metric
-	ResultCache map[string]*Metric
+	wm          *metric.Metric
+	ResultCache map[string]*metric.Metric
 }
 
 func (j *JobHTTPServer) GetTarget() string {
@@ -310,15 +311,15 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we need a new cmd line parameter for max chunk size ?
 		// since huge chunksize can overload the server memory this is not safe
-		if chunkSize > MaxChunkSize {
-			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", MaxChunkSize), http.StatusBadRequest)
+		if chunkSize > utils.MaxChunkSize {
+			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", utils.MaxChunkSize), http.StatusBadRequest)
 			return
 		}
 		j.Logger().Info().Msgf("chunk_size set to %d", chunkSize)
 	}
 	// end danger zone
 
-	chunk := BigChunk[:chunkSize]
+	chunk := utils.BigChunk[:chunkSize]
 
 	// content-type
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -353,8 +354,8 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	w.WriteHeader(http.StatusOK) // this could also be done by the first w.Write()
 
 	// prepare metrics handler
-	wm := Metric{
-		MetricsData: MetricsData{
+	wm := metric.Metric{
+		MetricsData: metric.MetricsData{
 			Command:          fmt.Sprintf("%s %s from %s (%d bytes)", r.Method, r.URL.Path, r.RemoteAddr, numBytes),
 			Done:             false,
 			Expired:          false,
@@ -477,7 +478,7 @@ func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, guid string) {
 	}
 }
 
-func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *Metric) error {
+func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *metric.Metric) error {
 	m := wm.ToNetMetric()
 	result, err := json.MarshalIndent(m, "", "\t")
 	if err != nil {
@@ -493,7 +494,7 @@ func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *Metric) error {
 	return err
 }
 
-func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *Metric) (chan any, error) {
+func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *metric.Metric) (chan any, error) {
 	var err error
 	if rate := r.URL.Query().Get("rate"); rate != "" {
 		j.Logger().Info().Msgf("Upload: %s from %s - set rate to %s", r.Method, r.RemoteAddr, rate)
@@ -514,8 +515,8 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	j.Logger().Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
 
 	// metric for this request
-	wm := &Metric{
-		MetricsData: MetricsData{
+	wm := &metric.Metric{
+		MetricsData: metric.MetricsData{
 			Command:            fmt.Sprintf("%s %s from %s (%d)", r.Method, r.URL.Path, r.RemoteAddr, r.ContentLength),
 			Done:               false,
 			Expired:            false,
@@ -546,7 +547,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// do the upload
 	//n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, wm), BigBuffer)
-	n, err := io.CopyBuffer(wm, r.Body, BigBuffer)
+	n, err := io.CopyBuffer(wm, r.Body, utils.BigBuffer)
 	// signal the evenutal ticker
 	close(done)
 
@@ -569,8 +570,8 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 func (j *JobHTTPServer) Init() error {
 
-	j.wm = &Metric{
-		MetricsData: MetricsData{
+	j.wm = &metric.Metric{
+		MetricsData: metric.MetricsData{
 			Done:    false,
 			Expired: false,
 			Target:  j.GetTarget(),
@@ -632,7 +633,7 @@ func (j *JobHTTPServer) Init() error {
 	}
 	return nil
 }
-func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, error) {
+func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
 
 	ctx, j.Cancel = context.WithCancel(ctx)
 

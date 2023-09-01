@@ -16,6 +16,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"nspeed.app/chartjs"
+	"nspeed.app/metric"
 	"nspeed.app/nspeed"
 	"nspeed.app/utils"
 )
@@ -306,7 +308,7 @@ func Main() {
 	progressHandler := func(p any) {
 		switch m := p.(type) {
 		// this is bad, review/refactor
-		case []*nspeed.Metric:
+		case []*metric.Metric:
 			rc := 0
 			for _, wm := range m {
 				if !wm.Done {
@@ -333,7 +335,7 @@ func Main() {
 	// results will be in wcWorkers
 	waitChan := make(chan error)
 	progress := make(chan any)
-	var wcWorkers nspeed.Metrics //todo: rename this var
+	var wcWorkers metric.Metrics //todo: rename this var
 	go func() {
 		var err error
 		wcWorkers, err = nspeed.RunJobs(ctx, jl, nspeed.GlobalOptions, progress)
@@ -392,7 +394,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
-		report := nspeed.GenerateTextReport(jl, wcWorkers, *optUngroup)
+		report := metric.GenerateTextReport(jl.ResultBatches(&wcWorkers), &wcWorkers, *optUngroup)
 		_, err = f.WriteString(report)
 		// if err == nil {
 		// 	_, err = f.WriteString(nspeed.SeriesReport(wcWorkers))
@@ -413,7 +415,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}
-		report := nspeed.GenerateJSONReport(&wcWorkers, *optUngroup)
+		report := metric.GenerateJSONReport(&wcWorkers, *optUngroup)
 		_, err = f.WriteString(report)
 		if err != nil {
 			log.Fatal().Msgf("could not write json report file (%s): %v", *optJSONReport, err)
@@ -423,7 +425,7 @@ mainloop:
 
 	// html report:
 	if *optHTMLReport != "" {
-		nspeed.GenerateHTMLReport(*optHTMLReport, wcWorkers, *optUngroup)
+		chartjs.GenerateHTMLReport(*optHTMLReport, wcWorkers, *optUngroup)
 	}
 
 	// todo: defer this block

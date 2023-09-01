@@ -23,6 +23,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
+	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
 
@@ -74,7 +75,7 @@ type JobHTTPClient struct {
 	tr          roundTripTrace
 	numRedirect int
 	finalTarget string
-	wm          *Metric
+	wm          *metric.Metric
 }
 
 func (j *JobHTTPClient) GoString() string {
@@ -166,8 +167,8 @@ func (j *JobHTTPClient) IsInfinite() bool { return false }
 func (j *JobHTTPClient) Init() error {
 
 	// todo move this to run ? and get ride of .wm?
-	j.wm = &Metric{
-		MetricsData: MetricsData{
+	j.wm = &metric.Metric{
+		MetricsData: metric.MetricsData{
 			Done:    false,
 			Expired: false,
 			Target:  j.GetTarget(),
@@ -424,7 +425,7 @@ func (j *JobHTTPClient) Init() error {
 	return nil
 }
 
-func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, error) {
+func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
 
 	defer wg.Done()
 	if j.req == nil {
@@ -442,21 +443,15 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 	// todo handle redirects more nicely (array ?)
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(dnsInfo httptrace.DNSStartInfo) {
-			wm.mutex.Lock()
-			defer wm.mutex.Unlock()
 			j.tr.start = time.Now()
 			wm.Logger().Trace().Msgf("ClientTrace-DNSStart: %v", j.tr.start.Sub(refdate))
 		},
 		DNSDone: func(dnsInfo httptrace.DNSDoneInfo) {
-			wm.mutex.Lock()
-			defer wm.mutex.Unlock()
 			j.tr.dnsDone = time.Now()
 			j.tr.DNSInfo = dnsInfo
 			wm.Logger().Trace().Msgf("ClientTrace-DNSDone: %v", j.tr.dnsDone.Sub(refdate))
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
-			wm.mutex.Lock()
-			defer wm.mutex.Unlock()
 			j.tr.gotConn = time.Now()
 			j.tr.ConnInfo = connInfo
 			j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(j.GetDestination())
@@ -464,23 +459,17 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 			wm.Logger().Debug().Msgf("GotConn - interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
 		},
 		GotFirstResponseByte: func() {
-			wm.mutex.Lock()
-			defer wm.mutex.Unlock()
 			j.tr.responseStart = time.Now()
 			wm.FirstResponseByte = j.tr.responseStart // todo: does this belong here ?
 			wm.Logger().Trace().Msgf("ClientTrace-GotFirstResponseByte: %v", j.tr.responseStart.Sub(refdate))
 		},
 
 		TLSHandshakeStart: func() {
-			wm.mutex.Lock()
-			defer wm.mutex.Unlock()
 			j.tr.tlsStart = time.Now()
 			wm.Logger().Trace().Msgf("ClientTrace-TLSHandshakeStart: %v", j.tr.tlsStart.Sub(refdate))
 		},
 
 		TLSHandshakeDone: func(t tls.ConnectionState, err error) {
-			wm.mutex.Lock()
-			defer wm.mutex.Unlock()
 			if err == nil {
 				j.tr.tls = true
 				j.tr.tlsDone = time.Now()
@@ -493,8 +482,6 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 			}
 		},
 		ConnectStart: func(_, _ string) {
-			wm.mutex.Lock()
-			defer wm.mutex.Unlock()
 			// No DNS resolution means we used an IP address directly.
 			j.tr.connectStart = time.Now()
 			if j.tr.dnsDone.IsZero() {
@@ -505,15 +492,11 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 		},
 
 		ConnectDone: func(net, addr string, err error) {
-			wm.mutex.Lock()
-			defer wm.mutex.Unlock()
 			j.tr.connectDone = time.Now()
 			wm.Logger().Trace().Msgf("ClientTrace-ConnectDone: %v", j.tr.connectDone.Sub(refdate))
 		},
 
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
-			wm.mutex.Lock()
-			defer wm.mutex.Unlock()
 			j.Logger().Trace().Msgf("ClientTrace-got 1xx: %d %+v", code, header)
 			return nil
 		},
@@ -666,7 +649,7 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*Metric, e
 
 				//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 				//todo: invesstigate why the following gives results too high
-				totalread, err := io.CopyBuffer(wm, resp.Body, BigBuffer)
+				totalread, err := io.CopyBuffer(wm, resp.Body, utils.BigBuffer)
 				close(done)
 				j.Logger().Debug().Err(err).Msgf("copybuffer ended with %d totalread", totalread)
 
@@ -759,11 +742,11 @@ func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
 		return context.DeadlineExceeded
 	}
 
-	var h3err http3.Error
-	if errors.As(err, &h3err) && h3err.ErrorCode == http3.ErrCodeRequestCanceled {
-		l.Info().Msgf("http3.Error: %d changed to context.DeadlineExceeded ", h3err.ErrorCode)
-		return context.DeadlineExceeded
-	}
+	// var h3err http3.Error
+	// if errors.As(err, &h3err) && h3err.ErrorCode == http3.ErrCodeRequestCanceled {
+	// 	l.Info().Msgf("http3.Error: %d changed to context.DeadlineExceeded ", h3err.ErrorCode)
+	// 	return context.DeadlineExceeded
+	// }
 
 	// HTTP/2 & INTERNAL_ERROR & 'received from peer' => server timeout (WriteTimeout for instance)
 	// this is not good, see: https://github.com/golang/go/issues/21389

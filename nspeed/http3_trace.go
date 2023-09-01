@@ -8,12 +8,13 @@ import (
 	"net"
 
 	"github.com/quic-go/quic-go/logging"
+	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
 
 type quicTracer struct {
 	logging.NullTracer
-	wm *Metric
+	wm *metric.Metric
 }
 
 func (t *quicTracer) TracerForConnection(context.Context, logging.Perspective, logging.ConnectionID) logging.ConnectionTracer {
@@ -22,7 +23,7 @@ func (t *quicTracer) TracerForConnection(context.Context, logging.Perspective, l
 
 type quicConnectionTracer struct {
 	logging.NullConnectionTracer
-	wm *Metric
+	wm *metric.Metric
 }
 
 func (t *quicConnectionTracer) StartedConnection(local, remote net.Addr, srcConnID, destConnID logging.ConnectionID) {
@@ -44,7 +45,7 @@ func (t *quicConnectionTracer) UpdatedMetrics(rttStats *logging.RTTStats, cwnd l
 	t.wm.AvgLatency = rttStats.SmoothedRTT()
 }
 
-func NewQuicTracer(wm *Metric) func(context.Context, logging.Perspective, logging.ConnectionID) logging.ConnectionTracer {
+func NewQuicTracer(wm *metric.Metric) func(context.Context, logging.Perspective, logging.ConnectionID) logging.ConnectionTracer {
 	qt := &quicTracer{wm: wm}
 	return qt.TracerForConnection
 }

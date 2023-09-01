@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"nspeed.app/metric"
 )
 
 type Options struct {
@@ -26,7 +27,7 @@ var GlobalOptions Options
 
 // RunJobs runs all the jobs, one batch at a time, this is a synchronous function
 // update/progress can be obtained thru the optionnal message channel
-func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (Metrics, error) {
+func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (metric.Metrics, error) {
 
 	jobs := jl.Jobs
 	nJobs := len(jobs)
@@ -71,13 +72,13 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	}
 
 	// this will collect result from jobs
-	results := make(chan *Metric, nJobs)
+	results := make(chan *metric.Metric, nJobs)
 	// run workers by launching a go routine for each one
 	// we use 2 waitgroup, one for short-lived jobs (get, put,etc), one for infinite jobs (server, api)
 	var wgi sync.WaitGroup // infinite
 
 	rc := nJobs
-	wcWorkers := make(Metrics, 0, nJobs)
+	wcWorkers := make(metric.Metrics, 0, nJobs)
 
 	// batch loop
 
@@ -227,7 +228,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (M
 	return wcWorkers, nil
 }
 
-func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test bool, wg *sync.WaitGroup, results chan *Metric) (int, error) {
+func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test bool, wg *sync.WaitGroup, results chan *metric.Metric) (int, error) {
 	if jl == nil {
 		return 0, fmt.Errorf("no job list")
 	}
