@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -198,95 +197,6 @@ func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, outpu
 		jobs[i] = &jc
 	}
 	return args, jl.AddJobs(jobs...)
-}
-func HTTPServerParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
-	fs := flag.NewFlagSet(command, flag.ContinueOnError)
-	fs.SetOutput(output)
-	host := NewHostParameters()
-	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "Usage of %s: ", serveCommand)
-		fmt.Fprintf(fs.Output(), "  %s [options]\n", serveCommand)
-		fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
-		fs.PrintDefaults()
-		fmt.Fprintf(fs.Output(), "\n")
-	}
-
-	fs.StringVar(&host.Host, "a", "localhost", "Hostname or ip address to listen (use \"\" for all interfaces/all addresses)")
-	//flag.Lookup("address").NoOptDefVal = ""
-	useIPv4 := fs.Bool("4", false, "use IPv4 only")
-	useIPv6 := fs.Bool("6", false, "use IPv6 only")
-	fs.IntVar(&host.Port, "p", 0, "Port number to listen on")
-	maxsize := fs.String("s", utils.FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
-	maxtime := fs.Uint("m", uint(DefaultMaxDuration.Seconds()), "Maximum duration in seconds a response may take")
-	fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
-	fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = run forever)")
-	fs.StringVar(&host.TLSCertFile, "cert", "", "TLS certificate file")
-	fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
-	fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
-	fs.StringVar(&host.Directory, "dir", "", "directory to serve content from (url will be /dir)")
-	fs.BoolVar(&host.H2C, "h2c", false, "listen in HTTP/2 Cleartext (H2C) mode")
-	fs.BoolVar(&host.HTTP11, "http1.1", false, "listen only in HTTP/1.1 (this will disable HTTP/2) - implies -self is no cert/key ")
-	fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key ")
-	fs.BoolVar(&host.HTTP3, "http3", false, "also listen using HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
-	fs.BoolVar(&host.API, "api", false, "enable API endpoint (activate /api url)")
-	fs.StringVar(&host.AltSvc, "alt", "", "add alt-svc endpoints (use id names, comma separated)")
-	id := fs.String("id", "", "unique ID/name of this server")
-	if err := fs.Parse(cmdargs); err != nil {
-		return cmdargs, err
-	}
-
-	//
-	host.MaxDuration = time.Duration(*maxtime) * time.Second
-
-	// force IPv4 or IPv6
-	if *useIPv4 && *useIPv6 {
-		fs.Usage()
-		return cmdargs, errors.New("specify IPv4 or IPv6 but not both")
-	}
-	if *useIPv4 {
-		host.ForceIPVersion = 4
-	}
-	if *useIPv6 {
-		host.ForceIPVersion = 6
-	}
-
-	ms, err := utils.ParseByteUnits(*maxsize)
-	if err != nil {
-		fs.Usage()
-		return cmdargs, err
-	}
-	host.MaxBodySize = int64(ms)
-
-	host.ServeTLS = host.UseTLSSelfConfig
-	if host.TLSCertFile != "" || host.TLSKeyFile != "" {
-		if _, err := os.Stat(host.TLSCertFile); os.IsNotExist(err) {
-			return cmdargs, errors.New("bad or missing TLS certificate file: " + host.TLSCertFile)
-		}
-		if _, err := os.Stat(host.TLSKeyFile); os.IsNotExist(err) {
-			return cmdargs, errors.New("bad or missing TLS key file: " + host.TLSKeyFile)
-		}
-		host.ServeTLS = true
-	}
-
-	// force -self if http2 or http3 and no tls files
-	if (host.HTTP11 || host.HTTP2 || host.HTTP3) && !host.ServeTLS {
-		host.UseTLSSelfConfig = true
-		host.ServeTLS = true
-	}
-	if host.HTTP11 && host.HTTP2 {
-		return cmdargs, errors.New("can't use both -http1.1 and -http2")
-	}
-
-	// if encryption is on (-self, -http1.1, -http2, -http3 or -key/-cert) then don't allow h2c
-	if host.ServeTLS && host.H2C {
-		return cmdargs, errors.New("h2c not compatible with self/http1.1/http2/http3" + host.TLSKeyFile)
-	}
-
-	args := fs.Args()
-	j := JobHTTPServer{Parameters: host, JobList: jl}
-	j.SetID(*id)
-	err = jl.AddJobs(&j)
-	return args, err
 }
 
 // common GET/PUT flags

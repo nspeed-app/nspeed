@@ -54,41 +54,6 @@ func init() {
 	TTLGUIDCache = utils.NewTTLCache[string, *metric.Metric](20, TTLGuidMaxSize)
 }
 
-// parameters of a server endpoint
-// todo: rename & refactor ?
-type HostParameters struct {
-	Host             string
-	Port             int
-	ForceIPVersion   int   // 0 (use global setting), 4 (force IPv4)  or 6 (force IPv6)
-	MaxBodySize      int64 // max inbound size and outbound size for streaming (not fileserve)- todo: split into 2 distinct settings?
-	MaxDuration      time.Duration
-	IdleTimeout      time.Duration
-	ServeTLS         bool
-	H2C              bool
-	HTTP11           bool
-	HTTP2            bool
-	HTTP3            bool
-	AltSvc           string
-	UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
-	TLSCertFile      string
-	TLSKeyFile       string
-	RunDuration      time.Duration
-	MaxRequests      int
-	Directory        string // directory to serve content from /dir url
-	API              bool
-	APIOnly          bool
-}
-
-// initialize a new HostParameters
-func NewHostParameters() *HostParameters {
-	return &HostParameters{
-		//Port:        DefaultPort,
-		MaxBodySize: DefaultMaxBodySize,
-		MaxDuration: DefaultMaxDuration,
-		IdleTimeout: DefaultIdelTimeout,
-	}
-}
-
 // the HTTP Server
 // implements Job interface
 type JobHTTPServer struct {
@@ -635,6 +600,14 @@ func (j *JobHTTPServer) Init() error {
 }
 func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
 
+	done := false
+	defer func() {
+		if !done {
+			wg.Done()
+			done = true // not used but just in case
+		}
+	}()
+
 	ctx, j.Cancel = context.WithCancel(ctx)
 
 	// run duration is either global timeout from ctx or RunDuration parameter
@@ -674,31 +647,34 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 			j.Logger().Info().Msgf("using TLSSelfConfig")
 		} else {
 			// this shouldn't happen if parameters check are done correctly
-			j.Logger().Fatal().Msgf("no self certificate installed")
+			j.Logger().Error().Msgf("no self certificate installed")
+			return nil, fmt.Errorf("no self certificate installed")
 		}
 	} else if j.Parameters.ServeTLS {
 		// todo: this should be done earlier may be ?
 		cer, err := tls.LoadX509KeyPair(j.Parameters.TLSCertFile, j.Parameters.TLSKeyFile)
 		if err != nil {
-			j.Logger().Fatal().Err(err).Msgf("error loading cert/key files")
+			j.Logger().Error().Err(err).Msgf("error loading cert/key files")
+			return nil, fmt.Errorf("LoadX509KeyPair: %v", err)
 		}
 		j.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
 	}
 
 	err := j.Listen(ctx)
 	if err != nil {
-		j.Logger().Fatal().Msgf("failed to listen: %s", err)
-		return nil, err
+		j.Logger().Error().Msgf("failed to listen: %v", err)
+		return nil, fmt.Errorf("Listen failed: %v", err)
 	}
 
 	// signal parent we're listening
 	wg.Done()
+	done = true
 	// hack: openbrowser, revisit this
 	if j.RunHook != nil {
 		err := j.RunHook(ctx)
 		if err != nil {
-			j.Logger().Warn().Msgf("failed to serve: %s", err)
-			return nil, err
+			j.Logger().Error().Msgf("RunHook failed: %v", err)
+			return nil, fmt.Errorf("RunHook failed: %v", err)
 		}
 	}
 
@@ -719,7 +695,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 	}
 
 	// send metrics
-	return j.wm, nil
+	return j.wm, err
 }
 
 // Listen opens the listening conn

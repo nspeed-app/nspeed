@@ -20,7 +20,7 @@ type Job interface {
 	IsInfinite() bool
 	Init() error
 	Run(context.Context, *sync.WaitGroup) (*metric.Metric, error)
-	//common, implemented here
+	//common, implemented here if JobData is embeded
 	Logger() *zerolog.Logger
 	SetLogger(*zerolog.Logger)
 	ID() string
@@ -34,7 +34,7 @@ type Job interface {
 // JobData should be embeded in every struct implementing Job interface
 // it provides ID/GID storage
 type JobData struct {
-	Job
+	//	Job
 	id      string
 	group   string
 	batch   int
@@ -42,6 +42,7 @@ type JobData struct {
 	logger  *zerolog.Logger
 }
 
+// implemented here
 func (j *JobData) ID() string            { return j.id }
 func (j *JobData) SetID(id string)       { j.id = id }
 func (j *JobData) GroupID() string       { return j.group }

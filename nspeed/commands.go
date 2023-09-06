@@ -18,15 +18,17 @@ import (
 // commands
 type CommandID int
 
-const getCommand = "get"
-const putCommand = "put"
-const postCommand = "post"
-const serveCommand = "server"
-const ciphersCommand = "ciphers"
-const apiCommand = "api"
-const benchmarkCommand = "bench"
-const fromCommand = "from"
-const thenCommand = "then"
+const (
+	getCommand       = "get"
+	putCommand       = "put"
+	postCommand      = "post"
+	serveCommand     = "server"
+	ciphersCommand   = "ciphers"
+	apiCommand       = "api"
+	benchmarkCommand = "bench"
+	fromCommand      = "from"
+	thenCommand      = "then"
+)
 
 // const latencyCommand = "latency"
 // const tracerouteCommand = "traceroute"
@@ -48,7 +50,7 @@ var Commands = map[string]Command{
 	getCommand:     {getCommand, 1, true, HTTPClientParseGet},
 	putCommand:     {putCommand, 1, true, HTTPClientParsePutPost},
 	postCommand:    {postCommand, 1, true, HTTPClientParsePutPost},
-	serveCommand:   {serveCommand, 1, true, HTTPServerParse},
+	serveCommand:   {serveCommand, 1, true, ServerParse},
 	ciphersCommand: {ciphersCommand, 0, false, CiphersParse},
 	// latencyCommand:    {latencyCommand, 1, true},
 	// tracerouteCommand: {tracerouteCommand, 2, true},
@@ -59,10 +61,10 @@ var Commands = map[string]Command{
 }
 
 var CommandDescriptions = map[string]string{
-	getCommand:     "perform an HTTP GET command to measure download speed",
-	putCommand:     "perform an HTTP PUT command to measure upload speed",
+	getCommand:     "perform a transfer to measure download speed (default HTTP GET)",
+	putCommand:     "perform a transfer to measure upload speed (default HTTP PUT)",
 	postCommand:    "perform an HTTP POST command to measure upload speed",
-	serveCommand:   "launch a standard web server supporting GET and POST commands of arbitraty sizes",
+	serveCommand:   "launch a nspeed server (default HTTP server)",
 	ciphersCommand: "list cipher suites supported by the target server(s)",
 	// latencyCommand:    "measure latency to destination (not yet implemented)",
 	// tracerouteCommand: "discover route to destination (not yet implemented)",

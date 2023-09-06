@@ -182,20 +182,24 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 				message <- wcWorkers
 			case wm := <-results:
 				// test for wm==nil ?
-				wm.Logger().Debug().Msgf("got a result for job %s batch %d (err=%s)", wm.ID, batch, wm.Error)
-				wm.Batch = batch
-				wcWorkers = append(wcWorkers, wm)
-				rc--
-				slnj--
-				if slnj == 0 {
-					log.Info().Msgf("batch %s (%d) has more SL to do", jl.Batches[batch].Name, batch)
-					wgsl.Done()
-				}
-				if wm.Done {
-					wm.Logger().Info().Msgf("job %s ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.ID, wm.Expired, runtime.NumGoroutine(), rc)
+				if wm == nil {
+					log.Fatal().Msgf("got a nil metric")
+				} else {
+					wm.Logger().Debug().Msgf("got a result for job %s batch %d (err=%s)", wm.ID, batch, wm.Error)
+					wm.Batch = batch
+					wcWorkers = append(wcWorkers, wm)
+					rc--
+					slnj--
+					if slnj == 0 {
+						log.Info().Msgf("batch %s (%d) has more SL to do", jl.Batches[batch].Name, batch)
+						wgsl.Done()
+					}
+					if wm.Done {
+						wm.Logger().Info().Msgf("job %s ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.ID, wm.Expired, runtime.NumGoroutine(), rc)
+					}
 				}
 				if rc <= 0 {
-					wm.Logger().Info().Msgf("no more jobs - exiting")
+					log.Info().Msgf("no more jobs - exiting")
 					break batchloop
 				}
 			case <-cWaitgroupSLEnded:
@@ -271,8 +275,11 @@ func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test b
 			wg.Add(1)
 			go func(j Job, wg *sync.WaitGroup) {
 				wm, err := j.Run(ctx, wg)
-				if err != nil {
+				if err != nil && wm != nil {
 					log.Error().Msgf("error '%s' for '%s'", err, j.GetTarget())
+				}
+				if wm == nil {
+					log.Fatal().Msgf("error '%s' for '%s' was fatal", err, j.GetTarget())
 				}
 				j.Logger().Info().Msgf("sending result")
 				results <- wm
