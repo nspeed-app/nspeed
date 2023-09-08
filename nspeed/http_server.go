@@ -632,6 +632,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 	}
 
 	go func() {
+		//todo:is ctx is never cancelled, can this mem leak a goroutine for ever
 		<-ctx.Done()
 		j.Logger().Debug().Msgf("shutdown started by context : %s", ctx.Err())
 

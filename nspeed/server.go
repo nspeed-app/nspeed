@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -242,7 +243,9 @@ func (j *L4Server) Init() error {
 		}
 		host = fhostIPAddrs[0].String()
 	}
-	j.Logger().Debug().Msgf("host parameter is:'%s'", host)
+	j.addr = net.JoinHostPort(host, strconv.Itoa(j.Parameters.Port))
+
+	j.Logger().Debug().Msgf("address parameters gave:'%s'", j.addr)
 
 	return nil
 }
@@ -264,5 +267,70 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric,
 		j.Logger().Debug().Msgf("server will shutdown in: %v", j.Parameters.RunDuration)
 	}
 
-	return nil, fmt.Errorf("%s server - run - not implemented", j.Parameters.Protocol)
+	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.ForceIPVersion, GlobalOptions.IPVersion)
+
+	lc := net.ListenConfig{}
+
+	ls, err := lc.Listen(ctx, network, j.addr)
+	if err != nil {
+		return nil, fmt.Errorf("listen failed: %s (%s)", err, j.addr)
+	}
+	j.listener = &ls
+
+	acceptDone := make(chan error)
+	j.Logger().Warn().Msgf("server %s listening %s", j.Parameters.Protocol, ls.Addr())
+	//spawn the accept loop
+	result := make(chan metric.Metric)
+	go func() {
+		for {
+			conn, err := ls.Accept()
+			if err != nil {
+				j.Logger().Debug().Err(err).Msgf("accept failed")
+				acceptDone <- err
+				break
+			}
+			go j.handleConnection(ctx, conn, result)
+		}
+	}()
+	err = nil
+	j.Logger().Debug().Msgf("entering wait loop")
+	select {
+	case err = <-acceptDone:
+	case <-ctx.Done():
+		err = ctx.Err()
+	}
+	j.Logger().Debug().Err(ctx.Err()).Msgf("ending")
+
+	//todo: handle pending connections
+	ls.Close()
+
+	return nil, err
+}
+
+// MT
+func (j *L4Server) handleConnection(ctx context.Context, conn net.Conn, result chan metric.Metric) {
+	defer conn.Close()
+
+	j.Logger().Debug().Msgf("incoming connection from %s", conn.RemoteAddr())
+
+	var chunkSize int64 = 256 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
+	chunk := utils.BigChunk[:chunkSize]
+
+	wm := metric.Metric{}
+	wm.InitNew()
+	wm.Command = fmt.Sprintf("%s with %s", j.GetTarget(), conn.RemoteAddr())
+	conn.SetDeadline(time.Now().Add(j.Parameters.MaxDuration))
+	for {
+		n, err := conn.Read(chunk)
+		if err != nil {
+			if err != io.EOF {
+				wm.Error = err
+			}
+			break
+		}
+		wm.WriteN(int64(n))
+	}
+	wm.Valid = true
+	wm.PrintFinal(os.Stdout)
+	j.Logger().Warn().Msgf("NYI sending or receiving - max dur = %d", j.Parameters.MaxDuration)
 }

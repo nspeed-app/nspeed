@@ -140,17 +140,18 @@ HTTP SERVER:
 
 // Writer - performance sensitive, don't do much here
 func (wm *Metric) Write(p []byte) (int, error) {
-	n := len(p)
-	s := int64(n)
-	wm.mutex.Lock()
-	defer wm.mutex.Unlock()
-	if s > wm.ReadStepSize {
-		wm.ReadStepSize = s
+	return int(wm.WriteN(int64(len(p)))), nil
+}
+func (wm *Metric) WriteN(n int64) int64 {
+	// wm.mutex.Lock()
+	// defer wm.mutex.Unlock()
+	if n > wm.ReadStepSize {
+		wm.ReadStepSize = n
 	}
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
-	wm.TotalRead += s
+	wm.TotalRead += n
 	wm.ReadCount++
-	return n, nil
+	return n
 }
 
 // todo: since we io.Copy(WorkerMetrics, Resp.Body) and io.Copy can call a ReadFrom
@@ -246,11 +247,11 @@ func (wm *Metric) PrintFinal(w io.Writer) {
 		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
 		// fmt.Fprintf(w, "WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
 		fmt.Fprintf(w, "duration: %s ", wm.ElapsedTime)
-		fmt.Fprintf(w, "command: %s", "TODO1"+wm.Target)
+		fmt.Fprintf(w, "command: %s", wm.Command)
 		fmt.Fprintf(w, "\n")
 
 	} else {
-		fmt.Fprintf(w, "job %s error: %v\n", "TODO2", wm.Error)
+		fmt.Fprintf(w, "job %s error: %v\n", wm.ID, wm.Error)
 	}
 }
 
@@ -298,6 +299,11 @@ func (wm *Metric) Read(p []byte) (n int, err error) {
 
 // actual implementation of Read
 func (wm *Metric) read(p []byte) (n int, err error) {
+	r, err := wm.ReadN(int64(len(p)))
+	return int(r), err
+}
+func (wm *Metric) ReadN(n int64) (int64, error) {
+
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 
@@ -311,9 +317,8 @@ func (wm *Metric) read(p []byte) (n int, err error) {
 	// }
 
 	wm.WriteCount++
-	maxstep := len(p)
 
-	if maxstep == 0 {
+	if n == 0 {
 		return 0, nil
 	}
 
@@ -322,11 +327,11 @@ func (wm *Metric) read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-	todo := min(int64(maxstep), wm.WriteStepSize, lefttodo)
+	todo := min(n, wm.WriteStepSize, lefttodo)
 
 	wm.TotalWrite += todo
 
-	return int(todo), nil
+	return todo, nil
 }
 
 // WriteTo - implement io.WriterTo interface - optimized Read
