@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/netip"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/google/gopacket/routing"
@@ -146,7 +145,7 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 
 // FilterAddresses
 // filters a list of IP addresses based on IP version (0 = all or 4 or 6)
-func FilterAddresses(addrs []net.IPAddr, ipversion int) []net.IPAddr {
+func FilterAddresses(addrs []net.IPAddr, ipversion IPVersion) []net.IPAddr {
 	var fipaddrs []net.IPAddr
 
 	if ipversion == 0 {
@@ -296,26 +295,42 @@ func GetRoute(destination string) (iface *net.Interface, gw netip.Addr, src neti
 	return
 }
 
-// IPVersion pretty prints the IP version of the address
-func IPVersion(address string) string {
-	ap, err := netip.ParseAddrPort(address)
-	if err != nil {
+// 0,4,6 or -1 if no valid
+type IPVersion int
+
+func (v IPVersion) String() string {
+	switch v {
+	case 4:
+		return "IPv4"
+	case 6:
+		return "IPv6"
+	case -1:
+		return "invalid"
+	default:
 		return ""
 	}
+}
+
+// ParseIPVersion
+func ParseIPVersion(address string) IPVersion {
+	ap, err := netip.ParseAddrPort(address)
+	if err != nil {
+		return -1
+	}
 	if ap.Addr().Is4() {
-		return "IPv4"
+		return 4
 	}
 	if ap.Addr().Is6() {
-		return "IPv6"
+		return 6
 	}
-	return ""
+	return 0
 }
 
 // AddIPVersionToNetwork adds the ipVersion to network. if ipVersion is zero, globalVersion is used
 // "udp", 0, 0  -> "udp4"
 // "udp", 0, 4  -> "udp4"
 // "udp", 6, 4  -> "udp6"
-func AddIPVersionToNetwork(network string, ipVersion int, globalVersion int) string {
+func AddIPVersionToNetwork(network string, ipVersion IPVersion, globalVersion IPVersion) string {
 	ipV := globalVersion
 	if ipVersion != 0 {
 		ipV = ipVersion
@@ -323,5 +338,5 @@ func AddIPVersionToNetwork(network string, ipVersion int, globalVersion int) str
 	if ipV == 0 {
 		return network
 	}
-	return network + strconv.Itoa(ipV)
+	return network + ipV.String()
 }

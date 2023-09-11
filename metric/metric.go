@@ -242,10 +242,8 @@ func (wm *Metric) PrintFinal(w io.Writer) {
 	if wm.Valid {
 		fmt.Fprintf(w, "Read: %s ", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
 		fmt.Fprintf(w, "Write: %s ", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
-		fmt.Fprintf(w, "TotalRead: %d ", wm.TotalRead)
-		fmt.Fprintf(w, "TotalWrite: %d ", wm.TotalWrite)
-		// fmt.Fprintf(w, "ReadBPS: %d ", (int64)((float64)(wm.TotalRead)*8.0/wm.ElapsedTime.Seconds()))
-		// fmt.Fprintf(w, "WriteBPS: %d ", (int64)((float64)(wm.TotalWrite)*8.0/wm.ElapsedTime.Seconds()))
+		fmt.Fprintf(w, "TotalRead: %d (%sB) ", wm.TotalRead, utils.ByteCountBinary(wm.TotalRead))
+		fmt.Fprintf(w, "TotalWrite: %d (%sB)", wm.TotalWrite, utils.ByteCountBinary(wm.TotalWrite))
 		fmt.Fprintf(w, "duration: %s ", wm.ElapsedTime)
 		fmt.Fprintf(w, "command: %s", wm.Command)
 		fmt.Fprintf(w, "\n")

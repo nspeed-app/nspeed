@@ -11,6 +11,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"nspeed.app/metric"
+	"nspeed.app/utils"
 )
 
 type Options struct {
@@ -20,7 +21,7 @@ type Options struct {
 	Timeout          time.Duration
 	Test             bool
 	TLSSelf          bool
-	IPVersion        int // 0, 4 or 6
+	IPVersion        utils.IPVersion // 0, 4 or 6
 }
 
 var GlobalOptions Options

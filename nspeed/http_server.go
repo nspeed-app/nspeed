@@ -79,7 +79,7 @@ type JobHTTPServer struct {
 }
 
 func (j *JobHTTPServer) GetTarget() string {
-	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
+	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.IPVersion)
 }
 
 func (j *JobHTTPServer) GoString() string {
@@ -89,7 +89,7 @@ func (j *JobHTTPServer) GoString() string {
 	return fmt.Sprintf("HTTP server {Address: %q, port: %d, IPversion: %d, max_size: %s, max_request, max duration: %v, UseTLS: %t, H2C: %t, maxruns: %d, max life: %v}",
 		j.Parameters.Host,
 		j.Parameters.Port,
-		j.Parameters.ForceIPVersion,
+		j.Parameters.IPVersion,
 		utils.ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
 		j.Parameters.MaxDuration,
 		j.Parameters.ServeTLS,
@@ -284,7 +284,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	}
 	// end danger zone
 
-	chunk := utils.BigChunk[:chunkSize]
+	chunk := utils.GetChunk(chunkSize)
 
 	// content-type
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -554,8 +554,8 @@ func (j *JobHTTPServer) Init() error {
 	// empty host is a special case
 
 	ipVersion := GlobalOptions.IPVersion
-	if j.Parameters.ForceIPVersion == 4 || j.Parameters.ForceIPVersion == 6 {
-		ipVersion = j.Parameters.ForceIPVersion
+	if j.Parameters.IPVersion == 4 || j.Parameters.IPVersion == 6 {
+		ipVersion = j.Parameters.IPVersion
 	}
 
 	j.Logger().Debug().Msgf("host parameter is:'%s'", host)
@@ -586,6 +586,13 @@ func (j *JobHTTPServer) Init() error {
 		ReadHeaderTimeout: 2 * time.Second, //j.Parameters.MaxDuration,
 		IdleTimeout:       j.Parameters.IdleTimeout,
 		//ConnState:        todo,
+	}
+	// TLS settings to tls.Config
+	var err error
+	j.Server.TLSConfig, err = j.Parameters.MakeTLSConfig()
+	if err != nil {
+		j.Logger().Error().Err(err).Msgf("MakeTLSConfig error")
+		return fmt.Errorf("MakeTLSConfig error: %w", err)
 	}
 
 	if j.Parameters.H2C {
@@ -641,30 +648,10 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 		close(exitCh)
 	}()
 
-	// TLS stuff (todo move this in Init ?)
-	if j.Parameters.UseTLSSelfConfig {
-		if TLSSelfConfig != nil {
-			j.Server.TLSConfig = TLSSelfConfig.Clone()
-			j.Logger().Info().Msgf("using TLSSelfConfig")
-		} else {
-			// this shouldn't happen if parameters check are done correctly
-			j.Logger().Error().Msgf("no self certificate installed")
-			return nil, fmt.Errorf("no self certificate installed")
-		}
-	} else if j.Parameters.ServeTLS {
-		// todo: this should be done earlier may be ?
-		cer, err := tls.LoadX509KeyPair(j.Parameters.TLSCertFile, j.Parameters.TLSKeyFile)
-		if err != nil {
-			j.Logger().Error().Err(err).Msgf("error loading cert/key files")
-			return nil, fmt.Errorf("LoadX509KeyPair: %v", err)
-		}
-		j.Server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
-	}
-
 	err := j.Listen(ctx)
 	if err != nil {
-		j.Logger().Error().Msgf("failed to listen: %v", err)
-		return nil, fmt.Errorf("Listen failed: %v", err)
+		j.Logger().Error().Err(err).Msgf("failed to listen: %v", err)
+		return nil, fmt.Errorf("Listen failed: %w", err)
 	}
 
 	// signal parent we're listening
@@ -674,8 +661,8 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 	if j.RunHook != nil {
 		err := j.RunHook(ctx)
 		if err != nil {
-			j.Logger().Error().Msgf("RunHook failed: %v", err)
-			return nil, fmt.Errorf("RunHook failed: %v", err)
+			j.Logger().Error().Err(err).Msgf("RunHook failed: %v", err)
+			return nil, fmt.Errorf("RunHook failed: %w", err)
 		}
 	}
 
@@ -711,6 +698,7 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 	}
 
 	j.addr = j.Server.Addr
+	// default port is 80 for http and 443 for https
 	if j.addr == "" {
 		j.addr = ":http"
 		if j.Parameters.ServeTLS {
@@ -742,7 +730,7 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 	}
 
 	// enforce ipVersion here
-	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.ForceIPVersion, GlobalOptions.IPVersion)
+	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.IPVersion, GlobalOptions.IPVersion)
 
 	ln, err := lc.Listen(ctx, network, j.addr)
 	if err != nil {
@@ -835,7 +823,7 @@ func (j *JobHTTPServer) HTTP3Listen() error {
 		return errors.New("udp connection already listening")
 	}
 
-	networkUDP := utils.AddIPVersionToNetwork("udp", j.Parameters.ForceIPVersion, GlobalOptions.IPVersion)
+	networkUDP := utils.AddIPVersionToNetwork("udp", j.Parameters.IPVersion, GlobalOptions.IPVersion)
 
 	// Open the listeners
 	udpAddr, err := net.ResolveUDPAddr(networkUDP, j.Server.Addr)

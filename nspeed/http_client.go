@@ -56,7 +56,7 @@ type JobHTTPClient struct {
 	JobData
 	Command          string
 	Repeat           int
-	IPVersion        int
+	IPVersion        utils.IPVersion
 	Host             string
 	Target           string
 	Timeout          time.Duration
@@ -135,7 +135,7 @@ func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 		}
 		latency := j.wm.AvgLatency.Milliseconds()
 		latencyMicroRem := j.wm.AvgLatency.Microseconds() % 1000
-		ipv := utils.IPVersion(j.wm.Remote)
+		ipv := utils.ParseIPVersion(j.wm.Remote)
 		details := fmt.Sprintf("%s (%s - %d.%d ms - %s - %s)", r, ipv, latency, latencyMicroRem, j.wm.Protocol, j.wm.TLSVersion)
 		if j.numRedirect > 0 && verbose {
 			return fmt.Sprintf("%s from %s", details, j.Target)
@@ -243,7 +243,7 @@ func (j *JobHTTPClient) Init() error {
 	}
 
 	// sanatize IPVersion
-	ipVersion := 0
+	ipVersion := utils.IPVersion(0)
 	if j.IPVersion == 6 || j.IPVersion == 4 {
 		ipVersion = j.IPVersion
 	} else if j.IPVersion != 0 {

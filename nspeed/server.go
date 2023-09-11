@@ -2,6 +2,7 @@ package nspeed
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,30 +20,57 @@ import (
 	"nspeed.app/utils"
 )
 
-// parameters of a server endpoint
-// todo: rename & refactor ?
-type HostParameters struct {
-	Protocol         string
-	Host             string
-	Port             int
-	ForceIPVersion   int   // 0 (use global setting), 4 (force IPv4)  or 6 (force IPv6)
-	MaxBodySize      int64 // max inbound size and outbound size for streaming (not fileserve)- todo: split into 2 distinct settings?
-	MaxDuration      time.Duration
-	IdleTimeout      time.Duration
+type TLSSettings struct {
 	ServeTLS         bool
-	H2C              bool
-	HTTP11           bool
-	HTTP2            bool
-	HTTP3            bool
-	AltSvc           string
 	UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
 	TLSCertFile      string
 	TLSKeyFile       string
-	RunDuration      time.Duration
-	MaxRequests      int
-	Directory        string // directory to serve content from /dir url
-	API              bool
-	APIOnly          bool
+	SkipTLSCheck     bool
+}
+
+func (s *TLSSettings) MakeTLSConfig() (*tls.Config, error) {
+	if s.UseTLSSelfConfig {
+		if TLSSelfConfig != nil {
+			return TLSSelfConfig.Clone(), nil
+		} else {
+			// this shouldn't happen if parameters check are done correctly
+			return nil, fmt.Errorf("no self certificate installed")
+		}
+	} else if s.ServeTLS {
+		// todo: this should be done earlier may be ?
+		cer, err := tls.LoadX509KeyPair(s.TLSCertFile, s.TLSKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("LoadX509KeyPair: %w", err)
+		}
+		return &tls.Config{Certificates: []tls.Certificate{cer}}, nil
+	}
+	return nil, nil
+}
+
+// parameters of a server endpoint
+// todo: rename & refactor ?
+type HostParameters struct {
+	TLSSettings
+	Protocol    string
+	Host        string
+	Port        int
+	IPVersion   utils.IPVersion // 0 (use global setting), 4 (force IPv4)  or 6 (force IPv6)
+	MaxBodySize int64           // max inbound size and outbound size for streaming (not fileserve)- todo: split into 2 distinct settings?
+	MaxDuration time.Duration
+	IdleTimeout time.Duration
+	H2C         bool
+	HTTP11      bool
+	HTTP2       bool
+	HTTP3       bool
+	AltSvc      string
+	// UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
+	// TLSCertFile      string
+	// TLSKeyFile       string
+	RunDuration time.Duration
+	MaxRequests int
+	Directory   string // directory to serve content from /dir url
+	API         bool
+	APIOnly     bool
 }
 
 var Protocols = []string{"http", "udp", "tcp", "quic", "quic-go"}
@@ -110,10 +138,10 @@ func ServerParse(command string, cmdargs []string, jl *JobList, output io.Writer
 		return cmdargs, errors.New("specify IPv4 or IPv6 but not both")
 	}
 	if *useIPv4 {
-		host.ForceIPVersion = 4
+		host.IPVersion = 4
 	}
 	if *useIPv6 {
-		host.ForceIPVersion = 6
+		host.IPVersion = 6
 	}
 
 	ms, err := utils.ParseByteUnits(*maxsize)
@@ -176,6 +204,7 @@ type L4Server struct {
 	addr          string
 	listener      *net.Listener
 	udpConn       *net.UDPConn
+	tlsConfig     *tls.Config
 	// allow extension
 	JobList *JobList
 	wm      *metric.Metric
@@ -190,7 +219,7 @@ type L4Server struct {
 //   Run(context.Context, *sync.WaitGroup) (*metric.Metric, error)
 
 func (j *L4Server) GetTarget() string {
-	return fmt.Sprintf("%s server %s:%d (IP version: %d)", j.Parameters.Protocol, j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
+	return fmt.Sprintf("%s server %s:%d (IP version: %d)", j.Parameters.Protocol, j.Parameters.Host, j.Parameters.Port, j.Parameters.IPVersion)
 }
 
 func (j *L4Server) GoString() string {
@@ -201,7 +230,7 @@ func (j *L4Server) GoString() string {
 		j.Parameters.Protocol,
 		j.Parameters.Host,
 		j.Parameters.Port,
-		j.Parameters.ForceIPVersion,
+		j.Parameters.IPVersion,
 		utils.ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
 		j.Parameters.MaxDuration,
 		j.Parameters.ServeTLS,
@@ -223,8 +252,8 @@ func (j *L4Server) Init() error {
 	j.TotalRequests.Store(0)
 
 	ipVersion := GlobalOptions.IPVersion
-	if j.Parameters.ForceIPVersion == 4 || j.Parameters.ForceIPVersion == 6 {
-		ipVersion = j.Parameters.ForceIPVersion
+	if j.Parameters.IPVersion == 4 || j.Parameters.IPVersion == 6 {
+		ipVersion = j.Parameters.IPVersion
 	}
 
 	host := j.Parameters.Host
@@ -247,6 +276,12 @@ func (j *L4Server) Init() error {
 
 	j.Logger().Debug().Msgf("address parameters gave:'%s'", j.addr)
 
+	var err error
+	j.tlsConfig, err = j.Parameters.MakeTLSConfig()
+	if err != nil {
+		j.Logger().Error().Err(err).Msgf("MakeTLSConfig error")
+		return fmt.Errorf("MakeTLSConfig error: %w", err)
+	}
 	return nil
 }
 
@@ -267,18 +302,29 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric,
 		j.Logger().Debug().Msgf("server will shutdown in: %v", j.Parameters.RunDuration)
 	}
 
-	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.ForceIPVersion, GlobalOptions.IPVersion)
+	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.IPVersion, GlobalOptions.IPVersion)
+
+	var ls net.Listener
 
 	lc := net.ListenConfig{}
+	var err error
+	if j.tlsConfig != nil {
+		ls, err = tls.Listen(network, j.addr, j.tlsConfig)
+	} else {
+		ls, err = lc.Listen(ctx, network, j.addr)
+	}
 
-	ls, err := lc.Listen(ctx, network, j.addr)
 	if err != nil {
 		return nil, fmt.Errorf("listen failed: %s (%s)", err, j.addr)
 	}
 	j.listener = &ls
 
 	acceptDone := make(chan error)
-	j.Logger().Warn().Msgf("server %s listening %s", j.Parameters.Protocol, ls.Addr())
+	tls := ""
+	if j.tlsConfig != nil {
+		tls = "(tls)"
+	}
+	j.Logger().Warn().Msgf("server %s listening %s %s", j.Parameters.Protocol, ls.Addr(), tls)
 	//spawn the accept loop
 	result := make(chan metric.Metric)
 	go func() {
@@ -313,8 +359,8 @@ func (j *L4Server) handleConnection(ctx context.Context, conn net.Conn, result c
 
 	j.Logger().Debug().Msgf("incoming connection from %s", conn.RemoteAddr())
 
-	var chunkSize int64 = 256 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
-	chunk := utils.BigChunk[:chunkSize]
+	var chunkSize int64 = 4 * 1024 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
+	chunk := utils.GetChunk(chunkSize)
 
 	wm := metric.Metric{}
 	wm.InitNew()
@@ -332,5 +378,5 @@ func (j *L4Server) handleConnection(ctx context.Context, conn net.Conn, result c
 	}
 	wm.Valid = true
 	wm.PrintFinal(os.Stdout)
-	j.Logger().Warn().Msgf("NYI sending or receiving - max dur = %d", j.Parameters.MaxDuration)
+	j.Logger().Warn().Msgf("NYI sending or receiving")
 }

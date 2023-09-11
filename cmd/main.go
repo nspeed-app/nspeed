@@ -238,7 +238,7 @@ func Main() {
 			cpuRate = time.Second
 		}
 	}
-	optIPVersion := 0
+	optIPVersion := utils.IPVersion(0)
 	if *optIPv4 {
 		optIPVersion = 4
 	}

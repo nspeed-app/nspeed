@@ -224,7 +224,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			var err error
 			cmdFile, err = utils.OpenURI(uri)
 			if err != nil {
-				return args, fmt.Errorf("can't open uri %s (%s)", uri, err)
+				return args, fmt.Errorf("can't open uri %s (%w)", uri, err)
 			}
 		}
 		{

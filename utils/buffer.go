@@ -15,14 +15,19 @@ var BigBuffer = bigBuffer[:]
 
 // BigChunk is a big array of random data
 const MaxChunkSize = 1 * 1024 * 1024 // warning : 1 MiB //this will be allocated in memory
-var BigChunk [MaxChunkSize]byte
+var bigChunk [MaxChunkSize]byte
+
+// GetChunk return the address of a buffer of given size. It's truncated to MaxChunkSize.
+func GetChunk(size int64) []byte {
+	return bigChunk[:min(size, MaxChunkSize)]
+}
 
 // init a buffer of random values - callable only once
 // thread safe
 func InitBigChunk(seed int64) {
 	rng := rand.New(rand.NewSource(seed))
 	for i := int64(0); i < MaxChunkSize; i++ {
-		BigChunk[i] = byte(rng.Intn(256))
+		bigChunk[i] = byte(rng.Intn(256))
 	}
 }
 

@@ -41,7 +41,7 @@ type APIHost struct {
 }
 
 func (j *APIHost) GetTarget() string {
-	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.ForceIPVersion)
+	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.IPVersion)
 }
 
 func (j *APIHost) GoString() string {
@@ -51,7 +51,7 @@ func (j *APIHost) GoString() string {
 	return fmt.Sprintf("API {Address: %q, port: %d, IPversion: %d, UseTLS: %t}",
 		j.Parameters.Host,
 		j.Parameters.Port,
-		j.Parameters.ForceIPVersion,
+		j.Parameters.IPVersion,
 		j.Parameters.ServeTLS,
 	)
 }
@@ -345,10 +345,10 @@ func HTTPAPIParse(command string, cmdargs []string, jl *JobList, output io.Write
 	}
 
 	if *useIPv4 {
-		host.ForceIPVersion = 4
+		host.IPVersion = 4
 	}
 	if *useIPv6 {
-		host.ForceIPVersion = 6
+		host.IPVersion = 6
 	}
 
 	args := fs.Args()
