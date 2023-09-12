@@ -300,6 +300,9 @@ func (wm *Metric) read(p []byte) (n int, err error) {
 	r, err := wm.ReadN(int64(len(p)))
 	return int(r), err
 }
+
+// ReadN fake read n bytes of data. it return the n or less dependending on the remaing bytes.
+// or io.EOF is no more data is left.
 func (wm *Metric) ReadN(n int64) (int64, error) {
 
 	wm.mutex.Lock()
@@ -321,7 +324,7 @@ func (wm *Metric) ReadN(n int64) (int64, error) {
 	}
 
 	lefttodo := wm.ContentWriteSize - wm.TotalWrite
-	if lefttodo == 0 {
+	if lefttodo <= 0 {
 		return 0, io.EOF
 	}
 

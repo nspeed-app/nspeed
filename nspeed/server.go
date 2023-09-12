@@ -364,8 +364,10 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 	for {
 		n, err := conn.Read(chunk)
 		if err != nil {
+			wm.Cancelled = true
 			if err != io.EOF {
 				wm.Error = err
+				wm.Cancelled = false
 			}
 			break
 		}

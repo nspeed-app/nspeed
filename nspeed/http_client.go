@@ -78,6 +78,7 @@ type JobClient struct {
 	tr          roundTripTrace
 	numRedirect int
 	finalTarget string
+	targetURL   *url.URL
 	wm          *metric.Metric
 }
 
@@ -199,11 +200,11 @@ func (j *JobClient) Init() error {
 		return fmt.Errorf("InterfaceAddress error: %w", err)
 	}
 
-	targetURL, err := ResolveSchemes(j.jobList.Jobs, j.Target)
+	j.targetURL, err = ResolveSchemes(j.jobList.Jobs, j.Target)
 	if err != nil {
 		return fmt.Errorf("ResolveSchemes error: %w", err)
 	}
-	j.finalTarget = targetURL.String()
+	j.finalTarget = j.targetURL.String()
 	j.Logger().Warn().Msgf("real target is: %s", j.finalTarget)
 
 	// TLS config
@@ -241,15 +242,15 @@ func (j *JobClient) Init() error {
 	}
 
 	//
-	switch targetURL.Scheme {
+	switch j.targetURL.Scheme {
 	case "http", "https":
 		j.Protocol = "http"
 		return j.HTTPInit()
 	case "tcp", "udp", "quic", "quic-go":
-		j.Protocol = targetURL.Scheme
+		j.Protocol = j.targetURL.Scheme
 		return j.L4Init()
 	default:
-		return fmt.Errorf("invalid scheme: %s", targetURL.Scheme)
+		return fmt.Errorf("invalid scheme: %s", j.targetURL.Scheme)
 	}
 }
 

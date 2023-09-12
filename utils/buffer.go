@@ -14,7 +14,7 @@ var bigBuffer [1024 * 1024]byte
 var BigBuffer = bigBuffer[:]
 
 // BigChunk is a big array of random data
-const MaxChunkSize = 1 * 1024 * 1024 // warning : 1 MiB //this will be allocated in memory
+const MaxChunkSize = 4 * 1024 * 1024 // warning : 1 MiB //this will be allocated in memory
 var bigChunk [MaxChunkSize]byte
 
 // GetChunk return the address of a buffer of given size. It's truncated to MaxChunkSize.
