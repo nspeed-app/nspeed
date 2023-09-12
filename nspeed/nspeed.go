@@ -222,7 +222,8 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 		}
 	}
 	log.Info().Msgf("exited mainloop with %d results (%d remaining active goroutines, rc = %d)", len(wcWorkers), runtime.NumGoroutine(), rc)
-	for rc <= 0 {
+	// drain remaining results
+	for rc > 0 {
 		wm := <-results
 		rc--
 		if wm != nil {
