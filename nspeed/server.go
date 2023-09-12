@@ -30,12 +30,11 @@ type TLSSettings struct {
 
 func (s *TLSSettings) MakeTLSConfig() (*tls.Config, error) {
 	if s.UseTLSSelfConfig {
-		if TLSSelfConfig != nil {
-			return TLSSelfConfig.Clone(), nil
-		} else {
+		if TLSSelfConfig == nil {
 			// this shouldn't happen if parameters check are done correctly
 			return nil, fmt.Errorf("no self certificate installed")
 		}
+		return TLSSelfConfig.Clone(), nil
 	} else if s.ServeTLS {
 		// todo: this should be done earlier may be ?
 		cer, err := tls.LoadX509KeyPair(s.TLSCertFile, s.TLSKeyFile)
@@ -203,11 +202,11 @@ type L4Server struct {
 	TotalRequests atomic.Uint64
 	addr          string
 	listener      *net.Listener
-	udpConn       *net.UDPConn
-	tlsConfig     *tls.Config
+	// udpConn       *net.UDPConn
+	tlsConfig *tls.Config
 	// allow extension
 	JobList *JobList
-	wm      *metric.Metric
+	// wm      *metric.Metric
 }
 
 // Job interface - see job.go
@@ -328,7 +327,7 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric,
 				break
 			}
 			j.TotalRequests.Add(1)
-			go j.handleConnection(ctx, conn, result)
+			go j.handleConnection(conn)
 		}
 	}()
 	err = nil
@@ -347,7 +346,7 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric,
 }
 
 // MT
-func (j *L4Server) handleConnection(ctx context.Context, conn net.Conn, result chan metric.Metric) {
+func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*result chan metric.Metric*/) {
 	defer conn.Close()
 
 	j.Logger().Debug().Msgf("incoming connection from %s", conn.RemoteAddr())
@@ -358,7 +357,10 @@ func (j *L4Server) handleConnection(ctx context.Context, conn net.Conn, result c
 	wm := metric.Metric{}
 	wm.InitNew()
 	wm.Command = fmt.Sprintf("%s with %s", j.GetTarget(), conn.RemoteAddr())
-	conn.SetDeadline(time.Now().Add(j.Parameters.MaxDuration))
+	err := conn.SetDeadline(time.Now().Add(j.Parameters.MaxDuration))
+	if err != nil {
+		j.logger.Error().Err(err).Msgf("SetDeadline failed")
+	}
 	for {
 		n, err := conn.Read(chunk)
 		if err != nil {
