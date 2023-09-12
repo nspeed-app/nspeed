@@ -317,7 +317,7 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric,
 	}
 	j.Logger().Warn().Msgf("server %s listening %s %s", j.Parameters.Protocol, ls.Addr(), tls)
 	//spawn the accept loop
-	result := make(chan metric.Metric)
+	//result := make(chan metric.Metric)
 	go func() {
 		for {
 			conn, err := ls.Accept()
