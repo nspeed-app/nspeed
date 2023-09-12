@@ -257,26 +257,18 @@ func (j *L4Server) Init() error {
 	}
 
 	host := j.Parameters.Host
-	if j.Parameters.Host != "" {
-		// if host is an interface name
-		hostIPAddrs, err := utils.ResolveInterfaceHostAddress(j.Parameters.Host)
-		if err != nil {
-			return err
-		}
-
-		fhostIPAddrs := utils.FilterAddresses(hostIPAddrs, ipVersion)
-
-		if len(fhostIPAddrs) == 0 {
-			j.Logger().Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, ipVersion)
-			return errors.New("no valid candidate address found")
-		}
-		host = fhostIPAddrs[0].String()
+	hostAddr, err := utils.InterfaceAddress(j.Parameters.Host, ipVersion)
+	if err != nil {
+		return fmt.Errorf("InterfaceAddress error: %w", err)
 	}
+	if hostAddr != nil {
+		host = hostAddr.IP.String()
+	}
+
 	j.addr = net.JoinHostPort(host, strconv.Itoa(j.Parameters.Port))
 
-	j.Logger().Debug().Msgf("address parameters gave:'%s'", j.addr)
+	j.Logger().Debug().Msgf("address parameters gave:'%s' (from %s)", j.addr, hostAddr)
 
-	var err error
 	j.tlsConfig, err = j.Parameters.MakeTLSConfig()
 	if err != nil {
 		j.Logger().Error().Err(err).Msgf("MakeTLSConfig error")
@@ -335,6 +327,7 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric,
 				acceptDone <- err
 				break
 			}
+			j.TotalRequests.Add(1)
 			go j.handleConnection(ctx, conn, result)
 		}
 	}()

@@ -143,6 +143,31 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 	return append(append(ipaddrs6, ipaddrs4...), ipaddrs...), nil
 }
 
+// InterfaceAddress returns the address of interface if parameter host is an interface name.
+// If ipVersion is not 0, the corresponding version is selected.
+func InterfaceAddress(host string, ipVersion IPVersion) (*net.TCPAddr, error) {
+
+	if host == "" {
+		return nil, nil
+	}
+	la, err := ResolveInterfaceHostAddress(host)
+	if err != nil {
+		return nil, fmt.Errorf("bad local host address: %s (%w)", host, err)
+	}
+
+	fhostIPAddrs := FilterAddresses(la, ipVersion)
+
+	if len(fhostIPAddrs) == 0 {
+		return nil, fmt.Errorf("no valid candidate address found for %s", host)
+	}
+
+	return &net.TCPAddr{
+		IP:   fhostIPAddrs[0].IP,
+		Port: 0,
+		Zone: fhostIPAddrs[0].Zone,
+	}, nil
+}
+
 // FilterAddresses
 // filters a list of IP addresses based on IP version (0 = all or 4 or 6)
 func FilterAddresses(addrs []net.IPAddr, ipversion IPVersion) []net.IPAddr {
@@ -298,12 +323,29 @@ func GetRoute(destination string) (iface *net.Interface, gw netip.Addr, src neti
 // 0,4,6 or -1 if no valid
 type IPVersion int
 
+func (v IPVersion) IsValid() bool {
+	return v == 4 || v == 6 || v == 0
+}
+
 func (v IPVersion) String() string {
 	switch v {
 	case 4:
 		return "IPv4"
 	case 6:
 		return "IPv6"
+	case -1:
+		return "invalid"
+	default:
+		return ""
+	}
+}
+
+func (v IPVersion) NumericString() string {
+	switch v {
+	case 4:
+		return "4"
+	case 6:
+		return "6"
 	case -1:
 		return "invalid"
 	default:
@@ -338,5 +380,5 @@ func AddIPVersionToNetwork(network string, ipVersion IPVersion, globalVersion IP
 	if ipV == 0 {
 		return network
 	}
-	return network + ipV.String()
+	return network + ipV.NumericString()
 }

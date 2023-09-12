@@ -76,9 +76,7 @@ func preflight(h http.Handler) http.Handler {
 
 // command line parsers
 func HTTPClientParseGet(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
-	j := JobHTTPClient{JobData: JobData{jobList: jl}}
-	j.Command = "GET"
-	fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j, output)
+	fs, hf := clientCommonFlagSet(command, flag.ContinueOnError, output)
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
 		fmt.Fprintf(fs.Output(), "  %s [options] [-url] url\n", getCommand)
@@ -88,7 +86,10 @@ func HTTPClientParseGet(command string, cmdargs []string, jl *JobList, output io
 		fmt.Fprintf(fs.Output(), "\n")
 	}
 
-	if err := httpParse(fs, hf, cmdargs, &j); err != nil {
+	j := JobClient{JobData: JobData{jobList: jl}}
+	j.Command = "GET"
+
+	if err := clientParse(fs, hf, cmdargs, &j); err != nil {
 		return cmdargs, err
 	}
 
@@ -118,12 +119,12 @@ func HTTPClientParseGet(command string, cmdargs []string, jl *JobList, output io
 	return args, jl.AddJobs(jobs...)
 }
 func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
-	j := JobHTTPClient{JobData: JobData{jobList: jl}}
+	j := JobClient{JobData: JobData{jobList: jl}}
 	j.Command = "PUT"
 	if command == postCommand {
 		j.Command = "POST"
 	}
-	fs, hf := httpCommonFlagSet(command, flag.ContinueOnError, &j, output)
+	fs, hf := clientCommonFlagSet(command, flag.ContinueOnError, output)
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "Usage of %s: ", command)
 		fmt.Fprintf(fs.Output(), "  %s [options] [-url] target [-size] size\n", command)
@@ -138,7 +139,7 @@ func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, outpu
 	var size string
 	fs.StringVar(&size, sizeFlag, "", "size to upload")
 
-	if err := httpParse(fs, hf, cmdargs, &j); err != nil {
+	if err := clientParse(fs, hf, cmdargs, &j); err != nil {
 		return cmdargs, err
 	}
 
@@ -199,23 +200,50 @@ func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, outpu
 	return args, jl.AddJobs(jobs...)
 }
 
+// common GET/PUT/POST flags
+type clientFlags struct {
+	Protocol    string
+	Host        string
+	Repeat      int
+	Timeout     uint
+	DialTimeout time.Duration
+	Delay       time.Duration
+	UseIPv4     bool
+	UseIPv6     bool
+	ID          string
+	RemoteHost  string
+	// TLS
+	SkipTLSCheck     bool
+	UseTLSSelfConfig bool
+	// HTTP spectific
+	UserAgent string
+	URL       string
+	UseHTTP11 bool
+	UseHTTP2  bool
+	UseHTTP3  bool
+	H2C       bool
+}
+
 // common GET/PUT flags
-func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *JobHTTPClient, output io.Writer) (*flag.FlagSet, *httpFlags) {
+func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, output io.Writer) (*flag.FlagSet, *clientFlags) {
 	fs := flag.NewFlagSet(command, errorHandling)
 	fs.SetOutput(output)
 
-	fs.IntVar(&job.Repeat, "n", 1, "number of times to process an item")
-	fs.StringVar(&job.Host, "a", "", "specific local address to use")
-	fs.BoolVar(&job.SkipTLSCheck, "k", false, "skip certificates validation")
-	fs.BoolVar(&job.UseTLSSelfConfig, "self", OptTLSSelf, "use self-signed TLS certificate")
-	fs.StringVar(&job.UserAgent, "u", "nspeed.app/"+Version, "user-agent")
+	hf := clientFlags{}
 
-	hf := httpFlags{}
+	fs.StringVar(&hf.Protocol, "P", "http", "comunication protocol")
+	fs.IntVar(&hf.Repeat, "n", 1, "number of times to process an item")
+	fs.StringVar(&hf.Host, "a", "", "specific local address to use")
+	fs.BoolVar(&hf.SkipTLSCheck, "k", false, "skip certificates validation")
+	fs.BoolVar(&hf.UseTLSSelfConfig, "self", OptTLSSelf, "use self-signed TLS certificate")
+
 	fs.UintVar(&hf.Timeout, "m", 8, "maximum duration in seconds the command is allowed to take")
 	fs.DurationVar(&hf.DialTimeout, "connect-timeout", 2*time.Second, "maximum duration allowed for the initial connection")
-	fs.UintVar(&hf.Delay, "w", 0, "delay in seconds to wait before starting the command")
+	fs.DurationVar(&hf.Delay, "w", 0, "delay to wait before starting the command")
 	fs.BoolVar(&hf.UseIPv4, "4", false, "use IPv4 only")
 	fs.BoolVar(&hf.UseIPv6, "6", false, "use IPv6 only")
+
+	fs.StringVar(&hf.UserAgent, "u", "nspeed.app/"+Version, "user-agent")
 	fs.BoolVar(&hf.UseHTTP11, "http1.1", false, "force using HTTP 1.1")
 	fs.BoolVar(&hf.UseHTTP2, "http2", false, "force using HTTP/2")
 	fs.BoolVar(&hf.H2C, "h2c", false, "force using HTTP/2 Cleartext (H2C) mode (implies -http2)")
@@ -225,22 +253,6 @@ func httpCommonFlagSet(command string, errorHandling flag.ErrorHandling, job *Jo
 
 	//fs.StringVar(&hf.RemoteHost, "remote", "", "use a remote nspeed instance (hostname:port)")
 	return fs, &hf
-}
-
-// common GET/PUT flags that need treatment/checks
-type httpFlags struct {
-	Timeout     uint
-	DialTimeout time.Duration
-	Delay       uint
-	UseIPv4     bool
-	UseIPv6     bool
-	URL         string
-	UseHTTP11   bool
-	UseHTTP2    bool
-	UseHTTP3    bool
-	H2C         bool
-	ID          string
-	RemoteHost  string
 }
 
 // flags that need a name because they're used multiple time (with isFlagPassed notabily)
@@ -259,15 +271,23 @@ func IsFlagPassed(fs *flag.FlagSet, name string) bool {
 }
 
 // parse GET/PUT/POST flags
-func httpParse(fs *flag.FlagSet, hf *httpFlags, args []string, job *JobHTTPClient) error {
+func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClient) error {
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
+	// straigthforward flags - add more checks/controls later
+	job.Protocol = hf.Protocol
+	job.Repeat = hf.Repeat
+	job.Host = hf.Host
+	job.UseTLSSelfConfig = hf.UseTLSSelfConfig
+	job.SkipTLSCheck = hf.SkipTLSCheck
+	job.UserAgent = hf.UserAgent
+	job.Delay = hf.Delay
+
 	// httpFlags (flags that need convertion or extra controls)
 	job.Timeout = time.Duration(hf.Timeout) * time.Second
-	job.Delay = time.Duration(hf.Delay) * time.Second
 
 	if hf.UseIPv4 && hf.UseIPv6 {
 		//fs.Usage()

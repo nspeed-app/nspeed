@@ -52,9 +52,10 @@ type roundTripTrace struct {
 
 // a HTTP command, get or post
 // implements Job interface
-type JobHTTPClient struct {
+type JobClient struct {
 	JobData
 	Command          string
+	Protocol         string
 	Repeat           int
 	IPVersion        utils.IPVersion
 	Host             string
@@ -70,6 +71,8 @@ type JobHTTPClient struct {
 	HTTPVersion      int
 	H2C              bool
 	// private
+	dialContext func(ctx context.Context, network string, address string) (net.Conn, error)
+	tlsConfig   *tls.Config
 	client      *http.Client
 	req         *http.Request
 	tr          roundTripTrace
@@ -78,14 +81,15 @@ type JobHTTPClient struct {
 	wm          *metric.Metric
 }
 
-func (j *JobHTTPClient) GoString() string {
+func (j *JobClient) GoString() string {
 	if zerolog.GlobalLevel() > zerolog.InfoLevel {
 		return fmt.Sprintf("HTTP %s %s", j.Command, j.Target)
 	}
 	return j.CommandString()
 }
-func (j *JobHTTPClient) CommandString() string {
-	s := fmt.Sprintf("HTTP client {Method: %s, URL: %s, IPversion: %d, Address: %s, timeout: %s, delay: %s, h2c: %t, http:%s}",
+func (j *JobClient) CommandString() string {
+	s := fmt.Sprintf("%s client {Method: %s, URL: %s, IPversion: %d, Address: %s, timeout: %s, delay: %s, h2c: %t, http:%s}",
+		strings.ToUpper(j.Protocol),
 		j.Command,
 		j.Target,
 		j.IPVersion,
@@ -102,18 +106,18 @@ func (j *JobHTTPClient) CommandString() string {
 	return s
 }
 
-func (j *JobHTTPClient) GetTarget() string {
+func (j *JobClient) GetTarget() string {
 	return j.Target
 }
 
-func (j *JobHTTPClient) GetConn() *httptrace.GotConnInfo {
+func (j *JobClient) GetConn() *httptrace.GotConnInfo {
 	if j.wm != nil {
 		return &j.tr.ConnInfo
 	}
 	return nil
 }
 
-func (j *JobHTTPClient) GetDestination() string {
+func (j *JobClient) GetDestination() string {
 	ci := j.GetConn()
 	if ci == nil {
 		return ""
@@ -126,7 +130,7 @@ func (j *JobHTTPClient) GetDestination() string {
 
 // Pretty print command and some infos
 // todo: fix me
-func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
+func (j *JobClient) PrintString(verbose bool, group bool) string {
 
 	formatOut := func(r string) string {
 		if j.wm.AvgLatency == 0 {
@@ -161,10 +165,10 @@ func (j *JobHTTPClient) PrintString(verbose bool, group bool) string {
 	}
 }
 
-func (j *JobHTTPClient) IsInfinite() bool { return false }
+func (j *JobClient) IsInfinite() bool { return false }
 
 // init a HTTP Job
-func (j *JobHTTPClient) Init() error {
+func (j *JobClient) Init() error {
 
 	// todo move this to run ? and get ride of .wm?
 	j.wm = &metric.Metric{
@@ -184,80 +188,72 @@ func (j *JobHTTPClient) Init() error {
 	if !strings.Contains(j.Target, "://") {
 		j.Target = "https://" + j.Target
 	}
-	var err error
-	j.finalTarget, err = ResolveSchemes(j.jobList.Jobs, j.Target)
-	if err != nil {
-		return err
+
+	if !j.IPVersion.IsValid() {
+		return errors.New("invalid ip version requested")
 	}
-	j.Logger().Debug().Msgf("real target is: %s", j.finalTarget)
 
 	// source address
-	var LocalAddr net.Addr
-	if j.Host != "" {
-		la, err := utils.ResolveInterfaceHostAddress(j.Host)
-		//la, err := net.ResolveIPAddr("ip", j.Host)
-		if err != nil {
-			return errors.New("bad local host address: " + j.Host)
-		}
-
-		fhostIPAddrs := utils.FilterAddresses(la, j.IPVersion)
-
-		if len(fhostIPAddrs) == 0 {
-			j.Logger().Error().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", la, fhostIPAddrs, j.IPVersion)
-			return errors.New("no valid candidate address found")
-		}
-
-		LocalAddr = &net.TCPAddr{
-			IP:   fhostIPAddrs[0].IP,
-			Port: 0,
-			Zone: fhostIPAddrs[0].Zone,
-		}
+	LocalAddr, err := utils.InterfaceAddress(j.Host, j.IPVersion)
+	if err != nil {
+		return fmt.Errorf("InterfaceAddress error: %w", err)
 	}
 
-	// this is our dialer
+	targetURL, err := ResolveSchemes(j.jobList.Jobs, j.Target)
+	if err != nil {
+		return fmt.Errorf("ResolveSchemes error: %w", err)
+	}
+	j.finalTarget = targetURL.String()
+	j.Logger().Warn().Msgf("real target is: %s", j.finalTarget)
+
+	// TLS config
+	if j.UseTLSSelfConfig {
+		j.tlsConfig = TLSSelfConfig.Clone()
+		j.Logger().Info().Msgf("using TLSSelfConfig")
+		// for tls 1.3 we can't change cipher suites with current Go implementation: https://go.dev/blog/tls-cipher-suites
+		// so something like this won't work:
+		// netTransport.TLSClientConfig.CipherSuites = []uint16{tls.TLS_CHACHA20_POLY1305_SHA256}
+		// netTransport.TLSClientConfig.MinVersion = tls.VersionTLS13
+	}
+	if j.SkipTLSCheck {
+		j.tlsConfig = &tls.Config{InsecureSkipVerify: true}
+		j.Logger().Info().Msgf("skipping TLS Check")
+	}
+
+	if j.tlsConfig != nil {
+		j.Logger().Debug().Msgf("TLSConfig: defined")
+	}
+
+	// Dialer
 	dialer := &net.Dialer{
 		Timeout:       j.DialTimeout, //
 		FallbackDelay: -1,            // don't use Happy Eyeballs
 		LocalAddr:     LocalAddr,     // "-a" for client
-		// Control: func(network string, address string, c syscall.RawConn) error {
-		// 	j.Logger().Debug().Msgf("Control %s %s %d ", network, address, j.IPversion)
-		// 	var operr error
-		// 	if err := c.Control(func(fd uintptr) {
-		// 		buf, err := webview.GetSockOpt(fd, syscall.SO_RCVBUF)
-		// 		if err != nil {
-		// 			j.Logger().Trace().Err(err).Msgf("getsockopt rcvbuf")
-		// 			return
-		// 		}
-		// 		j.Logger().Info().Msgf("getsockopt rcvbuf = %d", buf)
-		// 		buf, err = webview.GetSockOpt(fd, syscall.SO_SNDBUF)
-		// 		if err != nil {
-		// 			j.Logger().Trace().Err(err).Msgf("getsockopt sndbuf")
-		// 			return
-		// 		}
-		// 		j.Logger().Trace().Msgf("getsockopt sndbuf = %d", buf)
-		// 	}); err != nil {
-		// 		return err
-		// 	}
-		// 	return operr
-		// },
 	}
 
-	// sanatize IPVersion
-	ipVersion := utils.IPVersion(0)
-	if j.IPVersion == 6 || j.IPVersion == 4 {
-		ipVersion = j.IPVersion
-	} else if j.IPVersion != 0 {
-		return errors.New("unknown ip version requested")
-	}
-
-	// this is our dialContext for transports.
-	dialContext := func(ctx context.Context, network string, address string) (net.Conn, error) {
+	// this is our dialContext for transports/l4
+	j.dialContext = func(ctx context.Context, network string, address string) (net.Conn, error) {
 		if network == "udp" || network == "tcp" {
-			network = utils.AddIPVersionToNetwork(network, ipVersion, GlobalOptions.IPVersion)
+			network = utils.AddIPVersionToNetwork(network, j.IPVersion, GlobalOptions.IPVersion)
 		}
 		j.Logger().Trace().Msgf("DialContext %s %s %d ", network, address, j.IPVersion)
 		return dialer.DialContext(ctx, network, address)
 	}
+
+	//
+	switch targetURL.Scheme {
+	case "http", "https":
+		j.Protocol = "http"
+		return j.HTTPInit()
+	case "tcp", "udp", "quic", "quic-go":
+		j.Protocol = targetURL.Scheme
+		return j.L4Init()
+	default:
+		return fmt.Errorf("invalid scheme: %s", targetURL.Scheme)
+	}
+}
+
+func (j *JobClient) HTTPInit() error {
 
 	// we clone to avoid ConfigureTransports to crash
 	// var netTransport = http.DefaultTransport.(*http.Transport).Clone()
@@ -270,24 +266,8 @@ func (j *JobHTTPClient) Init() error {
 		ExpectContinueTimeout: 1 * time.Second,
 		DisableCompression:    true,
 		//  transforms network "tcp" / "udp" to "tcp4"/"udp4" or "tcp6"/"udp6" if IPVerson is set.
-		DialContext: dialContext,
-	}
-
-	if j.UseTLSSelfConfig {
-		netTransport.TLSClientConfig = TLSSelfConfig.Clone()
-		j.Logger().Info().Msgf("using TLSSelfConfig")
-		// for tls 1.3 we can't change cipher suites with current Go implementation: https://go.dev/blog/tls-cipher-suites
-		// so something like this won't work:
-		// netTransport.TLSClientConfig.CipherSuites = []uint16{tls.TLS_CHACHA20_POLY1305_SHA256}
-		// netTransport.TLSClientConfig.MinVersion = tls.VersionTLS13
-	}
-	if j.SkipTLSCheck {
-		netTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-		j.Logger().Info().Msgf("skipping TLS Check")
-	}
-
-	if netTransport.TLSClientConfig != nil {
-		j.Logger().Debug().Msgf("TLSConfig: defined")
+		DialContext:     j.dialContext,
+		TLSClientConfig: j.tlsConfig,
 	}
 
 	// interface to the transport so we can switch if needed
@@ -315,7 +295,7 @@ func (j *JobHTTPClient) Init() error {
 		if j.H2C {
 			rtTransport = &http2.Transport{
 				DialTLSContext: func(ctx context.Context, network string, addr string, cfg *tls.Config) (net.Conn, error) {
-					return dialer.DialContext(ctx, network, addr)
+					return j.dialContext(ctx, network, addr)
 				},
 				TLSClientConfig:    netTransport.TLSClientConfig.Clone(),
 				DisableCompression: true,
@@ -425,7 +405,14 @@ func (j *JobHTTPClient) Init() error {
 	return nil
 }
 
-func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
+	if j.Protocol == "http" {
+		return j.HTTPRun(ctx, wg)
+	}
+	return j.L4Run(ctx, wg)
+}
+
+func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
 
 	defer wg.Done()
 	if j.req == nil {
@@ -702,28 +689,27 @@ func (j *JobHTTPClient) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 var errNotRunning = errors.New("named job not running")
 
 // handle special schemes
-func ResolveSchemes(idmap map[string]Job, target string) (string, error) {
+func ResolveSchemes(idmap map[string]Job, target string) (*url.URL, error) {
 	url, err := url.Parse(target)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if url.Scheme == "nspeed" {
 		t, ok := idmap[url.Host]
 		if !ok {
-			return "", fmt.Errorf("named job '%s' not found", url.Host)
+			return nil, fmt.Errorf("named job '%s' not found", url.Host)
 		}
 		s, sok := t.(*JobHTTPServer)
 		if !sok {
-			return "", fmt.Errorf("named job '%s' is not a server", url.Host)
+			return nil, fmt.Errorf("named job '%s' is not a server", url.Host)
 		}
 		if s.URL == nil {
-			return "", NewNSError(errNotRunning, url.Host)
+			return nil, NewNSError(errNotRunning, url.Host)
 		}
 		url.Scheme = s.URL.Scheme
 		url.Host = s.URL.Host
-		return url.String(), nil
 	}
-	return target, nil
+	return url, nil
 }
 
 // fixH2H3Errors tried to unify the behavior of HTTP/1, HTTP/2 and HTTP/3

@@ -1,53 +1,78 @@
 package nspeed
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"sync"
 	"time"
 
-	"github.com/rs/zerolog"
 	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
 
-type L4Client struct {
-	TLSSettings
-	JobData
-	Protocol    string
-	Command     string
-	Repeat      int
-	IPVersion   utils.IPVersion
-	Host        string
-	Target      string
-	Timeout     time.Duration
-	DialTimeout time.Duration
-	ContentSize int64
-	Delay       time.Duration
-	// private
-	wm *metric.Metric
-}
+func (j *JobClient) L4Init() error {
 
-func (j *L4Client) GetTarget() string {
-	return fmt.Sprintf("%s client %s (IP version: %d)", j.Protocol, j.Host, j.IPVersion)
-}
-
-func (j *L4Client) GoString() string {
-	if zerolog.GlobalLevel() > zerolog.InfoLevel {
-		return fmt.Sprintf("%s server %s", j.Protocol, j.Host)
+	if j.Protocol != "tcp" {
+		return fmt.Errorf("protocol %s not yet supported", j.Protocol)
 	}
-	return fmt.Sprintf("%s server {Address: %q, IPversion: %d, max_size: %s, max_request, max duration: %v, UseTLS: %t}",
-		j.Protocol,
-		j.Host,
-		j.IPVersion,
-		utils.ByteCountDecimal(j.ContentSize)+"B",
-		j.Timeout,
-		j.ServeTLS,
-	)
+	return nil
 }
 
-func (j *L4Client) PrintString(_, _ bool) string {
-	return j.Protocol + " server " + j.ID()
-}
+func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
+	defer wg.Done()
 
-func (j *L4Client) IsInfinite() bool {
-	return true
+	if j.Protocol != "tcp" {
+		return nil, fmt.Errorf("protocol %s not yet supported", j.Protocol)
+	}
+
+	network := j.Protocol
+	network = utils.AddIPVersionToNetwork(network, j.IPVersion, GlobalOptions.IPVersion)
+
+	j.Logger().Info().Msgf("L4 client dialing %s %s", network, j.Host)
+
+	conn, err := j.dialContext(ctx, network, j.Host)
+	if err != nil {
+		return nil, fmt.Errorf("dial error: %w", err)
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(j.Timeout)); err != nil {
+		return nil, fmt.Errorf("SetDeadline error: %w", err)
+	}
+
+	if j.ContentSize == 0 {
+		return nil, fmt.Errorf("no content to send")
+	}
+
+	// setup the metric
+	j.wm = &metric.Metric{
+		MetricsData: metric.MetricsData{
+			Done:    false,
+			Expired: false,
+			Target:  j.GetTarget(),
+			ID:      j.ID(),
+			GroupID: j.GroupID(),
+			Command: j.GoString(),
+		},
+		Tick: GlobalOptions.Tick,
+	}
+	j.wm.SetLogger(j.Logger())
+
+	chunkSize := int64(1024 * 1024)
+	chunk := utils.GetChunk(chunkSize)
+	todo := j.ContentSize
+	for {
+		n, err := conn.Write(chunk[:min(chunkSize, todo)])
+		if err != nil {
+			if err == io.EOF {
+				j.wm.Done = true
+				break
+			}
+			j.wm.Error = err
+			return j.wm, err
+		}
+		j.wm.WriteN(int64(n))
+		todo -= int64(n)
+	}
+	return j.wm, nil
 }
