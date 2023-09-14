@@ -78,6 +78,10 @@ type JobHTTPServer struct {
 	ResultCache map[string]*metric.Metric
 }
 
+func (j *JobHTTPServer) GetURL() *url.URL {
+	return j.URL
+}
+
 func (j *JobHTTPServer) GetTarget() string {
 	return fmt.Sprintf("server %s:%d (IP version: %d)", j.Parameters.Host, j.Parameters.Port, j.Parameters.IPVersion)
 }

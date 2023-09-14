@@ -17,6 +17,15 @@ type BenchmarkArgs struct {
 }
 
 var benchmarksTemplates = map[string]Benchmark{
+	// TCP
+	"tp": {
+		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp put -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "TCP PUT, localhost",
+	},
+	"tsp": {
+		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp -self put -self -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "TCP PUT, localhost, tls",
+	},
 	// HTTP/1.1
 	"h1g": {
 		Tpl:  "server {{.Args}} -id s{{.ID}} get {{.Args}} -n {{.N}} nspeed://s{{.ID}}/{{.Size}}",

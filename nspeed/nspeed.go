@@ -158,7 +158,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 		}
 
 		if slnj <= 0 {
-			log.Warn().Msgf("no SL jobs for batch %d", batch)
+			log.Debug().Msgf("no SL jobs for batch %d", batch)
 			wgsl.Done()
 		}
 	batchloop:
@@ -279,7 +279,7 @@ func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test b
 			wg.Add(1)
 			go func(j Job, wg *sync.WaitGroup) {
 				wm, err := j.Run(ctx, wg)
-				if err != nil && wm != nil {
+				if err != nil && err != context.Canceled && wm != nil {
 					log.Error().Msgf("error '%s' for '%s'", err, j.GetTarget())
 				}
 				if wm == nil {

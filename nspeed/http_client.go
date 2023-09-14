@@ -71,6 +71,7 @@ type JobClient struct {
 	HTTPVersion      int
 	H2C              bool
 	// private
+	dialer      *net.Dialer
 	dialContext func(ctx context.Context, network string, address string) (net.Conn, error)
 	tlsConfig   *tls.Config
 	client      *http.Client
@@ -84,10 +85,11 @@ type JobClient struct {
 
 func (j *JobClient) GoString() string {
 	if zerolog.GlobalLevel() > zerolog.InfoLevel {
-		return fmt.Sprintf("HTTP %s %s", j.Command, j.Target)
+		return fmt.Sprintf("%s %s %s", j.Protocol, j.Command, j.Target)
 	}
 	return j.CommandString()
 }
+
 func (j *JobClient) CommandString() string {
 	s := fmt.Sprintf("%s client {Method: %s, URL: %s, IPversion: %d, Address: %s, timeout: %s, delay: %s, h2c: %t, http:%s}",
 		strings.ToUpper(j.Protocol),
@@ -205,7 +207,7 @@ func (j *JobClient) Init() error {
 		return fmt.Errorf("ResolveSchemes error: %w", err)
 	}
 	j.finalTarget = j.targetURL.String()
-	j.Logger().Warn().Msgf("real target is: %s", j.finalTarget)
+	j.Logger().Info().Msgf("real target is: %s", j.finalTarget)
 
 	// TLS config
 	if j.UseTLSSelfConfig {
@@ -226,7 +228,7 @@ func (j *JobClient) Init() error {
 	}
 
 	// Dialer
-	dialer := &net.Dialer{
+	j.dialer = &net.Dialer{
 		Timeout:       j.DialTimeout, //
 		FallbackDelay: -1,            // don't use Happy Eyeballs
 		LocalAddr:     LocalAddr,     // "-a" for client
@@ -237,8 +239,8 @@ func (j *JobClient) Init() error {
 		if network == "udp" || network == "tcp" {
 			network = utils.AddIPVersionToNetwork(network, j.IPVersion, GlobalOptions.IPVersion)
 		}
-		j.Logger().Trace().Msgf("DialContext %s %s %d ", network, address, j.IPVersion)
-		return dialer.DialContext(ctx, network, address)
+		j.Logger().Debug().Msgf("DialContext %s %s %d ", network, address, j.IPVersion)
+		return j.dialer.DialContext(ctx, network, address)
 	}
 
 	//
@@ -689,28 +691,31 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 
 var errNotRunning = errors.New("named job not running")
 
-// handle special schemes
+// ResolveSchemes handles special schemes:
+//   - "nspeed://id" will return the URL of the job with matching id
 func ResolveSchemes(idmap map[string]Job, target string) (*url.URL, error) {
-	url, err := url.Parse(target)
+	u, err := url.Parse(target)
 	if err != nil {
 		return nil, err
 	}
-	if url.Scheme == "nspeed" {
-		t, ok := idmap[url.Host]
+	if u.Scheme == "nspeed" {
+		job, ok := idmap[u.Host]
 		if !ok {
-			return nil, fmt.Errorf("named job '%s' not found", url.Host)
+			return nil, fmt.Errorf("named job '%s' not found", u.Host)
 		}
-		s, sok := t.(*JobHTTPServer)
-		if !sok {
-			return nil, fmt.Errorf("named job '%s' is not a server", url.Host)
+		// todo: not a fan of this. it's too dynamic
+		// use a named interface instead ?
+		if s, sok := job.(interface{ GetURL() *url.URL }); sok {
+			if s.GetURL() == nil {
+				return nil, NewNSError(errNotRunning, u.Host)
+			}
+			u.Scheme = s.GetURL().Scheme
+			u.Host = s.GetURL().Host
+			return u, nil
 		}
-		if s.URL == nil {
-			return nil, NewNSError(errNotRunning, url.Host)
-		}
-		url.Scheme = s.URL.Scheme
-		url.Host = s.URL.Host
+		return nil, fmt.Errorf("named job '%s' is not a server", u.Host)
 	}
-	return url, nil
+	return u, nil
 }
 
 // fixH2H3Errors tried to unify the behavior of HTTP/1, HTTP/2 and HTTP/3

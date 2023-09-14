@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"sync"
@@ -201,12 +202,17 @@ type L4Server struct {
 	Cancel        context.CancelFunc
 	TotalRequests atomic.Uint64
 	addr          string
-	listener      *net.Listener
+	//listener      *net.Listener
 	// udpConn       *net.UDPConn
 	tlsConfig *tls.Config
 	// allow extension
 	JobList *JobList
 	// wm      *metric.Metric
+	URL *url.URL
+}
+
+func (j *L4Server) GetURL() *url.URL {
+	return j.URL
 }
 
 // Job interface - see job.go
@@ -297,33 +303,45 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric,
 
 	var ls net.Listener
 
-	lc := net.ListenConfig{}
 	var err error
 	if j.tlsConfig != nil {
 		ls, err = tls.Listen(network, j.addr, j.tlsConfig)
 	} else {
+		lc := net.ListenConfig{}
 		ls, err = lc.Listen(ctx, network, j.addr)
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("listen failed: %s (%s)", err, j.addr)
 	}
-	j.listener = &ls
+	//j.listener = &ls
 
 	acceptDone := make(chan error)
 	tls := ""
 	if j.tlsConfig != nil {
 		tls = "(tls)"
 	}
+	j.URL = &url.URL{Scheme: "tcp", Host: ls.Addr().String()}
 	j.Logger().Warn().Msgf("server %s listening %s %s", j.Parameters.Protocol, ls.Addr(), tls)
+
+	// signal we're ready  to accept connections
+	wg.Done()
+	done = true
+
 	//spawn the accept loop
 	//result := make(chan metric.Metric)
+	var running atomic.Bool
+	running.Store(true)
 	go func() {
 		for {
 			conn, err := ls.Accept()
 			if err != nil {
-				j.Logger().Debug().Err(err).Msgf("accept failed")
-				acceptDone <- err
+				j.Logger().Debug().Err(err).Msgf("accept failed with:")
+				if running.Load() {
+					acceptDone <- err
+				} else {
+					acceptDone <- nil
+				}
 				break
 			}
 			j.TotalRequests.Add(1)
@@ -335,14 +353,18 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric,
 	select {
 	case err = <-acceptDone:
 	case <-ctx.Done():
-		err = ctx.Err()
+		running.Store(false)
+		// todo , we silently ignore context error (cancel/timeout)
+		err = nil
 	}
-	j.Logger().Debug().Err(ctx.Err()).Msgf("ending")
+	j.Logger().Debug().Err(err).Msgf("L4 server ending")
 
 	//todo: handle pending connections
-	ls.Close()
-
-	return nil, err
+	_ = ls.Close()
+	// wait for sub go routine (ls.Accept should unblock with an "use of closed network connection") to end
+	<-acceptDone
+	j.Logger().Debug().Err(err).Msgf("L4 server ended")
+	return &metric.Metric{}, err
 }
 
 // MT
@@ -374,6 +396,6 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 		wm.WriteN(int64(n))
 	}
 	wm.Valid = true
-	wm.PrintFinal(os.Stdout)
-	j.Logger().Warn().Msgf("NYI sending or receiving")
+	wm.LogFinal(wm.Logger())
+	j.Logger().Debug().Msgf("L4 handleConnection ended")
 }

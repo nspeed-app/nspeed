@@ -632,10 +632,12 @@ func SeriesReport(wcWorkers Metrics) (report string) {
 // generate a report per batch (sorted), filtering failed jobs
 func GenerateTextReport(batchs map[int]string, wcWorkers *Metrics, showGroup bool) (out string) {
 	if wcWorkers == nil {
+		log.Info().Msgf("generating text report: no data")
 		return
 	}
+	log.Info().Msgf("generating text report for %d metric(s) in %d batch()", len(*wcWorkers), len(batchs))
 	for _, wm := range *wcWorkers {
-		if wm.Error != nil {
+		if wm.Error != nil && !wm.Valid {
 			out += fmt.Sprintf("batch %d, job %s, error = %s\n", wm.Batch, wm.ID, wm.Error)
 			continue
 		}

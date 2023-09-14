@@ -2,11 +2,13 @@ package nspeed
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
 	"reflect"
 	"sync"
+	"syscall"
 	"time"
 
 	"nspeed.app/metric"
@@ -31,13 +33,25 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 	network := j.Protocol
 	network = utils.AddIPVersionToNetwork(network, j.IPVersion, GlobalOptions.IPVersion)
 
-	j.Logger().Info().Msgf("L4 client dialing %s %s", network, j.targetURL.Host)
+	dialerContext := j.dialContext
+	if j.tlsConfig == nil {
+		j.Logger().Info().Msgf("L4 client dialing %s %s", network, j.targetURL.Host)
+	} else {
+		tlsDialer := tls.Dialer{
+			NetDialer: j.dialer,
+			Config:    j.tlsConfig,
+		}
+		dialerContext = tlsDialer.DialContext
+		j.Logger().Info().Msgf("L4 client dialing %s %s with TLS", network, j.targetURL.Host)
+	}
 
-	conn, err := j.dialContext(ctx, network, j.targetURL.Host)
+	conn, err := dialerContext(ctx, network, j.targetURL.Host)
+
 	if err != nil {
 		return nil, fmt.Errorf("dial error: %w", err)
 	}
 	defer conn.Close()
+
 	if err := conn.SetDeadline(time.Now().Add(j.Timeout)); err != nil {
 		return nil, fmt.Errorf("SetDeadline error: %w", err)
 	}
@@ -58,42 +72,76 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 		},
 		Tick: GlobalOptions.Tick,
 	}
+	// fill in metadata
+	j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(conn.RemoteAddr().String())
+	if tlsConn, ok := conn.(*tls.Conn); ok {
+		cs := tlsConn.ConnectionState()
+		j.wm.Protocol = "TCP"
+		j.wm.Cipher = TLSCipherSuite(&cs)
+		j.wm.TLSVersion = utils.TLSVersionFriendlyName(cs.Version)
+	}
+	// set the logger for this metric
 	j.wm.SetLogger(j.Logger())
 
+	// init metric data
 	j.wm.WriteStepSize = min(utils.MaxChunkSize, 1*1024*1024)
 	chunk := utils.GetChunk(j.wm.WriteStepSize)
 	j.wm.ContentWriteSize = j.ContentSize
 	j.wm.TotalWrite = 0
-	j.Logger().Info().Msgf("L4 client sending %d bytes to %s", j.wm.ContentWriteSize, j.targetURL)
 	totalWrite := int64(0)
-	for {
-		n, err := j.wm.ReadN(j.wm.WriteStepSize)
-		if err != nil { // ReadN only returns io.EOF
-			j.Logger().Trace().Msgf("L4 client ReadN ending (err = %+v)", err)
-			j.wm.Done = true
-			break
-		}
-		nw, err := conn.Write(chunk[:min(j.wm.WriteStepSize, n)])
-		totalWrite += int64(nw)
-		j.Logger().Trace().Msgf("L4 client write %d bytes to %s (err=%s)", nw, j.targetURL, reflect.TypeOf(err))
-		// possible error here:
-		//  timeout because of Timeout or network error (both = a net.OpError error type)
-		// either way we mark as 'cancelled' if timeout and return no error ?
-		if err != nil {
-			j.wm.TotalWrite = totalWrite
-			var opError *net.OpError
-			if errors.As(err, &opError) {
-				if opError.Timeout() {
-					j.wm.Cancelled = true
-				}
-				return j.wm, nil
-			}
-			j.wm.Error = fmt.Errorf("conn.Write error: %w", err)
-			return j.wm, j.wm.Error
-		}
-	}
-	j.wm.TotalWrite = totalWrite
-	j.Logger().Info().Msgf("L4 client sent %d bytes to %s", j.wm.TotalWrite, j.targetURL)
+	j.wm.InitNew()
 
-	return j.wm, nil
+	j.Logger().Info().Msgf("L4 client sending %d bytes to %s", j.wm.ContentWriteSize, j.targetURL)
+	// spawn the work, use 'done' to signal
+	done := make(chan bool)
+	go func() {
+		for {
+			n, err := j.wm.ReadN(j.wm.WriteStepSize)
+			if err != nil { // ReadN only returns io.EOF
+				j.Logger().Trace().Msgf("L4 client ReadN ending (err = %+v)", err)
+				j.wm.Done = true
+				break
+			}
+			nw, err := conn.Write(chunk[:min(j.wm.WriteStepSize, n)])
+			totalWrite += int64(nw)
+			j.Logger().Trace().Msgf("L4 client write %d bytes to %s (err=%s)", nw, j.targetURL, reflect.TypeOf(err))
+			// possible error here:
+			//  timeout because of Timeout or network error (both = a net.OpError error type)
+			// either way we mark as 'cancelled' if timeout and return no error ?
+			if err != nil {
+				j.wm.Error = fmt.Errorf("conn.Write error: %w", err)
+				var opError *net.OpError
+				if errors.As(err, &opError) {
+					if opError.Timeout() {
+						j.wm.Cancelled = true
+						j.wm.Error = nil
+					}
+				}
+				if errors.Is(err, syscall.ECONNRESET) {
+					j.wm.Cancelled = true
+					j.wm.Error = nil
+				}
+				break
+			}
+		}
+		done <- true
+	}()
+
+	// wait for completion or context
+	select {
+	case <-ctx.Done():
+		j.wm.Cancelled = true
+	case <-done:
+	}
+	// adjust totalwrite & elaspsedTime (which iare updated every call to j.wm.ReadN(...)) but can be less if conn.Write get time'd out
+	j.wm.ElapsedTime = time.Since(j.wm.TransfertStartTime)
+	j.wm.TotalWrite = totalWrite
+	if totalWrite > 0 {
+		j.wm.Valid = true
+	}
+	j.Logger().Info().Msgf("L4 client sent %d bytes to %s", j.wm.TotalWrite, j.targetURL)
+	if j.wm.Error != nil {
+		j.Logger().Info().Err(j.wm.Error).Msgf("L4 client error")
+	}
+	return j.wm, j.wm.Error
 }
