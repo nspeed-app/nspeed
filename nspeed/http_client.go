@@ -103,7 +103,7 @@ func (j *JobClient) CommandString() string {
 		j.H2C,
 		utils.HTTPVersionStringer(j.HTTPVersion),
 	)
-	if j.Command == "POST" || j.Command == "PUT" {
+	if j.ContentSize != 0 {
 		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, utils.ByteCountDecimal(j.ContentSize))
 	}
 	s += "}"
@@ -410,6 +410,11 @@ func (j *JobClient) HTTPInit() error {
 		j.wm.TotalWrite = 0
 		body = j.wm
 	}
+	if j.Command == "GET" {
+		j.wm.ContentWriteSize = 0
+		j.wm.ContentReadSize = j.ContentSize
+		j.wm.TotalRead = 0
+	}
 
 	req, err := http.NewRequest(j.Command, j.finalTarget, body)
 	if err != nil {
@@ -654,9 +659,10 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 						resp.Body.Close()
 					}
 				}()
+				if wm.ContentReadSize == 0 && resp.ContentLength > 0 {
+					wm.ContentReadSize = resp.ContentLength
+				}
 				wm.StartTicker(done)
-				wm.ContentReadSize = resp.ContentLength
-
 				// this is where the GET transfert happens.
 				//   iteration 3: we use io.CopyBuffer the body to 'wm' (which is a Discard) and
 				//   the resp (thru req) context will handle timeout & parent cancellation
@@ -681,7 +687,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 				} else {
 					j.Logger().Info().Str("cause", "completed normally").Msg("ended")
 					if totalread != wm.TotalRead {
-						j.Logger().Warn().Msgf("iocopy result differs from interface: %d - %d", totalread, wm.TotalRead)
+						j.Logger().Info().Msgf("less data was read: %d - %d", totalread, wm.TotalRead)
 					}
 				}
 			}

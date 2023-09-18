@@ -62,8 +62,20 @@ func FormatByteBinaryUnits(b int64) string {
 	return s + u
 }
 
-// parse bytes units - "<value>kmgtpe" powers of 2 (B), "<value>KMGTPE" powers of 10 (iB)
+// ParseByteUnits parse the string s for human friendly unit 2 or 10 of:
+//   - "<value>kmgtpe" powers of 2 (B) or
+//   - "<value>KMGTPE" powers of 10 (iB)
+//
+// where value must be a valid number
+// if s is empty zero is returned.
+// example:
+//
+//	ParseByteUnits("10k") will return 10x1000 = 10000
+//	ParseByteUnits("10K") will return 10x1024 = 10240
 func ParseByteUnits(s string) (uint64, error) {
+	if s == "" || s == "0" {
+		return 0, nil
+	}
 	m := uint64(1)
 	u := s[len(s)-1:]
 	i := strings.Index(binaryUnits, strings.ToLower(u))

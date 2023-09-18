@@ -85,6 +85,8 @@ func HTTPClientParseGet(command string, cmdargs []string, jl *JobList, output io
 		fs.PrintDefaults()
 		fmt.Fprintf(fs.Output(), "\n")
 	}
+	var size string
+	fs.StringVar(&size, sizeFlag, "", "max size to receive")
 
 	j := JobClient{JobData: JobData{jobList: jl}}
 	j.Command = "GET"
@@ -95,6 +97,12 @@ func HTTPClientParseGet(command string, cmdargs []string, jl *JobList, output io
 
 	// "get target" or "get -url target"
 	args := fs.Args()
+
+	cs, err := utils.ParseByteUnits(size)
+	if err != nil {
+		return args, err
+	}
+	j.ContentSize = int64(cs)
 
 	if IsFlagPassed(fs, urlFlag) {
 		j.Target = hf.URL

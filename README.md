@@ -104,13 +104,14 @@ On Unix systems make the file executable with: `chmod +x nspeed`
 Source code with be released with v1.0
 
 ## Features roadmap 
+- [ ] raw tcp,udp and quic (tcp currently implemented)
 - [x] web UI (local & remote) - partially implemented
 - [x] remote agent
 - [ ] P2P (WebRTC)
-- [x] QUIC & HTTP/3 (unstable - depends on https://github.com/quic-go/quic-go - will use official Go implementation when available)
+- [x] QUIC & HTTP/3 (unstable - depends on https://github.com/quic-go/quic-go - will also use official Go implementation when available)
 - [x] formatted metrics (json)
 - [ ] network & hardware information (routes, pci bandwidth, NIC info, errors, etc)
-- [ ] gateway/router info & crosstalk information if available (ARCEP box API may be)
+- [ ] gateway/router info & crosstalk information if available (~~ARCEP box API may be~~, we will use direct box APIs starting with BBox and Orange ones)
 
 ## Acknowledgement
 - All the authors of dependencies used (see go.mod)

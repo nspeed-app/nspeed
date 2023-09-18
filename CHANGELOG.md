@@ -1,4 +1,5 @@
 # v0.0.11
+- **new protocol**: raw tcp is now also available. for `server`, `get`, `post`, `put` commands, add `-P tcp` to use tcp instead of http. 
 - **new command**: `from uri` (abbr. `f`) \will read commands from the file/url (use `-` for stdin)
 - **new command**: `then [options]` (abbr. `t`) execute previous command(s) before continuing.
 - **new command**: `bench` (abbr `b`) (see corresponding bench section below)
@@ -13,7 +14,7 @@
 - **breaking change**: the `-tick duration` flag is now a duration instead of an integer of seconds (default remain 1 second). It doesn't control the sampling rate of `-cpu` anymore (see `-cpurate`). The `-tick` rate is the rate of trace & debug messages.
 - **new flag**: `-rate duration` used to set the frequency generating the time series data for json/html output Default is 1s.
 - **new flag**: `-cpurate duration` used to set the cpu sampling rate (implies `-cpu`)
-- **new flag**: `-html filename` to record the results to a html file. Use `-rate duration` to add time series.
+- **new flag**: `-html filename` to record the results to a html file. Use `-rate duration` to add time series. (wip. only local machine using ``:`` as filename will open directly the result in a web browser (no html file is created , it's just send to the browser using a temporary  web server))
 - **new flag**: `-json filename` to record the results to a json file. Use `-rate duration` to add time series.
 - **new flag**: `-dns-server address[:port]` to specify a dns server (literal ip address with optional port)
 - **new flag**: `-ungroup` show each stream result of a multi-streams command (see client below) 
@@ -29,6 +30,7 @@
  - a request of the root path ('/') will now return some informations in json (instead of "Not found (no regexp match)")
  - A download from a nspeed server returns a special header named `x-nspeed-guid` which value is a short-lived unique identifier of this download. Sending a request to the server with the same header will return a the metrics data in json of this download. The delay is 5 seconds (could change in the future or be configurable). See examples section in the README.md file.
 ## Client
+- the `get` command now accepts the `-size` to limit the number of bytes received (defaut is 0 = no limit)
 - *breaking changes*: `-http11` flag renamed to `-http1.1`
 - *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
 - in conjunction with the new server `-id` flag, a special new url scheme `nspeed:name` is now supported to reference the url address of the corresponding server (draft)

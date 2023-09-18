@@ -140,7 +140,11 @@ HTTP SERVER:
 
 // Writer - performance sensitive, don't do much here
 func (wm *Metric) Write(p []byte) (int, error) {
-	return int(wm.WriteN(int64(len(p)))), nil
+	n := int(wm.WriteN(int64(len(p))))
+	if n < len(p) {
+		return n, io.EOF
+	}
+	return n, nil
 }
 func (wm *Metric) WriteN(n int64) int64 {
 	// wm.mutex.Lock()
@@ -149,7 +153,11 @@ func (wm *Metric) WriteN(n int64) int64 {
 		wm.ReadStepSize = n
 	}
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
-	wm.TotalRead += n
+	if wm.ContentReadSize > 0 {
+		wm.TotalRead += min(n, wm.ContentReadSize-wm.TotalRead)
+	} else {
+		wm.TotalRead += n
+	}
 	wm.ReadCount++
 	return n
 }
@@ -642,7 +650,9 @@ func GenerateTextReport(batchs map[int]string, wcWorkers *Metrics, showGroup boo
 			continue
 		}
 	}
-	for idx, batch := range batchs {
+	// loop over batch (dont "range batchs" to avoid bad order)
+	for idx := 0; idx < len(batchs); idx++ {
+		batch := batchs[idx]
 		out += fmt.Sprintf("batch %s:\n", batch) + GenerateTextReportBatch(idx, wcWorkers, showGroup) + "\n"
 	}
 	return
