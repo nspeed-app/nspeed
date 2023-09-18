@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "cmd/nspeed/main.go",
-            "args": ["get", "-http3","https://[::1]:7777/1"]
+            "args": ["-debug","b", "-s","1", "h3g"]
         }
     ]
 }

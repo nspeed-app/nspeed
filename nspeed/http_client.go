@@ -71,6 +71,7 @@ type JobClient struct {
 	HTTPVersion      int
 	H2C              bool
 	// private
+	localAddr   *net.IPAddr
 	dialer      *net.Dialer
 	dialContext func(ctx context.Context, network string, address string) (net.Conn, error)
 	tlsConfig   *tls.Config
@@ -196,10 +197,22 @@ func (j *JobClient) Init() error {
 		return errors.New("invalid ip version requested")
 	}
 
-	// source address
-	LocalAddr, err := utils.InterfaceAddress(j.Host, j.IPVersion)
+	// source address -
+	var err error
+	j.localAddr, err = utils.InterfaceAddress(j.Host, j.IPVersion)
 	if err != nil {
 		return fmt.Errorf("InterfaceAddress error: %w", err)
+	}
+	// we cast a to *TCPAddr but change later for udp as needed because Dial performs a type switch
+	// and we get a  "mismatched local address type" error
+	localTCPAddr := func() net.Addr {
+		if j.localAddr == nil {
+			return nil
+		}
+		return &net.TCPAddr{
+			IP:   j.localAddr.IP,
+			Zone: j.localAddr.Zone,
+		}
 	}
 
 	j.targetURL, err = ResolveSchemes(j.jobList.Jobs, j.Target)
@@ -227,11 +240,13 @@ func (j *JobClient) Init() error {
 		j.Logger().Debug().Msgf("TLSConfig: defined")
 	}
 
+	// LocalAddr
+
 	// Dialer
 	j.dialer = &net.Dialer{
-		Timeout:       j.DialTimeout, //
-		FallbackDelay: -1,            // don't use Happy Eyeballs
-		LocalAddr:     LocalAddr,     // "-a" for client
+		Timeout:       j.DialTimeout,  //
+		FallbackDelay: -1,             // don't use Happy Eyeballs
+		LocalAddr:     localTCPAddr(), //localTCPAddr,  // "-a" for client
 	}
 
 	// this is our dialContext for transports/l4
@@ -239,7 +254,7 @@ func (j *JobClient) Init() error {
 		if network == "udp" || network == "tcp" {
 			network = utils.AddIPVersionToNetwork(network, j.IPVersion, GlobalOptions.IPVersion)
 		}
-		j.Logger().Debug().Msgf("DialContext %s %s %d ", network, address, j.IPVersion)
+		j.Logger().Debug().Msgf("DialContext %s %s %d (%s)", network, address, j.IPVersion, j.dialer.LocalAddr)
 		return j.dialer.DialContext(ctx, network, address)
 	}
 
@@ -324,14 +339,23 @@ func (j *JobClient) HTTPInit() error {
 				}
 			}()
 
+			// since we use Dialcontext we need to set a proper local *net.UDPAddr for LocalAddr
+			if j.localAddr != nil {
+				j.dialer.LocalAddr = &net.UDPAddr{
+					IP:   j.localAddr.IP,
+					Zone: j.localAddr.Zone,
+				}
+			}
+			// the roundtrip
 			rtTransport = &http3.RoundTripper{
 				DisableCompression: true,
 				TLSClientConfig:    netTransport.TLSClientConfig,
 				QuicConfig:         quicConf,
 				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+					j.Logger().Debug().Msgf("HTTP3 pre dialing %s ", addr)
 					udpAddr, err := netTransport.DialContext(ctx, "udp", addr)
 					if err != nil {
-						return nil, err
+						return nil, fmt.Errorf("htt3 Dial failed: %w", err)
 					}
 					if qTransport == nil {
 						// check for Zone on IPv6 link-local for instance, some OS might need the Zone too

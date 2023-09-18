@@ -145,8 +145,8 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 
 // InterfaceAddress returns the address of interface if parameter host is an interface name.
 // If ipVersion is not 0, the corresponding version is selected.
-func InterfaceAddress(host string, ipVersion IPVersion) (*net.TCPAddr, error) {
 
+func InterfaceAddress(host string, ipVersion IPVersion) (*net.IPAddr, error) {
 	if host == "" {
 		return nil, nil
 	}
@@ -161,11 +161,7 @@ func InterfaceAddress(host string, ipVersion IPVersion) (*net.TCPAddr, error) {
 		return nil, fmt.Errorf("no valid candidate address found for %s", host)
 	}
 
-	return &net.TCPAddr{
-		IP:   fhostIPAddrs[0].IP,
-		Port: 0,
-		Zone: fhostIPAddrs[0].Zone,
-	}, nil
+	return &fhostIPAddrs[0], nil
 }
 
 // FilterAddresses
