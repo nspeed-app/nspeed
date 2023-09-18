@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"reflect"
 	"sync"
@@ -88,8 +89,6 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 	j.wm.ReadStepSize = min(utils.MaxChunkSize, 1*1024*1024)
 	chunk := utils.GetChunk(j.wm.WriteStepSize)
 
-	fmt.Println("COMMAND = ", j.Command, j.ContentSize)
-
 	cmd := "receiving"
 	total := int64(0)
 	iocmd := j.wm.ReadN
@@ -108,7 +107,11 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 		j.wm.ContentReadSize = j.ContentSize
 		j.wm.TotalRead = 0
 		iocmd = func(n int64) (int64, error) {
-			return j.wm.WriteN(n), nil
+			nn := j.wm.WriteN(n)
+			if j.wm.TotalRead >= j.wm.ContentReadSize {
+				return nn, io.EOF
+			}
+			return nn, nil
 		}
 		end = func() {
 			j.wm.TotalRead = total
