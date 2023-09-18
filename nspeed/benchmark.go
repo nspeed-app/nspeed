@@ -26,6 +26,14 @@ var benchmarksTemplates = map[string]Benchmark{
 		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp -self put -self -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
 		Name: "TCP PUT, localhost, tls",
 	},
+	"tg": {
+		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp get -size {{.Size}} -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
+		Name: "TCP PUT, localhost",
+	},
+	"tsg": {
+		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp -self get -self -size {{.Size}} -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
+		Name: "TCP PUT, localhost, tls",
+	},
 	// HTTP/1.1
 	"h1g": {
 		Tpl:  "server {{.Args}} -id s{{.ID}} get {{.Args}} -n {{.N}} nspeed://s{{.ID}}/{{.Size}}",
