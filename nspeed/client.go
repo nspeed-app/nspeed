@@ -75,12 +75,7 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 	}
 	// fill in metadata
 	j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(conn.RemoteAddr().String())
-	if tlsConn, ok := conn.(*tls.Conn); ok {
-		cs := tlsConn.ConnectionState()
-		j.wm.Protocol = "TCP"
-		j.wm.Cipher = TLSCipherSuite(&cs)
-		j.wm.TLSVersion = utils.TLSVersionFriendlyName(cs.Version)
-	}
+	j.wm.SetTLSInfo(conn)
 	// set the logger for this metric
 	j.wm.SetLogger(j.Logger())
 
@@ -89,21 +84,46 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 	j.wm.ReadStepSize = min(utils.MaxChunkSize, 1*1024*1024)
 	chunk := utils.GetChunk(j.wm.WriteStepSize)
 
-	cmd := "receiving"
+	cmd := ""
 	total := int64(0)
-	iocmd := j.wm.ReadN
 	iostep := j.wm.WriteStepSize
+	var iocmd func(n int64) (int64, error)
 	var end func()
-	if j.Command == "PUT" || j.Command == "POST" {
+
+	msg := NewL4Message(j.Command, j.ContentSize)
+	// POST is same a PUT server side
+	if j.Command == "POST" {
+		msg.Command = "PUT"
+	}
+	err = WriteL4Message(conn, &msg)
+	if err != nil {
+		j.wm.Error = err
+		return nil, fmt.Errorf("write message failed: %w", err)
+	}
+
+	// transmit
+	if msg.Command == "PUT" {
 		cmd = "sending"
 		j.wm.ContentWriteSize = j.ContentSize
 		j.wm.TotalWrite = 0
+		iocmd = func(n int64) (int64, error) {
+			nn, err := j.wm.ReadN(n)
+			if err != nil { // ReadN only returns io.EOF
+				j.Logger().Trace().Msgf("L4 client ReadN ending (err = %+v)", err)
+				j.wm.Done = true
+				return 0, err
+			}
+			nw, err := conn.Write(chunk[:min(j.wm.WriteStepSize, nn)])
+			return int64(nw), err
+		}
 		end = func() {
 			j.wm.TotalWrite = total
 			j.Logger().Info().Msgf("L4 client sent %d bytes to %s", total, j.targetURL)
 		}
 	}
-	if j.Command == "GET" {
+	// receive
+	if msg.Command == "GET" {
+		cmd = "receiving"
 		j.wm.ContentReadSize = j.ContentSize
 		j.wm.TotalRead = 0
 		iocmd = func(n int64) (int64, error) {
@@ -111,12 +131,17 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 			if j.wm.TotalRead >= j.wm.ContentReadSize {
 				return nn, io.EOF
 			}
-			return nn, nil
+			nw, err := conn.Read(chunk[:min(j.wm.WriteStepSize, nn)])
+			return int64(nw), err
 		}
 		end = func() {
 			j.wm.TotalRead = total
 			j.Logger().Info().Msgf("L4 client got %d bytes from %s", total, j.targetURL)
 		}
+	}
+	// safe guard, should'nt happend
+	if iocmd == nil {
+		return j.wm, fmt.Errorf("no command")
 	}
 	j.wm.InitNew()
 
@@ -125,19 +150,17 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 	done := make(chan bool)
 	go func() {
 		for {
-			n, err := iocmd(iostep)
-			if err != nil { // ReadN only returns io.EOF
-				j.Logger().Trace().Msgf("L4 client ReadN ending (err = %+v)", err)
-				j.wm.Done = true
-				break
-			}
-			nw, err := conn.Write(chunk[:min(j.wm.WriteStepSize, n)])
+			nw, err := iocmd(iostep)
 
 			total += int64(nw)
 			j.Logger().Trace().Msgf("L4 client %s %d bytes to %s (err=%s)", cmd, nw, j.targetURL, reflect.TypeOf(err))
 			// possible error here:
 			//  timeout because of Timeout or network error (both = a net.OpError error type)
 			// either way we mark as 'cancelled' if timeout and return no error ?
+			if err == io.EOF {
+				j.wm.Error = nil
+				break
+			}
 			if err != nil {
 				j.wm.Error = fmt.Errorf("conn io error: %w", err)
 				var opError *net.OpError

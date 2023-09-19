@@ -224,7 +224,7 @@ func (j *JobClient) Init() error {
 
 	// TLS config
 	if j.UseTLSSelfConfig {
-		j.tlsConfig = TLSSelfConfig.Clone()
+		j.tlsConfig = utils.GetTLSSelfConfig()
 		j.Logger().Info().Msgf("using TLSSelfConfig")
 		// for tls 1.3 we can't change cipher suites with current Go implementation: https://go.dev/blog/tls-cipher-suites
 		// so something like this won't work:
@@ -627,8 +627,8 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 	// or HEAD shouldn't count as a request server side ?
 	if wm.Error == nil && resp != nil {
 		wm.Protocol = resp.Proto
-		wm.Cipher = TLSCipherSuite(resp.TLS)
-		wm.TLSVersion = utils.TLSVersionFriendlyName(TLSVersion(resp.TLS))
+		wm.Cipher = utils.TLSCipherSuite(resp.TLS)
+		wm.TLSVersion = utils.TLSVersionFriendlyName(utils.TLSVersion(resp.TLS))
 
 		j.Logger().Debug().
 			Str("protocol", wm.Protocol).

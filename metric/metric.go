@@ -2,6 +2,7 @@ package metric
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -63,6 +64,21 @@ type Metric struct {
 	Serie []MetricsData
 	// logger
 	logger *zerolog.Logger
+}
+
+func (wm *Metric) SetTLSInfo(conn net.Conn) {
+	if tlsConn, ok := conn.(*tls.Conn); ok {
+		cs := tlsConn.ConnectionState()
+		wm.Cipher = utils.TLSCipherSuite(&cs)
+		wm.TLSVersion = utils.TLSVersionFriendlyName(cs.Version)
+		wm.Protocol = "IP"
+		if _, ok := conn.(*net.TCPConn); ok {
+			wm.Protocol = "TCP"
+		}
+		if _, ok := conn.(*net.UDPConn); ok {
+			wm.Protocol = "UDP"
+		}
+	}
 }
 
 // set the logger
@@ -214,28 +230,33 @@ func (wm *Metric) LogProgress(logger *zerolog.Logger) {
 		Send()
 }
 
+func (wm *Metric) GetAverageReadSize() int64 {
+	if wm.ReadCount > 0 {
+		return wm.TotalRead / wm.ReadCount
+	}
+	return 0
+}
+func (wm *Metric) GetAverageWriteSize() int64 {
+	if wm.WriteCount > 0 {
+		return wm.TotalWrite / wm.WriteCount
+	}
+	return 0
+}
+
 // LogFinal logs the final metrics
 func (wm *Metric) LogFinal(logger *zerolog.Logger) {
 	if logger == nil {
 		return
 	}
-	if wm.Valid {
-		AverageReadSize := int64(0)
-		if wm.ReadCount > 0 {
-			AverageReadSize = wm.TotalRead / wm.ReadCount
-		}
-		AverageWriteSize := int64(0)
-		if wm.WriteCount > 0 {
-			AverageWriteSize = wm.TotalWrite / wm.WriteCount
-		}
 
+	if wm.Valid {
 		logger.Info().
 			Int64("Read", wm.TotalRead).
 			Int64("RCount", wm.ReadCount).
-			Int64("RSize", AverageReadSize).
+			Int64("RSize", wm.GetAverageReadSize()).
 			Int64("Write", wm.TotalWrite).
 			Int64("WCount", wm.WriteCount).
-			Int64("WSize", AverageWriteSize).
+			Int64("WSize", wm.GetAverageWriteSize()).
 			Str("RBPS", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
 			Str("WBPS", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
 			Float64("Dur", wm.ElapsedTime.Seconds()).

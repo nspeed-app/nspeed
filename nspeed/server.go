@@ -31,11 +31,7 @@ type TLSSettings struct {
 
 func (s *TLSSettings) MakeTLSConfig() (*tls.Config, error) {
 	if s.UseTLSSelfConfig {
-		if TLSSelfConfig == nil {
-			// this shouldn't happen if parameters check are done correctly
-			return nil, fmt.Errorf("no self certificate installed")
-		}
-		return TLSSelfConfig.Clone(), nil
+		return utils.GetTLSSelfConfig(), nil
 	} else if s.ServeTLS {
 		// todo: this should be done earlier may be ?
 		cer, err := tls.LoadX509KeyPair(s.TLSCertFile, s.TLSKeyFile)
@@ -373,7 +369,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 
 	j.Logger().Debug().Msgf("incoming connection from %s", conn.RemoteAddr())
 
-	var chunkSize int64 = 4 * 1024 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
+	var chunkSize int64 = 1 * 1024 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 	chunk := utils.GetChunk(chunkSize)
 
 	wm := metric.Metric{}
@@ -382,20 +378,57 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 	err := conn.SetDeadline(time.Now().Add(j.Parameters.MaxDuration))
 	if err != nil {
 		j.logger.Error().Err(err).Msgf("SetDeadline failed")
+		// return dont fail ?
 	}
-	for {
-		n, err := conn.Read(chunk)
-		if err != nil {
-			wm.Cancelled = true
-			if err != io.EOF {
-				wm.Error = err
-				wm.Cancelled = false
+
+	// read message
+	msg, err := ReadL4Message(conn)
+	if err != nil {
+		j.logger.Error().Err(err).Msgf("read message failed")
+		return
+	}
+	wm.Remote = conn.RemoteAddr().String()
+	wm.Protocol = "tcp"
+
+	if msg.Command == "PUT" {
+		j.logger.Debug().Msgf("L4 server start receive %d bytes loop", msg.Size)
+		for {
+			n, err := conn.Read(chunk)
+			if err != nil {
+				wm.Cancelled = true
+				if err != io.EOF {
+					wm.Error = err
+					wm.Cancelled = false
+				}
+				break
 			}
-			break
+			wm.WriteN(int64(n))
 		}
-		wm.WriteN(int64(n))
+		wm.Valid = true
 	}
-	wm.Valid = true
-	wm.LogFinal(wm.Logger())
+	if msg.Command == "GET" {
+		j.logger.Error().Msgf("L4 start send %d bytes loop", msg.Size)
+		wm.ContentWriteSize = msg.Size
+		wm.TotalWrite = 0
+		for {
+			n, err := wm.ReadN(chunkSize)
+			if err != nil {
+				wm.Valid = true
+				break
+			}
+			_, err = conn.Write(chunk[:n])
+			if err != nil {
+				wm.Cancelled = true
+				if err != io.EOF {
+					wm.Error = err
+					wm.Cancelled = false
+				} else {
+					wm.Valid = true
+				}
+				break
+			}
+		}
+	}
+	wm.LogFinal(j.Logger())
 	j.Logger().Debug().Msgf("L4 handleConnection ended")
 }

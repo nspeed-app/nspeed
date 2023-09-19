@@ -1,4 +1,4 @@
-package nspeed
+package utils
 
 import (
 	"crypto/tls"
@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"os"
 )
+
+// local certificate - ALWAYS Clone() it
+var tlsSelfConfig *tls.Config
 
 func init() {
 	// self-signed cert & CA
@@ -27,12 +30,16 @@ func init() {
 		os.Exit(1)
 	}
 
-	TLSSelfConfig = &tls.Config{
+	tlsSelfConfig = &tls.Config{
 		Certificates: []tls.Certificate{certificate},
 		RootCAs:      rootCAs,
 		// CipherSuites: []uint16{tls.TLS_CHACHA20_POLY1305_SHA256},
 		// MinVersion:   tls.VersionTLS13,
 	}
+}
+
+func GetTLSSelfConfig() *tls.Config {
+	return tlsSelfConfig.Clone()
 }
 
 // TLSCipherSuite return the CipherSuite name used or empty string if none

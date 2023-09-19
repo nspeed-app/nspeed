@@ -32,9 +32,6 @@ import (
 // name of product, used in user-agent
 var ServerName = "NSpeed"
 
-// local certificate - ALWAYS Clone() it
-var TLSSelfConfig *tls.Config
-
 // Default configuration values
 const (
 	DefaultMaxBodySize int64 = 1000 * 1000 * 1000 * 40 // bytes
@@ -337,8 +334,8 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			GroupID:          guid,
 		},
 		Protocol:   r.Proto,
-		Cipher:     TLSCipherSuite(r.TLS),
-		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
+		Cipher:     utils.TLSCipherSuite(r.TLS),
+		TLSVersion: utils.TLSVersionFriendlyName(utils.TLSVersion(r.TLS)),
 	}
 	wm.SetLogger(utils.Ptr(j.Logger().With().
 		Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
@@ -494,8 +491,8 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 			FirstResponseByte:  time.Now(),
 		},
 		Protocol:   r.Proto,
-		Cipher:     TLSCipherSuite(r.TLS),
-		TLSVersion: utils.TLSVersionFriendlyName(TLSVersion(r.TLS)),
+		Cipher:     utils.TLSCipherSuite(r.TLS),
+		TLSVersion: utils.TLSVersionFriendlyName(utils.TLSVersion(r.TLS)),
 	}
 	wm.SetLogger(utils.Ptr(j.Logger().With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger()))
 
