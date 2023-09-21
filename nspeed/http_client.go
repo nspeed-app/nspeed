@@ -56,7 +56,7 @@ type JobClient struct {
 	JobData
 	Command          string
 	Protocol         string
-	Repeat           int
+	Instances        int
 	IPVersion        utils.IPVersion
 	Host             string
 	Target           string
@@ -153,7 +153,7 @@ func (j *JobClient) PrintString(verbose bool, group bool) string {
 
 	groupFormat := ""
 	if group {
-		groupFormat = "-n " + strconv.Itoa(j.Repeat) + " "
+		groupFormat = "-n " + strconv.Itoa(j.Instances) + " "
 	}
 	if j.Command == "GET" {
 		t := "get " + groupFormat + "%s" + j.finalTarget

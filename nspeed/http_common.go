@@ -118,9 +118,8 @@ func HTTPClientParseGet(command string, cmdargs []string, jl *JobList, output io
 		args = args[1:]
 	}
 
-	jobs := make([]Job, j.Repeat)
-	// clone j j.Repeat times
-	for i := 0; i < j.Repeat; i++ {
+	jobs := make([]Job, j.Instances)
+	for i := 0; i < j.Instances; i++ {
 		jc := j
 		jobs[i] = &jc
 	}
@@ -199,9 +198,9 @@ func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, outpu
 	// 	u.Path = path.Join(u.Path, FormatByteDecimalUnits(j.ContentSize))
 	// 	j.Target = u.String()
 	// }
-	jobs := make([]Job, j.Repeat)
-	// clone j j.Repeat times
-	for i := 0; i < j.Repeat; i++ {
+	jobs := make([]Job, j.Instances)
+	// clone per instances times
+	for i := 0; i < j.Instances; i++ {
 		jc := j
 		jobs[i] = &jc
 	}
@@ -212,7 +211,7 @@ func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, outpu
 type clientFlags struct {
 	Protocol    string
 	Host        string
-	Repeat      int
+	Instances   int
 	Timeout     uint
 	DialTimeout time.Duration
 	Delay       time.Duration
@@ -240,7 +239,7 @@ func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, outpu
 	hf := clientFlags{}
 
 	fs.StringVar(&hf.Protocol, "P", "http", "comunication protocol")
-	fs.IntVar(&hf.Repeat, "n", 1, "number of times to process an item")
+	fs.IntVar(&hf.Instances, "n", 1, "number of times to process an item")
 	fs.StringVar(&hf.Host, "a", "", "specific local address to use")
 	fs.BoolVar(&hf.SkipTLSCheck, "k", false, "skip certificates validation")
 	fs.BoolVar(&hf.UseTLSSelfConfig, "self", OptTLSSelf, "use self-signed TLS certificate")
@@ -287,7 +286,7 @@ func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClien
 
 	// straigthforward flags - add more checks/controls later
 	job.Protocol = hf.Protocol
-	job.Repeat = hf.Repeat
+	job.Instances = hf.Instances
 	job.Host = hf.Host
 	job.UseTLSSelfConfig = hf.UseTLSSelfConfig
 	job.SkipTLSCheck = hf.SkipTLSCheck
