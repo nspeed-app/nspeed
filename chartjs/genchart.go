@@ -188,7 +188,10 @@ func ChartJSON(jsons []string) string {
 	return html
 }
 
-func GenerateChart(wcWorkers *metric.Metrics, ungroup bool) string {
+func GenerateHTMLChart(wcWorkers *metric.Metrics, ungroup bool) string {
+	if wcWorkers == nil {
+		return ""
+	}
 
 	return "todo"
 }
@@ -210,17 +213,18 @@ func fromSamples(jsons []string) string {
 	return r
 }
 
-func GenerateHTMLReport(htmlFilename string, wcWorkers metric.Metrics, ungroup bool) {
+func GenerateHTMLReport(htmlFilename string, wcWorkers *metric.Metrics, ungroup bool) {
 	var out *utils.SmartFile
 	var err error
 	if htmlFilename != ":" {
 		out, err = utils.FileCreate(htmlFilename)
 		if err != nil {
-			log.Fatal().Msgf("could not create html file (%s): %v", htmlFilename, err)
+			log.Error().Msgf("could not create html file (%s): %v", htmlFilename, err)
+			return
 		}
 	}
 	//json := GenerateJSONReports(&wcWorkers, ungroup)
-	html := GenerateChart(&wcWorkers, ungroup)
+	html := GenerateHTMLChart(wcWorkers, ungroup)
 	if out != nil {
 		html, err = utils.InlineAssets(html, StaticFiles, true)
 		if err != nil {
