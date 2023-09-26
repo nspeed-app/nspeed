@@ -335,12 +335,12 @@ func Main() {
 	// results will be in wcWorkers
 	waitChan := make(chan error)
 	progress := make(chan any)
-	var wcWorkers metric.Metrics //todo: rename this var
+	var results *metric.Metrics //todo: rename this var
 	go func() {
 		var err error
-		wcWorkers, err = nspeed.RunJobs(ctx, jl, nspeed.GlobalOptions, progress)
+		results, err = nspeed.RunJobs(ctx, jl, nspeed.GlobalOptions, progress)
 		if err != nil {
-			log.Warn().Msgf("error running jobs: %v", err)
+			log.Fatal().Msgf("error running jobs: %v", err)
 		}
 		waitChan <- err
 	}()
@@ -370,7 +370,10 @@ mainloop:
 			break mainloop
 		}
 	}
-	log.Debug().Msgf("main loop ended. total results: %d / active goroutines: %d", len(wcWorkers), runtime.NumGoroutine())
+	log.Debug().Msgf("main loop ended. total results: %d / active goroutines: %d", len(results.Metrics), runtime.NumGoroutine())
+
+	results.Batches = jl.BatcheNames()
+	results.Cleanup()
 
 	// post delay -todo share more code with pre delay
 	if *optPostDelay != 0 && ctx.Err() == nil {
@@ -394,7 +397,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
-		report := metric.GenerateTextReport(jl.ResultBatches(&wcWorkers), &wcWorkers, *optUngroup)
+		report := metric.GenerateTextReport(results, *optUngroup)
 		_, err = f.WriteString(report)
 		// if err == nil {
 		// 	_, err = f.WriteString(nspeed.SeriesReport(wcWorkers))
@@ -415,7 +418,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}
-		report := metric.GenerateJSONReport(&wcWorkers, *optUngroup)
+		report := metric.GenerateJSONReport(results, *optUngroup)
 		_, err = f.WriteString(report)
 		if err != nil {
 			log.Fatal().Msgf("could not write json report file (%s): %v", *optJSONReport, err)
@@ -425,7 +428,7 @@ mainloop:
 
 	// html report:
 	if *optHTMLReport != "" {
-		chartjs.GenerateHTMLReport(*optHTMLReport, wcWorkers, *optUngroup)
+		chartjs.GenerateHTMLReport(*optHTMLReport, results, *optUngroup)
 	}
 
 	// todo: defer this block

@@ -28,7 +28,7 @@ var GlobalOptions Options
 
 // RunJobs runs all the jobs, one batch at a time, this is a synchronous function
 // update/progress can be obtained thru the optionnal message channel
-func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (metric.Metrics, error) {
+func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*metric.Metrics, error) {
 
 	jobs := jl.Jobs
 	nJobs := len(jobs)
@@ -73,13 +73,13 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 	}
 
 	// this will collect result from jobs
-	results := make(chan *metric.Metric, nJobs)
+	result := make(chan *metric.Metric, nJobs)
 	// run workers by launching a go routine for each one
 	// we use 2 waitgroup, one for short-lived jobs (get, put,etc), one for infinite jobs (server, api)
 	var wgi sync.WaitGroup // infinite
 
 	rc := nJobs
-	wcWorkers := make(metric.Metrics, 0, nJobs)
+	wcWorkers := metric.NewMetrics()
 
 	// batch loop
 
@@ -112,7 +112,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 	lljob := 0
 	for {
 		log.Info().Msgf("processing batch '%s' (%d)", jl.Batches[batch].Name, batch)
-		llnj, err := runBatch(ctx, batch, jl, true, opt.Test, &wgi, results)
+		llnj, err := runBatch(ctx, batch, jl, true, opt.Test, &wgi, result)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -127,7 +127,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 		var wgsl sync.WaitGroup // short lived sync group
 		// we add ourself to the waitgroup
 		wgsl.Add(1)
-		slnj, err := runBatch(ctx, batch, jl, false, opt.Test, &wgsl, results)
+		slnj, err := runBatch(ctx, batch, jl, false, opt.Test, &wgsl, result)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -170,7 +170,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 				break batchloop
 			case <-tickTickerChannel:
 				// we call Update on each wcWorkers
-				for _, wc := range wcWorkers {
+				for _, wc := range wcWorkers.Metrics {
 					wc.UpdateData()
 				}
 			case <-tickCPUChannel:
@@ -181,7 +181,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 				message <- CPUMetric{pcts, rc}
 			case <-progressTickerChannel:
 				message <- wcWorkers
-			case wm := <-results:
+			case wm := <-result:
 				// test for wm==nil ?
 				if wm == nil {
 					log.Debug().Msgf("got a nil metric")
@@ -189,7 +189,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 				} else {
 					wm.Logger().Debug().Msgf("got a result for job %s batch %d (err=%s)", wm.ID, batch, wm.Error)
 					wm.Batch = batch
-					wcWorkers = append(wcWorkers, wm)
+					wcWorkers.Append(wm)
 					rc--
 					slnj--
 					if slnj == 0 {
@@ -221,19 +221,19 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (m
 			break
 		}
 	}
-	log.Info().Msgf("exited mainloop with %d results (%d remaining active goroutines, rc = %d)", len(wcWorkers), runtime.NumGoroutine(), rc)
+	log.Info().Msgf("exited mainloop with %d results (%d remaining active goroutines, rc = %d)", len(wcWorkers.Metrics), runtime.NumGoroutine(), rc)
 	// drain remaining results
 	for rc > 0 {
-		wm := <-results
+		wm := <-result
 		rc--
 		if wm != nil {
 			wm.Logger().Info().Msgf("draining result")
-			wcWorkers = append(wcWorkers, wm)
+			wcWorkers.Append(wm)
 		}
 	}
 
 	// all done or canceled, return
-	return wcWorkers, nil
+	return &wcWorkers, nil
 }
 
 func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test bool, wg *sync.WaitGroup, results chan *metric.Metric) (int, error) {

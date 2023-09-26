@@ -412,13 +412,91 @@ type reportGroup struct {
 	Instances   int
 }
 
-type Metrics []*Metric
+// a group of Metric
+// with associated batch names
+type Metrics struct {
+	Metrics []*Metric
+	Batches []string
+}
+
+func NewMetrics() Metrics {
+	return Metrics{
+		make([]*Metric, 0),
+		make([]string, 0),
+	}
+}
+
+func (wc *Metrics) Append(m *Metric) {
+	wc.Metrics = append(wc.Metrics, m)
+}
+
+// rebuild by removing non valid metric
+// removing unused batch names
+func (wc *Metrics) Cleanup() {
+	if wc == nil {
+		return
+	}
+
+	var metrics []*Metric
+	batchesMap := make(map[int]string, 0)
+	for _, v := range wc.Metrics {
+		if !v.Valid {
+			continue
+		}
+		metrics = append(metrics, v)
+		if v.Batch < len(wc.Batches) {
+			batchesMap[v.Batch] = wc.Batches[v.Batch]
+		} else {
+			batchesMap[v.Batch] = "#" + strconv.Itoa(v.Batch)
+		}
+	}
+
+	wc.Batches = make([]string, len(batchesMap))
+	for k, v := range batchesMap {
+		wc.Batches[k] = v
+	}
+	wc.Metrics = metrics
+}
+
+// return max index for batch
+// func (wc Metrics) MaxBatchIndex(isValid bool) int {
+// 	n := 0
+// 	for _, v := range wc.Metrics {
+// 		if !isValid || (isValid && v.Valid) {
+// 			n = max(n, v.Batch)
+// 		}
+// 	}
+// 	return n
+// }
+
+// func (wc Metrics) SortByBatch(batches map[int]string) Metrics {
+// 	r := make([]Metrics, wc.MaxBatchIndex(true))
+// 	for _, w := range wc.Metrics {
+// 		if w == nil {
+// 			log.Debug().Msgf("nil Metric found")
+// 			continue
+// 		}
+// 		if w.Valid {
+// 			if _, ok := batches[w.Batch]; !ok {
+// 				log.Error().Msgf("unknown batch found in SortByBatch")
+// 				return nil
+// 			}
+// 			// assert (w.Batch < )
+// 			r[w.Batch] = append(r[w.Batch], w)
+// 		}
+// 	}
+// 	rm := Metrics{}
+// 	for _, b := range r {
+// 		rm = append(rm, b...)
+// 	}
+// 	return rm
+// }
 
 // MarshalJSON for Workers type.
 // if an entry has an error, it will be ignored
 func (wc *Metrics) MarshalJSON() ([]byte, error) {
-	todo := Metrics{}
-	for _, v := range *wc {
+	todo := make([]*Metric, len(wc.Metrics))
+	for _, v := range wc.Metrics {
 		if v.Error == nil {
 			todo = append(todo, v)
 		}
@@ -451,10 +529,10 @@ func (wc *Metrics) Group() *Metrics {
 	if wc == nil {
 		return nil
 	}
-	rwc := make(Metrics, 0, len(*wc))
+	rwc := NewMetrics()
 	groups := make(map[string]*Metric)
 
-	for _, wm := range *wc {
+	for _, wm := range wc.Metrics {
 		if wm == nil {
 			continue
 		}
@@ -470,7 +548,7 @@ func (wc *Metrics) Group() *Metrics {
 				g = wm.Clone()
 				g.Instances = 1
 				groups[wm.GroupID] = g
-				rwc = append(rwc, g)
+				rwc.Metrics = append(rwc.Metrics, g)
 				continue
 			}
 			g.TotalRead += wm.TotalRead
@@ -484,7 +562,7 @@ func (wc *Metrics) Group() *Metrics {
 				g.ElapsedTime = wm.ElapsedTime
 			}
 		} else {
-			rwc = append(rwc, wm)
+			rwc.Metrics = append(rwc.Metrics, wm)
 		}
 	}
 	return &rwc
@@ -505,15 +583,15 @@ func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 
 // generate a list json from metrics
 func GenerateJSONReports(wcWorkers *Metrics, ungroup bool) []string {
-	wc := *wcWorkers
+	wc := wcWorkers
 	if wc == nil {
 		return nil
 	}
 	if !ungroup {
-		wc = *wcWorkers.Group()
+		wc = wcWorkers.Group()
 	}
-	result := make([]string, 0, len(wc))
-	for _, wm := range wc {
+	result := make([]string, 0, len(wc.Metrics))
+	for _, wm := range wc.Metrics {
 		json, err := json.MarshalIndent(wm, "", "\t")
 		if err != nil {
 			result = append(result, fmt.Sprintf("error: %v", err))
@@ -652,28 +730,27 @@ func (wm *Metric) SerieReport() (report string) {
 	return
 }
 func SeriesReport(wcWorkers Metrics) (report string) {
-	for _, wm := range wcWorkers {
+	for _, wm := range wcWorkers.Metrics {
 		report = report + wm.SerieReport() // fmt.Sprintf("%d - %s - has %d data to report\n", wm.Index, wm.Job.ID(), len(wm.Serie))
 	}
 	return
 }
 
 // generate a report per batch (sorted), filtering failed jobs
-func GenerateTextReport(batchs map[int]string, wcWorkers *Metrics, showGroup bool) (out string) {
+func GenerateTextReport(wcWorkers *Metrics, showGroup bool) (out string) {
 	if wcWorkers == nil {
 		log.Info().Msgf("generating text report: no data")
 		return
 	}
-	log.Info().Msgf("generating text report for %d metric(s) in %d batch()", len(*wcWorkers), len(batchs))
-	for _, wm := range *wcWorkers {
+	log.Info().Msgf("generating text report for %d metric(s) in %d batch()", len(wcWorkers.Metrics), len(wcWorkers.Batches))
+	for _, wm := range wcWorkers.Metrics {
 		if wm.Error != nil && !wm.Valid {
 			out += fmt.Sprintf("batch %d, job %s, error = %s\n", wm.Batch, wm.ID, wm.Error)
 			continue
 		}
 	}
 	// loop over batch (dont "range batchs" to avoid bad order)
-	for idx := 0; idx < len(batchs); idx++ {
-		batch := batchs[idx]
+	for idx, batch := range wcWorkers.Batches {
 		out += fmt.Sprintf("batch %s:\n", batch) + GenerateTextReportBatch(idx, wcWorkers, showGroup) + "\n"
 	}
 	return
@@ -681,6 +758,10 @@ func GenerateTextReport(batchs map[int]string, wcWorkers *Metrics, showGroup boo
 
 // generate a tabular formatted text report
 func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) string {
+
+	if wcWorkers == nil {
+		return ""
+	}
 
 	var out bytes.Buffer
 
@@ -707,7 +788,7 @@ func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) stri
 
 	hasGroup := false
 	lines := 0
-	for _, wm := range *wcWorkers {
+	for _, wm := range wcWorkers.Metrics {
 		if wm.Batch != batch {
 			continue
 		}

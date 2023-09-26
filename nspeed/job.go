@@ -157,22 +157,11 @@ func (jl *JobList) AddJobs(jobs ...Job) error {
 	return nil
 }
 
-// return batch index and name which have valid results
-func (jl *JobList) ResultBatches(wcWorkers *metric.Metrics) map[int]string {
-	if jl == nil {
-		return nil
-	}
-	batches := make(map[int]string)
-	for _, wm := range *wcWorkers {
-		if wm.Error != nil {
-			// fmt.Printf("batch %d, job %s, error = %s\n", wm.Batch, wm.ID, wm.Error)
-			continue
-		}
-		if !wm.Valid {
-			//out += fmt.Sprintf("batch %d, job %s, not valid\n", wm.Batch, wm.ID)
-			continue
-		}
-		batches[wm.Batch] = jl.Batches[wm.Batch].Name
+// return batch index and name
+func (jl *JobList) BatcheNames() []string {
+	batches := make([]string, 0)
+	for _, b := range jl.Batches {
+		batches = append(batches, b.Name)
 	}
 	return batches
 }

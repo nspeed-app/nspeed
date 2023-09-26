@@ -28,11 +28,11 @@ var benchmarksTemplates = map[string]Benchmark{
 	},
 	"tg": {
 		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp get -size {{.Size}} -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
-		Name: "TCP PUT, localhost",
+		Name: "TCP GET, localhost",
 	},
 	"tsg": {
 		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp -self get -self -size {{.Size}} -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
-		Name: "TCP PUT, localhost, tls",
+		Name: "TCP GET, localhost, tls",
 	},
 	// HTTP/1.1
 	"h1g": {
