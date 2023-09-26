@@ -72,6 +72,10 @@ const (
 	pointRadius: 2,
 	label: {{.Label}},
 	data: {{.Data}},
+	//hoverBackgroundColor: '#666',
+	hoverBorderColor: '#0000',
+	hoverBorderWidth: 2,
+	hoverBorderRadius: 2,
 	interpolate: true
 }`
 )
@@ -159,14 +163,21 @@ func ChartJSON(jsons []string) string {
 	dsl := make([]string, 0, len(jsons))
 	for i := range jsons {
 		is := strconv.Itoa(i)
-		ds, err := GenDataset("", "jsonfile["+is+"].command", "data"+is)
+		ds, err := GenDataset("", "jsonfile["+is+"].id", "data"+is)
 		if err != nil {
 			log.Panic().Err(err).Send()
 		}
 		dsl = append(dsl, ds)
 	}
-	optionScales := `{
-        scales: {
+	options := `{
+		plugins: {
+			legend:{
+				onHover: (event,item,legend) => {
+					onLegendHover(event,item,legend)
+				}
+			}
+		},
+		scales: {
             x: {
                 type: 'timeseries',
 				stacked: true
@@ -177,7 +188,7 @@ func ChartJSON(jsons []string) string {
 		}
     }`
 
-	s, err := GenChart("a", "bar", "labels", JSArray(dsl...), optionScales)
+	s, err := GenChart("a", "bar", "labels", JSArray(dsl...), options)
 	if err != nil {
 		log.Panic().Err(err).Send()
 	}
@@ -186,14 +197,6 @@ func ChartJSON(jsons []string) string {
 	fmt.Println(fromSamples(jsons) + s)
 
 	return html
-}
-
-func GenerateHTMLChart(wcWorkers *metric.Metrics, ungroup bool) string {
-	if wcWorkers == nil {
-		return ""
-	}
-
-	return "todo"
 }
 
 func fromSamples(jsons []string) string {
@@ -223,8 +226,7 @@ func GenerateHTMLReport(htmlFilename string, wcWorkers *metric.Metrics, ungroup 
 			return
 		}
 	}
-	//json := GenerateJSONReports(&wcWorkers, ungroup)
-	html := GenerateHTMLChart(wcWorkers, ungroup)
+	html := ChartJSON(metric.GenerateJSONReports(wcWorkers, ungroup))
 	if out != nil {
 		html, err = utils.InlineAssets(html, StaticFiles, true)
 		if err != nil {
