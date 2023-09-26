@@ -439,6 +439,7 @@ func (wc *Metrics) Cleanup() {
 
 	var metrics []*Metric
 	batchesMap := make(map[int]string, 0)
+	maxIdx := 0
 	for _, v := range wc.Metrics {
 		if !v.Valid {
 			continue
@@ -449,9 +450,10 @@ func (wc *Metrics) Cleanup() {
 		} else {
 			batchesMap[v.Batch] = "#" + strconv.Itoa(v.Batch)
 		}
+		maxIdx = max(maxIdx, v.Batch)
 	}
-
-	wc.Batches = make([]string, len(batchesMap))
+	log.Warn().Msgf("batchesMap: %+v", batchesMap)
+	wc.Batches = make([]string, maxIdx+1)
 	for k, v := range batchesMap {
 		wc.Batches[k] = v
 	}
