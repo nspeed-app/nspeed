@@ -12,8 +12,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) logging.ConnectionTracer {
-	QLogTracer := func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) logging.ConnectionTracer {
+func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) *logging.ConnectionTracer {
+	QLogTracer := func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) *logging.ConnectionTracer {
 		perspectiveNames := [...]string{"server", "client"}
 		perspectiveName := func(p logging.Perspective) string {
 			if p != 1 && p != 2 {

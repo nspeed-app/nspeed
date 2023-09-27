@@ -12,17 +12,8 @@ import (
 	"nspeed.app/utils"
 )
 
-type quicTracer struct {
-	logging.NullTracer
-	wm *metric.Metric
-}
-
-func (t *quicTracer) TracerForConnection(context.Context, logging.Perspective, logging.ConnectionID) logging.ConnectionTracer {
-	return &quicConnectionTracer{wm: t.wm}
-}
-
 type quicConnectionTracer struct {
-	logging.NullConnectionTracer
+	logging.ConnectionTracer
 	wm *metric.Metric
 }
 
@@ -45,7 +36,13 @@ func (t *quicConnectionTracer) UpdatedMetrics(rttStats *logging.RTTStats, cwnd l
 	t.wm.AvgLatency = rttStats.SmoothedRTT()
 }
 
-func NewQuicTracer(wm *metric.Metric) func(context.Context, logging.Perspective, logging.ConnectionID) logging.ConnectionTracer {
-	qt := &quicTracer{wm: wm}
-	return qt.TracerForConnection
+func NewQuicTracer(wm *metric.Metric) func(context.Context, logging.Perspective, logging.ConnectionID) *logging.ConnectionTracer {
+	qct := quicConnectionTracer{wm: wm}
+	qct.ConnectionTracer.StartedConnection = qct.StartedConnection
+	qct.ConnectionTracer.UpdatedMetrics = qct.UpdatedMetrics
+
+	f := func(context.Context, logging.Perspective, logging.ConnectionID) *logging.ConnectionTracer {
+		return &qct.ConnectionTracer
+	}
+	return f
 }

@@ -764,11 +764,11 @@ func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
 		return context.DeadlineExceeded
 	}
 
-	// var h3err http3.Error
-	// if errors.As(err, &h3err) && h3err.ErrorCode == http3.ErrCodeRequestCanceled {
-	// 	l.Info().Msgf("http3.Error: %d changed to context.DeadlineExceeded ", h3err.ErrorCode)
-	// 	return context.DeadlineExceeded
-	// }
+	var h3err *http3.Error
+	if errors.As(err, &h3err) && h3err.ErrorCode == http3.ErrCodeRequestCanceled {
+		l.Info().Msgf("http3.Error: %d changed to context.DeadlineExceeded ", h3err.ErrorCode)
+		return context.DeadlineExceeded
+	}
 
 	// HTTP/2 & INTERNAL_ERROR & 'received from peer' => server timeout (WriteTimeout for instance)
 	// this is not good, see: https://github.com/golang/go/issues/21389
