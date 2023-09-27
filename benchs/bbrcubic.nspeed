@@ -1,4 +1,0 @@
-then -n 'test download BBR mono' get https://paris.testdebit.info/10G/10G.iso
-then -n 'test download BBR multi' get -n 4 https://paris.testdebit.info/10G/10G.iso
-then -n 'test download CUBIC mono' get https://bouygues.testdebit.info/10G/10G.iso
-then -n 'test download CUBIC multi' get -n 4 https://bouygues.testdebit.info/10G/10G.iso

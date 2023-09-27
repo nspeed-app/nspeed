@@ -1,0 +1,5 @@
+then -n "servers" server -id s1 server -h2c -id s2 server -P tcp -id s3
+then -n "TCP GET"  get -P tcp -id "TCP GET" -size 20g nspeed://s2/
+then -n "TCP PUT"  put -P tcp -id "TCP PUT" -size 20g nspeed://s2/
+#then -n "HTTP/1.1 GET" get -id "HTTP/1.1 GET" nspeed://s1/20g
+#then -n "HTTP/1.1 PUT" put -id "HTTP/1.1 PUT" nspeed://s1 20g
