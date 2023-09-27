@@ -1,5 +1,6 @@
 function formatBytes(value, unitname = '', precision = 2) {
 	if (value === 0) return '0 ' + unitname;
+	if (value < 1) return value.toFixed(precision)
 	const k = 1000;
 	const dm = precision;
 	const sizes = ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];

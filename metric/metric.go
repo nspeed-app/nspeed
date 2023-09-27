@@ -452,7 +452,7 @@ func (wc *Metrics) Cleanup() {
 		}
 		maxIdx = max(maxIdx, v.Batch)
 	}
-	log.Warn().Msgf("batchesMap: %+v", batchesMap)
+	log.Debug().Msgf("batchesMap: %+v", batchesMap)
 	wc.Batches = make([]string, maxIdx+1)
 	for k, v := range batchesMap {
 		wc.Batches[k] = v

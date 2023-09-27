@@ -56,7 +56,6 @@ const (
 	type: '{{.Type}}',
 	options: {{.Options}},
 	data: {
-	  labels: {{.Labels}},
 	  datasets: {{.Datasets}}
 	}
   });
@@ -101,7 +100,7 @@ func init() {
 	}
 }
 
-func GenChart(name, chartType, labels, datasets, options string) (string, error) {
+func GenChart(name, chartType, datasets, options string) (string, error) {
 	if options == "" {
 		options = "{}"
 	}
@@ -109,10 +108,9 @@ func GenChart(name, chartType, labels, datasets, options string) (string, error)
 	var chart = struct {
 		Name     string
 		Type     string
-		Labels   string
 		Datasets string
 		Options  string
-	}{name, chartType, labels, datasets, options}
+	}{name, chartType, datasets, options}
 
 	var out bytes.Buffer
 	err := Templates[chartTmplName].Execute(&out, chart)
@@ -175,26 +173,52 @@ func ChartJSON(jsons []string) string {
 				onHover: (event,item,legend) => {
 					onLegendHover(event,item,legend)
 				}
-			}
+			},
+			tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed.y !== null) {
+                            label += formatBytes(context.parsed.y) + "bps";
+                        }
+                        return label;
+                    }
+                }
+            }
 		},
 		scales: {
             x: {
-                type: 'timeseries',
-				stacked: true
+                type: 'time',
+				title: {
+					display: true,
+					text : "time"
+				},
             },
             y: {
-				stacked: true
+				title: {
+					display: true,
+					text : "throughput"
+				},
+				ticks: {
+				callback: function(item) {
+					return formatBytes(item);
+                }
+			}
             }
 		}
     }`
 
-	s, err := GenChart("a", "bar", "labels", JSArray(dsl...), options)
+	s, err := GenChart("a", "line", JSArray(dsl...), options)
 	if err != nil {
 		log.Panic().Err(err).Send()
 	}
 
 	html := htmlHeader + strings.Join(utils.Map(js, addScript), "\n") + fromSamples(jsons) + s + htmlFooter
-	fmt.Println(fromSamples(jsons) + s)
+	//fmt.Println(fromSamples(jsons) + s)
 
 	return html
 }
@@ -204,11 +228,11 @@ func fromSamples(jsons []string) string {
 	for i := range jsons {
 		is := strconv.Itoa(i)
 		r += `
-	 var labels = jsonfile[` + is + `].Samples.map(function(e) {
+	 var labels` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
  		return e.date;
      });
      var data` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
-  	     return e.rxbytes*8.0/e.duration;
+  	     return {x: e.date, y: (e.rxbytes+e.txbytes)*8.0/e.duration} ;
      });
 	`
 	}
