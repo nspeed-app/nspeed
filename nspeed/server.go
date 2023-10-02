@@ -407,7 +407,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 		wm.Valid = true
 	}
 	if msg.Command == "GET" {
-		j.logger.Error().Msgf("L4 server started sending loop for %d bytes", msg.Size)
+		j.logger.Debug().Msgf("L4 server started sending loop for %d bytes", msg.Size)
 		// wm will produce ContentWriteSize starting from TotalWrite with chunks of size wm.WriteStepSize
 		wm.ContentWriteSize = msg.Size
 		wm.TotalWrite = 0
@@ -436,7 +436,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 			}
 		}
 	}
-	j.logger.Error().Msgf("L4 server ended loop (%t) (%s)", wm.Cancelled, wm.Error)
+	j.logger.Debug().Msgf("L4 server ended loop (%t) (%s)", wm.Cancelled, wm.Error)
 	wm.LogFinal(j.Logger())
 	j.Logger().Debug().Msgf("L4 handleConnection ended")
 }

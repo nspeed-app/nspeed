@@ -74,6 +74,7 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 		Tick: GlobalOptions.Tick,
 	}
 	// fill in metadata
+	j.wm.Remote = conn.RemoteAddr().String()
 	j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(conn.RemoteAddr().String())
 	j.wm.SetTLSInfo(conn)
 	// set the logger for this metric
@@ -149,7 +150,10 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 
 	j.Logger().Info().Msgf("L4 client %s %d bytes remote %s", cmd, j.wm.ContentWriteSize, j.targetURL)
 	// spawn the work, use 'done' to signal
-	done := make(chan bool)
+	done := make(chan any)
+
+	j.wm.StartTicker(done)
+
 	go func() {
 		for {
 			nw, err := iocmd(iostep)
@@ -179,7 +183,7 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 				break
 			}
 		}
-		done <- true
+		close(done)
 	}()
 
 	// wait for completion or context

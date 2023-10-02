@@ -72,10 +72,10 @@ func (wm *Metric) SetTLSInfo(conn net.Conn) {
 		wm.Cipher = utils.TLSCipherSuite(&cs)
 		wm.TLSVersion = utils.TLSVersionFriendlyName(cs.Version)
 		wm.Protocol = "IP"
-		if _, ok := conn.(*net.TCPConn); ok {
+		if _, ok := tlsConn.NetConn().(*net.TCPConn); ok {
 			wm.Protocol = "TCP"
 		}
-		if _, ok := conn.(*net.UDPConn); ok {
+		if _, ok := tlsConn.NetConn().(*net.UDPConn); ok {
 			wm.Protocol = "UDP"
 		}
 	}
