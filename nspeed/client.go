@@ -201,5 +201,6 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 	if j.wm.Error != nil {
 		j.Logger().Info().Err(j.wm.Error).Msgf("L4 client error")
 	}
+	j.wm.Command = j.PrintString(false, false)
 	return j.wm, j.wm.Error
 }

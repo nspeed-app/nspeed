@@ -13,6 +13,8 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     - api
     - bench
     - ciphers
+    - then
+    - from
 
     The ciphers command can not be combined with others and can only be called once. 
     Each "command" has its own arguments, use -h to see them. 
@@ -27,11 +29,16 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     infinite:
         nspeed server [options]
         nspeed api [options]
-
+    control:
+        from url/path
+        then [options] [command] ... [command]
     special:
         nspeed ciphers [options] target
 
-If there is at least one short-lived command, the program will end when all short-lived commands have ended. If there are only infinite commands, the program will wait for ctrl-c or kill signal.
+If there is at least one short-lived command, the program will end when all short-lived commands have ended. If there are only infinite commands, the program will wait for `ctrl-c` or a kill signal (daemon mode).
+
+The `then` and `from` command allows composing or reading command(s) from a file or url.
+
 ## Examples
 
     # download a single target four times at the same time

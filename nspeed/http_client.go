@@ -507,7 +507,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 				j.tr.start = j.tr.connectStart
 				j.tr.dnsDone = j.tr.start
 			}
-			wm.Logger().Trace().Msgf("ClientTrace-onnectStart: %v", time.Since(refdate))
+			wm.Logger().Trace().Msgf("ClientTrace-ConnectStart: %v", time.Since(refdate))
 		},
 
 		ConnectDone: func(net, addr string, err error) {
