@@ -18,6 +18,8 @@ import (
 	"nspeed.app/utils"
 )
 
+const gPrecision = 1 * time.Millisecond
+
 // MetricsData -
 type MetricsData struct {
 	ID                 string
@@ -573,9 +575,9 @@ func (wc *Metrics) Group() *Metrics {
 // generate a single json from metrics
 func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
 	wc := wcWorkers
-	if !ungroup {
-		wc = wcWorkers.Group()
-	}
+	// if !ungroup {
+	// 	wc = wcWorkers.Group()
+	// }
 	json, err := json.MarshalIndent(wc, "", "\t")
 	if err != nil {
 		return fmt.Sprintf("error: %v", err)
@@ -589,9 +591,9 @@ func GenerateJSONReports(wcWorkers *Metrics, ungroup bool) []string {
 	if wc == nil {
 		return nil
 	}
-	if !ungroup {
-		wc = wcWorkers.Group()
-	}
+	// if !ungroup {
+	// 	wc = wcWorkers.Group()
+	// }
 	result := make([]string, 0, len(wc.Metrics))
 	for _, wm := range wc.Metrics {
 		json, err := json.MarshalIndent(wm, "", "\t")
@@ -676,7 +678,7 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 			prevElapsed = s.ElapsedTime
 			rxSoFar += n.RXBytes
 			txSoFar += n.TXBytes
-			n.Time = nextTime
+			n.Time = nextTime.Round(gPrecision)
 			nextTime = n.Time.Add(duration)
 			n.RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.RXBytes, duration)) + "bps"
 			n.TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.TXBytes, duration)) + "bps"
@@ -686,7 +688,7 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 	}
 	duration := wm.ElapsedTime - prevElapsed
 	nms[nbSamples-1].Duration = duration.Seconds()
-	nms[nbSamples-1].Time = nextTime
+	nms[nbSamples-1].Time = nextTime.Round(gPrecision)
 	nms[nbSamples-1].RXBytes = uint64(wm.TotalRead) - rxSoFar
 	nms[nbSamples-1].TXBytes = uint64(wm.TotalWrite) - txSoFar
 	nms[nbSamples-1].RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(nms[nbSamples-1].RXBytes, duration)) + "bps"

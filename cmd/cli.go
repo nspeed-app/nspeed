@@ -400,7 +400,7 @@ mainloop:
 		report := metric.GenerateTextReport(results, *optUngroup)
 		_, err = f.WriteString(report)
 		// if err == nil {
-		// 	_, err = f.WriteString(nspeed.SeriesReport(wcWorkers))
+		// 	_, err = f.WriteString(metric.SeriesReport(*results))
 		// }
 		if err != nil {
 			log.Error().Err(err).Msgf("error writing text report")
@@ -418,8 +418,8 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}
-		report := metric.GenerateJSONReport(results, *optUngroup)
-		_, err = f.WriteString(report)
+		report := metric.GenerateJSONReports(results, *optUngroup)
+		_, err = f.WriteString(chartjs.JSArray(report...))
 		if err != nil {
 			log.Fatal().Msgf("could not write json report file (%s): %v", *optJSONReport, err)
 		}

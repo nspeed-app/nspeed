@@ -67,7 +67,7 @@ const (
 	// backgroundColor: {{.Color}},
 	// borderColor: {{.Color}},
 	showLine: true,
-	fill: false,
+	fill: true,
 	pointRadius: 2,
 	label: {{.Label}},
 	data: {{.Data}},
@@ -75,7 +75,8 @@ const (
 	hoverBorderColor: '#0000',
 	hoverBorderWidth: 2,
 	hoverBorderRadius: 2,
-	interpolate: true
+	interpolate: true,
+	stack: {{.Stack}}
 }`
 )
 
@@ -120,12 +121,13 @@ func GenChart(name, chartType, datasets, options string) (string, error) {
 	return out.String(), nil
 }
 
-func GenDataset(color, label, data string) (string, error) {
+func GenDataset(color, label, data, stack string) (string, error) {
 	var dataset = struct {
 		Color string
 		Label string
 		Data  string
-	}{color, label, data}
+		Stack string
+	}{color, label, data, stack}
 
 	var out bytes.Buffer
 	err := Templates[datasetTmplName].Execute(&out, dataset)
@@ -161,7 +163,7 @@ func ChartJSON(jsons []string) string {
 	dsl := make([]string, 0, len(jsons))
 	for i := range jsons {
 		is := strconv.Itoa(i)
-		ds, err := GenDataset("", "jsonfile["+is+"].id", "data"+is)
+		ds, err := GenDataset("", "jsonfile["+is+"].id", "data"+is, "jsonfile["+is+"].gid")
 		if err != nil {
 			log.Panic().Err(err).Send()
 		}
