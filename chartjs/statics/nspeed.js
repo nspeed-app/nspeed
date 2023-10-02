@@ -32,3 +32,40 @@ function onLegendHover(event, item, legend) {
 	legend.chart.tooltip.setActiveElements([activeElement]);
 	legend.chart.update();
 }
+
+// Append '4d' to the colors (alpha channel), except for the hovered index
+function handleHover(evt, item, legend) {
+	legend.chart.data.datasets[0].backgroundColor.forEach((color, index, colors) => {
+	  colors[index] = index === item.index || color.length === 9 ? color : color + '4D';
+	});
+	legend.chart.update();
+  }
+
+// Removes the alpha channel from background colors
+function handleLeave(evt, item, legend) {
+	legend.chart.data.datasets[0].backgroundColor.forEach((color, index, colors) => {
+	  colors[index] = color.length === 9 ? color.slice(0, -2) : color;
+	});
+	legend.chart.update();
+} 
+
+const TTlabel = (context) => {
+	let label = context.dataset.label || '';
+
+	if (label) {
+		label += ': ';
+	}
+	if (context.parsed.y !== null) {
+		label += formatBytes(context.parsed.y) + "bps";
+	}
+	return label;
+}
+
+const TTfooter = (tooltipItems) => {
+	let sum = 0;
+  
+	tooltipItems.forEach(function(tooltipItem) {
+	  sum += tooltipItem.parsed.y;
+	});
+	return 'Total: ' + formatBytes(sum) + "bps";
+  };

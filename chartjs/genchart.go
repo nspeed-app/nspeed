@@ -168,25 +168,18 @@ func ChartJSON(jsons []string) string {
 		dsl = append(dsl, ds)
 	}
 	options := `{
+		interaction: {
+			intersect: false,
+			mode: 'index',
+		},
 		plugins: {
 			legend:{
-				onHover: (event,item,legend) => {
-					onLegendHover(event,item,legend)
-				}
+				onHover: onLegendHover
 			},
 			tooltip: {
                 callbacks: {
-                    label: function(context) {
-                        let label = context.dataset.label || '';
-
-                        if (label) {
-                            label += ': ';
-                        }
-                        if (context.parsed.y !== null) {
-                            label += formatBytes(context.parsed.y) + "bps";
-                        }
-                        return label;
-                    }
+                    label: TTlabel,
+					footer: TTfooter
                 }
             }
 		},
@@ -199,6 +192,7 @@ func ChartJSON(jsons []string) string {
 				},
             },
             y: {
+				stacked: false,
 				title: {
 					display: true,
 					text : "throughput"

@@ -3,9 +3,10 @@ package webview
 import (
 	"bytes"
 	"encoding/binary"
-	"golang.org/x/sys/unix"
 	"net"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func HasNetStats() error {
