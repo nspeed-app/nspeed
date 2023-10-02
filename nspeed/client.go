@@ -127,11 +127,13 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 		j.wm.ContentReadSize = j.ContentSize
 		j.wm.TotalRead = 0
 		iocmd = func(n int64) (int64, error) {
-			nn := j.wm.WriteN(n)
+			nw, err := conn.Read(chunk[:j.wm.ReadStepSize])
+
+			nn := j.wm.WriteN(int64(nw))
+
 			if j.wm.TotalRead >= j.wm.ContentReadSize {
 				return nn, io.EOF
 			}
-			nw, err := conn.Read(chunk[:min(j.wm.WriteStepSize, nn)])
 			return int64(nw), err
 		}
 		end = func() {
@@ -145,7 +147,7 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 	}
 	j.wm.InitNew()
 
-	j.Logger().Info().Msgf("L4 client %s %d bytes to %s", cmd, j.wm.ContentWriteSize, j.targetURL)
+	j.Logger().Info().Msgf("L4 client %s %d bytes remote %s", cmd, j.wm.ContentWriteSize, j.targetURL)
 	// spawn the work, use 'done' to signal
 	done := make(chan bool)
 	go func() {
@@ -153,7 +155,7 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 			nw, err := iocmd(iostep)
 
 			total += int64(nw)
-			j.Logger().Trace().Msgf("L4 client %s %d bytes to %s (err=%s)", cmd, nw, j.targetURL, reflect.TypeOf(err))
+			j.Logger().Trace().Msgf("L4 client %s %d bytes remote = %s (err=%s)", cmd, nw, j.targetURL, reflect.TypeOf(err))
 			// possible error here:
 			//  timeout because of Timeout or network error (both = a net.OpError error type)
 			// either way we mark as 'cancelled' if timeout and return no error ?
