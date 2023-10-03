@@ -18,7 +18,7 @@ import (
 	"nspeed.app/utils"
 )
 
-const gPrecision = 1 * time.Millisecond
+const gPrecision = 100 * time.Millisecond
 
 // MetricsData -
 type MetricsData struct {

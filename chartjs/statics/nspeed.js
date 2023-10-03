@@ -21,9 +21,6 @@ function formatTooltip(params) {
 }
 
 function onLegendHover(event, item, legend) {
-	console.log(event);
-	console.log(item);
-	console.log(legend);
 	const activeElement = {
 		datasetIndex: item.datasetIndex,
 		index: 0,
@@ -69,3 +66,5 @@ const TTfooter = (tooltipItems) => {
 	});
 	return 'Total: ' + formatBytes(sum) + "bps";
   };
+
+  

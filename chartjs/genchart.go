@@ -5,9 +5,11 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"nspeed.app/metric"
@@ -56,7 +58,10 @@ const (
 	type: '{{.Type}}',
 	options: {{.Options}},
 	data: {
-	  datasets: {{.Datasets}}
+		{{ if .Labels}}
+		labels: {{.Labels}},
+		{{- end}}
+		datasets: {{.Datasets}}
 	}
   });
   </script>
@@ -64,21 +69,27 @@ const (
 `
 	datasetTmplText = `
 {
+	{{ range $key, $value := .Options }}
+	{{ $key }}: {{ $value }},
+ 	{{- end }}
+	label: {{.Label}},
+	data: {{.Data}}
+}`
+)
+
+/*
 	// backgroundColor: {{.Color}},
 	// borderColor: {{.Color}},
+	//hoverBackgroundColor: '#666',
 	showLine: true,
 	fill: true,
 	pointRadius: 2,
-	label: {{.Label}},
-	data: {{.Data}},
-	//hoverBackgroundColor: '#666',
 	hoverBorderColor: '#0000',
 	hoverBorderWidth: 2,
 	hoverBorderRadius: 2,
 	interpolate: true,
 	stack: {{.Stack}}
-}`
-)
+*/
 
 // template names to files
 var templateFiles = map[string]string{
@@ -101,7 +112,7 @@ func init() {
 	}
 }
 
-func GenChart(name, chartType, datasets, options string) (string, error) {
+func GenChart(name, chartType, datasets, labels, options string) (string, error) {
 	if options == "" {
 		options = "{}"
 	}
@@ -110,8 +121,9 @@ func GenChart(name, chartType, datasets, options string) (string, error) {
 		Name     string
 		Type     string
 		Datasets string
+		Labels   string
 		Options  string
-	}{name, chartType, datasets, options}
+	}{name, chartType, datasets, labels, options}
 
 	var out bytes.Buffer
 	err := Templates[chartTmplName].Execute(&out, chart)
@@ -121,13 +133,13 @@ func GenChart(name, chartType, datasets, options string) (string, error) {
 	return out.String(), nil
 }
 
-func GenDataset(color, label, data, stack string) (string, error) {
+func GenDataset(color, label, data string, options map[string]string) (string, error) {
 	var dataset = struct {
-		Color string
-		Label string
-		Data  string
-		Stack string
-	}{color, label, data, stack}
+		Color   string
+		Label   string
+		Data    string
+		Options map[string]string
+	}{color, label, data, options}
 
 	var out bytes.Buffer
 	err := Templates[datasetTmplName].Execute(&out, dataset)
@@ -158,21 +170,52 @@ const htmlFooter = `
 	</body>
 </html>`
 
-func ChartJSON(jsons []string) string {
+func ChartJSON(jsons []string, results *metric.Metrics, tick time.Duration) string {
+	if results == nil || jsons == nil {
+		return ""
+	}
+
+	// builds batch names
+	batchNamesSet := utils.NewSet[string]()
+	for _, r := range results.Metrics {
+		batchNamesSet.Add(JSString(results.Batches[r.Batch]))
+	}
+	batchNames := batchNamesSet.Iter()
+	slices.Sort(batchNames)
 
 	dsl := make([]string, 0, len(jsons))
 	for i := range jsons {
 		is := strconv.Itoa(i)
-		ds, err := GenDataset("", "jsonfile["+is+"].id", "data"+is, "jsonfile["+is+"].gid")
+		options := make(map[string]string)
+
+		stack := "jsonfile[" + is + "].gid"
+		if tick == 0 {
+			stack = "jsonfile[" + is + "].batch"
+		}
+		options["order"] = is
+		options["stack"] = stack
+		options["showLine"] = "true"
+		options["fill"] = "true"
+		options["pointRadius"] = "2"
+		options["hoverBorderColor"] = "'#000'"
+		options["hoverBorderWidth"] = "2"
+		options["hoverBorderRadius"] = "2"
+		options["interpolate"] = "true"
+
+		ds, err := GenDataset("", "jsonfile["+is+"].id", "data"+is, options)
 		if err != nil {
 			log.Panic().Err(err).Send()
 		}
 		dsl = append(dsl, ds)
 	}
-	options := `{
+	options := ""
+	sType := ""
+	labels := ""
+	if tick != 0 {
+		options = `{
 		interaction: {
-			intersect: false,
-			mode: 'index',
+			intersect: true,
+			mode: 'point',
 		},
 		plugins: {
 			legend:{
@@ -194,49 +237,98 @@ func ChartJSON(jsons []string) string {
 				},
             },
             y: {
-				stacked: false,
+				stacked: true,
 				title: {
 					display: true,
 					text : "throughput"
 				},
 				ticks: {
 				callback: function(item) {
-					return formatBytes(item);
+					return formatBytes(item) +"bps";
                 }
 			}
             }
 		}
     }`
+		sType = "line"
+		labels = ""
+	} else {
+		options = `{
+			interaction: {
+				intersect: true,
+				mode: 'point',
+			},
+			plugins: {
+				legend:{
+					onHover: onLegendHover
+				},
+				tooltip: {
+					callbacks: {
+						label: TTlabel,
+						footer: TTfooter
+					}
+				}
+			},
+			scales: {
+				x: {
+					type: 'category',
+					title: {
+						display: false,
+					},
+				},
+				y: {
+					stacked: true,
+					title: {
+						display: true,
+						text : "throughput"
+					},
+					ticks: {
+					callback: function(item) {
+						return formatBytes(item) +"bps";
+					}
+				}
+				}
+			}
+		}`
+		sType = "bar"
+		labels = JSArray(batchNames...)
+	}
 
-	s, err := GenChart("a", "line", JSArray(dsl...), options)
+	s, err := GenChart("a", sType, JSArray(dsl...), labels, options)
 	if err != nil {
 		log.Panic().Err(err).Send()
 	}
 
-	html := htmlHeader + strings.Join(utils.Map(js, addScript), "\n") + fromSamples(jsons) + s + htmlFooter
+	html := htmlHeader + strings.Join(utils.Map(js, addScript), "\n") + fromSamples(jsons, tick) + s + htmlFooter
 	//fmt.Println(fromSamples(jsons) + s)
 
 	return html
 }
 
-func fromSamples(jsons []string) string {
+func fromSamples(jsons []string, tick time.Duration) string {
 	r := "<script> var jsonfile = " + JSArray(jsons...)
 	for i := range jsons {
 		is := strconv.Itoa(i)
-		r += `
-	 var labels` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
- 		return e.date;
-     });
-     var data` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
-  	     return {x: e.date, y: (e.rxbytes+e.txbytes)*8.0/e.duration} ;
-     });
-	`
+		if tick == 0 {
+			r += `
+var data` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
+	return (e.rxbytes+e.txbytes)*8.0/e.duration ;
+});`
+		} else {
+			r += `
+var labels` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
+return e.date;
+});
+var data` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
+	return {x: e.date, y: (e.rxbytes+e.txbytes)*8.0/e.duration} ;
+});`
+		}
 	}
 	r += "</script>"
 	return r
 }
 
-func GenerateHTMLReport(htmlFilename string, wcWorkers *metric.Metrics, ungroup bool) {
+func GenerateHTMLReport(htmlFilename string, results *metric.Metrics, tick time.Duration) {
 	var out *utils.SmartFile
 	var err error
 	if htmlFilename != ":" {
@@ -246,7 +338,7 @@ func GenerateHTMLReport(htmlFilename string, wcWorkers *metric.Metrics, ungroup 
 			return
 		}
 	}
-	html := ChartJSON(metric.GenerateJSONReports(wcWorkers, ungroup))
+	html := ChartJSON(metric.GenerateJSONReports(results, true), results, tick)
 	if out != nil {
 		html, err = utils.InlineAssets(html, StaticFiles, true)
 		if err != nil {

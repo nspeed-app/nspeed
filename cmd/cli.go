@@ -428,7 +428,7 @@ mainloop:
 
 	// html report:
 	if *optHTMLReport != "" {
-		chartjs.GenerateHTMLReport(*optHTMLReport, results, *optUngroup)
+		chartjs.GenerateHTMLReport(*optHTMLReport, results, *optSamplingRate)
 	}
 
 	// todo: defer this block
