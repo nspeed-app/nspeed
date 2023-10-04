@@ -51,7 +51,7 @@ const (
 const (
 	chartTmplText = `
 	<div>
- 	 <canvas id='{{.Name}}ID'></canvas>
+		<canvas id='{{.Name}}ID'></canvas>
 	</div>
 	<script>
 	var {{.Name}} = new Chart(document.getElementById('{{.Name}}ID'), {
@@ -63,10 +63,8 @@ const (
 		{{- end}}
 		datasets: {{.Datasets}}
 	}
-  });
-  </script>
-
-`
+	});
+  </script>`
 	datasetTmplText = `
 {
 	{{ range $key, $value := .Options }}
@@ -76,20 +74,6 @@ const (
 	data: {{.Data}}
 }`
 )
-
-/*
-	// backgroundColor: {{.Color}},
-	// borderColor: {{.Color}},
-	//hoverBackgroundColor: '#666',
-	showLine: true,
-	fill: true,
-	pointRadius: 2,
-	hoverBorderColor: '#0000',
-	hoverBorderWidth: 2,
-	hoverBorderRadius: 2,
-	interpolate: true,
-	stack: {{.Stack}}
-*/
 
 // template names to files
 var templateFiles = map[string]string{

@@ -13,7 +13,7 @@ require (
 	github.com/quic-go/quic-go v0.39.0
 	github.com/rs/xid v1.5.0
 	github.com/rs/zerolog v1.31.0
-	github.com/shirou/gopsutil/v3 v3.23.8
+	github.com/shirou/gopsutil/v3 v3.23.9
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/net v0.15.0
 	golang.org/x/sys v0.12.0

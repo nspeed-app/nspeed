@@ -262,12 +262,12 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		//f, okToFlush := w.(http.Flusher)
 
-		wcWorkers, err := RunJobs(r.Context(), jl, GlobalOptions, nil)
+		results, err := RunJobs(r.Context(), jl, GlobalOptions, nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error running command: %s", err), http.StatusInternalServerError)
 			return
 		}
-		json, err := json.Marshal(wcWorkers)
+		json, err := results.MarshalJSON()
 		if err != nil {
 			fmt.Fprintf(w, "error parsing json reply from %s: %s\n", r.RemoteAddr, err)
 		}
