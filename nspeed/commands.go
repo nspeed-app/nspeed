@@ -56,8 +56,8 @@ var Commands = map[string]Command{
 	// tracerouteCommand: {tracerouteCommand, 2, true},
 	apiCommand:       {apiCommand, 1, false, HTTPAPIParse},
 	benchmarkCommand: {benchmarkCommand, 1, true, nil},
-	fromCommand:      {fromCommand, 1, false, nil},
-	thenCommand:      {thenCommand, 1, false, nil},
+	fromCommand:      {fromCommand, 1, true, nil},
+	thenCommand:      {thenCommand, 1, true, nil},
 }
 
 var CommandDescriptions = map[string]string{
