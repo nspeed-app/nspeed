@@ -67,4 +67,8 @@ const TTfooter = (tooltipItems) => {
 	return 'Total: ' + formatBytes(sum) + "bps";
   };
 
-  
+  function getLabels(jsonfile) {
+	return jsonfile.map(function(r) {
+	 return	r.batchname;
+	}
+  }

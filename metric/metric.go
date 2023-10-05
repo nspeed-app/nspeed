@@ -25,6 +25,7 @@ type MetricsData struct {
 	ID                 string
 	GroupID            string
 	Batch              int
+	BatchName          string
 	Command            string
 	Done               bool // job ended
 	Expired            bool // job timed out or other side ended
@@ -616,6 +617,7 @@ func (wm *Metric) ToNetMetric() NetMetric {
 		ID:         wm.ID,
 		GroupID:    wm.GroupID,
 		Batch:      wm.Batch,
+		BatchName:  wm.BatchName,
 		Streams:    uint64(wm.Instances),
 		Date:       wm.TransfertStartTime,
 		RXBytes:    uint64(wm.TotalRead),
@@ -883,6 +885,7 @@ type NetMetric struct {
 	ID         string        `json:"id"`
 	GroupID    string        `json:"gid"`
 	Batch      int           `json:"batch"`
+	BatchName  string        `json:"batchname"`
 	Streams    uint64        `json:"streams"`
 	Date       time.Time     `json:"date"`
 	RXBytes    uint64        `json:"rxbytes"`

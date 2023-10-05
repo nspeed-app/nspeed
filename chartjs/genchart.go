@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -154,18 +153,19 @@ const htmlFooter = `
 	</body>
 </html>`
 
-func ChartJSON(jsons []string, results *metric.Metrics, tick time.Duration) string {
-	if results == nil || jsons == nil {
+// build a chart from nspeed json format
+func ChartJSON(jsons []string, tick time.Duration) string {
+	if jsons == nil {
 		return ""
 	}
 
-	// builds batch names
-	batchNamesSet := utils.NewSet[string]()
-	for _, r := range results.Metrics {
-		batchNamesSet.Add(JSString(results.Batches[r.Batch]))
-	}
-	batchNames := batchNamesSet.Iter()
-	slices.Sort(batchNames)
+	// build and sort batch names
+	// batchNamesSet := utils.NewSet[string]()
+	// for _, r := range results.Metrics {
+	// 	batchNamesSet.Add(JSString(results.Batches[r.Batch]))
+	// }
+	// batchNames := batchNamesSet.Iter()
+	// slices.Sort(batchNames)
 
 	dsl := make([]string, 0, len(jsons))
 	for i := range jsons {
@@ -192,11 +192,8 @@ func ChartJSON(jsons []string, results *metric.Metrics, tick time.Duration) stri
 		}
 		dsl = append(dsl, ds)
 	}
-	options := ""
-	sType := ""
-	labels := ""
-	if tick != 0 {
-		options = `{
+	options := `{
+		responsive: true,
 		interaction: {
 			intersect: true,
 			mode: 'point',
@@ -211,7 +208,11 @@ func ChartJSON(jsons []string, results *metric.Metrics, tick time.Duration) stri
 					footer: TTfooter
                 }
             }
-		},
+		},`
+	sType := ""
+	labels := ""
+	if tick != 0 {
+		options += `
 		scales: {
             x: {
                 type: 'time',
@@ -237,22 +238,8 @@ func ChartJSON(jsons []string, results *metric.Metrics, tick time.Duration) stri
 		sType = "line"
 		labels = ""
 	} else {
-		options = `{
-			interaction: {
-				intersect: true,
-				mode: 'point',
-			},
-			plugins: {
-				legend:{
-					onHover: onLegendHover
-				},
-				tooltip: {
-					callbacks: {
-						label: TTlabel,
-						footer: TTfooter
-					}
-				}
-			},
+		options +=
+			`
 			scales: {
 				x: {
 					type: 'category',
@@ -275,7 +262,7 @@ func ChartJSON(jsons []string, results *metric.Metrics, tick time.Duration) stri
 			}
 		}`
 		sType = "bar"
-		labels = JSArray(batchNames...)
+		labels = "getLabels(jsonfile)" // JSArray(batchNames...)
 	}
 
 	s, err := GenChart("a", sType, JSArray(dsl...), labels, options)
@@ -296,7 +283,7 @@ func fromSamples(jsons []string, tick time.Duration) string {
 		if tick == 0 {
 			r += `
 var data` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
-	return (e.rxbytes+e.txbytes)*8.0/e.duration ;
+	return {x: jsonfile[` + is + `.batchname], y: (e.rxbytes+e.txbytes)*8.0/e.duration} ;
 });`
 		} else {
 			r += `
@@ -322,7 +309,7 @@ func GenerateHTMLReport(htmlFilename string, results *metric.Metrics, tick time.
 			return
 		}
 	}
-	html := ChartJSON(metric.GenerateJSONReports(results, true), results, tick)
+	html := ChartJSON(metric.GenerateJSONReports(results, true), tick)
 	if out != nil {
 		html, err = utils.InlineAssets(html, StaticFiles, true)
 		if err != nil {

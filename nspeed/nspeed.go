@@ -189,6 +189,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 				} else {
 					wm.Logger().Debug().Msgf("got a result for job %s batch %d (err=%s)", wm.ID, batch, wm.Error)
 					wm.Batch = batch
+					wm.BatchName = jl.Batches[batch].Name
 					wcWorkers.Append(wm)
 					rc--
 					slnj--
