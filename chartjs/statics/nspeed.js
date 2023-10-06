@@ -10,8 +10,8 @@ function formatBytes(value, unitname = '', precision = 2) {
 
 
 function formatTooltip(params) {
-	output = '<b>' + params[0].name + '</b><br/>'
-	for (i = 0; i < params.length; i++) {
+	let output = '<b>' + params[0].name + '</b><br/>'
+	for (let i = 0; i < params.length; i++) {
 		output += params[i].marker + params[i].seriesName + ': ' + formatBytes(params[i].value, "bps"); //
 		if (i != params.length - 1) { // Append a <br/> tag if not last in loop
 			output += '<br/>'
@@ -67,8 +67,11 @@ const TTfooter = (tooltipItems) => {
 	return 'Total: ' + formatBytes(sum) + "bps";
   };
 
-  function getLabels(jsonfile) {
-	return jsonfile.map(function(r) {
-	 return	r.batchname;
-	}
+/**
+ * sum rx and tx and compute bps
+ * @param {{rxbytes:number,txbytes:number,duration:number}} e 
+ * @returns number
+ */
+  function toBPS(e) {
+	return (e.rxbytes+e.txbytes)*8.0/e.duration;
   }

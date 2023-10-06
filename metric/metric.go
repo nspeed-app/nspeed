@@ -573,38 +573,23 @@ func (wc *Metrics) Group() *Metrics {
 	return &rwc
 }
 
-// generate a single json from metrics
-func GenerateJSONReport(wcWorkers *Metrics, ungroup bool) string {
-	wc := wcWorkers
-	// if !ungroup {
-	// 	wc = wcWorkers.Group()
-	// }
-	json, err := json.MarshalIndent(wc, "", "\t")
-	if err != nil {
-		return fmt.Sprintf("error: %v", err)
-	}
-	return string(json)
-}
-
 // generate a list json from metrics
-func GenerateJSONReports(wcWorkers *Metrics, ungroup bool) []string {
-	wc := wcWorkers
-	if wc == nil {
-		return nil
+func GenerateJSONReport(results *Metrics, tick time.Duration) (string, error) {
+	if results == nil {
+		return "", fmt.Errorf("no metrics")
 	}
-	// if !ungroup {
-	// 	wc = wcWorkers.Group()
-	// }
-	result := make([]string, 0, len(wc.Metrics))
-	for _, wm := range wc.Metrics {
-		json, err := json.MarshalIndent(wm, "", "\t")
-		if err != nil {
-			result = append(result, fmt.Sprintf("error: %v", err))
-			continue
-		}
-		result = append(result, string(json))
+	report := Report{
+		SampleRate: uint64(tick),
+		Results:    make([]NetMetric, 0, len(results.Metrics)),
 	}
-	return result
+	for _, r := range results.Metrics {
+		report.Results = append(report.Results, r.ToNetMetric())
+	}
+	js, err := json.MarshalIndent(report, "", "\t")
+	if err != nil {
+		return "", fmt.Errorf("error marshsalling to json: %w", err)
+	}
+	return string(js), nil
 }
 
 func (wm *Metric) MarshalJSON() ([]byte, error) {
@@ -939,3 +924,14 @@ option = {
   ]
 };
 */
+
+type Report struct {
+	SampleRate uint64 `json:"samplerate"`
+	Results    []NetMetric
+}
+
+func ReportFromJSON(data string) (Report, error) {
+	report := Report{}
+	err := json.Unmarshal([]byte(data), &report)
+	return report, err
+}

@@ -154,10 +154,16 @@ const htmlFooter = `
 </html>`
 
 // build a chart from nspeed json format
-func ChartJSON(jsons []string, tick time.Duration) string {
-	if jsons == nil {
+func ChartJSON(jsonData string) string {
+	if jsonData == "" {
 		return ""
 	}
+	report, err := metric.ReportFromJSON(jsonData)
+	if err != nil {
+		return ""
+	}
+	tick := time.Duration(report.SampleRate)
+	results := report.Results
 
 	// build and sort batch names
 	// batchNamesSet := utils.NewSet[string]()
@@ -167,14 +173,14 @@ func ChartJSON(jsons []string, tick time.Duration) string {
 	// batchNames := batchNamesSet.Iter()
 	// slices.Sort(batchNames)
 
-	dsl := make([]string, 0, len(jsons))
-	for i := range jsons {
+	dsl := make([]string, 0, len(results))
+	for i := range results {
 		is := strconv.Itoa(i)
 		options := make(map[string]string)
 
-		stack := "jsonfile[" + is + "].gid"
+		stack := "jsondata[" + is + "].gid"
 		if tick == 0 {
-			stack = "jsonfile[" + is + "].batch"
+			stack = "jsondata[" + is + "].batch"
 		}
 		options["order"] = is
 		options["stack"] = stack
@@ -186,7 +192,15 @@ func ChartJSON(jsons []string, tick time.Duration) string {
 		options["hoverBorderRadius"] = "2"
 		options["interpolate"] = "true"
 
-		ds, err := GenDataset("", "jsonfile["+is+"].id", "data"+is, options)
+		idx := "jsondata[" + is + "]"
+		data := ""
+		if tick == 0 {
+			data = "[{x: " + idx + ".batchname, y: (" + idx + ".rxbytes+" + idx + ".txbytes)*8.0/" + idx + ".duration}]"
+		} else {
+			options["label"] = idx + ".Samples.map(e => e.date)"
+			data = idx + ".Samples.map(e => ({x: e.date, y: (e.rxbytes+e.txbytes)*8.0/e.duration}))"
+		}
+		ds, err := GenDataset("", idx+".id", data, options)
 		if err != nil {
 			log.Panic().Err(err).Send()
 		}
@@ -262,7 +276,7 @@ func ChartJSON(jsons []string, tick time.Duration) string {
 			}
 		}`
 		sType = "bar"
-		labels = "getLabels(jsonfile)" // JSArray(batchNames...)
+		labels = "jsondata.map(r => r.batchname)"
 	}
 
 	s, err := GenChart("a", sType, JSArray(dsl...), labels, options)
@@ -270,36 +284,31 @@ func ChartJSON(jsons []string, tick time.Duration) string {
 		log.Panic().Err(err).Send()
 	}
 
-	html := htmlHeader + strings.Join(utils.Map(js, addScript), "\n") + fromSamples(jsons, tick) + s + htmlFooter
+	html := htmlHeader + strings.Join(utils.Map(js, addScript), "\n") + fromSamples(jsonData, &report) + s + htmlFooter
 	//fmt.Println(fromSamples(jsons) + s)
 
 	return html
 }
 
-func fromSamples(jsons []string, tick time.Duration) string {
-	r := "<script> var jsonfile = " + JSArray(jsons...)
-	for i := range jsons {
+func fromSamples(jsonData string, report *metric.Report) string {
+	r := "<script> var jsonreport = " + jsonData + ";\n"
+	r += "var jsondata = jsonreport.Results;\n"
+	for i := range report.Results {
 		is := strconv.Itoa(i)
-		if tick == 0 {
+		if report.SampleRate == 0 {
 			r += `
-var data` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
-	return {x: jsonfile[` + is + `.batchname], y: (e.rxbytes+e.txbytes)*8.0/e.duration} ;
-});`
+var data` + is + ` = [{x: jsondata[` + is + `].batchname, y: (jsondata[` + is + `].rxbytes+jsondata[` + is + `].txbytes)*8.0/jsondata[` + is + `].duration}];`
 		} else {
 			r += `
-var labels` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
-return e.date;
-});
-var data` + is + ` = jsonfile[` + is + `].Samples.map(function(e) {
-	return {x: e.date, y: (e.rxbytes+e.txbytes)*8.0/e.duration} ;
-});`
+var labels` + is + ` = jsondata[` + is + `].Samples.map(e => e.date);
+var data` + is + ` = jsondata[` + is + `].Samples.map(e => ({x: e.date, y: (e.rxbytes+e.txbytes)*8.0/e.duration}));`
 		}
 	}
-	r += "</script>"
+	r += "\n</script>"
 	return r
 }
 
-func GenerateHTMLReport(htmlFilename string, results *metric.Metrics, tick time.Duration) {
+func GenerateHTMLReport(htmlFilename string, jsData string) {
 	var out *utils.SmartFile
 	var err error
 	if htmlFilename != ":" {
@@ -309,7 +318,7 @@ func GenerateHTMLReport(htmlFilename string, results *metric.Metrics, tick time.
 			return
 		}
 	}
-	html := ChartJSON(metric.GenerateJSONReports(results, true), tick)
+	html := ChartJSON(jsData)
 	if out != nil {
 		html, err = utils.InlineAssets(html, StaticFiles, true)
 		if err != nil {

@@ -418,17 +418,24 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}
-		report := metric.GenerateJSONReports(results, *optUngroup)
-		_, err = f.WriteString(chartjs.JSArray(report...))
+		report, err := metric.GenerateJSONReport(results, *optSamplingRate)
 		if err != nil {
-			log.Fatal().Msgf("could not write json report file (%s): %v", *optJSONReport, err)
+			log.Fatal().Err(err).Msgf("could not generate json report")
+		}
+		_, err = f.WriteString(report)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("could not write json report file (%s)", *optJSONReport)
 		}
 		f.Close()
 	}
 
 	// html report:
 	if *optHTMLReport != "" {
-		chartjs.GenerateHTMLReport(*optHTMLReport, results, *optSamplingRate)
+		report, err := metric.GenerateJSONReport(results, *optSamplingRate)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("could not generate json report")
+		}
+		chartjs.GenerateHTMLReport(*optHTMLReport, report)
 	}
 
 	// todo: defer this block

@@ -1,0 +1,5 @@
+then -n "servers" server -id s1 server -h2c -id s2
+then -n "HTTP/1.1 GET" get -n 4 -id "HTTP/1.1 GET" nspeed://s1/20g
+then -n "HTTP/1.1 PUT" put -n 4 -id "HTTP/1.1 PUT" nspeed://s1 20g
+then -n "HTTP/2 H2C GET" get -n 4 -id "HTTP/2 H2C GET" -h2c nspeed://s2/20g
+then -n "HTTP/2 H2C PUT" put -n 4 -id "HTTP/2 H2C PUT" -h2c nspeed://s2 20g
