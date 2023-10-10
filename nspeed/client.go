@@ -79,7 +79,11 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 	if err != nil {
 		j.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", conn.RemoteAddr().String())
 	}
-	j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(conn.RemoteAddr().String())
+	j.wm.SourceAddr, err = netip.ParseAddrPort(conn.LocalAddr().String())
+	if err != nil {
+		j.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", conn.RemoteAddr().String())
+	}
+	j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr = utils.GetRoute(conn.RemoteAddr().String())
 	j.wm.SetTLSInfo(conn)
 	// set the logger for this metric
 	j.wm.SetLogger(j.Logger())

@@ -474,7 +474,12 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 		GotConn: func(connInfo httptrace.GotConnInfo) {
 			j.tr.gotConn = time.Now()
 			j.tr.ConnInfo = connInfo
-			j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(j.GetDestination())
+			var err error
+			j.wm.SourceAddr, err = netip.ParseAddrPort(connInfo.Conn.LocalAddr().String())
+			if err != nil {
+				wm.Logger().Debug().Err(err).Msgf("error parsing local address:%s", connInfo.Conn.LocalAddr())
+			}
+			j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr = utils.GetRoute(j.GetDestination())
 			wm.Logger().Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
 			wm.Logger().Debug().Msgf("GotConn - interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
 		},

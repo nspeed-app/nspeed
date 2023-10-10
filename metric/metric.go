@@ -53,16 +53,17 @@ type MetricsData struct {
 // & check openmetrics suff
 type Metric struct {
 	MetricsData
-	mutex      sync.Mutex
-	Valid      bool
-	Protocol   string
-	Cipher     string
-	TLSVersion string
-	Error      error
-	Instances  int
-	Interface  *net.Interface
-	SourceAddr netip.Addr
-	Gateway    netip.Addr
+	mutex           sync.Mutex
+	Valid           bool
+	Protocol        string
+	Cipher          string
+	TLSVersion      string
+	Error           error
+	Instances       int
+	Interface       *net.Interface
+	SourceAddr      netip.AddrPort
+	Gateway         netip.Addr
+	RouteSourceAddr netip.Addr
 	// optional time series
 	Tick  time.Duration
 	Serie []MetricsData
@@ -575,16 +576,17 @@ func (wc *Metrics) Group() *Metrics {
 }
 
 // generate a list json from metrics
-func GenerateJSONReport(results *Metrics, tick time.Duration) (string, error) {
+func GenerateJSONReport(results *Metrics, tick time.Duration, summary, fmtV4, fmtV6 string) (string, error) {
 	if results == nil {
 		return "", fmt.Errorf("no metrics")
 	}
 	report := Report{
 		SampleRate: uint64(tick),
+		Summary:    summary,
 		Results:    make([]NetMetric, 0, len(results.Metrics)),
 	}
 	for _, r := range results.Metrics {
-		report.Results = append(report.Results, r.ToNetMetric())
+		report.Results = append(report.Results, r.ToNetMetric(fmtV4, fmtV6))
 	}
 	js, err := json.MarshalIndent(report, "", "\t")
 	if err != nil {
@@ -594,10 +596,11 @@ func GenerateJSONReport(results *Metrics, tick time.Duration) (string, error) {
 }
 
 func (wm *Metric) MarshalJSON() ([]byte, error) {
-	return json.Marshal(wm.ToNetMetric())
+	log.Warn().Msgf("check me!")
+	return json.Marshal(wm.ToNetMetric(nsutl.FormatV4full, nsutl.FormatV6Full))
 }
 
-func (wm *Metric) ToNetMetric() NetMetric {
+func (wm *Metric) ToNetMetric(fmtV4, fmtV6 string) NetMetric {
 	nm := NetMetric{
 		Command:    wm.Command,
 		ID:         wm.ID,
@@ -618,7 +621,7 @@ func (wm *Metric) ToNetMetric() NetMetric {
 		RXCount:    wm.ReadCount,
 		TXCount:    wm.WriteCount,
 		Latency:    wm.AvgLatency,
-		Remote:     nsutl.AnonymizeNetIP(wm.Remote.Addr(), nsutl.FormatV4First, nsutl.FormatV6FirstLast),
+		Remote:     nsutl.AnonymizeNetIP(wm.Remote.Addr(), fmtV4, fmtV6) + ":" + nsutl.Uitoa(uint(wm.Remote.Port())),
 		Protocol:   wm.Protocol,
 		Cipher:     wm.Cipher,
 		TLSVersion: wm.TLSVersion,
@@ -629,10 +632,10 @@ func (wm *Metric) ToNetMetric() NetMetric {
 		nm.Interface = wm.Interface.Name
 	}
 	if wm.Gateway.IsValid() {
-		nm.Gateway = wm.Gateway.String()
+		nm.Gateway = nsutl.AnonymizeNetIP(wm.Gateway, fmtV4, fmtV6)
 	}
 	if wm.SourceAddr.IsValid() {
-		nm.SrcAddr = wm.SourceAddr.String()
+		nm.SrcAddr = nsutl.AnonymizeNetIP(wm.SourceAddr.Addr(), fmtV4, fmtV6) + ":" + nsutl.Uitoa(uint(wm.SourceAddr.Port()))
 	}
 	return nm
 }
@@ -928,6 +931,7 @@ option = {
 
 type Report struct {
 	SampleRate uint64 `json:"samplerate"`
+	Summary    string `json:"summary"`
 	Results    []NetMetric
 }
 

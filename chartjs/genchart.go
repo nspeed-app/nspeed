@@ -19,6 +19,7 @@ var js = []string{
 	"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js",
 	"https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.js",
 	"https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js",
+	"https://cdn.tailwindcss.com",
 	"nspeed.js",
 }
 
@@ -49,6 +50,9 @@ const (
 // template files
 const (
 	chartTmplText = `
+	<div id='summary'>
+	<div>
+	<hr>
 	<div>
 		<canvas id='{{.Name}}ID'></canvas>
 	</div>

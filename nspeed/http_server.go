@@ -26,6 +26,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"nspeed.app/metric"
+	nsutl "nspeed.app/nspeed/utils"
 	"nspeed.app/utils"
 )
 
@@ -449,7 +450,7 @@ func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, guid string) {
 }
 
 func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *metric.Metric) error {
-	m := wm.ToNetMetric()
+	m := wm.ToNetMetric(nsutl.FormatV4full, nsutl.FormatV6Full)
 	result, err := json.MarshalIndent(m, "", "\t")
 	if err != nil {
 		_, err = fmt.Fprintf(w, "error formating metrics: %v", err)

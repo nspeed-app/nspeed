@@ -28,8 +28,12 @@ func (t *quicConnectionTracer) StartedConnection(local, remote net.Addr, srcConn
 	if err != nil {
 		t.wm.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", remote.String())
 	}
-	t.wm.Interface, t.wm.Gateway, t.wm.SourceAddr = utils.GetRoute(remote.String())
 
+	t.wm.SourceAddr, err = netip.ParseAddrPort(remote.String())
+	if err != nil {
+		t.wm.Logger().Debug().Err(err).Msgf("error parsing local address:%s", remote.String())
+	}
+	t.wm.Interface, t.wm.Gateway, t.wm.RouteSourceAddr = utils.GetRoute(remote.String())
 }
 
 func (t *quicConnectionTracer) UpdatedMetrics(rttStats *logging.RTTStats, cwnd logging.ByteCount, bytesInFlight logging.ByteCount, packetsInFlight int) {
