@@ -349,8 +349,8 @@ func (v IPVersion) NumericString() string {
 	}
 }
 
-// ParseIPVersion
-func ParseIPVersion(address string) IPVersion {
+// ParseIPVersionFromString
+func ParseIPVersionFromString(address string) IPVersion {
 	ap, err := netip.ParseAddrPort(address)
 	if err != nil {
 		return -1
@@ -359,6 +359,16 @@ func ParseIPVersion(address string) IPVersion {
 		return 4
 	}
 	if ap.Addr().Is6() {
+		return 6
+	}
+	return 0
+}
+
+func GetIPVersion(address netip.Addr) IPVersion {
+	if address.Is4() {
+		return 4
+	}
+	if address.Is6() {
 		return 6
 	}
 	return 0

@@ -1,0 +1,12 @@
+then get  -id "CUBIC.1" http://bouygues.testdebit.info/1G/1G.iso
+then get  -id "CUBIC.2" http://bouygues.testdebit.info/1G/1G.iso
+then get  -id "CUBIC.3" http://bouygues.testdebit.info/1G/1G.iso
+then get  -id "CUBIC.4" http://bouygues.testdebit.info/1G/1G.iso
+then get  -id "CUBIC.5" http://bouygues.testdebit.info/1G/1G.iso
+then get  -id "CUBIC.6" http://bouygues.testdebit.info/1G/1G.iso
+then get  -id "BBR.1"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.2"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.3"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.4"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.5"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.6"   http://paris.testdebit.info/1G/1G.iso

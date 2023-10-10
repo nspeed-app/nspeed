@@ -1,0 +1,12 @@
+then get  -id "CUBIC.1" http://ping6.online.net/1000Mo.dat
+then get  -id "CUBIC.2" http://ping6.online.net/1000Mo.dat
+then get  -id "CUBIC.3" http://ping6.online.net/1000Mo.dat
+then get  -id "CUBIC.4" http://ping6.online.net/1000Mo.dat
+then get  -id "CUBIC.5" http://ping6.online.net/1000Mo.dat
+then get  -id "CUBIC.6" http://ping6.online.net/1000Mo.dat
+then get  -id "BBR.1"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.2"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.3"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.4"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.5"   http://paris.testdebit.info/1G/1G.iso
+then get  -id "BBR.6"   http://paris.testdebit.info/1G/1G.iso

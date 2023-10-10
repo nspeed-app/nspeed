@@ -15,6 +15,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	nsutl "nspeed.app/nspeed/utils"
 	"nspeed.app/utils"
 )
 
@@ -43,7 +44,7 @@ type MetricsData struct {
 	ElapsedTime        time.Duration
 	FirstResponseByte  time.Time
 	AvgLatency         time.Duration
-	Remote             string
+	Remote             netip.AddrPort
 }
 
 // Metric main metrics struct
@@ -617,7 +618,7 @@ func (wm *Metric) ToNetMetric() NetMetric {
 		RXCount:    wm.ReadCount,
 		TXCount:    wm.WriteCount,
 		Latency:    wm.AvgLatency,
-		Remote:     wm.Remote,
+		Remote:     nsutl.AnonymizeNetIP(wm.Remote.Addr(), nsutl.FormatV4First, nsutl.FormatV6FirstLast),
 		Protocol:   wm.Protocol,
 		Cipher:     wm.Cipher,
 		TLSVersion: wm.TLSVersion,

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/http/httputil"
+	"net/netip"
 	"net/textproto"
 	"net/url"
 	"strconv"
@@ -143,7 +144,7 @@ func (j *JobClient) PrintString(verbose bool, group bool) string {
 		}
 		latency := j.wm.AvgLatency.Milliseconds()
 		latencyMicroRem := j.wm.AvgLatency.Microseconds() % 1000
-		ipv := utils.ParseIPVersion(j.wm.Remote)
+		ipv := utils.GetIPVersion(j.wm.Remote.Addr())
 		details := fmt.Sprintf("%s (%s - %d.%d ms - %s - %s)", r, ipv, latency, latencyMicroRem, j.wm.Protocol, j.wm.TLSVersion)
 		if j.numRedirect > 0 && verbose {
 			return fmt.Sprintf("%s from %s", details, j.Target)
@@ -589,7 +590,10 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 	}
 
 	if j.tr.ConnInfo.Conn != nil {
-		wm.Remote = j.tr.ConnInfo.Conn.RemoteAddr().String()
+		wm.Remote, err = netip.ParseAddrPort(j.tr.ConnInfo.Conn.RemoteAddr().String())
+		if err != nil {
+			j.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", j.tr.ConnInfo.Conn.RemoteAddr().String())
+		}
 		wm.AvgLatency = j.tr.connectDone.Sub(j.tr.connectStart)
 	}
 

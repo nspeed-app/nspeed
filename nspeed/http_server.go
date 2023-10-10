@@ -327,7 +327,6 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			Expired:          false,
 			Cancelled:        false,
 			Target:           fmt.Sprintf("stream %s bytes to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
-			Remote:           r.RemoteAddr,
 			ContentWriteSize: numBytes,
 			WriteStepSize:    chunkSize,
 			ID:               guid,
@@ -341,6 +340,11 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
 		Str("x-request-guid", guid).
 		Logger()))
+
+	wm.Remote, err = netip.ParseAddrPort(r.RemoteAddr)
+	if err != nil {
+		wm.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", r.RemoteAddr)
+	}
 
 	// handle rate parameter
 	done, err := j.ParseRate(w, r, &wm)

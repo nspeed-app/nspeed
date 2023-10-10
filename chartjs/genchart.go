@@ -209,8 +209,8 @@ func ChartJSON(jsonData string) string {
 	options := `{
 		responsive: true,
 		interaction: {
-			intersect: true,
-			mode: 'point',
+			intersect: false,
+			mode: 'nearest',
 		},
 		plugins: {
 			legend:{
