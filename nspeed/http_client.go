@@ -200,15 +200,10 @@ func (j *JobClient) Init() error {
 
 	// source address & port
 	var err error
-	// j.Host can be:
-	//   empty
-	localAddr, localPortString, err := net.SplitHostPort(j.Host)
+	// j.Host can have an optionnal trailing ":port"
+	localAddr, localPort, err := utils.ParseOtionnalPort(j.Host)
 	if err != nil {
-		return fmt.Errorf("InterfaceAddress error: %w", err)
-	}
-	localPort, err := strconv.ParseUint(localPortString, 10, 16)
-	if err != nil {
-		return fmt.Errorf("InterfaceAddress bad port value: %w", err)
+		return fmt.Errorf("InterfaceAddress ParseOtionnalPort error: %w", err)
 	}
 	j.localAddr, err = utils.InterfaceAddress(localAddr, j.IPVersion)
 	if err != nil {
@@ -223,7 +218,7 @@ func (j *JobClient) Init() error {
 		return &net.TCPAddr{
 			IP:   j.localAddr.IP,
 			Zone: j.localAddr.Zone,
-			Port: int(localPort),
+			Port: localPort,
 		}
 	}
 
@@ -731,6 +726,8 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 			wm.Close()
 		}
 	}
+	// do this only if port is fixed
+	j.client.CloseIdleConnections()
 	wm.Done = true
 	j.wm.Command = j.PrintString(false, false)
 
