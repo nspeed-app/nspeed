@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -387,7 +388,10 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 		j.logger.Error().Err(err).Msgf("read message failed")
 		return
 	}
-	wm.Remote = conn.RemoteAddr().String()
+	wm.Remote, err = netip.ParseAddrPort(conn.RemoteAddr().String())
+	if err != nil {
+		j.logger.Debug().Err(err).Msgf("error parsing remote address: %s", conn.RemoteAddr().String())
+	}
 	wm.Protocol = "tcp"
 
 	if msg.Command == "PUT" {

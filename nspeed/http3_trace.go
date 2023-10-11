@@ -6,6 +6,7 @@ package nspeed
 import (
 	"context"
 	"net"
+	"net/netip"
 
 	"github.com/quic-go/quic-go/logging"
 	"nspeed.app/metric"
@@ -22,9 +23,17 @@ func (t *quicConnectionTracer) StartedConnection(local, remote net.Addr, srcConn
 	if t.wm == nil {
 		return
 	}
-	t.wm.Remote = remote.String()
-	t.wm.Interface, t.wm.Gateway, t.wm.SourceAddr = utils.GetRoute(remote.String())
+	var err error
+	t.wm.Remote, err = netip.ParseAddrPort(remote.String())
+	if err != nil {
+		t.wm.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", remote.String())
+	}
 
+	t.wm.SourceAddr, err = netip.ParseAddrPort(remote.String())
+	if err != nil {
+		t.wm.Logger().Debug().Err(err).Msgf("error parsing local address:%s", remote.String())
+	}
+	t.wm.Interface, t.wm.Gateway, t.wm.RouteSourceAddr = utils.GetRoute(remote.String())
 }
 
 func (t *quicConnectionTracer) UpdatedMetrics(rttStats *logging.RTTStats, cwnd logging.ByteCount, bytesInFlight logging.ByteCount, packetsInFlight int) {

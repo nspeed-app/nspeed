@@ -240,7 +240,7 @@ func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, outpu
 
 	fs.StringVar(&hf.Protocol, "P", "http", "comunication protocol")
 	fs.IntVar(&hf.Instances, "n", 1, "number of times to process an item")
-	fs.StringVar(&hf.Host, "a", "", "specific local address to use")
+	fs.StringVar(&hf.Host, "a", "", "specific local address or port to use (ip or ip:port or :port. ip can also be an interface name)")
 	fs.BoolVar(&hf.SkipTLSCheck, "k", false, "skip certificates validation")
 	fs.BoolVar(&hf.UseTLSSelfConfig, "self", OptTLSSelf, "use self-signed TLS certificate")
 

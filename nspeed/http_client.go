@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/http/httputil"
+	"net/netip"
 	"net/textproto"
 	"net/url"
 	"strconv"
@@ -143,7 +144,7 @@ func (j *JobClient) PrintString(verbose bool, group bool) string {
 		}
 		latency := j.wm.AvgLatency.Milliseconds()
 		latencyMicroRem := j.wm.AvgLatency.Microseconds() % 1000
-		ipv := utils.ParseIPVersion(j.wm.Remote)
+		ipv := utils.GetIPVersion(j.wm.Remote.Addr())
 		details := fmt.Sprintf("%s (%s - %d.%d ms - %s - %s)", r, ipv, latency, latencyMicroRem, j.wm.Protocol, j.wm.TLSVersion)
 		if j.numRedirect > 0 && verbose {
 			return fmt.Sprintf("%s from %s", details, j.Target)
@@ -197,9 +198,14 @@ func (j *JobClient) Init() error {
 		return errors.New("invalid ip version requested")
 	}
 
-	// source address -
+	// source address & port
 	var err error
-	j.localAddr, err = utils.InterfaceAddress(j.Host, j.IPVersion)
+	// j.Host can have an optionnal trailing ":port"
+	localAddr, localPort, err := utils.ParseOtionnalPort(j.Host)
+	if err != nil {
+		return fmt.Errorf("InterfaceAddress ParseOtionnalPort error: %w", err)
+	}
+	j.localAddr, err = utils.InterfaceAddress(localAddr, j.IPVersion)
 	if err != nil {
 		return fmt.Errorf("InterfaceAddress error: %w", err)
 	}
@@ -212,6 +218,7 @@ func (j *JobClient) Init() error {
 		return &net.TCPAddr{
 			IP:   j.localAddr.IP,
 			Zone: j.localAddr.Zone,
+			Port: localPort,
 		}
 	}
 
@@ -473,7 +480,12 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 		GotConn: func(connInfo httptrace.GotConnInfo) {
 			j.tr.gotConn = time.Now()
 			j.tr.ConnInfo = connInfo
-			j.wm.Interface, j.wm.Gateway, j.wm.SourceAddr = utils.GetRoute(j.GetDestination())
+			var err error
+			j.wm.SourceAddr, err = netip.ParseAddrPort(connInfo.Conn.LocalAddr().String())
+			if err != nil {
+				wm.Logger().Debug().Err(err).Msgf("error parsing local address:%s", connInfo.Conn.LocalAddr())
+			}
+			j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr = utils.GetRoute(j.GetDestination())
 			wm.Logger().Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
 			wm.Logger().Debug().Msgf("GotConn - interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
 		},
@@ -589,7 +601,10 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 	}
 
 	if j.tr.ConnInfo.Conn != nil {
-		wm.Remote = j.tr.ConnInfo.Conn.RemoteAddr().String()
+		wm.Remote, err = netip.ParseAddrPort(j.tr.ConnInfo.Conn.RemoteAddr().String())
+		if err != nil {
+			j.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", j.tr.ConnInfo.Conn.RemoteAddr().String())
+		}
 		wm.AvgLatency = j.tr.connectDone.Sub(j.tr.connectStart)
 	}
 
@@ -711,6 +726,8 @@ func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Me
 			wm.Close()
 		}
 	}
+	// do this only if port is fixed
+	j.client.CloseIdleConnections()
 	wm.Done = true
 	j.wm.Command = j.PrintString(false, false)
 

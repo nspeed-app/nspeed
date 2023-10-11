@@ -19,6 +19,7 @@ import (
 	"nspeed.app/chartjs"
 	"nspeed.app/metric"
 	"nspeed.app/nspeed"
+	nsutl "nspeed.app/nspeed/utils"
 	"nspeed.app/utils"
 )
 
@@ -63,6 +64,9 @@ var optDNSServer = flag.String("dns-server", "", "specify a dns server to use (l
 
 var optIPv4 = flag.Bool("4", false, "use IPv4 only")
 var optIPv6 = flag.Bool("6", false, "use IPv6 only")
+
+var optFormatV4 = flag.String("formatV4", nsutl.FormatV4First, "specific anonymizer format for IPv4 addresses")
+var optFormatV6 = flag.String("formatV6", nsutl.FormatV6FirstLast, "specific anonymizer format for IPv6 addresses")
 
 // todo: automate this.
 // relative path of this file to go.mod
@@ -392,12 +396,12 @@ mainloop:
 	}
 
 	// text report:
+	report := metric.GenerateTextReport(results, *optUngroup)
 	if *optTextReport != "" {
 		f, err := utils.FileCreate(*optTextReport)
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
-		report := metric.GenerateTextReport(results, *optUngroup)
 		_, err = f.WriteString(report)
 		// if err == nil {
 		// 	_, err = f.WriteString(metric.SeriesReport(*results))
@@ -418,7 +422,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}
-		report, err := metric.GenerateJSONReport(results, *optSamplingRate)
+		report, err := metric.GenerateJSONReport(results, *optSamplingRate, report, *optFormatV4, *optFormatV6)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("could not generate json report")
 		}
@@ -431,7 +435,7 @@ mainloop:
 
 	// html report:
 	if *optHTMLReport != "" {
-		report, err := metric.GenerateJSONReport(results, *optSamplingRate)
+		report, err := metric.GenerateJSONReport(results, *optSamplingRate, report, *optFormatV4, *optFormatV6)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("could not generate json report")
 		}

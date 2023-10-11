@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/google/gopacket/routing"
@@ -38,6 +39,20 @@ func SetDNSServer(address string) error {
 		return conn, nil
 	}
 	return nil
+}
+
+func ParseOtionnalPort(host string) (string, int, error) {
+	localAddr, localPortString, err := net.SplitHostPort(host)
+	if err != nil {
+		localAddr = host
+		localPortString = "0"
+	}
+	// in case
+	if localPortString == "" {
+		localPortString = "0"
+	}
+	localPort, err := strconv.ParseUint(localPortString, 10, 16)
+	return localAddr, int(localPort), err
 }
 
 // ResolveHostAddress resolves host as a dns name or an ip address
@@ -349,8 +364,8 @@ func (v IPVersion) NumericString() string {
 	}
 }
 
-// ParseIPVersion
-func ParseIPVersion(address string) IPVersion {
+// ParseIPVersionFromString
+func ParseIPVersionFromString(address string) IPVersion {
 	ap, err := netip.ParseAddrPort(address)
 	if err != nil {
 		return -1
@@ -359,6 +374,16 @@ func ParseIPVersion(address string) IPVersion {
 		return 4
 	}
 	if ap.Addr().Is6() {
+		return 6
+	}
+	return 0
+}
+
+func GetIPVersion(address netip.Addr) IPVersion {
+	if address.Is4() {
+		return 4
+	}
+	if address.Is6() {
 		return 6
 	}
 	return 0

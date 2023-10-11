@@ -26,6 +26,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"nspeed.app/metric"
+	nsutl "nspeed.app/nspeed/utils"
 	"nspeed.app/utils"
 )
 
@@ -327,7 +328,6 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			Expired:          false,
 			Cancelled:        false,
 			Target:           fmt.Sprintf("stream %s bytes to %s (chunk=%d)", size, r.RemoteAddr, chunkSize),
-			Remote:           r.RemoteAddr,
 			ContentWriteSize: numBytes,
 			WriteStepSize:    chunkSize,
 			ID:               guid,
@@ -341,6 +341,11 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
 		Str("x-request-guid", guid).
 		Logger()))
+
+	wm.Remote, err = netip.ParseAddrPort(r.RemoteAddr)
+	if err != nil {
+		wm.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", r.RemoteAddr)
+	}
 
 	// handle rate parameter
 	done, err := j.ParseRate(w, r, &wm)
@@ -445,7 +450,7 @@ func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, guid string) {
 }
 
 func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *metric.Metric) error {
-	m := wm.ToNetMetric()
+	m := wm.ToNetMetric(nsutl.FormatV4full, nsutl.FormatV6Full)
 	result, err := json.MarshalIndent(m, "", "\t")
 	if err != nil {
 		_, err = fmt.Fprintf(w, "error formating metrics: %v", err)
