@@ -24,7 +24,6 @@ func main() {
 		flag.CommandLine.Usage()
 		os.Exit(10)
 	}
-	fmt.Println("json=", flag.Arg(0), "html=", flag.Arg(1))
 
 	//read json
 	jsonFile, err := utils.OpenURI(flag.Arg(0))
@@ -32,6 +31,7 @@ func main() {
 		log.Fatalf("cannot open input file %s: %v", flag.Arg(0), err)
 		return
 	}
+
 	json, err := io.ReadAll(jsonFile)
 	if err != nil {
 		log.Fatalf("cannot read input file: %v", err)
@@ -39,5 +39,4 @@ func main() {
 	}
 
 	chartjs.GenerateHTMLReport(flag.Arg(1), string(json))
-
 }

@@ -579,6 +579,7 @@ func GenerateJSONReport(results *Metrics, tick time.Duration) (string, error) {
 		return "", fmt.Errorf("no metrics")
 	}
 	report := Report{
+		Version:    ReportVersion,
 		SampleRate: uint64(tick),
 		Results:    make([]NetMetric, 0, len(results.Metrics)),
 	}
@@ -925,7 +926,10 @@ option = {
 };
 */
 
+const ReportVersion = 1
+
 type Report struct {
+	Version    int    `json:"version"`
 	SampleRate uint64 `json:"samplerate"`
 	Results    []NetMetric
 }
@@ -933,5 +937,11 @@ type Report struct {
 func ReportFromJSON(data string) (Report, error) {
 	report := Report{}
 	err := json.Unmarshal([]byte(data), &report)
+	if err != nil {
+		return Report{}, fmt.Errorf("error parsing json: %w", err)
+	}
+	if report.Version != ReportVersion {
+		return Report{}, fmt.Errorf("unknown report version: got %d, expected %d", report.Version, ReportVersion)
+	}
 	return report, err
 }

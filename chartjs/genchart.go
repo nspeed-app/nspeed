@@ -160,7 +160,7 @@ func ChartJSON(jsonData string) string {
 	}
 	report, err := metric.ReportFromJSON(jsonData)
 	if err != nil {
-		return ""
+		return err.Error()
 	}
 	tick := time.Duration(report.SampleRate)
 	results := report.Results
