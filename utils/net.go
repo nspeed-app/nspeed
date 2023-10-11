@@ -41,18 +41,22 @@ func SetDNSServer(address string) error {
 	return nil
 }
 
-func ParseOtionnalPort(host string) (string, int, error) {
-	localAddr, localPortString, err := net.SplitHostPort(host)
+// ParseAddressWithOptionnalPort tries to split a trailing :port part of hostport
+func ParseAddressWithOptionnalPort(hostport string) (string, int, error) {
+	host, portString, err := net.SplitHostPort(hostport)
 	if err != nil {
-		localAddr = host
-		localPortString = "0"
+		host = hostport
+		portString = "0"
 	}
-	// in case
-	if localPortString == "" {
-		localPortString = "0"
+	// in case net.SplitHostPort
+	if portString == "" {
+		portString = "0"
 	}
-	localPort, err := strconv.ParseUint(localPortString, 10, 16)
-	return localAddr, int(localPort), err
+	port, err := strconv.ParseUint(portString, 10, 16)
+	if err != nil {
+		port = 0
+	}
+	return host, int(port), err
 }
 
 // ResolveHostAddress resolves host as a dns name or an ip address

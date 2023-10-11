@@ -201,7 +201,7 @@ func (j *JobClient) Init() error {
 	// source address & port
 	var err error
 	// j.Host can have an optionnal trailing ":port"
-	localAddr, localPort, err := utils.ParseOtionnalPort(j.Host)
+	localAddr, localPort, err := utils.ParseAddressWithOptionnalPort(j.Host)
 	if err != nil {
 		return fmt.Errorf("InterfaceAddress ParseOtionnalPort error: %w", err)
 	}
