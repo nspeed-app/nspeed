@@ -198,9 +198,19 @@ func (j *JobClient) Init() error {
 		return errors.New("invalid ip version requested")
 	}
 
-	// source address -
+	// source address & port
 	var err error
-	j.localAddr, err = utils.InterfaceAddress(j.Host, j.IPVersion)
+	// j.Host can be:
+	//   empty
+	localAddr, localPortString, err := net.SplitHostPort(j.Host)
+	if err != nil {
+		return fmt.Errorf("InterfaceAddress error: %w", err)
+	}
+	localPort, err := strconv.ParseUint(localPortString, 10, 16)
+	if err != nil {
+		return fmt.Errorf("InterfaceAddress bad port value: %w", err)
+	}
+	j.localAddr, err = utils.InterfaceAddress(localAddr, j.IPVersion)
 	if err != nil {
 		return fmt.Errorf("InterfaceAddress error: %w", err)
 	}
@@ -213,6 +223,7 @@ func (j *JobClient) Init() error {
 		return &net.TCPAddr{
 			IP:   j.localAddr.IP,
 			Zone: j.localAddr.Zone,
+			Port: int(localPort),
 		}
 	}
 
