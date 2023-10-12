@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -120,12 +121,12 @@ func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
 func InlineAssets(source string, fs fs.FS, doRemote bool) (string, error) {
 	root, err := html.Parse(strings.NewReader(source))
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("html parse failed:%w", err)
 	}
 
 	err = InlineHTML(root, fs, doRemote)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("inline html failed:%w", err)
 	}
 
 	buf := new(bytes.Buffer)

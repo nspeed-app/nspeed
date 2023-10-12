@@ -416,13 +416,14 @@ mainloop:
 		}
 	}
 
+	command := strings.Join(os.Args, " ")
 	// json report:
 	if *optJSONReport != "" {
 		f, err := utils.FileCreate(*optJSONReport)
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}
-		report, err := metric.GenerateJSONReport(results, *optSamplingRate, report, *optFormatV4, *optFormatV6)
+		report, err := metric.GenerateJSONReport(results, *optSamplingRate, command, *optFormatV4, *optFormatV6)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("could not generate json report")
 		}
@@ -435,7 +436,7 @@ mainloop:
 
 	// html report:
 	if *optHTMLReport != "" {
-		report, err := metric.GenerateJSONReport(results, *optSamplingRate, report, *optFormatV4, *optFormatV6)
+		report, err := metric.GenerateJSONReport(results, *optSamplingRate, command, *optFormatV4, *optFormatV6)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("could not generate json report")
 		}

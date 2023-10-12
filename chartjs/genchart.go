@@ -19,7 +19,7 @@ var js = []string{
 	"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js",
 	"https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.js",
 	"https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js",
-	"https://cdn.tailwindcss.com",
+	//"https://cdn.tailwindcss.com",
 	"nspeed.js",
 }
 
@@ -47,13 +47,64 @@ const (
 	datasetTmplName = "dataset"
 )
 
+const htmlHeader = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NSpeed chart</title>
+  <style>
+  .flex-container {
+    display: flex;
+    flex-flow: column; 
+    flex-direction: column;  
+    background-color: #bbdefb;
+    height: 100%;
+    padding: 15px;
+    gap: 5px;
+
+  }
+  .flex-container > div{
+    background: white;
+    border: 3px solid #ffcc80;
+    border-radius: 5px;
+    padding: 8px;
+  }
+  </style>
+  </head>
+<body>
+<div class="flex-container">
+`
+const htmlFooter = `
+<div onClick="toggleCommand()">
+	<hr style="height:2px;border:none;color:#333;background-color:#333;">
+	<pre id='#Command'>
+	</pre>
+	<hr style="height:2px;border:none;color:#333;background-color:#333;">
+</div>
+</div>
+	<script>
+		function toggleCommand() {
+			var x = document.getElementById("#Command");
+			if (x.style.display === "none") {
+			x.style.display = "block";
+			} else {
+			x.style.display = "none";
+			}
+		}
+	window.onload = function () {
+		var Command = document.getElementById('#Command');
+		Command.textContent = jsonreport.command;
+	}
+
+</script>
+</body>
+</html>`
+
 // template files
 const (
 	chartTmplText = `
-	<div id='summary'>
-	<div>
-	<hr>
-	<div>
+	<div  style="flex-grow:1; height:80vh;"	>
 		<canvas id='{{.Name}}ID'></canvas>
 	</div>
 	<script>
@@ -147,16 +198,6 @@ func JSString(s string) string {
 	return "'" + s + "'"
 }
 
-const htmlHeader = `
-<html>
-<head>
-</head>
-	<body>
-`
-const htmlFooter = `
-	</body>
-</html>`
-
 // build a chart from nspeed json format
 func ChartJSON(jsonData string) string {
 	if jsonData == "" {
@@ -168,14 +209,6 @@ func ChartJSON(jsonData string) string {
 	}
 	tick := time.Duration(report.SampleRate)
 	results := report.Results
-
-	// build and sort batch names
-	// batchNamesSet := utils.NewSet[string]()
-	// for _, r := range results.Metrics {
-	// 	batchNamesSet.Add(JSString(results.Batches[r.Batch]))
-	// }
-	// batchNames := batchNamesSet.Iter()
-	// slices.Sort(batchNames)
 
 	dsl := make([]string, 0, len(results))
 	for i := range results {

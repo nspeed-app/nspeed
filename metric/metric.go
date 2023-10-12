@@ -576,14 +576,14 @@ func (wc *Metrics) Group() *Metrics {
 }
 
 // generate a list json from metrics
-func GenerateJSONReport(results *Metrics, tick time.Duration, summary, fmtV4, fmtV6 string) (string, error) {
+func GenerateJSONReport(results *Metrics, tick time.Duration, command, fmtV4, fmtV6 string) (string, error) {
 	if results == nil {
 		return "", fmt.Errorf("no metrics")
 	}
 	report := Report{
 		Version:    ReportVersion,
 		SampleRate: uint64(tick),
-		Summary:    summary,
+		Command:    command,
 		Results:    make([]NetMetric, 0, len(results.Metrics)),
 	}
 	for _, r := range results.Metrics {
@@ -935,7 +935,7 @@ const ReportVersion = 1
 type Report struct {
 	Version    int    `json:"version"`
 	SampleRate uint64 `json:"samplerate"`
-	Summary    string `json:"summary"`
+	Command    string `json:"command"`
 	Results    []NetMetric
 }
 
