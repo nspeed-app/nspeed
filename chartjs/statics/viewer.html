@@ -119,27 +119,25 @@
             Command.textContent = jsonreport.command;
             // results is an array of "result"
             var results = jsonreport.Results;
-            var chartType = "line";
+            var chartType = (jsonreport.samplerate === 0) ? "line" : "bar";
             if (jsonreport.samplerate === 0) {
-                sType = "bar";
-        		labels = results.map(r => r.batchname);
-            } else {
-                datasets = results.map((result,i) => {
-                    fill: true,
-                    hoverBorderColor: '#000',
-                    hoverBorderRadius: 2,
-                    hoverBorderWidth: 2,
-                    interpolate: true,
-                    label: jsonfile[i].Samples.map(e => e.date),
-                    order: i,
-                    pointRadius: 2,
-                    showLine: true,
-                    stack: results[i].gid,
-                    label: jsonfile[i].id,
-                    data: jsonfile[i].Samples.map(e => ({ x: e.date, y: (e.rxbytes + e.txbytes) * 8.0 / e.duration }))
-                });
+                labels = results.map(r => r.batchname);
             }
-            var chart = genChart(chartType, "chart", data, labels)
+            data = results.map((result, i) => ({
+                fill: true,
+                hoverBorderColor: '#000',
+                hoverBorderRadius: 2,
+                hoverBorderWidth: 2,
+                interpolate: true,
+                label: result.Samples.map(e => e.date),
+                order: i,
+                pointRadius: 2,
+                showLine: true,
+                stack: result.gid,
+                label: result.id,
+                data: result.Samples.map(e => ({ x: e.date, y: (e.rxbytes + e.txbytes) * 8.0 / e.duration }))
+            }));
+            var chart = genChart(chartType, "chart", data, labels);
         }
     </script>
 
