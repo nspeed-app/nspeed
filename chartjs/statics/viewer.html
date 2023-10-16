@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>NSpeed Results</title>
+    <style>
+        .flex-container {
+            display: flex;
+            flex-flow: column;
+            flex-direction: column;
+            background-color: #bbdefb;
+            height: 100%;
+            padding: 15px;
+            gap: 5px;
+
+        }
+
+        .flex-container>div {
+            background: white;
+            border: 3px solid #ffcc80;
+            border-radius: 5px;
+            padding: 8px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="nspeed.js"></script>
+</head>
+
+<body>
+    <div class="flex-container">
+        <div style="flex-grow:1; height:80vh;">
+            <canvas id="chart"></canvas>
+        </div>
+        <div onclick="toggleCommand()">
+            <hr style="height:2px;border:none;color:#333;background-color:#333;" />
+            <pre id="#Command">	not loaded </pre>
+            <hr style="height:2px;border:none;color:#333;background-color:#333;" />
+        </div>
+    </div>
+    <script>
+        function genChart(type, id, datasets, labels) {
+            var data = {
+                datasets: data
+            };
+
+            if (labels !== undefined) {
+                data.labels = labels;
+            }
+            var chart = new Chart(document.getElementById(id), {
+                type: type,
+                options: {
+                    responsive: true,
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest',
+                    },
+                    plugins: {
+                        legend: {
+                            onHover: onLegendHover
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: TTlabel,
+                                footer: TTfooter
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'category',
+                            title: {
+                                display: false,
+                            },
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: "throughput"
+                            },
+                            ticks: {
+                                callback: function (item) {
+                                    return formatBytes(item) + "bps";
+                                }
+                            }
+                        }
+                    }
+                },
+                data: data
+            });
+            return chart;
+        }
+
+        function toggleCommand() {
+            var x = document.getElementById("#Command");
+            if (x.style.display === "none") {
+                x.style.display = "block";
+            } else {
+                x.style.display = "none";
+            }
+        }
+        window.onload = function () {
+            var Command = document.getElementById('#Command');
+            try {
+                var jsonreport = JSON.parse(`{{.}}`); // Go template will replace this with actual json
+            }
+            catch (error) {
+                Command.textContent = error.name + ":" + error.message;
+            }
+            if (jsonreport == null) {
+                return; // todo display UI to load a json file
+            }
+
+            // for here, jsonreport is valid
+            Command.textContent = jsonreport.command;
+            // results is an array of "result"
+            var results = jsonreport.Results;
+            var chartType = "line";
+            if (jsonreport.samplerate === 0) {
+                sType = "bar";
+        		labels = results.map(r => r.batchname);
+            } else {
+                datasets = results.map((result,i) => {
+                    fill: true,
+                    hoverBorderColor: '#000',
+                    hoverBorderRadius: 2,
+                    hoverBorderWidth: 2,
+                    interpolate: true,
+                    label: jsonfile[i].Samples.map(e => e.date),
+                    order: i,
+                    pointRadius: 2,
+                    showLine: true,
+                    stack: results[i].gid,
+                    label: jsonfile[i].id,
+                    data: jsonfile[i].Samples.map(e => ({ x: e.date, y: (e.rxbytes + e.txbytes) * 8.0 / e.duration }))
+                });
+            }
+            var chart = genChart(chartType, "chart", data, labels)
+        }
+    </script>
+
+</body>
+
+</html>
