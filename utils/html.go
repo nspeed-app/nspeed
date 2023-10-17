@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -30,7 +31,31 @@ func readURI(uri string, fs fs.FS) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http.Get %s returned : %s (%d)", uri, http.StatusText(resp.StatusCode), resp.StatusCode)
+	}
 	return io.ReadAll(resp.Body)
+}
+
+// find 'import ...;" pattern and remove them
+// works onyl for single line import
+func removeImport(js string) string {
+	keyword := "import "
+	lenK := len(keyword)
+
+	scanner := bufio.NewScanner(strings.NewReader(js))
+	out := ""
+	for scanner.Scan() {
+		line := scanner.Text()
+		l := strings.TrimSpace(line)
+		if len(l) > lenK {
+			if l[0:lenK] == keyword && l[len(l)-1] == ';' {
+				continue
+			}
+		}
+		out += line + "\n"
+	}
+	return out
 }
 
 // InlineHTML replaces:
@@ -52,6 +77,13 @@ func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
 		// <script src="..."></script>
 		if n.Data == "script" {
 			newAttr := make([]html.Attribute, 0, len(n.Attr))
+			removeImports := false
+			for _, s := range n.Attr {
+				if s.Key == "removeimports" {
+					fmt.Println("FOUND NOMODULE", s.Val)
+					removeImports = s.Val == "true"
+				}
+			}
 			for _, s := range n.Attr {
 				if s.Key == "src" {
 					// check the source
@@ -64,9 +96,13 @@ func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
 						if err != nil {
 							return err
 						}
+						code := string(script)
+						if removeImports {
+							code = removeImport(code)
+						}
 						js := html.Node{
 							Type: html.TextNode,
-							Data: "\n" + string(script) + "\n",
+							Data: "\n" + code + "\n",
 						}
 						n.FirstChild = &js
 					} else {

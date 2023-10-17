@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+        "checkJs": true,
+    },
+    "include": ["*.js"],
+    "typeAcquisition": {
+        "enable": true,
+        "include": [
+            "chart.js"
+        ]
+    }
+}
