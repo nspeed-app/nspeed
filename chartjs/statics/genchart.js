@@ -1,5 +1,6 @@
-import { Chart } from "chart.js";
 //@ts-check
+
+//import { Chart } from "chart.js";
 
 function addChart(elem, type, xscales, datasets, labels) {
     var data = {
@@ -49,8 +50,7 @@ function addChart(elem, type, xscales, datasets, labels) {
     return chart;
 }
 
-function genChart(canvas, jsonreport, command) {
-    command.textContent = jsonreport.command;
+function genChart(canvas, jsonreport) {
     // results is an array of "result"
     var results = jsonreport.Results;
     var chartType = (jsonreport.samplerate === 0) ? "line" : "bar";
@@ -59,7 +59,7 @@ function genChart(canvas, jsonreport, command) {
         title: {
             display: true,
             text: "time"
-        },
+        }
     };
     var labels = {}
     if (jsonreport.samplerate === 0) {
@@ -69,7 +69,7 @@ function genChart(canvas, jsonreport, command) {
             title: {
                 display: false,
                 text: ""
-            },
+            }
         };
     }
     var datasets = results.map((result, i) => ({
@@ -85,5 +85,5 @@ function genChart(canvas, jsonreport, command) {
         stack: result.gid,
         data: result.Samples.map(e => ({ x: e.date, y: (e.rxbytes + e.txbytes) * 8.0 / e.duration }))
     }));
-    var chart = addChart(canvas, chartType, datasets, labels);
+    var chart = addChart(canvas, chartType, xscales, datasets, labels);
 }
