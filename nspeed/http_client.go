@@ -453,7 +453,7 @@ func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*
 	return j.L4Run(ctx, wg, opt)
 }
 
-func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
+func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup, _ Options) (*metric.Metric, error) {
 
 	defer wg.Done()
 	if j.req == nil {

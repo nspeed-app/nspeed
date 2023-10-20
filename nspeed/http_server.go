@@ -608,7 +608,7 @@ func (j *JobHTTPServer) Init(opt Options) error {
 	}
 	return nil
 }
-func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
+func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*metric.Metric, error) {
 
 	done := false
 	defer func() {

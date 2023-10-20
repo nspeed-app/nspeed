@@ -279,7 +279,7 @@ func (j *L4Server) Init(opt Options) error {
 	return nil
 }
 
-func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
+func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*metric.Metric, error) {
 
 	done := false
 	defer func() {

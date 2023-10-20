@@ -170,7 +170,7 @@ type JobCiphers struct {
 	Timeout time.Duration
 }
 
-func (j *JobCiphers) Init(opt Options) error {
+func (j *JobCiphers) Init(_ Options) error {
 
 	u, err := utils.ParseURL(j.Target, "https")
 	if err != nil {
@@ -190,7 +190,7 @@ func (j *JobCiphers) Init(opt Options) error {
 }
 
 // print the ciphers list of hostname (dial address)
-func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
+func (j *JobCiphers) Run(_ context.Context, wg *sync.WaitGroup, _ Options) (*metric.Metric, error) {
 
 	wm := &metric.Metric{}
 	wm.SetLogger(j.logger)
