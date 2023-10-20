@@ -173,7 +173,11 @@ func (j *JobClient) PrintString(verbose bool, group bool) string {
 func (j *JobClient) IsInfinite() bool { return false }
 
 // init a HTTP Job
-func (j *JobClient) Init() error {
+func (j *JobClient) Init(opt Options) error {
+
+	// timeout (if none is specified use global default)
+	fmt.Println("TIMEOUT", j.Timeout, utils.OrDefault(j.Timeout, opt.DefaultClientTimeout))
+	j.Timeout = utils.OrDefault(j.Timeout, opt.DefaultClientTimeout)
 
 	// todo move this to run ? and get ride of .wm?
 	j.wm = &metric.Metric{
@@ -185,7 +189,7 @@ func (j *JobClient) Init() error {
 			GroupID: j.GroupID(),
 			Command: j.CommandString(),
 		},
-		Tick: GlobalOptions.Tick,
+		Tick: opt.Tick,
 	}
 	j.wm.SetLogger(j.Logger())
 
@@ -197,7 +201,7 @@ func (j *JobClient) Init() error {
 	if !j.IPVersion.IsValid() {
 		return errors.New("invalid ip version requested")
 	}
-
+	j.IPVersion = utils.OrDefault(j.IPVersion, opt.IPVersion)
 	// source address & port
 	var err error
 	// j.Host can have an optionnal trailing ":port"
@@ -247,8 +251,6 @@ func (j *JobClient) Init() error {
 		j.Logger().Debug().Msgf("TLSConfig: defined")
 	}
 
-	// LocalAddr
-
 	// Dialer
 	j.dialer = &net.Dialer{
 		Timeout:       j.DialTimeout,  //
@@ -259,13 +261,13 @@ func (j *JobClient) Init() error {
 	// this is our dialContext for transports/l4
 	j.dialContext = func(ctx context.Context, network string, address string) (net.Conn, error) {
 		if network == "udp" || network == "tcp" {
-			network = utils.AddIPVersionToNetwork(network, j.IPVersion, GlobalOptions.IPVersion)
+			network = utils.AddIPVersionToNetwork(network, j.IPVersion)
 		}
 		j.Logger().Debug().Msgf("DialContext %s %s %d (%s)", network, address, j.IPVersion, j.dialer.LocalAddr)
 		return j.dialer.DialContext(ctx, network, address)
 	}
 
-	//
+	// branch to L4 or HTTP client
 	switch j.targetURL.Scheme {
 	case "http", "https":
 		j.Protocol = "http"
@@ -444,14 +446,14 @@ func (j *JobClient) HTTPInit() error {
 	return nil
 }
 
-func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
 	if j.Protocol == "http" {
-		return j.HTTPRun(ctx, wg)
+		return j.HTTPRun(ctx, wg, opt)
 	}
-	return j.L4Run(ctx, wg)
+	return j.L4Run(ctx, wg, opt)
 }
 
-func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
 
 	defer wg.Done()
 	if j.req == nil {

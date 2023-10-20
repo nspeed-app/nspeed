@@ -18,8 +18,8 @@ type Job interface {
 	GoString() string
 	PrintString(bool, bool) string
 	IsInfinite() bool
-	Init() error
-	Run(context.Context, *sync.WaitGroup) (*metric.Metric, error)
+	Init(Options) error
+	Run(context.Context, *sync.WaitGroup, Options) (*metric.Metric, error)
 	//common, implemented here if JobData is embeded
 	Logger() *zerolog.Logger
 	SetLogger(*zerolog.Logger)

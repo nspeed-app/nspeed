@@ -38,6 +38,7 @@ type APIHost struct {
 	WebStatsDebug     bool
 	OpenBrowser       bool
 	WebStatsInterface []string
+	globalOptions     Options
 }
 
 func (j *APIHost) GetTarget() string {
@@ -64,7 +65,12 @@ func (j *APIHost) IsInfinite() bool {
 	return true
 }
 
-func (j *APIHost) Init() error {
+func (j *APIHost) Init(opt Options) error {
+
+	j.globalOptions = opt
+
+	j.Parameters.IPVersion = utils.OrDefault(j.Parameters.IPVersion, opt.IPVersion)
+
 	if j.Parameters == nil {
 		j.Parameters = NewHostParameters()
 		j.Parameters.APIOnly = true
@@ -72,7 +78,7 @@ func (j *APIHost) Init() error {
 	if j.Server == nil {
 		j.Parameters.APIOnly = true
 		j.Server = &JobHTTPServer{Parameters: j.Parameters}
-		err := j.Server.Init()
+		err := j.Server.Init(opt)
 		if err != nil {
 			return err
 		}
@@ -85,7 +91,7 @@ func (j *APIHost) Init() error {
 		j.Server.Mux.Handle("/api/", http.HandlerFunc(j.apiHelpHandler))
 	}
 	if j.WebStats {
-		mgr, err := webview.NewViewManager(GlobalOptions.ProgressInterval, StatsPath, j.WebStatsInterface, j.WebStatsDebug)
+		mgr, err := webview.NewViewManager(opt.ProgressInterval, StatsPath, j.WebStatsInterface, j.WebStatsDebug)
 		if err != nil {
 			return err
 		}
@@ -94,14 +100,14 @@ func (j *APIHost) Init() error {
 	return nil
 }
 
-func (j *APIHost) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *APIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
 	if j.Server == nil {
 		return nil, errors.New("API: no server")
 	}
 	j.Server.RunHook = func(c context.Context) error {
 		return j.PostRun()
 	}
-	return j.Server.Run(ctx, wg)
+	return j.Server.Run(ctx, wg, opt)
 }
 
 func (j *APIHost) apiHelpHandler(w http.ResponseWriter, _ *http.Request) {
@@ -262,7 +268,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		//f, okToFlush := w.(http.Flusher)
 
-		results, err := RunJobs(r.Context(), jl, GlobalOptions, nil)
+		results, err := RunJobs(r.Context(), jl, j.globalOptions, nil)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("error running command: %s", err), http.StatusInternalServerError)
 			return

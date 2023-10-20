@@ -40,3 +40,12 @@ func IndexOf[T comparable](ss []T, s T) (idx int) {
 func Ptr[T any](x T) *T {
 	return &x
 }
+
+// OrDefault returns a or b if a is zero
+func OrDefault[T comparable](a, b T) T {
+	var zero T // i prefer this to "a == *new(T)"
+	if a == zero {
+		return b
+	}
+	return a
+}

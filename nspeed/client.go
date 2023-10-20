@@ -25,7 +25,7 @@ func (j *JobClient) L4Init() error {
 	return nil
 }
 
-func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
 	defer wg.Done()
 
 	if j.Protocol != "tcp" {
@@ -33,7 +33,7 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 	}
 
 	network := j.Protocol
-	network = utils.AddIPVersionToNetwork(network, j.IPVersion, GlobalOptions.IPVersion)
+	network = utils.AddIPVersionToNetwork(network, j.IPVersion)
 
 	dialerContext := j.dialContext
 	if j.tlsConfig == nil {
@@ -72,7 +72,7 @@ func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metr
 			GroupID: j.GroupID(),
 			Command: j.GoString(),
 		},
-		Tick: GlobalOptions.Tick,
+		Tick: opt.Tick,
 	}
 	// fill in metadata
 	j.wm.Remote, err = netip.ParseAddrPort(conn.RemoteAddr().String())

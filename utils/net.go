@@ -393,17 +393,11 @@ func GetIPVersion(address netip.Addr) IPVersion {
 	return 0
 }
 
-// AddIPVersionToNetwork adds the ipVersion to network. if ipVersion is zero, globalVersion is used
-// "udp", 0, 0  -> "udp4"
-// "udp", 0, 4  -> "udp4"
-// "udp", 6, 4  -> "udp6"
-func AddIPVersionToNetwork(network string, ipVersion IPVersion, globalVersion IPVersion) string {
-	ipV := globalVersion
-	if ipVersion != 0 {
-		ipV = ipVersion
-	}
-	if ipV == 0 {
+// AddIPVersionToNetwork adds the ipVersion to network.
+// "udp", 4  -> "udp4"
+func AddIPVersionToNetwork(network string, ipVersion IPVersion) string {
+	if ipVersion == 0 {
 		return network
 	}
-	return network + ipV.NumericString()
+	return network + ipVersion.NumericString()
 }

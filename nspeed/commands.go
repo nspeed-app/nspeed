@@ -137,7 +137,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		useIPv6 := fs.Bool("6", false, "use IPv6 only")
 		nStreams := fs.Int("n", 1, "number of streams")
 		size := fs.String("s", "20g", "number of bytes")
-		timeOut := fs.Uint("m", 8, "maximum duration in seconds the command is allowed to take")
+		timeOut := fs.Uint("m", 0, "maximum duration in seconds the command is allowed to take")
 
 		if err := fs.Parse(cmdargs); err != nil {
 			return cmdargs, err
@@ -147,12 +147,15 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			fs.Usage()
 			return cmdargs, errors.New("specify IPv4 or IPv6 but not both")
 		}
-		argsLine := fmt.Sprintf("-m %d", *timeOut)
+		argsLine := ""
+		if *timeOut > 0 {
+			argsLine = fmt.Sprintf("-m %d", *timeOut)
+		}
 		if *useIPv6 {
-			argsLine = " -6"
+			argsLine += " -6"
 		}
 		if *useIPv4 {
-			argsLine = " -4"
+			argsLine += " -4"
 		}
 
 		// we parse the size just to check it's valid

@@ -249,11 +249,11 @@ func (j *L4Server) IsInfinite() bool {
 	return true
 }
 
-func (j *L4Server) Init() error {
+func (j *L4Server) Init(opt Options) error {
 
 	j.TotalRequests.Store(0)
 
-	ipVersion := GlobalOptions.IPVersion
+	ipVersion := opt.IPVersion
 	if j.Parameters.IPVersion == 4 || j.Parameters.IPVersion == 6 {
 		ipVersion = j.Parameters.IPVersion
 	}
@@ -279,7 +279,7 @@ func (j *L4Server) Init() error {
 	return nil
 }
 
-func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
 
 	done := false
 	defer func() {
@@ -296,7 +296,7 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric,
 		j.Logger().Debug().Msgf("server will shutdown in: %v", j.Parameters.RunDuration)
 	}
 
-	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.IPVersion, GlobalOptions.IPVersion)
+	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.IPVersion)
 
 	var ls net.Listener
 

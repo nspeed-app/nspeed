@@ -68,6 +68,8 @@ var optIPv6 = flag.Bool("6", false, "use IPv6 only")
 var optFormatV4 = flag.String("formatV4", nsutl.FormatV4First, "specific anonymizer format for IPv4 addresses")
 var optFormatV6 = flag.String("formatV6", nsutl.FormatV6FirstLast, "specific anonymizer format for IPv6 addresses")
 
+var optDefaultClientTimeout = flag.Duration("maxtime", 8*time.Second, "maximum default duration of each commands")
+
 // todo: automate this.
 // relative path of this file to go.mod
 var thisFileRelToModule = "../.."
@@ -249,14 +251,15 @@ func Main() {
 	if *optIPv6 {
 		optIPVersion = 6
 	}
-	nspeed.GlobalOptions = nspeed.Options{
-		ProgressInterval: *optProgressRate,
-		Tick:             *optSamplingRate,
-		CPU:              cpuRate,
-		Timeout:          time.Duration(*optTimeout) * time.Second,
-		Test:             *optTest,
-		TLSSelf:          false,
-		IPVersion:        optIPVersion,
+	globalOptions := nspeed.Options{
+		ProgressInterval:     *optProgressRate,
+		Tick:                 *optSamplingRate,
+		CPU:                  cpuRate,
+		Timeout:              time.Duration(*optTimeout) * time.Second,
+		DefaultClientTimeout: *optDefaultClientTimeout,
+		Test:                 *optTest,
+		TLSSelf:              false,
+		IPVersion:            optIPVersion,
 	}
 
 	jl := nspeed.NewJoblist()
@@ -342,7 +345,7 @@ func Main() {
 	var results *metric.Metrics //todo: rename this var
 	go func() {
 		var err error
-		results, err = nspeed.RunJobs(ctx, jl, nspeed.GlobalOptions, progress)
+		results, err = nspeed.RunJobs(ctx, jl, globalOptions, progress)
 		if err != nil {
 			log.Fatal().Msgf("error running jobs: %v", err)
 		}

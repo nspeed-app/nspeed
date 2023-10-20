@@ -539,7 +539,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 // implements the http server
 
-func (j *JobHTTPServer) Init() error {
+func (j *JobHTTPServer) Init(opt Options) error {
 
 	j.wm = &metric.Metric{
 		MetricsData: metric.MetricsData{
@@ -559,10 +559,7 @@ func (j *JobHTTPServer) Init() error {
 
 	// empty host is a special case
 
-	ipVersion := GlobalOptions.IPVersion
-	if j.Parameters.IPVersion == 4 || j.Parameters.IPVersion == 6 {
-		ipVersion = j.Parameters.IPVersion
-	}
+	ipVersion := utils.OrDefault(j.Parameters.IPVersion, opt.IPVersion)
 
 	j.Logger().Debug().Msgf("host parameter is:'%s'", host)
 	if host != "" {
@@ -607,11 +604,11 @@ func (j *JobHTTPServer) Init() error {
 
 	if j.Parameters.API {
 		j.api = &APIHost{Parameters: j.Parameters, Server: j}
-		return j.api.Init()
+		return j.api.Init(opt)
 	}
 	return nil
 }
-func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
 
 	done := false
 	defer func() {
@@ -736,7 +733,7 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 	}
 
 	// enforce ipVersion here
-	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.IPVersion, GlobalOptions.IPVersion)
+	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.IPVersion)
 
 	ln, err := lc.Listen(ctx, network, j.addr)
 	if err != nil {
@@ -829,7 +826,7 @@ func (j *JobHTTPServer) HTTP3Listen() error {
 		return errors.New("udp connection already listening")
 	}
 
-	networkUDP := utils.AddIPVersionToNetwork("udp", j.Parameters.IPVersion, GlobalOptions.IPVersion)
+	networkUDP := utils.AddIPVersionToNetwork("udp", j.Parameters.IPVersion)
 
 	// Open the listeners
 	udpAddr, err := net.ResolveUDPAddr(networkUDP, j.Server.Addr)

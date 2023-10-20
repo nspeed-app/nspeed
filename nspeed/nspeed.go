@@ -15,16 +15,15 @@ import (
 )
 
 type Options struct {
-	ProgressInterval time.Duration // logging/trace output rate
-	Tick             time.Duration // metrics/series sampling rate
-	CPU              time.Duration // cpu sampling rate
-	Timeout          time.Duration
-	Test             bool
-	TLSSelf          bool
-	IPVersion        utils.IPVersion // 0, 4 or 6
+	ProgressInterval     time.Duration // logging/trace output rate
+	Tick                 time.Duration // metrics/series sampling rate
+	CPU                  time.Duration // cpu sampling rate
+	Timeout              time.Duration // global timeout
+	DefaultClientTimeout time.Duration // default timeout for clients
+	Test                 bool
+	TLSSelf              bool
+	IPVersion            utils.IPVersion // 0, 4 or 6
 }
-
-var GlobalOptions Options
 
 // RunJobs runs all the jobs, one batch at a time, this is a synchronous function
 // update/progress can be obtained thru the optionnal message channel
@@ -112,7 +111,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 	lljob := 0
 	for {
 		log.Info().Msgf("processing batch '%s' (%d)", jl.Batches[batch].Name, batch)
-		llnj, err := runBatch(ctx, batch, jl, true, opt.Test, &wgi, result)
+		llnj, err := runBatch(ctx, batch, jl, true, opt, &wgi, result)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -127,7 +126,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 		var wgsl sync.WaitGroup // short lived sync group
 		// we add ourself to the waitgroup
 		wgsl.Add(1)
-		slnj, err := runBatch(ctx, batch, jl, false, opt.Test, &wgsl, result)
+		slnj, err := runBatch(ctx, batch, jl, false, opt, &wgsl, result)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -237,13 +236,12 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 	return &wcWorkers, nil
 }
 
-func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test bool, wg *sync.WaitGroup, results chan *metric.Metric) (int, error) {
+func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, opt Options, wg *sync.WaitGroup, results chan *metric.Metric) (int, error) {
 	if jl == nil {
 		return 0, fmt.Errorf("no job list")
 	}
 	jobs := jl.Jobs
 
-	// PART1: INFINITE JOBS
 	// create & init workers for jobs (synchronously one after the others)
 	// run infinite jobs
 	for i, j := range jobs {
@@ -255,9 +253,9 @@ func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test b
 			continue
 		}
 		j.Logger().Debug().Msgf("creating worker %s %s", j.ID(), j.GetTarget())
-		err := j.Init()
+		err := j.Init(opt)
 		if err != nil {
-			if test && errors.Is(err, errNotRunning) {
+			if opt.Test && errors.Is(err, errNotRunning) {
 				j.Logger().Warn().Msgf("(ok in test mode): error %s for %s", err, j.GetTarget())
 			} else {
 				j.Logger().Error().Msgf("error %s for %s", err, j.GetTarget())
@@ -275,11 +273,11 @@ func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, test b
 			continue
 		}
 		njobs++
-		if !test {
+		if !opt.Test {
 			j.Logger().Debug().Msgf("spawning workload %s %s (infinite=%t)", j.ID(), j.GetTarget(), j.IsInfinite())
 			wg.Add(1)
 			go func(j Job, wg *sync.WaitGroup) {
-				wm, err := j.Run(ctx, wg)
+				wm, err := j.Run(ctx, wg, opt)
 				if err != nil && err != context.Canceled && wm != nil {
 					log.Error().Msgf("error '%s' for '%s'", err, j.GetTarget())
 				}

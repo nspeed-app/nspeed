@@ -244,7 +244,7 @@ func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, outpu
 	fs.BoolVar(&hf.SkipTLSCheck, "k", false, "skip certificates validation")
 	fs.BoolVar(&hf.UseTLSSelfConfig, "self", OptTLSSelf, "use self-signed TLS certificate")
 
-	fs.UintVar(&hf.Timeout, "m", 8, "maximum duration in seconds the command is allowed to take")
+	fs.UintVar(&hf.Timeout, "m", 0, "maximum duration in seconds this command is allowed to take (default timeout is used)")
 	fs.DurationVar(&hf.DialTimeout, "connect-timeout", 2*time.Second, "maximum duration allowed for the initial connection")
 	fs.DurationVar(&hf.Delay, "w", 0, "delay to wait before starting the command")
 	fs.BoolVar(&hf.UseIPv4, "4", false, "use IPv4 only")
