@@ -10,6 +10,7 @@ function addChart(elem, type, xscales, datasets, labels) {
     if (labels !== undefined) {
         data.labels = labels;
     }
+    console.log(data);
     var chart = new Chart(elem, {
         type: type,
         options: {
@@ -62,6 +63,7 @@ function genChart(canvas, jsonreport) {
         }
     };
     var labels = {}
+    var datasets = [];
     if (jsonreport.samplerate === 0) {
         labels = results.map(r => r.batchname);
         xscales = {
@@ -71,19 +73,22 @@ function genChart(canvas, jsonreport) {
                 text: ""
             }
         };
+        datasets = results.map((e, i) => ({ x: i, y: (e.rxbytes + e.txbytes) * 8.0 / e.duration }));
+    } else {
+        datasets = results.map((result, i) => ({
+            fill: true,
+            hoverBorderColor: '#000',
+            hoverBorderRadius: 2,
+            hoverBorderWidth: 2,
+            interpolate: true,
+            label: (jsonreport.samplerate === 0) ? result.id : result.Samples.map(e => e.date),
+            order: i,
+            pointRadius: 2,
+            showLine: true,
+            stack: result.gid,
+            data: result.Samples.map(e => ({ x: e.date, y: (e.rxbytes + e.txbytes) * 8.0 / e.duration }))
+        }));
     }
-    var datasets = results.map((result, i) => ({
-        fill: true,
-        hoverBorderColor: '#000',
-        hoverBorderRadius: 2,
-        hoverBorderWidth: 2,
-        interpolate: true,
-        label: (jsonreport.samplerate === 0) ? result.id : result.Samples.map(e => e.date),
-        order: i,
-        pointRadius: 2,
-        showLine: true,
-        stack: result.gid,
-        data: result.Samples.map(e => ({ x: e.date, y: (e.rxbytes + e.txbytes) * 8.0 / e.duration }))
-    }));
     var chart = addChart(canvas, chartType, xscales, datasets, labels);
+    return chart;
 }
