@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>WebSocket Test</title>
+</head>
+
+<body>
+  <h1>WebSocket Test</h1>
+  <pre id="log"></pre>
+  <button id="connect-button">Connect</button>
+  <script>
+    const pathJoin = (parts, sep='/') => parts.join(sep).replace(new RegExp(sep+'{1,}', 'g'), sep);
+
+    var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+    var address = pathJoin([protocol + window.location.host + window.location.pathname,'/ws']);
+    console.log(address);
+    let ws = null;
+
+    const connectButton = document.getElementById('connect-button');
+    connectButton.addEventListener('click', function () {
+      if (ws === null) {
+        log('connecting to', address);
+        const newWs = new WebSocket(address);
+
+        newWs.onopen = function () {
+          log('connected');
+        };
+
+        newWs.onmessage = function (event) {
+          log('message: ', event.data);
+        };
+
+        newWs.onclose = function () {
+          log('disconnected');
+        };
+
+        ws = newWs;
+      }
+    });
+
+    function log(...messages) {
+      const logElement = document.getElementById('log');
+      for (const message of messages) {
+        logElement.innerHTML += message + " ";
+      }
+      logElement.innerHTML += '<br>';
+    }
+  </script>
+</body>
+
+</html>
