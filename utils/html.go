@@ -80,7 +80,6 @@ func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
 			removeImports := false
 			for _, s := range n.Attr {
 				if s.Key == "removeimports" {
-					fmt.Println("FOUND NOMODULE", s.Val)
 					removeImports = s.Val == "true"
 				}
 			}

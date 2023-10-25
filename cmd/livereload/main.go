@@ -34,7 +34,7 @@ func loadHTML() error {
 	html, err := os.ReadFile(filename)
 
 	if err != nil {
-		return fmt.Errorf("cant read %s: %w", filename)
+		return fmt.Errorf("cant read %s: %w", filename, err)
 	}
 
 	indexHTML = html
@@ -67,7 +67,11 @@ func main() {
 			}
 		}()
 
-		conn.WriteMessage(websocket.TextMessage, []byte("hello world"))
+		err = conn.WriteMessage(websocket.TextMessage, []byte("hello world"))
+		if err != nil {
+			log.Println("error on WriteMessage in /ws handler", err)
+		}
+
 	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -81,7 +85,10 @@ func main() {
 				return
 			}
 		}
-		w.Write(indexHTML)
+		_, err := w.Write(indexHTML)
+		if err != nil {
+			log.Println("error on Write in / handler", err)
+		}
 	})
 
 	log.Fatal(http.ListenAndServe(":8080", nil))

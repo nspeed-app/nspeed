@@ -176,7 +176,6 @@ func (j *JobClient) IsInfinite() bool { return false }
 func (j *JobClient) Init(opt Options) error {
 
 	// timeout (if none is specified use global default)
-	fmt.Println("TIMEOUT", j.Timeout, utils.OrDefault(j.Timeout, opt.DefaultClientTimeout))
 	j.Timeout = utils.OrDefault(j.Timeout, opt.DefaultClientTimeout)
 
 	// todo move this to run ? and get ride of .wm?
