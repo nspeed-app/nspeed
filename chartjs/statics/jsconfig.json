@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
         "checkJs": true,
+        "target": "ES6"
     },
     "include": ["*.js"],
     "typeAcquisition": {

@@ -3,14 +3,14 @@
 //import { Chart } from "chart.js";
 
 function addChart(elem, type, xscales, datasets, labels) {
+    console.log("addChart:",type,xscales,datasets,labels)
     var data = {
-        datasets: data
+        datasets: datasets
     };
 
     if (labels !== undefined) {
         data.labels = labels;
     }
-    console.log(data);
     var chart = new Chart(elem, {
         type: type,
         options: {
@@ -48,6 +48,7 @@ function addChart(elem, type, xscales, datasets, labels) {
         },
         data: data
     });
+    console.log(data);
     return chart;
 }
 
@@ -65,15 +66,19 @@ function genChart(canvas, jsonreport) {
     var labels = {}
     var datasets = [];
     if (jsonreport.samplerate === 0) {
-        labels = results.map(r => r.batchname);
+        labels = results.map(r => r.id); //[... new Set(results.map(r => r.batchname))];
         xscales = {
+            stacked: true,
             type: 'category',
             title: {
                 display: false,
                 text: ""
             }
         };
-        datasets = results.map((e, i) => ({ x: i, y: (e.rxbytes + e.txbytes) * 8.0 / e.duration }));
+        datasets = [{
+            label: 'Dataset 1',
+            data : results.map((e, i) => ({x: e.id, y: e.rxbps + e.txbps}))
+        }];
     } else {
         datasets = results.map((result, i) => ({
             fill: true,
