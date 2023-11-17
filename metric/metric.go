@@ -59,7 +59,7 @@ type Metric struct {
 	Cipher          string
 	TLSVersion      string
 	Error           error
-	Instances       int
+	Instance        int
 	Interface       *net.Interface
 	SourceAddr      netip.AddrPort
 	Gateway         netip.Addr
@@ -521,7 +521,7 @@ func (wm *Metric) Clone() *Metric {
 		Cipher:      wm.Cipher,
 		TLSVersion:  wm.TLSVersion,
 		Error:       wm.Error,
-		Instances:   wm.Instances,
+		Instance:    wm.Instance,
 		Interface:   wm.Interface,
 		SourceAddr:  wm.SourceAddr,
 		Gateway:     wm.Gateway,
@@ -532,6 +532,7 @@ func (wm *Metric) Clone() *Metric {
 }
 
 // Group replace instances of the groups with the sum of metrics
+// unused
 func (wc *Metrics) Group() *Metrics {
 	if wc == nil {
 		return nil
@@ -553,7 +554,7 @@ func (wc *Metrics) Group() *Metrics {
 			g, ok := groups[wm.GroupID]
 			if !ok {
 				g = wm.Clone()
-				g.Instances = 1
+				g.Instance = 1
 				groups[wm.GroupID] = g
 				rwc.Metrics = append(rwc.Metrics, g)
 				continue
@@ -564,7 +565,7 @@ func (wc *Metrics) Group() *Metrics {
 			g.ReadStepSize = -1
 			g.WriteCount += wm.WriteCount
 			g.WriteStepSize = -1
-			g.Instances = g.Instances + 1
+			g.Instance = g.Instance + 1
 			if wm.ElapsedTime > g.ElapsedTime {
 				g.ElapsedTime = wm.ElapsedTime
 			}
@@ -608,7 +609,7 @@ func (wm *Metric) ToNetMetric(fmtV4, fmtV6 string) NetMetric {
 		GroupID:    wm.GroupID,
 		Batch:      wm.Batch,
 		BatchName:  wm.BatchName,
-		Streams:    uint64(wm.Instances),
+		Stream:     uint64(wm.Instance),
 		Date:       wm.TransfertStartTime,
 		RXBytes:    uint64(wm.TotalRead),
 		TXBytes:    uint64(wm.TotalWrite),
@@ -876,7 +877,7 @@ type NetMetric struct {
 	GroupID    string        `json:"gid"`
 	Batch      int           `json:"batch"`
 	BatchName  string        `json:"batchname"`
-	Streams    uint64        `json:"streams"`
+	Stream     uint64        `json:"stream"`
 	Date       time.Time     `json:"date"`
 	RXBytes    uint64        `json:"rxbytes"`
 	TXBytes    uint64        `json:"txbytes"`

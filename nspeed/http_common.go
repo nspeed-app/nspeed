@@ -118,13 +118,22 @@ func HTTPClientParseGet(command string, cmdargs []string, jl *JobList, output io
 		args = args[1:]
 	}
 
-	jobs := make([]Job, j.Instances)
-	for i := 0; i < j.Instances; i++ {
-		jc := j
+	return args, jl.AddJobs(expandJobs(hf.Instances, &j)...)
+}
+
+func expandJobs(instances int, j *JobClient) []Job {
+	if instances <= 1 {
+		return []Job{j}
+	}
+	jobs := make([]Job, instances)
+	for i := 0; i < instances; i++ {
+		jc := *j
+		jc.Instance = i + 1
 		jobs[i] = &jc
 	}
-	return args, jl.AddJobs(jobs...)
+	return jobs
 }
+
 func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	j := JobClient{JobData: JobData{jobList: jl}}
 	j.Command = "PUT"
@@ -198,13 +207,7 @@ func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, outpu
 	// 	u.Path = path.Join(u.Path, FormatByteDecimalUnits(j.ContentSize))
 	// 	j.Target = u.String()
 	// }
-	jobs := make([]Job, j.Instances)
-	// clone per instances times
-	for i := 0; i < j.Instances; i++ {
-		jc := j
-		jobs[i] = &jc
-	}
-	return args, jl.AddJobs(jobs...)
+	return args, jl.AddJobs(expandJobs(hf.Instances, &j)...)
 }
 
 // common GET/PUT/POST flags
@@ -286,7 +289,6 @@ func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClien
 
 	// straigthforward flags - add more checks/controls later
 	job.Protocol = hf.Protocol
-	job.Instances = hf.Instances
 	job.Host = hf.Host
 	job.UseTLSSelfConfig = hf.UseTLSSelfConfig
 	job.SkipTLSCheck = hf.SkipTLSCheck
