@@ -114,7 +114,7 @@ Source code with be released with v1.0
 - [ ] raw tcp,udp and quic (tcp currently implemented)
 - [x] web UI (local & remote) - partially implemented
 - [x] remote agent
-- [ ] P2P (WebRTC)
+- [ ] P2P (WebRTC) (delayed , early tests with pion give very bad performances)
 - [x] QUIC & HTTP/3 (unstable - depends on https://github.com/quic-go/quic-go - will also use official Go implementation when available)
 - [x] formatted metrics (json)
 - [ ] network & hardware information (routes, pci bandwidth, NIC info, errors, etc)
