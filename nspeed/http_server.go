@@ -465,15 +465,21 @@ func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *metric.Metric) err
 	return err
 }
 
+const safeRate = 1 * time.Millisecond // TODO: place this else and/or as a global setting
+
 func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *metric.Metric) (chan any, error) {
-	var err error
 	if rate := r.URL.Query().Get("rate"); rate != "" {
 		j.Logger().Info().Msgf("Upload: %s from %s - set rate to %s", r.Method, r.RemoteAddr, rate)
-		wm.Tick, err = time.ParseDuration(rate)
+		tick, err := time.ParseDuration(rate)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("bad value '%s' for rate", rate), http.StatusBadRequest)
 			return nil, err
 		}
+		if tick < safeRate {
+			http.Error(w, fmt.Sprintf("too small value '%s' for rate", rate), http.StatusBadRequest)
+			return nil, err
+		}
+		wm.Tick = tick
 	}
 	done := make(chan any)
 	wm.StartTicker(done)
