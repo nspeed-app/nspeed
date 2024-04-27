@@ -273,7 +273,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			return
 		}
 		if chunkSize == 0 {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "chunk size is zero", http.StatusBadRequest)
 			return
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we need a new cmd line parameter for max chunk size ?
@@ -859,7 +859,7 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 	quicServer := &http3.Server{
 		Addr:       j.Server.Addr,
 		TLSConfig:  j.Server.TLSConfig,
-		QuicConfig: quicConf,
+		QUICConfig: quicConf,
 		Handler:    j.Server.Handler,
 	}
 

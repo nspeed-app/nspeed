@@ -359,7 +359,7 @@ func (j *JobClient) HTTPInit() error {
 			rtTransport = &http3.RoundTripper{
 				DisableCompression: true,
 				TLSClientConfig:    netTransport.TLSClientConfig,
-				QuicConfig:         quicConf,
+				QUICConfig:         quicConf,
 				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
 					j.Logger().Debug().Msgf("HTTP3 pre dialing %s ", addr)
 					udpAddr, err := netTransport.DialContext(ctx, "udp", addr)
