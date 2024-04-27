@@ -56,16 +56,13 @@ func (cache *TTLCache[K, V]) Set(key K, value V, ttl time.Duration) error {
 	timer := time.NewTimer(ttl)
 	cache.timers[key] = timer
 
+	// todo: investigate possible leak (if "cache" is deleted when the select is still waiting)
 	go func() {
-		for {
-			select {
-			case <-timer.C:
-				_ = cache.Delete(key)
-				break
-			case <-cache.close:
-				timer.Stop()
-				break
-			}
+		select {
+		case <-timer.C:
+			_ = cache.Delete(key)
+		case <-cache.close:
+			timer.Stop()
 		}
 	}()
 	return nil

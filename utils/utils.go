@@ -177,7 +177,7 @@ func ToArgv(s string) ([]string, error) {
 						// just add \ to end for windows
 						currentArg += c
 					} else {
-						return nil, fmt.Errorf("Escape character at end string")
+						return nil, fmt.Errorf("escape character at end string")
 					}
 				} else {
 					if runtime.GOOS == "windows" {

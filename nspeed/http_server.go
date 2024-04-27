@@ -871,7 +871,7 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 
 	h := j.Server.Handler
 	j.Server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err := quicServer.SetQuicHeaders(w.Header())
+		err := quicServer.SetQUICHeaders(w.Header())
 		j.Logger().Debug().Msgf("SetQuicHeaders called")
 		if err != nil {
 			j.Logger().Fatal().Err(err)
