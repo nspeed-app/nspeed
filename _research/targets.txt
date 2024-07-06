@@ -30,3 +30,6 @@ http://speedtest.milkywan.fr/
 #cloudflare speedtest:
 https://speed.cloudflare.com/__down?bytes=500000000
 https://speed.cloudflare.com/__up 200m
+
+
+https://as62240.net/
