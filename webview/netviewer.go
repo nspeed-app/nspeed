@@ -41,16 +41,16 @@ func NewNetInterfacesViewer(tick time.Duration, ifaces []net.Interface, dir stri
 	graph := newBasicView(tick, VNetInterfaces+dir, path)
 	graph.SetGlobalOptions(
 		charts.WithToolboxOpts(opts.Toolbox{
-			Show: true,
+			Show: opts.Bool(true),
 			Feature: &opts.ToolBoxFeature{
 				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{
-					Show: true,
+					Show: opts.Bool(true),
 				},
 				DataZoom: &opts.ToolBoxFeatureDataZoom{
-					Show: true,
+					Show: opts.Bool(true),
 				},
 				DataView: &opts.ToolBoxFeatureDataView{
-					Show: true,
+					Show: opts.Bool(true),
 				},
 			},
 		}),
@@ -59,11 +59,11 @@ func NewNetInterfacesViewer(tick time.Duration, ifaces []net.Interface, dir stri
 		charts.WithYAxisOpts(opts.YAxis{
 			Name: ChartNames[dir],
 			//AxisLabel: &opts.AxisLabel{Formatter: "function (value, index) { return formatBytes(value,index,2) }"},
-			AxisLabel: &opts.AxisLabel{Formatter: opts.FuncOpts("function (value, index) { return formatBytes(value,'bps',2) }")},
+			AxisLabel: &opts.AxisLabel{Formatter: string(opts.FuncOpts("function (value, index) { return formatBytes(value,'bps',2) }"))},
 		}),
-		charts.WithLegendOpts(opts.Legend{Show: true}),
+		charts.WithLegendOpts(opts.Legend{Show: opts.Bool(true)}),
 		charts.WithTooltipOpts(opts.Tooltip{
-			Show:      true,
+			Show:      opts.Bool(true),
 			Trigger:   "axis",
 			Formatter: opts.FuncOpts("function (params) {return formatTooltip(params) }"),
 		}),
@@ -81,8 +81,8 @@ func NewNetInterfacesViewer(tick time.Duration, ifaces []net.Interface, dir stri
 				// }),
 				charts.WithMarkPointStyleOpts(opts.MarkPointStyle{
 					Label: &opts.Label{
-						Show:      true,
-						Formatter: opts.FuncOpts("function (params) { return formatBytes(params.value,'bps',2) }"),
+						Show:      opts.Bool(true),
+						Formatter: string(opts.FuncOpts("function (params) { return formatBytes(params.value,'bps',2) }")),
 					},
 				}),
 			)

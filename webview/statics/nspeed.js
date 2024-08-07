@@ -9,8 +9,8 @@ function formatBytes(value, unitname = '', precision=2) {
 
 
 function formatTooltip(params) {
-	output = '<b>' + params[0].name + '</b><br/>'
-	for (i = 0; i < params.length; i++) {
+	var output = '<b>' + params[0].name + '</b><br/>'
+	for (var i = 0; i < params.length; i++) {
 		output += params[i].marker + params[i].seriesName + ': ' + formatBytes(params[i].value, "bps"); //
 		if (i != params.length - 1) { // Append a <br/> tag if not last in loop
 			output += '<br/>'

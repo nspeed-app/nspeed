@@ -30,14 +30,14 @@ func NewCPUViewer(tick time.Duration, path string) Viewer {
 	graph.SetGlobalOptions(
 		charts.WithYAxisOpts(opts.YAxis{
 			Name:        "CPU Load",
-			Scale:       false,
+			Scale:       opts.Bool(false),
 			Min:         0,
 			SplitNumber: 10,
-			Max:         109,
+			Max:         100,
 			GridIndex:   0,
 			AxisLabel:   &opts.AxisLabel{Formatter: "{value} %"},
 		}),
-		charts.WithLegendOpts(opts.Legend{Show: false}),
+		charts.WithLegendOpts(opts.Legend{Show: opts.Bool(false)}),
 	)
 	cores, _ := cpu.Percent(0, true)
 	for idx := range cores {

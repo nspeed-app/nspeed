@@ -236,8 +236,8 @@ func genViewTemplate(tick time.Duration, vid, route string, path string) string 
 func newBasicView(tick time.Duration, route string, path string) *charts.Line {
 	graph := charts.NewLine()
 	graph.SetGlobalOptions(
-		charts.WithLegendOpts(opts.Legend{Show: true}),
-		charts.WithTooltipOpts(opts.Tooltip{Show: true, Trigger: "axis"}),
+		charts.WithLegendOpts(opts.Legend{Show: opts.Bool(true)}),
+		charts.WithTooltipOpts(opts.Tooltip{Show: opts.Bool(true), Trigger: "axis"}),
 		charts.WithXAxisOpts(opts.XAxis{Name: "Time"}),
 		charts.WithInitializationOpts(opts.Initialization{
 			Width:  "800px",
@@ -245,7 +245,7 @@ func newBasicView(tick time.Duration, route string, path string) *charts.Line {
 			Theme:  string(defaultCfg.Theme),
 		}),
 	)
-	graph.SetXAxis([]string{}).SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{Smooth: true}))
+	graph.SetXAxis([]string{}).SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{Smooth: opts.Bool(true)}))
 	graph.AddJSFuncs(genViewTemplate(tick, graph.ChartID, route, path))
 	return graph
 }
