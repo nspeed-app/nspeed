@@ -400,9 +400,6 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 		wm.WriteCount++
 		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 		wm.mutex.Unlock()
-		if err != nil {
-			break
-		}
 	}
 	wm.Logger().Debug().Msgf("WriteTo done: %d Write ops and %d max buff size. Total = %d bytes in %s\n", wm.WriteCount, wm.WriteStepSize, wm.TotalWrite, wm.ElapsedTime)
 	return wm.TotalWrite, nil

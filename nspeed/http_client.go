@@ -51,13 +51,16 @@ type roundTripTrace struct {
 	TLS           tls.ConnectionState
 }
 
-// a HTTP command, get or post
+// supported L4Protocols
+var L4Protocols = [...]string{"tcp", "quic", "quic-go"}
+
+// a client command, get or post
 // implements Job interface
 type JobClient struct {
 	JobData
 	Command          string
-	Protocol         string
-	Instance         int //=0 single, >0 index of instance
+	Protocol         string // "http" or one of the L4Protocols
+	Instance         int    //=0 single, >0 index of instance
 	IPVersion        utils.IPVersion
 	Host             string
 	Target           string
@@ -331,30 +334,7 @@ func (j *JobClient) HTTPInit() error {
 			}
 		}
 		if j.HTTPVersion == 3 {
-			quicConf := &quic.Config{}
-			if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-				quicConf.Tracer = utils.GenerateQLogTracer(j.Logger())
-			} else {
-				quicConf.Tracer = NewQuicTracer(j.wm)
-			}
-
-			// with use http3.RoundTripper but it doesnt expose its qTransport member field so we must use our own
-			var qTransport *quic.Transport
-			defer func() {
-				if qTransport != nil {
-					fmt.Println("closing local quic transport")
-					qTransport.Close()
-					qTransport = nil
-				}
-			}()
-
-			// since we use Dialcontext we need to set a proper local *net.UDPAddr for LocalAddr
-			if j.localAddr != nil {
-				j.dialer.LocalAddr = &net.UDPAddr{
-					IP:   j.localAddr.IP,
-					Zone: j.localAddr.Zone,
-				}
-			}
+			quicConf, qTransport := quicInit(j)
 			// the roundtrip
 			rtTransport = &http3.RoundTripper{
 				DisableCompression: true,
@@ -447,15 +427,15 @@ func (j *JobClient) HTTPInit() error {
 }
 
 func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
+	defer wg.Done()
 	if j.Protocol == "http" {
-		return j.HTTPRun(ctx, wg, opt)
+		return j.HTTPRun(ctx, opt)
 	}
-	return j.L4Run(ctx, wg, opt)
+	return j.L4Run(ctx, opt)
 }
 
-func (j *JobClient) HTTPRun(ctx context.Context, wg *sync.WaitGroup, _ Options) (*metric.Metric, error) {
+func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, error) {
 
-	defer wg.Done()
 	if j.req == nil {
 		return nil, errors.New("no request")
 	}

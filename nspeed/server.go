@@ -70,6 +70,7 @@ type HostParameters struct {
 	APIOnly     bool
 }
 
+// allowed protocols. todo: make a type ?
 var Protocols = []string{"http", "udp", "tcp", "quic", "quic-go"}
 
 func validProtocol(proto string) bool {
@@ -124,7 +125,7 @@ func ServerParse(command string, cmdargs []string, jl *JobList, output io.Writer
 	}
 
 	if !validProtocol(host.Protocol) {
-		return cmdargs, fmt.Errorf("invalid protocol: %s", host.Protocol)
+		return cmdargs, fmt.Errorf("unknown protocol: %s", host.Protocol)
 	}
 	//
 	host.MaxDuration = time.Duration(*maxtime) * time.Second
@@ -160,11 +161,11 @@ func ServerParse(command string, cmdargs []string, jl *JobList, output io.Writer
 	}
 
 	if (host.HTTP11 || host.HTTP2 || host.HTTP3) && host.Protocol != "http" {
-		return cmdargs, errors.New("specify a http version requires http")
+		return cmdargs, errors.New("specify a http version requires http protocol")
 	}
 
-	// force -self if http2 or http3 and no tls files
-	if (host.HTTP11 || host.HTTP2 || host.HTTP3) && !host.ServeTLS {
+	// force -self if http2 or http3 or quic/quic-go and no tls files
+	if (host.HTTP11 || host.HTTP2 || host.HTTP3 || host.Protocol == "quic" || host.Protocol == "quic-go") && !host.ServeTLS {
 		host.UseTLSSelfConfig = true
 		host.ServeTLS = true
 	}
@@ -181,8 +182,10 @@ func ServerParse(command string, cmdargs []string, jl *JobList, output io.Writer
 	var j Job
 	switch host.Protocol {
 	case "http":
+		// fmt.Println("CREATING L7 SERVER", host.Protocol)
 		j = &JobHTTPServer{Parameters: host, JobList: jl}
 	case "tcp", "udp", "quic", "quic-go":
+		// fmt.Println("CREATING L4 SERVER", host.Protocol)
 		j = &L4Server{Parameters: host, JobList: jl}
 	default:
 		return args, fmt.Errorf("unimplemented protocol: %s", host.Protocol)
@@ -296,17 +299,23 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 		j.Logger().Debug().Msgf("server will shutdown in: %v", j.Parameters.RunDuration)
 	}
 
-	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.IPVersion)
+	L3Proto := j.Parameters.Protocol
+	if j.Parameters.Protocol == "quic" || j.Parameters.Protocol == "quic-go" {
+		L3Proto = "udp"
+	}
+	network := utils.AddIPVersionToNetwork(L3Proto, j.Parameters.IPVersion)
 
 	var ls net.Listener
 
+	// tcp only
 	var err error
-	if j.tlsConfig != nil {
-		ls, err = tls.Listen(network, j.addr, j.tlsConfig)
-	} else {
+	if j.tlsConfig == nil {
 		lc := net.ListenConfig{}
 		ls, err = lc.Listen(ctx, network, j.addr)
+	} else {
+		ls, err = tls.Listen(network, j.addr, j.tlsConfig)
 	}
+	// end of tcp only
 
 	if err != nil {
 		return nil, fmt.Errorf("listen failed: %s (%s)", err, j.addr)
@@ -318,8 +327,8 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 	if j.tlsConfig != nil {
 		tls = "(tls)"
 	}
-	j.URL = &url.URL{Scheme: "tcp", Host: ls.Addr().String()}
-	j.Logger().Warn().Msgf("server %s listening %s %s", j.Parameters.Protocol, ls.Addr(), tls)
+	j.URL = &url.URL{Scheme: j.Parameters.Protocol, Host: ls.Addr().String()}
+	j.Logger().Warn().Msgf("L4 server %s listening %s %s (URL = %s)", j.Parameters.Protocol, ls.Addr(), tls, j.URL)
 
 	// signal we're ready  to accept connections
 	wg.Done()

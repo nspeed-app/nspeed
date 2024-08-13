@@ -9,42 +9,77 @@ import (
 	"net"
 	"net/netip"
 	"reflect"
-	"sync"
+	"slices"
 	"syscall"
 	"time"
 
+	"github.com/quic-go/quic-go"
 	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
 
 func (j *JobClient) L4Init() error {
 
-	if j.Protocol != "tcp" {
-		return fmt.Errorf("protocol %s not yet supported", j.Protocol)
+	if !slices.Contains(L4Protocols[:], j.Protocol) {
+		return fmt.Errorf("protocol %s not supported", j.Protocol)
 	}
 	return nil
 }
 
-func (j *JobClient) L4Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
-	defer wg.Done()
+func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, error) {
 
-	if j.Protocol != "tcp" {
-		return nil, fmt.Errorf("protocol %s not yet supported", j.Protocol)
+	if !slices.Contains(L4Protocols[:], j.Protocol) {
+		return nil, fmt.Errorf("unknown protocol: %s", j.Protocol)
 	}
 
-	network := j.Protocol
-	network = utils.AddIPVersionToNetwork(network, j.IPVersion)
-
 	dialerContext := j.dialContext
-	if j.tlsConfig == nil {
-		j.Logger().Info().Msgf("L4 client dialing %s %s", network, j.targetURL.Host)
-	} else {
-		tlsDialer := tls.Dialer{
-			NetDialer: j.dialer,
-			Config:    j.tlsConfig,
+	network := j.Protocol
+
+	switch j.Protocol {
+	case "tcp":
+		network = utils.AddIPVersionToNetwork(network, j.IPVersion)
+		if j.tlsConfig == nil {
+			j.Logger().Info().Msgf("L4 client dialing %s %s", network, j.targetURL.Host)
+		} else {
+			tlsDialer := tls.Dialer{
+				NetDialer: j.dialer,
+				Config:    j.tlsConfig,
+			}
+			dialerContext = tlsDialer.DialContext
+			j.Logger().Info().Msgf("L4 client dialing %s %s with TLS", network, j.targetURL.Host)
 		}
-		dialerContext = tlsDialer.DialContext
-		j.Logger().Info().Msgf("L4 client dialing %s %s with TLS", network, j.targetURL.Host)
+	case "quic":
+		return nil, fmt.Errorf("%s NYI", j.Protocol)
+
+	case "quic-go":
+		quicConfig, quicTransport := quicInit(j)
+		if j.tlsConfig == nil {
+			j.tlsConfig = &tls.Config{}
+		}
+		dialerContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+			addr, err := net.ResolveUDPAddr("udp", address)
+			if err != nil {
+				return nil, fmt.Errorf("error %v resolving '%s' (%s)", err, address, network)
+			}
+
+			// todo: move this in a function, it's also used in http client
+			if quicTransport == nil {
+				// check for Zone on IPv6 link-local for instance, some OS might need the Zone too
+				udpConn, err := net.ListenUDP("udp", nil)
+				if err != nil {
+					return nil, fmt.Errorf("error for local port: %v", err)
+				}
+				quicTransport = &quic.Transport{Conn: udpConn}
+			}
+			conn, err := quicTransport.Dial(ctx, addr, j.tlsConfig, quicConfig)
+			if err != nil {
+				return nil, fmt.Errorf("error quic dialing (%w)", err)
+			}
+			return nil, fmt.Errorf("error quic dialing to %s", conn.RemoteAddr())
+		}
+
+	default:
+		return nil, fmt.Errorf("unknown protocol %s", j.Protocol)
 	}
 
 	conn, err := dialerContext(ctx, network, j.targetURL.Host)

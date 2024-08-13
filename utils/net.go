@@ -16,7 +16,7 @@ import (
 )
 
 // SetDNSServer specifies a custom DNS server (globally).
-// The parameter must a literal IP address or literal IP:port combination.
+// The parameter must be a literal IP address or literal IP:port combination.
 // if no port, 53 will be used.
 
 func SetDNSServer(address string) error {

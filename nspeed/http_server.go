@@ -831,21 +831,31 @@ func (j *JobHTTPServer) HTTP3Listen() error {
 	if j.udpConn != nil {
 		return errors.New("udp connection already listening")
 	}
+	var err error
+	j.udpConn, err = listenUDP(j.Server.Addr, j.Parameters.IPVersion)
 
-	networkUDP := utils.AddIPVersionToNetwork("udp", j.Parameters.IPVersion)
+	if err != nil {
+		return fmt.Errorf("couldn't udp listen %s (error=%w)", j.Server.Addr, err)
+	}
 
-	// Open the listeners
-	udpAddr, err := net.ResolveUDPAddr(networkUDP, j.Server.Addr)
-	if err != nil {
-		return err
-	}
-	j.udpConn, err = net.ListenUDP("udp", udpAddr)
-	if err != nil {
-		return err
-	}
 	j.URL = &url.URL{Scheme: "https", Host: j.udpConn.LocalAddr().String()}
 	j.Logger().Warn().Msgf("server listening on %s (HTTP/3 on UDP)", j.URL.String())
 	return nil
+}
+
+func listenUDP(addr string, version utils.IPVersion) (*net.UDPConn, error) {
+	networkUDP := utils.AddIPVersionToNetwork("udp", version)
+
+	// Open the listeners
+	udpAddr, err := net.ResolveUDPAddr(networkUDP, addr)
+	if err != nil {
+		return nil, err
+	}
+	udpConn, err := net.ListenUDP(networkUDP, udpAddr)
+	if err != nil {
+		return nil, err
+	}
+	return udpConn, nil
 }
 
 func (j *JobHTTPServer) HTTP3Serve() error {

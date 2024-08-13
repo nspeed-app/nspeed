@@ -17,6 +17,15 @@ type BenchmarkArgs struct {
 }
 
 var benchmarksTemplates = map[string]Benchmark{
+	// QUIC (quic-go implementation)
+	"qgp": {
+		Tpl:  "server {{.Args}} -id s{{.ID}} -P quic-go put -P quic-go {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "QUIC-GO PUT, localhost",
+	},
+	"qgg": {
+		Tpl:  "server {{.Args}} -id s{{.ID}} -P quic-go get -size {{.Size}} -P quic-go {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
+		Name: "QUIC-GO GET, localhost",
+	},
 	// TCP
 	"tp": {
 		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp put -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
@@ -76,11 +85,11 @@ var benchmarksTemplates = map[string]Benchmark{
 
 	// HTTPS/3
 	"h3g": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 get {{.Args}} -n {{.N}} -self -http3 nspeed://s{{.ID}}/{{.Size}}",
+		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 get {{.Args}} -n {{.N}} -http3 nspeed://s{{.ID}}/{{.Size}}",
 		Name: "HTTP/3 GET, localhost, tls, udp",
 	},
 	"h3p": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 put {{.Args}} -n {{.N}} -self -http3 nspeed://s{{.ID}}/ {{.Size}}",
+		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 put {{.Args}} -n {{.N}} -http3 nspeed://s{{.ID}}/ {{.Size}}",
 		Name: "HTTP/3 PUT, localhost, tls, udp",
 	},
 }
