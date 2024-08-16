@@ -843,6 +843,7 @@ func (j *JobHTTPServer) HTTP3Listen() error {
 	return nil
 }
 
+// listenUDP performs net.ResolveUDPAddr then net.ListenUDP
 func listenUDP(addr string, version utils.IPVersion) (*net.UDPConn, error) {
 	networkUDP := utils.AddIPVersionToNetwork("udp", version)
 

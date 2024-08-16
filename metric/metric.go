@@ -745,7 +745,10 @@ func GenerateTextReport(wcWorkers *Metrics, showGroup bool) (out string) {
 	}
 	// loop over batch (dont "range batchs" to avoid bad order)
 	for idx, batch := range wcWorkers.Batches {
-		out += fmt.Sprintf("batch %s:\n", batch) + GenerateTextReportBatch(idx, wcWorkers, showGroup) + "\n"
+		s := GenerateTextReportBatch(idx, wcWorkers, showGroup)
+		if s != "" {
+			out += fmt.Sprintf("batch %s:\n", batch) + s + "\n"
+		}
 	}
 	return
 }
@@ -757,6 +760,9 @@ func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) stri
 		return ""
 	}
 
+	if len(wcWorkers.Metrics) == 0 {
+		return ""
+	}
 	var out bytes.Buffer
 
 	var elapsedTime time.Duration

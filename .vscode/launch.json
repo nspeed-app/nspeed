@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "cmd/nspeed/main.go",
-            "args": ["-debug","b", "-s","1", "h3g"]
+            "args": ["-debug","s", "-P","quic-go"]
         }
     ]
 }

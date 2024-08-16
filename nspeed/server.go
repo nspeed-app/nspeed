@@ -284,13 +284,6 @@ func (j *L4Server) Init(opt Options) error {
 
 func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*metric.Metric, error) {
 
-	done := false
-	defer func() {
-		if !done {
-			wg.Done()
-		}
-	}()
-
 	ctx, j.Cancel = context.WithCancel(ctx)
 	if j.Parameters.RunDuration != 0 {
 		ctx2, cancel := context.WithTimeout(ctx, j.Parameters.RunDuration)
@@ -305,9 +298,25 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 	}
 	network := utils.AddIPVersionToNetwork(L3Proto, j.Parameters.IPVersion)
 
-	var ls net.Listener
+	if j.Parameters.Protocol == "tcp" {
+		return j.ServeTCP(ctx, network, wg)
+	}
+	defer wg.Done()
+	return nil, fmt.Errorf("protocol %s not yet implemented", j.Parameters.Protocol)
+}
 
-	// tcp only
+func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGroup) (*metric.Metric, error) {
+	// TCP server
+
+	// this avoid calling wg.Done() twice
+	done := false
+	defer func() {
+		if !done {
+			wg.Done()
+		}
+	}()
+
+	var ls net.Listener
 	var err error
 	if j.tlsConfig == nil {
 		lc := net.ListenConfig{}
@@ -315,7 +324,6 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 	} else {
 		ls, err = tls.Listen(network, j.addr, j.tlsConfig)
 	}
-	// end of tcp only
 
 	if err != nil {
 		return nil, fmt.Errorf("listen failed: %s (%s)", err, j.addr)
