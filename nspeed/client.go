@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"os"
 	"reflect"
 	"slices"
 	"syscall"
@@ -75,7 +76,11 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 			if err != nil {
 				return nil, fmt.Errorf("error quic dialing (%w)", err)
 			}
-			return nil, fmt.Errorf("error quic dialing to %s", conn.RemoteAddr())
+			str, err := conn.OpenStream()
+			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+				return nil, fmt.Errorf("error quic dialing (%w)", err)
+			}
+			return ConnStream{str, conn}, nil
 		}
 
 	default:
@@ -219,7 +224,8 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 						j.wm.Error = nil
 					}
 				}
-				if errors.Is(err, syscall.ECONNRESET) {
+				//quic-go generates os.ErrDeadlineExceeded
+				if errors.Is(err, syscall.ECONNRESET) || errors.Is(err, os.ErrDeadlineExceeded) {
 					j.wm.Cancelled = true
 					j.wm.Error = nil
 				}
