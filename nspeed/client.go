@@ -196,7 +196,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 	}
 	j.wm.InitNew()
 
-	j.Logger().Info().Msgf("L4 client %s %d bytes remote %s", cmd, j.wm.ContentWriteSize, j.targetURL)
+	j.Logger().Info().Msgf("L4 client %s %d bytes remote %s", cmd, j.ContentSize, j.targetURL)
 	// spawn the work, use 'done' to signal
 	done := make(chan any)
 

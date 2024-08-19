@@ -111,8 +111,10 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 				}
 				break
 			}
+			j.logger.Info().Msgf("L4 QUIC-GO server : incoming new connection from %s", conn.RemoteAddr())
 			j.TotalRequests.Add(1)
-			handleQUICStreams(ctx, j, conn)
+			// spawn handling of streams for this connection
+			go handleQUICStreams(ctx, j, conn)
 		}
 	}()
 	err = nil
