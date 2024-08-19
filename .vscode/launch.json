@@ -10,7 +10,16 @@
             "request": "launch",
             "mode": "auto",
             "program": "cmd/nspeed/main.go",
-            "args": ["-debug","s", "-P","quic-go"]
+            "args": "${input:cmdArgs}",
         }
-    ]
+    ],
+    "inputs": [
+        {
+          "id": "cmdArgs",
+          "type": "promptString",
+          "description": "commmand arguments",
+          "default": "-h"
+        }
+      ]
+   
 }
