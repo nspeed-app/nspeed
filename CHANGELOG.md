@@ -1,5 +1,6 @@
 # v0.0.11
-- **new protocol**: raw tcp is now also available for `server`, `get`, `post`, `put` commands. Add `-P tcp` to use tcp instead of http. 
+- **new protocol**: raw tcp connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P tcp` to use tcp instead of http. 
+- **new protocol**: raw quic connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P quic-go` to use tcp instead of http. 
 - **new command**: `from uri` (abbr. `f`) will read commands from the file/url (use `-` for stdin)
 - **new command**: `then [options]` (abbr. `t`) execute previous command(s) before continuing.
 - **new command**: `bench` (abbr `b`) (see corresponding bench section below)
@@ -14,13 +15,13 @@
 - **breaking change**: the `-tick duration` flag is now a duration instead of an integer of seconds (default remain 1 second). It doesn't control the sampling rate of `-cpu` anymore (see `-cpurate`). The `-tick` rate is the rate of trace & debug messages.
 - **new flag**: `-rate duration` used to set the frequency generating the time series data for json/html output Default is 1s.
 - **new flag**: `-cpurate duration` used to set the cpu sampling rate (implies `-cpu`)
-- **new flag**: `-html filename` to record the results to a html file. Use `-rate duration` to add time series. (wip. only local machine using ``:`` as filename will open directly the result in a web browser (no html file is created , it's just send to the browser using a temporary  web server))
+- **new flag**: `-html filename` to record the results to a html file. Use `-rate duration` to add time series. (wip. on local machine using ``:`` as filename will open directly the result in a web browser (no html file is created , it's just send to the browser using a temporary  web server))
 - **new flag**: `-json filename` to record the results to a json file. Use `-rate duration` to add time series.
 - **new flag**: `-dns-server address[:port]` to specify a dns server (literal ip address with optional port)
 - **new flag**: `-ungroup` show each stream result of a multi-streams command (see client below) 
 - **new flag**: `-4/-6` to use IPv4 only or IPv6 only (doesn't override these options at the command level)
 ## bench
-- new `bench` command (abbrev `b`) : allow to launch loopback tests (server and get/put on a localhost server). see `nspeed bench -h` for details.
+- new `bench` command (abbrev `b`) : allow to launch loopback interface tests (server and get/put on a localhost server). see `nspeed bench -h` for available benchmarks.
 ## server
  - *breaking changes*: `-t` flag renamed to `-m` to be like Curl.
  - **new flags**: `-http1.1` and `-http2` to enforce the HTTP version used
