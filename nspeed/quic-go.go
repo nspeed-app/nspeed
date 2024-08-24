@@ -8,16 +8,17 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/quic-go/quic-go"
+	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
+	"golang.org/x/net/quic"
 	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
 
-// QUIC stuff
+type nativeQuic quic.Endpoint
 
-func quicInit(j *JobClient) (*quic.Config, *quic.Transport) {
-	quicConf := &quic.Config{}
+func quicgoInit(j *JobClient) (*quicgo.Config, *quicgo.Transport) {
+	quicConf := &quicgo.Config{}
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
 		quicConf.Tracer = utils.GenerateQLogTracer(j.Logger())
 	} else {
@@ -25,10 +26,10 @@ func quicInit(j *JobClient) (*quic.Config, *quic.Transport) {
 	}
 
 	// with use http3.RoundTripper but it doesnt expose its qTransport member field so we must use our own
-	var qTransport *quic.Transport
+	var qTransport *quicgo.Transport
 	defer func() {
 		if qTransport != nil {
-			j.logger.Debug().Msg("closing local quic transport")
+			j.logger.Debug().Msg("closing local quic-go transport")
 			qTransport.Close()
 			qTransport = nil
 		}
@@ -46,8 +47,8 @@ func quicInit(j *JobClient) (*quic.Config, *quic.Transport) {
 
 // ConnStream make a quic Steam a net.Conn interface
 type ConnStream struct {
-	quic.Stream
-	c quic.Connection
+	quicgo.Stream
+	c quicgo.Connection
 }
 
 func (str ConnStream) LocalAddr() net.Addr {
@@ -76,8 +77,8 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 		return nil, fmt.Errorf("ServeQUIC listenUDP error: %w", err)
 	}
 	j.logger.Debug().Msgf("ServerQUIC: listen %s - %s", network, j.addr)
-	quicConf := &quic.Config{}
-	quicTransport := quic.Transport{
+	quicConf := &quicgo.Config{}
+	quicTransport := quicgo.Transport{
 		Conn: udpConn,
 	}
 
@@ -137,11 +138,11 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 
 }
 
-func handleQUICStreams(ctx context.Context, j *L4Server, conn quic.Connection) {
+func handleQUICStreams(ctx context.Context, j *L4Server, conn quicgo.Connection) {
 	for {
 		str, err := conn.AcceptStream(ctx)
 		if err != nil {
-			j.Logger().Info().Err(err).Msgf("L4 QUIC server conn.AcceptStream failed or ended")
+			j.Logger().Info().Err(err).Msgf("L4 QUIC server conngolang.org/x/net.AcceptStream failed or ended")
 			return
 		}
 		go j.handleConnection(ConnStream{str, conn})

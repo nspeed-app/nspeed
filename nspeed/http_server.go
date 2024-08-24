@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/quic-go/quic-go"
+	quicgo "github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
@@ -866,7 +866,7 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 	}
 	defer j.udpConn.Close()
 
-	quicConf := &quic.Config{}
+	quicConf := &quicgo.Config{}
 
 	// setup debug trace
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {

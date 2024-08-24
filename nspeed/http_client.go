@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/quic-go/quic-go"
+	quicgo "github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -334,13 +334,13 @@ func (j *JobClient) HTTPInit() error {
 			}
 		}
 		if j.HTTPVersion == 3 {
-			quicConf, qTransport := quicInit(j)
+			quicConf, qTransport := quicgoInit(j)
 			// the roundtrip
 			rtTransport = &http3.RoundTripper{
 				DisableCompression: true,
 				TLSClientConfig:    netTransport.TLSClientConfig,
 				QUICConfig:         quicConf,
-				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quic.Config) (quic.EarlyConnection, error) {
+				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quicgo.Config) (quicgo.EarlyConnection, error) {
 					j.Logger().Debug().Msgf("HTTP3 pre dialing %s ", addr)
 					udpAddr, err := netTransport.DialContext(ctx, "udp", addr)
 					if err != nil {
@@ -352,7 +352,7 @@ func (j *JobClient) HTTPInit() error {
 						if err != nil {
 							return nil, err
 						}
-						qTransport = &quic.Transport{Conn: udpConn}
+						qTransport = &quicgo.Transport{Conn: udpConn}
 					}
 					// use same dialer as other http version
 
@@ -757,7 +757,7 @@ func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
 	// 	fmt.Printf("error to change: %s %s\n", err, reflect.TypeOf(err))
 	// }
 	// HTTP/3 and ErrorCode == errorRequestCanceled
-	var qerr *quic.StreamError
+	var qerr *quicgo.StreamError
 	if errors.As(err, &qerr) && http3.ErrCode(qerr.ErrorCode) == http3.ErrCodeRequestCanceled {
 		l.Info().Msgf("quic.StreamError: %d changed to context.DeadlineExceeded ", qerr.ErrorCode)
 		return context.DeadlineExceeded

@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/quic-go/quic-go"
+	quicgo "github.com/quic-go/quic-go"
 	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
@@ -53,7 +53,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 		return nil, fmt.Errorf("%s NYI", j.Protocol)
 
 	case "quic-go":
-		quicConfig, quicTransport := quicInit(j)
+		quicConfig, quicTransport := quicgoInit(j)
 		if j.tlsConfig == nil {
 			j.tlsConfig = &tls.Config{}
 		}
@@ -70,7 +70,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 				if err != nil {
 					return nil, fmt.Errorf("error for local port: %v", err)
 				}
-				quicTransport = &quic.Transport{Conn: udpConn}
+				quicTransport = &quicgo.Transport{Conn: udpConn}
 			}
 			conn, err := quicTransport.Dial(ctx, addr, j.tlsConfig, quicConfig)
 			if err != nil {
