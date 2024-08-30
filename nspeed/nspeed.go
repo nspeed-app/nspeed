@@ -29,6 +29,10 @@ type Options struct {
 // update/progress can be obtained thru the optionnal message channel
 func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*metric.Metrics, error) {
 
+	if jl == nil {
+		return nil, fmt.Errorf("no joblist to run")
+	}
+
 	jobs := jl.Jobs
 	nJobs := len(jobs)
 	nBatches := len(jl.Batches)

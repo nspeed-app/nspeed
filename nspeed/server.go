@@ -59,7 +59,7 @@ type HostParameters struct {
 	HTTP11      bool
 	HTTP2       bool
 	HTTP3       bool
-	AltSvc      string
+	// AltSvc      string // TODO
 	// UseTLSSelfConfig bool // if true ignore TLSCertFile/TLSKeyFile use TLSSelfConfig
 	// TLSCertFile      string
 	// TLSKeyFile       string
@@ -118,7 +118,7 @@ func ServerParse(command string, cmdargs []string, jl *JobList, output io.Writer
 	fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key ")
 	fs.BoolVar(&host.HTTP3, "http3", false, "also listen using HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
 	fs.BoolVar(&host.API, "api", false, "enable API endpoint (activate /api url)")
-	fs.StringVar(&host.AltSvc, "alt", "", "add alt-svc endpoints (use id names, comma separated)")
+	// fs.StringVar(&host.AltSvc, "alt", "", "add alt-svc endpoints (use id names, comma separated)") NYI
 	id := fs.String("id", "", "unique ID/name of this server")
 	if err := fs.Parse(cmdargs); err != nil {
 		return cmdargs, err
