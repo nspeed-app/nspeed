@@ -11,7 +11,6 @@ import (
 
 	"golang.org/x/net/quic"
 	"nspeed.app/metric"
-	"nspeed.app/utils"
 )
 
 func quicClientInit(j *JobClient) (*quic.Config, *quic.Endpoint) {
@@ -119,10 +118,9 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 		return nil, fmt.Errorf("ServeQUIC: no TLS config")
 	}
 
-	netw := utils.AddIPVersionToNetwork(network, j.Parameters.IPVersion)
-	j.logger.Debug().Msgf("ServeQUIC: listen %s - %s", netw, j.addr)
+	j.logger.Debug().Msgf("ServeQUIC: listen %s - %s", network, j.addr)
 	quicConf := &quic.Config{TLSConfig: j.tlsConfig}
-	endp, err := quic.Listen(netw, j.addr, quicConf)
+	endp, err := quic.Listen(network, j.addr, quicConf)
 	if err != nil {
 		return nil, fmt.Errorf("ServeQUIC Listen failed: %w", err)
 	}
@@ -152,6 +150,7 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 				}
 				break
 			}
+			fmt.Println("BOUBOUB")
 			j.logger.Info().Msgf("L4 QUIC-GO server : incoming new connection from %s", conn.RemoteAddr())
 			j.TotalRequests.Add(1)
 			// spawn handling of streams for this connection
