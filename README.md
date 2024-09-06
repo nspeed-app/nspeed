@@ -21,19 +21,19 @@ Interoperable with standard web clients (like curl) and standard web servers (NG
     
     Overview of commands:
 
-    short-lived:
-        nspeed get [options] url 
-        nspeed put [options] url size
-        nspeed post [options] url size
-        nspeed bench benchmark[,benchmark]
-    infinite:
-        nspeed server [options]
-        nspeed api [options]
+    client:
+        get [options] url 
+        put [options] url size
+        post [options] url size
+    server:
+        server [options]
+        api [options]
     control:
         from url/path
         then [options] [command] ... [command]
     special:
-        nspeed ciphers [options] target
+        bench benchmark[,benchmark]
+        ciphers [options] target
 
 If there is at least one short-lived command, the program will end when all short-lived commands have ended. If there are only infinite commands, the program will wait for `ctrl-c` or a kill signal (daemon mode).
 

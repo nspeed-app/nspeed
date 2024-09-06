@@ -1,6 +1,9 @@
 package nspeed
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type NSError struct {
 	Value string
@@ -21,3 +24,6 @@ func (e *NSError) Error() string {
 func (e *NSError) Unwrap() error {
 	return e.Err
 }
+
+var ErrNotImplemented = errors.New("not implemented yet")
+var ErrNotSupported = errors.New("not supported")

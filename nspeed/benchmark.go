@@ -17,6 +17,15 @@ type BenchmarkArgs struct {
 }
 
 var benchmarksTemplates = map[string]Benchmark{
+	// QUIC (stdlib implementation)
+	"qp": {
+		Tpl:  "server {{.Args}} -id s{{.ID}} -P quic put -P quic {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "QUIC PUT, localhost",
+	},
+	"qg": {
+		Tpl:  "server {{.Args}} -id s{{.ID}} -P quic get -size {{.Size}} -P quic {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
+		Name: "QUIC GET, localhost",
+	},
 	// QUIC (quic-go implementation)
 	"qgp": {
 		Tpl:  "server {{.Args}} -id s{{.ID}} -P quic-go put -P quic-go {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",

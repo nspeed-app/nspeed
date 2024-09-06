@@ -302,6 +302,9 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 		return j.ServeTCP(ctx, network, wg)
 	}
 	if j.Parameters.Protocol == "quic-go" {
+		return j.ServeQUICGO(ctx, network, wg)
+	}
+	if j.Parameters.Protocol == "quic" {
 		return j.ServeQUIC(ctx, network, wg)
 	}
 	defer wg.Done()

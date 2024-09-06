@@ -15,6 +15,7 @@ import (
 	"time"
 
 	quicgo "github.com/quic-go/quic-go"
+	"golang.org/x/net/quic"
 	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
@@ -50,7 +51,52 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 			j.Logger().Info().Msgf("L4 client dialing %s %s with TLS", network, j.targetURL.Host)
 		}
 	case "quic":
-		return nil, fmt.Errorf("%s NYI", j.Protocol)
+		if j.tlsConfig == nil {
+			j.tlsConfig = &tls.Config{}
+		}
+		if j.tlsConfig.MinVersion == 0 {
+			j.tlsConfig.MinVersion = tls.VersionTLS13
+		}
+
+		// assert(network=="quic")
+		network = utils.AddIPVersionToNetwork("udp", j.IPVersion)
+
+		quicConf := &quic.Config{TLSConfig: j.tlsConfig}
+
+		localaddr := ""
+		if j.localAddr != nil {
+			j.dialer.LocalAddr = &net.UDPAddr{
+				IP:   j.localAddr.IP,
+				Zone: j.localAddr.Zone,
+			}
+			localaddr = j.dialer.LocalAddr.String()
+		}
+
+		endp, err := quic.Listen(network, localaddr, nil)
+
+		if err != nil {
+			return nil, fmt.Errorf("L4 client quic listen error: %w", err)
+		}
+
+		dialerContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+
+			j.Logger().Debug().Msgf("L4 QUIC client dialing %s %s", network, j.targetURL.Host)
+			qconn, err := endp.Dial(ctx, network, address, quicConf)
+			if err != nil {
+				return nil, fmt.Errorf("quic dial error: %w", err)
+			}
+			j.Logger().Debug().Msgf("L4 QUIC client connected to %s %s", network, j.targetURL.Host)
+			stream, err := qconn.NewStream(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("quic new stream error: %w", err)
+			}
+			c := quicStreamAsConn{
+				Stream: stream,
+				e:      endp,
+				c:      qconn,
+			}
+			return c, nil
+		}
 
 	case "quic-go":
 		quicConfig, quicTransport := quicgoInit(j)
@@ -80,7 +126,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 			if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 				return nil, fmt.Errorf("error quic dialing (%w)", err)
 			}
-			return ConnStream{str, conn}, nil
+			return quicgoStreamAsConn{str, conn}, nil
 		}
 
 	default:

@@ -10,12 +10,9 @@ import (
 
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
-	"golang.org/x/net/quic"
 	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
-
-type nativeQuic quic.Endpoint
 
 func quicgoInit(j *JobClient) (*quicgo.Config, *quicgo.Transport) {
 	quicConf := &quicgo.Config{}
@@ -45,21 +42,21 @@ func quicgoInit(j *JobClient) (*quicgo.Config, *quicgo.Transport) {
 	return quicConf, qTransport
 }
 
-// ConnStream make a quic Steam a net.Conn interface
-type ConnStream struct {
+// quicgoStreamAsConn make a quicgo Stream a net.Conn interface
+type quicgoStreamAsConn struct {
 	quicgo.Stream
 	c quicgo.Connection
 }
 
-func (str ConnStream) LocalAddr() net.Addr {
+func (str quicgoStreamAsConn) LocalAddr() net.Addr {
 	return str.c.LocalAddr()
 }
 
-func (str ConnStream) RemoteAddr() net.Addr {
+func (str quicgoStreamAsConn) RemoteAddr() net.Addr {
 	return str.c.RemoteAddr()
 }
 
-func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.WaitGroup) (*metric.Metric, error) {
 	// this avoid calling wg.Done() twice
 	done := false
 	defer func() {
@@ -84,7 +81,7 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 
 	ln, err := quicTransport.Listen(j.tlsConfig, quicConf)
 	if err != nil {
-		return nil, fmt.Errorf("ServeQUIC listen failed: %w", err)
+		return nil, fmt.Errorf("ServeQUICGO listen failed: %w", err)
 	}
 
 	acceptDone := make(chan error)
@@ -115,7 +112,7 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 			j.logger.Info().Msgf("L4 QUIC-GO server : incoming new connection from %s", conn.RemoteAddr())
 			j.TotalRequests.Add(1)
 			// spawn handling of streams for this connection
-			go handleQUICStreams(ctx, j, conn)
+			go handleQUICGOStreams(ctx, j, conn)
 		}
 	}()
 	err = nil
@@ -138,13 +135,13 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 
 }
 
-func handleQUICStreams(ctx context.Context, j *L4Server, conn quicgo.Connection) {
+func handleQUICGOStreams(ctx context.Context, j *L4Server, conn quicgo.Connection) {
 	for {
 		str, err := conn.AcceptStream(ctx)
 		if err != nil {
 			j.Logger().Info().Err(err).Msgf("L4 QUIC server conngolang.org/x/net.AcceptStream failed or ended")
 			return
 		}
-		go j.handleConnection(ConnStream{str, conn})
+		go j.handleConnection(quicgoStreamAsConn{str, conn})
 	}
 }
