@@ -2,6 +2,7 @@ package nspeed
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/url"
@@ -116,6 +117,10 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 
 	if j.tlsConfig == nil {
 		return nil, fmt.Errorf("ServeQUIC: no TLS config")
+	}
+
+	if j.tlsConfig.MinVersion == 0 {
+		j.tlsConfig.MinVersion = tls.VersionTLS13
 	}
 
 	j.logger.Debug().Msgf("ServeQUIC: listen %s - %s", network, j.addr)
