@@ -415,7 +415,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 	if err != nil {
 		j.logger.Debug().Err(err).Msgf("error parsing remote address: %s", conn.RemoteAddr().String())
 	}
-	wm.Protocol = "tcp"
+	wm.Protocol = j.Parameters.Protocol
 
 	if msg.Command == "PUT" {
 		j.logger.Debug().Msgf("L4 server started receiving loop for %d bytes", msg.Size)

@@ -18,7 +18,7 @@
           "id": "cmdArgs",
           "type": "promptString",
           "description": "commmand arguments",
-          "default": "-h"
+          "default": "-debug s -p 7777 -P quic"
         }
       ]
    
