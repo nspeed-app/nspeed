@@ -52,8 +52,9 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 		}
 	case "quic":
 		if j.tlsConfig == nil {
-			j.tlsConfig = &tls.Config{}
+			return nil, fmt.Errorf("quic client error: no tls config")
 		}
+
 		if j.tlsConfig.MinVersion == 0 {
 			j.tlsConfig.MinVersion = tls.VersionTLS13
 		}
@@ -101,7 +102,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 	case "quic-go":
 		quicConfig, quicTransport := quicgoInit(j)
 		if j.tlsConfig == nil {
-			j.tlsConfig = &tls.Config{}
+			return nil, fmt.Errorf("quic-go client error: no tls config")
 		}
 		dialerContext = func(ctx context.Context, network, address string) (net.Conn, error) {
 			addr, err := net.ResolveUDPAddr("udp", address)

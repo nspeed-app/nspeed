@@ -244,6 +244,7 @@ func (j *JobClient) Init(opt Options) error {
 		// so something like this won't work:
 		// netTransport.TLSClientConfig.CipherSuites = []uint16{tls.TLS_CHACHA20_POLY1305_SHA256}
 		// netTransport.TLSClientConfig.MinVersion = tls.VersionTLS13
+		// so we cannot (for now?) specify a cipher
 	}
 	if j.SkipTLSCheck {
 		j.tlsConfig = &tls.Config{InsecureSkipVerify: true}
