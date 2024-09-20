@@ -391,7 +391,7 @@ func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGr
 func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*result chan metric.Metric*/) {
 	defer conn.Close()
 
-	j.Logger().Debug().Msgf("incoming connection from %s", conn.RemoteAddr())
+	j.Logger().Warn().Msgf("incoming connection from %s", conn.RemoteAddr())
 
 	var chunkSize int64 = 1 * 1024 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 	chunk := utils.GetChunk(chunkSize)
@@ -407,6 +407,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 
 	// read message
 	msg, err := ReadL4Message(conn)
+	fmt.Println("SERVER GOT MESSAGE:", msg, err)
 	if err != nil {
 		j.logger.Error().Err(err).Msgf("read message failed")
 		return
@@ -418,7 +419,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 	wm.Protocol = j.Parameters.Protocol
 
 	if msg.Command == "PUT" {
-		j.logger.Debug().Msgf("L4 server started receiving loop for %d bytes", msg.Size)
+		j.logger.Info().Msgf("L4 server started receiving loop for %d bytes", msg.Size)
 		for {
 			n, err := conn.Read(chunk)
 			if err != nil {
@@ -434,7 +435,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 		wm.Valid = true
 	}
 	if msg.Command == "GET" {
-		j.logger.Debug().Msgf("L4 server started sending loop for %d bytes", msg.Size)
+		j.logger.Info().Msgf("L4 server started sending loop for %d bytes", msg.Size)
 		// wm will produce ContentWriteSize starting from TotalWrite with chunks of size wm.WriteStepSize
 		wm.ContentWriteSize = msg.Size
 		wm.TotalWrite = 0

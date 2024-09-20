@@ -95,6 +95,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 				Stream: stream,
 				e:      endp,
 				c:      qconn,
+				who:    j.id,
 			}
 			return c, nil
 		}
@@ -192,6 +193,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 		msg.Command = "PUT"
 	}
 	err = WriteL4Message(conn, &msg)
+	fmt.Println("message written", err)
 	if err != nil {
 		j.wm.Error = err
 		return nil, fmt.Errorf("write message failed: %w", err)
@@ -224,7 +226,6 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 		j.wm.TotalRead = 0
 		iocmd = func(n int64) (int64, error) {
 			nw, err := conn.Read(chunk[:j.wm.ReadStepSize])
-
 			nn := j.wm.WriteN(int64(nw))
 
 			if j.wm.TotalRead >= j.wm.ContentReadSize {

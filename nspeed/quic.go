@@ -32,8 +32,9 @@ func quicClientInit(j *JobClient) (*quic.Config, *quic.Endpoint) {
 
 type quicStreamAsConn struct {
 	*quic.Stream
-	e *quic.Endpoint
-	c *quic.Conn
+	e   *quic.Endpoint
+	c   *quic.Conn
+	who string // remove or replace with a Logger
 }
 
 // this enforces here that quicStreamAsConn implements net.Conn
@@ -50,6 +51,12 @@ var _ net.Conn = (*quicStreamAsConn)(nil)
 // 	SetReadDeadline(t time.Time) error
 // 	SetWriteDeadline(t time.Time) error
 // }
+
+func (str quicStreamAsConn) Read(b []byte) (n int, err error) {
+	n, err = str.Stream.Read(b)
+	fmt.Println(str.who, "READING", n, err)
+	return
+}
 
 func (str quicStreamAsConn) Close() error {
 	if str.Stream == nil {
@@ -81,6 +88,7 @@ func (str quicStreamAsConn) SetReadDeadline(t time.Time) error {
 }
 
 func (str quicStreamAsConn) SetWriteDeadline(t time.Time) error {
+	fmt.Println(str.who, "SETTING WRITE DEADLINE of %d", t)
 	if str.Stream == nil {
 		return fmt.Errorf("SetWriteDeadline on nil stream")
 	}
@@ -102,6 +110,14 @@ func (str quicStreamAsConn) RemoteAddr() net.Addr {
 		return &net.UDPAddr{}
 	}
 	return net.UDPAddrFromAddrPort(str.c.RemoteAddr())
+}
+
+func (str quicStreamAsConn) Flush() error {
+	if str.Stream == nil {
+		return fmt.Errorf("no stream to flush")
+	}
+	str.Stream.Flush()
+	return nil
 }
 
 // SERVER
@@ -146,6 +162,7 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 	go func() {
 		for {
 			conn, err := endp.Accept(ctx)
+			fmt.Println("ACCEPT QUIC", err)
 			if err != nil {
 				j.Logger().Debug().Err(err).Msgf("accept failed with:")
 				if running.Load() {
@@ -155,19 +172,20 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 				}
 				break
 			}
-			fmt.Println("BOUBOUB")
 			j.logger.Info().Msgf("L4 QUIC-GO server : incoming new connection from %s", conn.RemoteAddr())
 			j.TotalRequests.Add(1)
 			// spawn handling of streams for this connection
-			go handleQUICStreams(ctx, j, endp, conn)
+			go handleQUICStream(ctx, j, endp, conn)
 		}
 	}()
 	err = nil
 	j.Logger().Debug().Msgf("entering wait loop")
 	select {
 	case err = <-acceptDone:
+		fmt.Println("DONE")
 	case <-ctx.Done():
 		running.Store(false)
+		fmt.Println("CONTEXT")
 		// todo , we silently ignore context error (cancel/timeout)
 		err = nil
 	}
@@ -182,13 +200,14 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 
 }
 
-func handleQUICStreams(ctx context.Context, j *L4Server, endp *quic.Endpoint, conn *quic.Conn) {
-	for {
-		str, err := conn.AcceptStream(ctx)
-		if err != nil {
-			j.Logger().Info().Err(err).Msgf("L4 QUIC server quic.AcceptStream failed")
-			return
-		}
-		go j.handleConnection(quicStreamAsConn{str, endp, conn})
+func handleQUICStream(ctx context.Context, j *L4Server, endp *quic.Endpoint, conn *quic.Conn) {
+	//for {
+	str, err := conn.AcceptStream(ctx)
+	fmt.Println("ACCEPT STREAM", err)
+	if err != nil {
+		j.Logger().Info().Err(err).Msgf("L4 QUIC server quic.AcceptStream failed")
+		return
 	}
+	go j.handleConnection(quicStreamAsConn{str, endp, conn, j.id})
+	//}
 }

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/rs/zerolog/log"
 )
 
 const L4MessageCookie = "NSPEED-COOKIE-1"
@@ -67,6 +69,8 @@ func WriteL4Message(w io.Writer, msg *L4Message) error {
 	flushable, ok := w.(interface{ Flush() error })
 	if ok {
 		return flushable.Flush()
+	} else {
+		log.Warn().Msg("not flushable")
 	}
 	return nil
 }
