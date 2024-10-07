@@ -66,12 +66,12 @@ func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.Wai
 	}()
 
 	if j.tlsConfig == nil {
-		return nil, fmt.Errorf("ServeQUIC: no TLS config")
+		return nil, fmt.Errorf("ServeQUICGO: no TLS config")
 	}
 
 	udpConn, err := listenUDP(j.addr, j.Parameters.IPVersion)
 	if err != nil {
-		return nil, fmt.Errorf("ServeQUIC listenUDP error: %w", err)
+		return nil, fmt.Errorf("ServeQUICGO listenUDP error: %w", err)
 	}
 	j.logger.Debug().Msgf("ServerQUIC: listen %s - %s", network, j.addr)
 	quicConf := &quicgo.Config{}

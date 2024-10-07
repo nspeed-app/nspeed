@@ -402,12 +402,12 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 	err := conn.SetDeadline(time.Now().Add(j.Parameters.MaxDuration))
 	if err != nil {
 		j.logger.Error().Err(err).Msgf("SetDeadline failed")
-		// return dont fail ?
+		return
 	}
 
 	// read message
 	msg, err := ReadL4Message(conn)
-	fmt.Println("SERVER GOT MESSAGE:", msg, err)
+	j.logger.Info().Msgf("SERVER GOT MESSAGE: %+v (err=%+v)", msg, err)
 	if err != nil {
 		j.logger.Error().Err(err).Msgf("read message failed")
 		return
@@ -461,6 +461,13 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 					wm.Valid = true
 				}
 				break
+			}
+		}
+		if wm.Error == nil {
+			err = FlushConn(conn)
+			j.logger.Trace().Msg("L4 flushing")
+			if err != nil {
+				j.logger.Warn().Err(err).Msg("error flushing")
 			}
 		}
 	}

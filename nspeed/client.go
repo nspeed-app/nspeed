@@ -59,21 +59,20 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 			j.tlsConfig.MinVersion = tls.VersionTLS13
 		}
 
-		// assert(network=="quic")
 		network = utils.AddIPVersionToNetwork("udp", j.IPVersion)
 
 		quicConf := &quic.Config{TLSConfig: j.tlsConfig}
 
-		localaddr := ":0"
+		localAddr := ":0"
 		if j.localAddr != nil {
 			j.dialer.LocalAddr = &net.UDPAddr{
 				IP:   j.localAddr.IP,
 				Zone: j.localAddr.Zone,
 			}
-			localaddr = j.dialer.LocalAddr.String()
+			localAddr = j.dialer.LocalAddr.String()
 		}
 
-		endp, err := quic.Listen(network, localaddr, nil)
+		endp, err := quic.Listen(network, localAddr, nil)
 
 		if err != nil {
 			return nil, fmt.Errorf("L4 client quic listen error: %w", err)
@@ -91,7 +90,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 			if err != nil {
 				return nil, fmt.Errorf("quic new stream error: %w", err)
 			}
-			c := quicStreamAsConn{
+			c := &quicStreamAsConn{
 				Stream: stream,
 				e:      endp,
 				c:      qconn,
@@ -142,8 +141,10 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 	}
 	defer conn.Close()
 
-	if err := conn.SetDeadline(time.Now().Add(j.Timeout)); err != nil {
-		return nil, fmt.Errorf("SetDeadline error: %w", err)
+	if j.Timeout != 0 {
+		if err := conn.SetDeadline(time.Now().Add(j.Timeout)); err != nil {
+			return nil, fmt.Errorf("SetDeadline error: %w", err)
+		}
 	}
 
 	if j.ContentSize == 0 {
@@ -193,7 +194,6 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 		msg.Command = "PUT"
 	}
 	err = WriteL4Message(conn, &msg)
-	fmt.Println("message written", err)
 	if err != nil {
 		j.wm.Error = err
 		return nil, fmt.Errorf("write message failed: %w", err)
@@ -264,7 +264,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 				break
 			}
 			if err != nil {
-				j.wm.Error = fmt.Errorf("conn io error: %w", err)
+				j.wm.Error = fmt.Errorf("conn io error: %w %s", err, reflect.TypeOf(err))
 				var opError *net.OpError
 				if errors.As(err, &opError) {
 					if opError.Timeout() {
@@ -274,6 +274,11 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 				}
 				//quic-go generates os.ErrDeadlineExceeded
 				if errors.Is(err, syscall.ECONNRESET) || errors.Is(err, os.ErrDeadlineExceeded) {
+					j.wm.Cancelled = true
+					j.wm.Error = nil
+				}
+				// quic generates  context.DeadlineExceeded
+				if errors.Is(err, context.DeadlineExceeded) {
 					j.wm.Cancelled = true
 					j.wm.Error = nil
 				}
