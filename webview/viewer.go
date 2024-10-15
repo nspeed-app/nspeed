@@ -210,10 +210,9 @@ func genViewTemplate(tick time.Duration, vid, route string, path string) string 
 		Interval:  int(tick.Milliseconds()),
 		MaxPoints: defaultCfg.MaxPoints,
 		URL:       defaultCfg.LinkAddr,
-		Route:     url.PathEscape(path + "/" + route),
+		Route:     path + "/" + url.PathEscape(route),
 		ViewID:    vid,
 	}
-
 	buf := bytes.Buffer{}
 	if err := tpl.Execute(&buf, c); err != nil {
 		panic("statsview: failed to execute template " + err.Error())

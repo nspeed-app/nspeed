@@ -1,6 +1,7 @@
 # v0.0.11
+- **new protocol**: raw quic connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P quic` to use quic instead of http. 
 - **new protocol**: raw tcp connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P tcp` to use tcp instead of http. 
-- **new protocol**: raw quic-go connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P quic-go` to use tcp instead of http. (official std lib quic: still a wip )
+- **new protocol**: raw quic-go connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P quic-go` to use quic-go instead of http
 - **new command**: `from uri` (abbr. `f`) will read commands from the file/url (use `-` for stdin)
 - **new command**: `then [options]` (abbr. `t`) execute previous command(s) before continuing.
 - **new command**: `bench` (abbr `b`) (see corresponding bench section below)

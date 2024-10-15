@@ -6,7 +6,6 @@ toolchain go1.23.0
 
 require (
 	github.com/arl/statsviz v0.6.0
-	github.com/go-echarts/go-echarts v1.0.0
 	github.com/go-echarts/go-echarts/v2 v2.4.3
 	github.com/go-echarts/statsview v0.4.2
 	github.com/google/gopacket v1.1.19

@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/arl/statsviz"
-	"github.com/go-echarts/go-echarts/templates"
 	"github.com/go-echarts/go-echarts/v2/components"
+	"github.com/go-echarts/go-echarts/v2/templates"
 	"nspeed.app/utils"
 
 	"github.com/go-echarts/statsview/statics"
@@ -178,8 +179,9 @@ func (vm *ViewManager) RegisterRoutes(mux *http.ServeMux) {
 		// mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 	for _, v := range vm.Views {
-		//fmt.Println("registering:" + v.Name())
-		mux.HandleFunc("/"+vm.path+"/"+v.Name(), v.Serve)
+		//fmt.Printf("registering: %v+\n", v)
+		mux.HandleFunc("/"+vm.path+"/"+url.PathEscape(v.Name()), v.Serve)
+		fmt.Println("route added:", vm.path+"/"+v.Name())
 	}
 	if vm.debug {
 		for _, v := range vm.PerfViews {
