@@ -23,7 +23,7 @@ func GetNetStats(interfaces []net.Interface, dir string) []float64 {
 		if err != nil {
 			value = -1
 		} else {
-			fmt.Fscanf(file, "%d", &value)
+			_, _ = fmt.Fscanf(file, "%d", &value)
 		}
 		values = append(values, float64(value))
 	}

@@ -168,9 +168,8 @@ func (j *JobClient) PrintString(verbose bool, group bool) string {
 		t := strings.ToLower(j.Command) + " " + groupFormat + "%s" + j.finalTarget + " " + utils.ByteCountDecimal(j.ContentSize) + "B" //todo
 		r := fmt.Sprintf(t, utils.HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
-	} else {
-		return "unknown command"
 	}
+	return "unknown command"
 }
 
 func (j *JobClient) IsInfinite() bool { return false }
@@ -337,7 +336,7 @@ func (j *JobClient) HTTPInit() error {
 		if j.HTTPVersion == 3 {
 			quicConf, qTransport := quicgoInit(j)
 			// the roundtrip
-			rtTransport = &http3.RoundTripper{
+			rtTransport = &http3.Transport{
 				DisableCompression: true,
 				TLSClientConfig:    netTransport.TLSClientConfig,
 				QUICConfig:         quicConf,

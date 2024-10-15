@@ -22,7 +22,7 @@ func quicgoInit(j *JobClient) (*quicgo.Config, *quicgo.Transport) {
 		quicConf.Tracer = NewQuicTracer(j.wm)
 	}
 
-	// with use http3.RoundTripper but it doesnt expose its qTransport member field so we must use our own
+	// with use http3.Transport but it doesnt expose its qTransport member field so we must use our own
 	var qTransport *quicgo.Transport
 	defer func() {
 		if qTransport != nil {
@@ -139,7 +139,7 @@ func handleQUICGOStreams(ctx context.Context, j *L4Server, conn quicgo.Connectio
 	for {
 		str, err := conn.AcceptStream(ctx)
 		if err != nil {
-			j.Logger().Info().Err(err).Msgf("L4 QUIC server conngolang.org/x/net.AcceptStream failed or ended")
+			j.Logger().Info().Err(err).Msgf("L4 QUIC-GO server AcceptStream failed or ended")
 			return
 		}
 		go j.handleConnection(quicgoStreamAsConn{str, conn})

@@ -57,9 +57,8 @@ func NewNetInterfacesViewer(tick time.Duration, ifaces []net.Interface, dir stri
 		// charts.WithXAxisOpts(
 		// )
 		charts.WithYAxisOpts(opts.YAxis{
-			Name: ChartNames[dir],
-			//AxisLabel: &opts.AxisLabel{Formatter: "function (value, index) { return formatBytes(value,index,2) }"},
-			AxisLabel: &opts.AxisLabel{Formatter: string(opts.FuncOpts("function (value, index) { return formatBytes(value,'bps',2) }"))},
+			Name:      ChartNames[dir],
+			AxisLabel: &opts.AxisLabel{Formatter: opts.FuncOpts("function (value, index) { return formatBytes(value,'bps',2) }")},
 		}),
 		charts.WithLegendOpts(opts.Legend{Show: opts.Bool(true)}),
 		charts.WithTooltipOpts(opts.Tooltip{

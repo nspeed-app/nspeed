@@ -14,21 +14,19 @@ import (
 	"nspeed.app/metric"
 )
 
-func quicClientInit(j *JobClient) (*quic.Config, *quic.Endpoint) {
-	quicConf := &quic.Config{}
-	endp := &quic.Endpoint{}
+// func quicClientInit(j *JobClient) (*quic.Config, *quic.Endpoint) {
+// 	quicConf := &quic.Config{}
+// 	endp := &quic.Endpoint{}
 
-	// todo tracing
-
-	// since we use Dialcontext we need to set a proper local *net.UDPAddr for LocalAddr
-	if j.localAddr != nil {
-		j.dialer.LocalAddr = &net.UDPAddr{
-			IP:   j.localAddr.IP,
-			Zone: j.localAddr.Zone,
-		}
-	}
-	return quicConf, endp
-}
+// 	// since we use Dialcontext we need to set a proper local *net.UDPAddr for LocalAddr
+// 	if j.localAddr != nil {
+// 		j.dialer.LocalAddr = &net.UDPAddr{
+// 			IP:   j.localAddr.IP,
+// 			Zone: j.localAddr.Zone,
+// 		}
+// 	}
+// 	return quicConf, endp
+// }
 
 type quicStreamAsConn struct {
 	*quic.Stream
@@ -78,10 +76,9 @@ func (str *quicStreamAsConn) Close() error {
 	}
 	err := str.Stream.Close()
 	return err
-	//TODO-server closing conn leads to stream reset by peer client side.
 	// we're mono stream per connection for now so we close the conn when we close the stream
 	// to avoid execution order issue, we don't join the Close()s in a oneliner
-	// return errors.Join(err, str.c.Close())
+	//return errors.Join(err, str.c.Close())
 
 }
 func (str *quicStreamAsConn) SetDeadline(t time.Time) error {
@@ -236,6 +233,13 @@ func handleQUICStream(ctx context.Context, j *L4Server, endp *quic.Endpoint, con
 			c:      conn,
 			who:    j.id,
 		}
-		go j.handleConnection(c)
+		go func() {
+			j.handleConnection(c)
+			conn.Abort(&quic.ApplicationError{
+				Code:   2,
+				Reason: "CLOSING",
+			})
+			_ = conn.Wait(context.Background())
+		}()
 	}
 }

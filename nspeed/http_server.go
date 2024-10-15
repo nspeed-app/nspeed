@@ -60,7 +60,7 @@ type JobHTTPServer struct {
 	Server        *http.Server
 	Mux           *http.ServeMux
 	Cancel        context.CancelFunc
-	Close         func(t time.Duration)
+	Shutdown      func(t time.Duration)
 	TotalRequests int
 	mutex         sync.Mutex
 	api           *APIHost
@@ -637,7 +637,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) 
 	exitCh := make(chan struct{})
 
 	// call this to shutdown server (net.http version)
-	j.Close = func(shutdownTimeout time.Duration) {
+	j.Shutdown = func(shutdownTimeout time.Duration) {
 		lctx, lcancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer lcancel()
 
@@ -652,7 +652,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) 
 		<-ctx.Done()
 		j.Logger().Debug().Msgf("shutdown started by context : %s", ctx.Err())
 
-		j.Close(j.Parameters.MaxDuration + 1*time.Second) //todo check with global timeout too
+		j.Shutdown(j.Parameters.MaxDuration + 1*time.Second) //todo check with global timeout too
 
 		close(exitCh)
 	}()
@@ -786,9 +786,8 @@ func (j *JobHTTPServer) serve() error {
 		}
 		return j.Server.ServeTLS(*j.listener, "", "")
 
-	} else {
-		return j.Server.Serve(*j.listener)
 	}
+	return j.Server.Serve(*j.listener)
 }
 
 // nolint
@@ -893,11 +892,13 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 	// this blocks or fail
 	j.Logger().Info().Msgf("nspeed serving https://%s (http3 on udp)", j.Server.Addr)
 
-	j.Close = func(shutdownTimeout time.Duration) {
-		j.Logger().Debug().Msgf("warning CloseGracefully() NYI for quic server, shuting down with Close() -> expect a fatal error")
-		// nyi: quicServer.CloseGracefully(shutdownTimeout)
-		err := quicServer.Close()
-		j.Logger().Info().Err(err).Msg("quicServer Close called")
+	j.Shutdown = func(shutdownTimeout time.Duration) {
+		j.Logger().Debug().Msgf("")
+		lctx, lcancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer lcancel()
+		if err := quicServer.Shutdown(lctx); err != nil {
+			j.Logger().Debug().Msgf("GO-QUIC server shutdown error: %s", err)
+		}
 	}
 	return quicServer.Serve(j.udpConn)
 }
