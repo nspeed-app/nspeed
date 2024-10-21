@@ -47,14 +47,14 @@ type Command struct {
 
 // list of supported commands.
 var Commands = map[string]Command{
-	getCommand:     {getCommand, 1, true, HTTPClientParseGet},
-	putCommand:     {putCommand, 1, true, HTTPClientParsePutPost},
-	postCommand:    {postCommand, 1, true, HTTPClientParsePutPost},
-	serveCommand:   {serveCommand, 1, true, ServerParse},
-	ciphersCommand: {ciphersCommand, 0, false, CiphersParse},
+	getCommand:     {getCommand, 1, true, CmdClientParseGet},
+	putCommand:     {putCommand, 1, true, CmdClientParsePutPost},
+	postCommand:    {postCommand, 1, true, CmdClientParsePutPost},
+	serveCommand:   {serveCommand, 1, true, CmdServerParse},
+	ciphersCommand: {ciphersCommand, 0, false, CmdCiphersParse},
 	// latencyCommand:    {latencyCommand, 1, true},
 	// tracerouteCommand: {tracerouteCommand, 2, true},
-	apiCommand:       {apiCommand, 1, false, HTTPAPIParse},
+	apiCommand:       {apiCommand, 1, false, CmdAPIParse},
 	benchmarkCommand: {benchmarkCommand, 1, true, nil},
 	fromCommand:      {fromCommand, 1, true, nil},
 	thenCommand:      {thenCommand, 1, true, nil},

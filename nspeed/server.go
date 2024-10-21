@@ -87,7 +87,7 @@ func NewHostParameters() *HostParameters {
 	}
 }
 
-func ServerParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
+func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
 	fs.SetOutput(output)
 	host := NewHostParameters()

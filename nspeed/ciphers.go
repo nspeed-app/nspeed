@@ -260,7 +260,7 @@ func LogCipher(host, port, tlsVersion string, ciphers []uint16, log *zerolog.Log
 	}
 }
 
-func CiphersParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
+func CmdCiphersParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
 	fs.SetOutput(output)
 	j := JobCiphers{}

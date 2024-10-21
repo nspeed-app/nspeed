@@ -75,7 +75,7 @@ func preflight(h http.Handler) http.Handler {
 }
 
 // command line parsers
-func HTTPClientParseGet(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
+func CmdClientParseGet(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	fs, hf := clientCommonFlagSet(command, flag.ContinueOnError, output)
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "Usage of %s: ", getCommand)
@@ -134,7 +134,7 @@ func expandJobs(instances int, j *JobClient) []Job {
 	return jobs
 }
 
-func HTTPClientParsePutPost(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
+func CmdClientParsePutPost(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	j := JobClient{JobData: JobData{jobList: jl}}
 	j.Command = "PUT"
 	if command == postCommand {
