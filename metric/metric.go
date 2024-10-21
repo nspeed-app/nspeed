@@ -303,6 +303,7 @@ func (wm *Metric) InitNew() {
 	wm.Logger().Debug().Msgf("wm InitNew called")
 }
 
+// Close marks a Metric as valid and set various other statuses
 func (wm *Metric) Close() error {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()

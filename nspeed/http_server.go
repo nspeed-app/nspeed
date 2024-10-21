@@ -337,6 +337,8 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		Cipher:     utils.TLSCipherSuite(r.TLS),
 		TLSVersion: utils.TLSVersionFriendlyName(utils.TLSVersion(r.TLS)),
 	}
+	defer wm.Close()
+
 	wm.SetLogger(utils.Ptr(j.Logger().With().
 		Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
 		Str("x-request-guid", guid).

@@ -94,11 +94,11 @@ var benchmarksTemplates = map[string]Benchmark{
 
 	// HTTPS/3
 	"h3g": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 get {{.Args}} -n {{.N}} -http3 nspeed://s{{.ID}}/{{.Size}}",
+		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 get -self {{.Args}} -n {{.N}} -http3 nspeed://s{{.ID}}/{{.Size}}",
 		Name: "HTTP/3 GET, localhost, tls, udp",
 	},
 	"h3p": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 put {{.Args}} -n {{.N}} -http3 nspeed://s{{.ID}}/ {{.Size}}",
+		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 put -self {{.Args}} -n {{.N}} -http3 nspeed://s{{.ID}}/ {{.Size}}",
 		Name: "HTTP/3 PUT, localhost, tls, udp",
 	},
 }

@@ -377,9 +377,18 @@ mainloop:
 			break mainloop
 		}
 	}
+
 	log.Debug().Msgf("main loop ended. total results: %d / active goroutines: %d", len(results.Metrics), runtime.NumGoroutine())
 
+	// print errors in jobs
 	results.Batches = jl.BatcheNames()
+	for _, v := range results.Metrics {
+		if v.Error != nil {
+			v.Logger().Warn().Err(v.Error).Msgf("error")
+		}
+	}
+
+	// remove invalid jobs
 	results.Cleanup()
 
 	// post delay -todo share more code with pre delay
