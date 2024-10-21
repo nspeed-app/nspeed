@@ -1,3 +1,3 @@
-module github.com/nspeed-app/nspeed
+module nspeed.app/nspeed
 
 go 1.20
