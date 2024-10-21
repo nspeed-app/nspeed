@@ -1,0 +1,25 @@
+# publish to winget
+# source: https://github.com/JanDeDobbeleer/oh-my-posh/blob/main/.github/workflows/winget.yml
+name: Winget
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The latest version'
+        required: true
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: ${{ github.workspace }}/packages/winget
+    env:
+      WINGETCREATE_TOKEN: ${{ secrets.WINGETCREATE_TOKEN }}
+    steps:
+    - name: Checkout code 👋
+      uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+    - name: Create manifest and submit PR 📦
+      run: |
+        ./build.ps1 -Version "${{ github.event.inputs.version }}" -Token $env:WINGETCREATE_TOKEN
