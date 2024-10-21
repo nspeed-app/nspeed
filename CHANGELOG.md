@@ -1,3 +1,49 @@
+# v0.0.11
+- **new protocol**: raw quic connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P quic` to use quic instead of http. this is a wip/experimental feature , see https://pkg.go.dev/golang.org/x/net/quic 
+- **new protocol**: raw tcp connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P tcp` to use tcp instead of http. TLS can be used or not.
+- **new protocol**: raw quic-go connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P quic-go` to use quic-go instead of http
+- **new command**: `from uri` (abbr. `f`) will read commands from the file/url (use `-` for stdin)
+- **new command**: `then [options]` (abbr. `t`) execute previous command(s) before continuing.
+- **new command**: `bench` (abbr `b`) (see corresponding bench section below)
+- using semantic version (before it would have been **v0.11** -> now it's **v0.0.11**)
+- using goreleaser
+- using Go 1.23
+- Darwin (MacOS) build: -cpu now works
+- using GOAMD64 levels: (see https://github.com/golang/go/wiki/MinimumRequirements#amd64 ). for now only level1 (_v1) is built.
+- less info displayed with `-version`. Use `-version full` for more infos.
+- **breaking changes in behavior**: 'infinite' commands (commands that usually never end like `server` and `api`) are stopped if combined with "short-lived" commands like `get` or `put` (for instance `nspeed server get http://google.com/` will end after the `get` is finished. In previous version it would wait forever for a kill signal). If all commands are "infinite" then the program will not stop until killed (=daemon mode)
+- cleaned out text output, reformatted cpu output. Verbose & debug messages now display the job name at the beginning of the line. 
+- **new flags**: `-display-log-level` and `-display-log-time` to toggle their respective fields.
+- **breaking change**: the `-tick duration` flag is now a duration instead of an integer of seconds (default remain 1 second). It doesn't control the sampling rate of `-cpu` anymore (see `-cpurate`). The `-tick` rate is the rate of trace & debug messages.
+- **new flag**: `-rate duration` used to set the frequency generating the time series data for json/html output Default is 1s.
+- **new flag**: `-cpurate duration` used to set the cpu sampling rate (implies `-cpu`)
+- **new flag**: `-html filename` to record the results to a html file. Use `-rate duration` to add time series. (**wip**. on local machine using ``:`` as filename will open directly the result in a web browser (no html file is created , it is just sent to the browser using a temporary  web server))
+- **new flag**: `-json filename` to record the results to a json file. Use `-rate duration` to add time series.
+- **new flag**: `-dns-server address[:port]` to specify a dns server (literal ip address with optional port)
+- **new flag**: `-ungroup` show each stream result of a multi-streams command (see client below) 
+- **new flag**: `-4/-6` to use IPv4 only or IPv6 only (doesn't override these options at the command level)
+## bench
+- new `bench` command (abbrev `b`) : allow to launch loopback interface tests (server and get/put on a localhost server). see `nspeed bench -h` for available benchmarks.
+## server
+ - *breaking changes*: `-t` flag renamed to `-m` to be like curl.
+ - **new flags**: `-http1.1` and `-http2` to enforce the HTTP version used
+ - *breaking change*: the default port is now a *random , available port instead of 7333*. Use `-p port` to use a specific port.
+ - **new flag**: `-id string` to set a uniq id/name for this server (which then can be used in `nspeed://name` url scheme)
+ - An upload to a nspeed server (`PUT` and `POST`) now returns metrics data in json format in the response body
+ - a request of the root path ('/') will now return some informations in json (instead of "Not found (no regexp match)")
+ - A download from a nspeed server returns a special header named `x-nspeed-guid` which value is a **short-lived unique identifier** identifying this download. Sending a request to the server with that same header will return the metrics data in json of this download. The delay is 5 seconds (could change in the future or be configurable). See examples section in the README.md file.
+## Client
+- the `get` command now accepts the `-size` to limit the number of bytes received (defaut is 0 = no limit)
+- *breaking changes*: `-http11` flag renamed to `-http1.1`
+- *breaking changes*: `-t` flag renamed to `-m` to be on par with Curl.
+- in conjunction with the new server `-id` flag, a special new url scheme `nspeed:name` is now supported to reference the url address of the corresponding server (draft)
+ - **new flag**: `-connect-timeout` maximum duration for the initial connection (=timeout before dial abort)
+ - **new flag**: `-http2` to force using HTTP/2
+ - **new flag**: `-id string` to set a uniq id/name for this command
+- multiple connections commands (`-n number` flag) are now summed and grouped in the report. Use the new global flag `-ungroup` to see each result for each connection.
+## ciphers
+- fixed TLS version text messages
+
 # v0.10
 ## general
 - experimental support of HTTP/3 using quic-go ( see HTTP/3 section )
