@@ -1,6 +1,6 @@
 // Copyright (c) Jean-Francois Giorgi & AUTHORS
 // parts of nspeed.app
-// parts from https://go.dev/
+// parts are from https://go.dev/
 // SPDX-License-Identifier: BSD-3-Clause
 
 package utils
