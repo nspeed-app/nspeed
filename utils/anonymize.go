@@ -47,22 +47,23 @@ const (
 	FormatV6FirstLast = "18"
 )
 
-// AnonymizeIP is like String(): it returns the string form of the IP address ip.
-// Some values are replaced by "xxx"/"xxxx" depending on formatV4 and formatV6 parameters.
+// AnonymizeIP is similar to net.IP.String(): it returns the string form of an IP address.
+// Some parts of the address are replaced by "xxx"/"xxxx" depending on the formatV4 and formatV6
+// parameters.
 // It returns one of 4 forms:
 //   - "<nil>", if ip has length 0
-//   - dotted decimal ("192.0.2.1"), if ip is an IPv4 or IP4-mapped IPv6 address
-//   - IPv6 conforming to RFC 5952 ("2001:db8::1"), if ip is a valid IPv6 address
+//   - a dotted decimal IPV4 ("192.0.2.1"), if ip is an IPv4 or IP4-mapped IPv6 address
+//   - an IPv6 conforming to RFC 5952 ("2001:db8::1"), if ip is a valid IPv6 address
 //   - the hexadecimal form of ip, without punctuation, if no other cases apply
 //
-// formatV4 and formatV6  are the list of indexes (starting from) for which show the real value of.
+// formatV4 and formatV6 are the list of indexes (starting from 1) for which to show their value.
 // IPv4 addresses are 4 bytes with indexes: 1.2.3.4
 // IPv6 addresses are 8 words (1 word = 2 bytes) with indexes: 1:2:3:4:5:6:7:8
 // A byte/word of the address is replaced with "xxx"/"xxxx" if its index is not
 // in the corresponding formatV4/formatV6
-// so 192.168.12.34 will return 192.168.xxx.xxx is FormatV4 = "12"
-// and fe80::abcd:efab:1234:5678 will return fe80::xxx:xxxx:xxxx:5678%eth0 if FormatV6="18"
-// This function and its 3 functions it uses are copied and modified from net.IP.String() Go std lib
+// so 192.168.12.34 will return "192.168.xxx.xxx" is FormatV4 = "12"
+// and fe80::abcd:efab:1234:5678 will return "fe80::xxx:xxxx:xxxx:5678" if FormatV6="18"
+// This function and the 3 other functions it uses are copied and modified from net.IP.String() Go std lib
 func AnonymizeIP(ip net.IP, formatV4 string, formatV6 string) string {
 	p := ip
 
