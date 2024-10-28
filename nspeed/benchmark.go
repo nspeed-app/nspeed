@@ -79,7 +79,7 @@ var benchmarksTemplates = map[string]Benchmark{
 	},
 	"h1sp": {
 		Tpl:  "server {{.Args}} -id s{{.ID}} -self put {{.Args}} -n {{.N}} -self -http1.1 nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "HTTPS/1.1 GET, localhost, TLS",
+		Name: "HTTPS/1.1 PUT, localhost, TLS",
 	},
 
 	// HTTPS/2
