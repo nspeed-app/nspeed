@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/gopacket/routing"
 	"github.com/libp2p/go-netroute"
-	"github.com/rs/zerolog/log"
 )
 
 // SetDNSServer specifies a custom DNS server (globally).
@@ -28,7 +27,6 @@ func SetDNSServer(address string) error {
 		}
 		addrPort = netip.AddrPortFrom(addr, 53)
 	}
-	log.Logger.Info().Msgf("DNS server set %s", addrPort)
 	net.DefaultResolver.PreferGo = true
 	net.DefaultResolver.Dial = func(context context.Context, network, address string) (net.Conn, error) {
 		var d net.Dialer
@@ -134,7 +132,6 @@ func ResolveInterfaceHostAddress(host string) ([]net.IPAddr, error) {
 	for _, addr := range addrs {
 		ipn, ok := addr.(*net.IPNet)
 		if !ok {
-			//log.Error("not IPAddr %s\n", addr.String())
 			continue
 		}
 		if ipn.IP == nil {
@@ -307,14 +304,13 @@ func GetNetInterfaces(names []string) ([]net.Interface, error) {
 // 		(f.acceptPattern != nil && !f.acceptPattern.MatchString(name)))
 // }
 
+// RouteurError is not nil if there was an issue creating the internal router
+var RouterError error
+
 var router routing.Router
 
 func init() {
-	var err error
-	router, err = netroute.New()
-	if err != nil {
-		log.Error().Err(err).Msgf("no routing information")
-	}
+	router, RouterError = netroute.New()
 }
 
 // GetRoute return routing info for destination which must be "ip:port" combo

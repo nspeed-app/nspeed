@@ -9,8 +9,10 @@ import (
 	"html/template"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"nspeed.app/utils"
 )
@@ -337,4 +339,22 @@ func ParseCommands(rawArgs []string, joblist *JobList, output io.Writer, fromAPI
 		args = reminder
 	}
 	return nil
+}
+
+// PrintMemUsage displays runtime.ReadMemStats() in user friendly format
+func PrintMemUsage(log *zerolog.Logger, mess string) {
+	if log == nil {
+		return
+	}
+	if log.GetLevel() > zerolog.DebugLevel {
+		return
+	}
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	log.Debug().Msgf("%s: - Alloc = %vB\tTotalAlloc = %vB\tSys = %vB\tNumGC = %v", mess,
+		utils.FormatByteDecimalUnits(int64(m.Alloc)),
+		utils.FormatByteDecimalUnits(int64(m.TotalAlloc)),
+		utils.FormatByteDecimalUnits(int64(m.Sys)),
+		m.NumGC)
 }

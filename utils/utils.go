@@ -1,3 +1,7 @@
+// Copyright (c) Jean-Francois Giorgi & AUTHORS
+// part of nspeed.app
+// SPDX-License-Identifier: BSD-3-Clause
+
 package utils
 
 import (
@@ -9,7 +13,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -63,23 +66,6 @@ func DumpRequest(req *http.Request, body bool) {
 	}
 
 	fmt.Printf("%s", dump)
-}
-
-func PrintMemUsage(log *zerolog.Logger, mess string) {
-	if log == nil {
-		return
-	}
-	if log.GetLevel() > zerolog.DebugLevel {
-		return
-	}
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	log.Debug().Msgf("%s: - Alloc = %vB\tTotalAlloc = %vB\tSys = %vB\tNumGC = %v", mess,
-		FormatByteDecimalUnits(int64(m.Alloc)),
-		FormatByteDecimalUnits(int64(m.TotalAlloc)),
-		FormatByteDecimalUnits(int64(m.Sys)),
-		m.NumGC)
 }
 
 // OpenURI opens an url or a file

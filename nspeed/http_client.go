@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"net/textproto"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -316,7 +317,7 @@ func (j *JobClient) HTTPInit() error {
 		// force http/2 : this is hacky: remove "http/1.1" from NextProtos.
 		// Forcing a http2.Transport fails unless it's h2c mode.
 		if j.HTTPVersion == 2 {
-			idx := utils.IndexOf(netTransport.TLSClientConfig.NextProtos, "http/1.1")
+			idx := slices.Index(netTransport.TLSClientConfig.NextProtos, "http/1.1")
 			if idx != -1 {
 				log.Debug().Msgf("removing http/1.1 from netTransport.TLSClientConfig")
 				netTransport.TLSClientConfig.NextProtos = append(netTransport.TLSClientConfig.NextProtos[:idx], netTransport.TLSClientConfig.NextProtos[idx+1:]...)
@@ -553,14 +554,14 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 	if j.Command == "PUT" || j.Command == "POST" {
 		wm.StartTicker(done)
 	}
-	utils.PrintMemUsage(j.Logger(), "before Do")
+	PrintMemUsage(j.Logger(), "before Do")
 	resp, err := j.client.Do(j.req)
 
 	if j.Command == "PUT" || j.Command == "POST" {
 		close(done)
 	}
 
-	utils.PrintMemUsage(j.Logger(), "after Do")
+	PrintMemUsage(j.Logger(), "after Do")
 	j.tr.end = time.Now()
 
 	err = fixH2H3Errors(err, j.req.Method, j.Logger())
@@ -713,7 +714,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 	wm.Done = true
 	j.wm.Command = j.PrintString(false, false)
 
-	utils.PrintMemUsage(j.Logger(), "client ended")
+	PrintMemUsage(j.Logger(), "client ended")
 	wm.LogFinal(j.Logger())
 	return wm, nil
 }

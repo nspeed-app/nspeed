@@ -1,9 +1,14 @@
+// Copyright (c) Jean-Francois Giorgi & AUTHORS
+// part of nspeed.app
+// SPDX-License-Identifier: BSD-3-Clause
+
 package utils
 
-// a collection of generic functions noy yet in std lib
+// a collection of generic functions not yet in std lib
 
-// Map applies function f to each element of array a
-func Map[U any, V any](a []U, f func(U) V) []V {
+// Map applies a function f to each element of slice
+// todo: they're going with adapters on iterators ?! meh -> https://github.com/golang/go/issues/61898
+func Map[S ~[]U, U any, V any](a S, f func(U) V) []V {
 	var lv = make([]V, len(a))
 	for i, u := range a {
 		lv[i] = f(u)
@@ -11,7 +16,7 @@ func Map[U any, V any](a []U, f func(U) V) []V {
 	return lv
 }
 
-// Partition separates the elements of array into 2 arrays based on the predicate function test
+// Partition copies the elements of array into 2 arrays based on the predicate function test
 func Partition[T any](array []T, test func(T) bool) (matched []T, notmatched []T) {
 	for _, t := range array {
 		if test(t) {
@@ -23,18 +28,6 @@ func Partition[T any](array []T, test func(T) bool) (matched []T, notmatched []T
 	return
 }
 
-// IndexOf searches for an element in a slice and returns its index or -1 if not found
-// todo: find and use the 'canonical' name for this function
-// todo: watch for future equivalence in std lib
-func IndexOf[T comparable](ss []T, s T) (idx int) {
-	for idx, v := range ss {
-		if v == s {
-			return idx
-		}
-	}
-	return -1
-}
-
 // Prt returns the address of its argument.
 // This, for instance, allows to return the address of the result of a function
 func Ptr[T any](x T) *T {
@@ -43,7 +36,7 @@ func Ptr[T any](x T) *T {
 
 // OrDefault returns a or b if a is zero
 func OrDefault[T comparable](a, b T) T {
-	var zero T // i prefer this to "a == *new(T)"
+	var zero T // I prefer this to "a == *new(T)"
 	if a == zero {
 		return b
 	}

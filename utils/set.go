@@ -1,3 +1,7 @@
+// Copyright (c) Jean-Francois Giorgi & AUTHORS
+// part of nspeed.app
+// SPDX-License-Identifier: BSD-3-Clause
+
 package utils
 
 // a mix of  https://gist.github.com/bgadrian/cb8b9344d9c66571ef331a14eb7a2e80

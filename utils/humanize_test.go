@@ -1,3 +1,6 @@
+// Copyright (c) Jean-Francois Giorgi & AUTHORS
+// part of nspeed.app
+// SPDX-License-Identifier: BSD-3-Clause
 package utils
 
 import (
@@ -43,6 +46,26 @@ func TestByteCountBinary(t *testing.T) {
 	}
 	for _, table := range tables {
 		s := ByteCountBinary(table.x)
+		if s != table.y {
+			t.Errorf("ByteCountBinary of (%d) was incorrect, got: |%s| want |%s|", table.x, s, table.y)
+		}
+	}
+}
+
+func TestByteCountDecimal(t *testing.T) {
+	tables := []struct {
+		x int64
+		y string
+	}{
+		{1, "1 "},
+		{999, "999 "},
+		{1000, "1.0 k"},
+		{1024, "1.0 k"},
+		{1024 * 1024, "1.0 M"},
+		{1024*1024 + 100*1024, "1.2 M"},
+	}
+	for _, table := range tables {
+		s := ByteCountDecimal(table.x)
 		if s != table.y {
 			t.Errorf("ByteCountBinary of (%d) was incorrect, got: |%s| want |%s|", table.x, s, table.y)
 		}

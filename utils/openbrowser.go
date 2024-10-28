@@ -1,3 +1,6 @@
+// Copyright (c) Jean-Francois Giorgi & AUTHORS
+// part of nspeed.app
+// SPDX-License-Identifier: BSD-3-Clause
 package utils
 
 import (
@@ -11,7 +14,7 @@ import (
 )
 
 // copied from https://github.com/pkg/browser
-// could import this pkg but it has as stdout/stdin issue
+// could import this pkg but it has a stdout/stdin issue
 // a PR https://github.com/pkg/browser/pull/30 was submited
 // but never approved.
 // so we copied everything we need in this single file here
@@ -24,15 +27,15 @@ func runCmd(prog string, stdout io.Writer, stderr io.Writer, args ...string) err
 }
 
 // OpenBrowser tried to open the url with the default web browser of the system.
-// This is non blocking and will spawn a browser.
+// This is non blocking and will return once the browser is launched
 func OpenBrowser(url string, stdout io.Writer, stderr io.Writer) error {
 	var err error
 	switch runtime.GOOS {
 	case "linux":
-		providers := []string{"xdg-open", "x-www-browser", "www-browser", "open"}
+		providers := []string{"open", "xdg-open", "x-www-browser", "www-browser"}
 
 		// There are multiple possible providers to open a browser on linux
-		// One of them is xdg-open, another is x-www-browser, then there's www-browser, etc.
+		// Usually "open" is enough but sometimes other commands work too.
 		// Look for one that exists and run it
 		for _, provider := range providers {
 			if _, err := exec.LookPath(provider); err == nil {
@@ -55,8 +58,6 @@ func OpenBrowser(url string, stdout io.Writer, stderr io.Writer) error {
 // OpenHTML  will try to open the html content with the default web browser of the system.
 // To allow full HTML/JS/CSS to work, the html content is not opened as a local file but
 // served with a one-time use web server on localhost (random port).
-// if secret is not empty, the web server will stay alive until a request with secret as path
-// is made.
 func OpenHTML(html string) error {
 	server := &http.Server{}
 
@@ -66,14 +67,14 @@ func OpenHTML(html string) error {
 	defer cancel()
 
 	// serve html content and then cancel() the server
-	getRoot := func(w http.ResponseWriter, r *http.Request) {
+	sendHTML := func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, html)
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
 		cancel()
 	}
-	http.HandleFunc("/", getRoot)
+	http.HandleFunc("/", sendHTML)
 	server.Handler = http.DefaultServeMux
 
 	ln, err := net.Listen("tcp", "localhost:0")
@@ -84,7 +85,6 @@ func OpenHTML(html string) error {
 		return err
 	}
 
-	//spawn the browser
 	err = OpenBrowser("http://"+ln.Addr().String(), nil, nil)
 	if err != nil {
 		return err
