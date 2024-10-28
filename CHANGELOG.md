@@ -1,3 +1,7 @@
+# v0.0.12
+- fix: self certificate expiration date
+- fix: bench typo
+
 # v0.0.11
 - **new protocol**: raw quic connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P quic` to use quic instead of http. this is a wip/experimental feature , see https://pkg.go.dev/golang.org/x/net/quic 
 - **new protocol**: raw tcp connection are now also available for `server`, `get`, `post`, `put` commands. Add `-P tcp` to use tcp instead of http. TLS can be used or not.
