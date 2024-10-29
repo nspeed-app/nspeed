@@ -1,3 +1,6 @@
+# v0.0.13
+- deps: updated psutil to v4 to fix Darwin builds
+
 # v0.0.12
 - fix: self certificate expiration date
 - fix: bench typo
