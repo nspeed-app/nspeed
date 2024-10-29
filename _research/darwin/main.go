@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v4/cpu"
 )
 
 func GetCPULoad(interval time.Duration) (string, error) {

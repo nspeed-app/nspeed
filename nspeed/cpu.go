@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v4/cpu"
 )
 
 // MaxParallelism return number of cpu cores the program can actually use
