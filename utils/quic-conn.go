@@ -9,20 +9,6 @@ import (
 	"golang.org/x/net/quic"
 )
 
-// func quicClientInit(j *JobClient) (*quic.Config, *quic.Endpoint) {
-// 	quicConf := &quic.Config{}
-// 	endp := &quic.Endpoint{}
-
-// 	// since we use Dialcontext we need to set a proper local *net.UDPAddr for LocalAddr
-// 	if j.localAddr != nil {
-// 		j.dialer.LocalAddr = &net.UDPAddr{
-// 			IP:   j.localAddr.IP,
-// 			Zone: j.localAddr.Zone,
-// 		}
-// 	}
-// 	return quicConf, endp
-// }
-
 // QuicStreamAsConn (temporary name) is a quic.Stream which satisfies the net.Conn interface
 type QuicStreamAsConn struct {
 	*quic.Stream
@@ -34,9 +20,9 @@ type QuicStreamAsConn struct {
 }
 
 // this enforces here that quicStreamAsConn implements net.Conn
-// it's also enforced by NewQuicStreamAsConn
-var _ net.Conn = (*QuicStreamAsConn)(nil)
+// var _ net.Conn = (*QuicStreamAsConn)(nil)
 
+// NewQuicStreamAsConn exposes the net.Conn interface on a quic.Stream
 func NewQuicStreamAsConn(stream *quic.Stream, qconn *quic.Conn) net.Conn {
 	return &QuicStreamAsConn{
 		Stream: stream,
