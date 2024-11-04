@@ -90,12 +90,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 			if err != nil {
 				return nil, fmt.Errorf("quic new stream error: %w", err)
 			}
-			c := &quicStreamAsConn{
-				Stream: stream,
-				e:      endp,
-				c:      qconn,
-				who:    j.id,
-			}
+			c := utils.NewQuicStreamAsConn(stream, qconn)
 			return c, nil
 		}
 

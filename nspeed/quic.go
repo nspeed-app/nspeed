@@ -4,14 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net"
 	"net/url"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"golang.org/x/net/quic"
 	"nspeed.app/metric"
+	"nspeed.app/utils"
 )
 
 // func quicClientInit(j *JobClient) (*quic.Config, *quic.Endpoint) {
@@ -27,116 +26,6 @@ import (
 // 	}
 // 	return quicConf, endp
 // }
-
-type quicStreamAsConn struct {
-	*quic.Stream
-	e           *quic.Endpoint
-	c           *quic.Conn
-	who         string // remove or replace with a Logger
-	readCtx     context.Context
-	writeCtx    context.Context
-	readCancel  context.CancelFunc
-	writeCancel context.CancelFunc
-}
-
-// this enforces here that quicStreamAsConn implements net.Conn
-var _ net.Conn = (*quicStreamAsConn)(nil)
-
-// type Conn interface {
-// 	Read(b []byte) (n int, err error) - ok
-// 	Write(b []byte) (n int, err error) - ok
-// 	Close() error - ok but do more stuff
-//
-// 	LocalAddr() Addr
-// 	RemoteAddr() Addr
-// 	SetDeadline(t time.Time) error
-// 	SetReadDeadline(t time.Time) error
-// 	SetWriteDeadline(t time.Time) error
-// }
-
-// func (str *quicStreamAsConn) Read(b []byte) (n int, err error) {
-// 	n, err = str.Stream.Read(b)
-// 	return
-// }
-
-// func (str *quicStreamAsConn) Write(b []byte) (n int, err error) {
-// 	n, err = str.Stream.Write(b)
-// 	return
-// }
-
-func (str *quicStreamAsConn) Close() error {
-	if str.Stream == nil {
-		return fmt.Errorf("nothing to close")
-	}
-	if str.readCancel != nil {
-		str.readCancel()
-	}
-	if str.writeCancel != nil {
-		str.writeCancel()
-	}
-	err := str.Stream.Close()
-	return err
-	// we're mono stream per connection for now so we close the conn when we close the stream
-	// to avoid execution order issue, we don't join the Close()s in a oneliner
-	//return errors.Join(err, str.c.Close())
-
-}
-func (str *quicStreamAsConn) SetDeadline(t time.Time) error {
-	if str.Stream == nil {
-		return fmt.Errorf("SetDeadline on nil stream")
-	}
-	err := str.SetReadDeadline(t)
-	if err != nil {
-		return err
-	}
-	return str.SetWriteDeadline(t)
-}
-
-func (str *quicStreamAsConn) SetReadDeadline(t time.Time) error {
-	if str.Stream == nil {
-		return fmt.Errorf("SetReadDeadline on nil stream")
-	}
-	if str.writeCancel != nil {
-		return fmt.Errorf("read deadline already set")
-	}
-	str.readCtx, str.readCancel = context.WithDeadline(context.Background(), t)
-	str.Stream.SetReadContext(str.readCtx)
-	return nil
-}
-
-func (str *quicStreamAsConn) SetWriteDeadline(t time.Time) error {
-	if str.Stream == nil {
-		return fmt.Errorf("SetWriteDeadline on nil stream")
-	}
-	if str.writeCancel != nil {
-		return fmt.Errorf("write deadline already set")
-	}
-	str.writeCtx, str.writeCancel = context.WithDeadline(context.Background(), t)
-	str.Stream.SetWriteContext(str.writeCtx)
-	return nil
-}
-
-func (str *quicStreamAsConn) LocalAddr() net.Addr {
-	if str.e == nil {
-		return &net.UDPAddr{}
-	}
-	return net.UDPAddrFromAddrPort(str.e.LocalAddr())
-}
-
-func (str *quicStreamAsConn) RemoteAddr() net.Addr {
-	if str.c == nil {
-		return &net.UDPAddr{}
-	}
-	return net.UDPAddrFromAddrPort(str.c.RemoteAddr())
-}
-
-func (str *quicStreamAsConn) Flush() error {
-	if str.Stream == nil {
-		return fmt.Errorf("no stream to flush")
-	}
-	str.Stream.Flush()
-	return nil
-}
 
 // SERVER
 
@@ -192,7 +81,7 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 			j.logger.Info().Msgf("L4 QUIC-GO server : incoming new connection from %s", conn.RemoteAddr())
 			j.TotalRequests.Add(1)
 			// spawn handling of streams for this connection
-			go handleQUICStream(ctx, j, endp, conn)
+			go handleQUICStream(ctx, j, conn)
 			conn = nil
 		}
 	}()
@@ -220,19 +109,14 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 
 }
 
-func handleQUICStream(ctx context.Context, j *L4Server, endp *quic.Endpoint, conn *quic.Conn) {
+func handleQUICStream(ctx context.Context, j *L4Server, conn *quic.Conn) {
 	for {
 		str, err := conn.AcceptStream(ctx)
 		if err != nil {
 			j.Logger().Info().Err(err).Msgf("L4 QUIC server quic.AcceptStream failed")
 			return
 		}
-		c := &quicStreamAsConn{
-			Stream: str,
-			e:      endp,
-			c:      conn,
-			who:    j.id,
-		}
+		c := utils.NewQuicStreamAsConn(str, conn)
 		go func() {
 			j.handleConnection(c)
 			conn.Abort(&quic.ApplicationError{

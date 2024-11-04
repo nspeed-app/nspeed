@@ -31,7 +31,7 @@ import (
 
 // this will be used to set a big value for MaxReadFrameSize (HTTP/2)
 // see https://github.com/golang/go/issues/54850
-const h2MaxFrameSize uint32 = 1 << 20
+const h2MaxFrameSize uint32 = 1 << 20 // 1024 * 1024
 
 // roundTripTrace holds timings for a single HTTP roundtrip.
 // greatly inspired by Prometheus blackbox_exporter
@@ -620,7 +620,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 		}
 	}
 	// todo: time'd out 'POST/PUT' don't have a resp so we're missing informations like protocol ,tls, etc
-	// todo: find a way to get the missing informations elsewhere
+	// todo: find a way to get the missing informations elsewhere ?
 	// possible workaround: do a HEAD before the POST/PUT but that will count has 2 requests and could mess the server stats and Maxrequests option
 	// or HEAD shouldn't count as a request server side ?
 	if wm.Error == nil && resp != nil {
