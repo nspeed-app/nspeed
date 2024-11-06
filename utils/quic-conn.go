@@ -9,8 +9,8 @@ import (
 	"golang.org/x/net/quic"
 )
 
-// QuicStreamAsConn (temporary name) is a quic.Stream which satisfies the net.Conn interface
-type QuicStreamAsConn struct {
+// quicStreamAsConn (temporary name) is a quic.Stream which satisfies the net.Conn interface
+type quicStreamAsConn struct {
 	*quic.Stream
 	c           *quic.Conn
 	readCtx     context.Context
@@ -19,31 +19,33 @@ type QuicStreamAsConn struct {
 	writeCancel context.CancelFunc
 }
 
-// this enforces here that quicStreamAsConn implements net.Conn
-// var _ net.Conn = (*QuicStreamAsConn)(nil)
+// we can enforces here that quicStreamAsConn implements net.Conn
+// var _ net.Conn = (*quicStreamAsConn)(nil)
+// but NewQuicStreamAsConn does it already
 
 // NewQuicStreamAsConn exposes the net.Conn interface on a quic.Stream
 func NewQuicStreamAsConn(stream *quic.Stream, qconn *quic.Conn) net.Conn {
-	return &QuicStreamAsConn{
+	// should we refuse nil args?
+	return &quicStreamAsConn{
 		Stream: stream,
 		c:      qconn,
 	}
 }
 
 // type Conn interface {
-// 	Read(b []byte) (n int, err error) - embedded quic.Stream
-// 	Write(b []byte) (n int, err error) - embedded quic.Stream
-// 	Close() error - embedded quic.Stream but do more stuff
-// 	LocalAddr() Addr - implement here
-// 	RemoteAddr() Addr - implement here
-// 	SetDeadline(t time.Time) - error implement here
-// 	SetReadDeadline(t time.Time) - error implement here
-// 	SetWriteDeadline(t time.Time) -  error implement here
+// 	Read(b []byte) (n int, err error) - implemented in embedded quic.Stream
+// 	Write(b []byte) (n int, err error) - implemented in embedded quic.Stream
+// 	Close() error - implemented in embedded quic.Stream but do more here too
+// 	LocalAddr() Addr - implemented here
+// 	RemoteAddr() Addr - implemented here
+// 	SetDeadline(t time.Time) - error implemented here
+// 	SetReadDeadline(t time.Time) - error implemented here
+// 	SetWriteDeadline(t time.Time) -  error implemented here
 // }
 
-func (str *QuicStreamAsConn) Close() error {
+func (str *quicStreamAsConn) Close() error {
 	if str.Stream == nil {
-		return fmt.Errorf("nothing to close")
+		return fmt.Errorf("no stream")
 	}
 	if str.readCancel != nil {
 		str.readCancel()
@@ -53,9 +55,9 @@ func (str *QuicStreamAsConn) Close() error {
 	}
 	err := str.Stream.Close()
 	return err
-	// todo: add an optionnal way to close the conn when we close its last stream ?
 }
-func (str *QuicStreamAsConn) SetDeadline(t time.Time) error {
+
+func (str *quicStreamAsConn) SetDeadline(t time.Time) error {
 	if str.Stream == nil {
 		return fmt.Errorf("SetDeadline on nil stream")
 	}
@@ -66,7 +68,7 @@ func (str *QuicStreamAsConn) SetDeadline(t time.Time) error {
 	return str.SetWriteDeadline(t)
 }
 
-func (str *QuicStreamAsConn) SetReadDeadline(t time.Time) error {
+func (str *quicStreamAsConn) SetReadDeadline(t time.Time) error {
 	if str.Stream == nil {
 		return fmt.Errorf("SetReadDeadline on nil stream")
 	}
@@ -78,7 +80,7 @@ func (str *QuicStreamAsConn) SetReadDeadline(t time.Time) error {
 	return nil
 }
 
-func (str *QuicStreamAsConn) SetWriteDeadline(t time.Time) error {
+func (str *quicStreamAsConn) SetWriteDeadline(t time.Time) error {
 	if str.Stream == nil {
 		return fmt.Errorf("SetWriteDeadline on nil stream")
 	}
@@ -90,7 +92,7 @@ func (str *QuicStreamAsConn) SetWriteDeadline(t time.Time) error {
 	return nil
 }
 
-func (str *QuicStreamAsConn) LocalAddr() net.Addr {
+func (str *quicStreamAsConn) LocalAddr() net.Addr {
 	if str.c == nil {
 		return &net.UDPAddr{}
 	}
@@ -98,7 +100,7 @@ func (str *QuicStreamAsConn) LocalAddr() net.Addr {
 	return net.UDPAddrFromAddrPort(str.c.LocalAddr())
 }
 
-func (str *QuicStreamAsConn) RemoteAddr() net.Addr {
+func (str *quicStreamAsConn) RemoteAddr() net.Addr {
 	if str.c == nil {
 		return &net.UDPAddr{}
 	}
@@ -108,7 +110,7 @@ func (str *QuicStreamAsConn) RemoteAddr() net.Addr {
 
 // end of net.Conn Interface
 
-func (str *QuicStreamAsConn) Flush() error {
+func (str *quicStreamAsConn) Flush() error {
 	if str.Stream == nil {
 		return fmt.Errorf("no stream to flush")
 	}
