@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -449,6 +450,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 	// tracing & timing stuff
 	refdate := time.Now()
 
+	var connected atomic.Bool
 	// todo handle redirects more nicely (array ?)
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(dnsInfo httptrace.DNSStartInfo) {
@@ -461,6 +463,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 			wm.Logger().Trace().Msgf("ClientTrace-DNSDone: %v", j.tr.dnsDone.Sub(refdate))
 		},
 		GotConn: func(connInfo httptrace.GotConnInfo) {
+			connected.Store(true)
 			j.tr.gotConn = time.Now()
 			j.tr.ConnInfo = connInfo
 			var err error
@@ -468,7 +471,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 			if err != nil {
 				wm.Logger().Debug().Err(err).Msgf("error parsing local address:%s", connInfo.Conn.LocalAddr())
 			}
-			j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr = utils.GetRoute(j.GetDestination())
+			j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr, _ = utils.GetRoute(j.GetDestination())
 			wm.Logger().Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
 			wm.Logger().Debug().Msgf("GotConn - interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
 		},
@@ -507,7 +510,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 
 		ConnectDone: func(net, addr string, err error) {
 			j.tr.connectDone = time.Now()
-			wm.Logger().Trace().Msgf("ClientTrace-ConnectDone: %v", j.tr.connectDone.Sub(refdate))
+			wm.Logger().Trace().Err(err).Msgf("ClientTrace-ConnectDone: %v", j.tr.connectDone.Sub(refdate))
 		},
 
 		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
@@ -567,9 +570,14 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 	err = fixH2H3Errors(err, j.req.Method, j.Logger())
 	j.Logger().Debug().Msgf("client.Do: %v - %v", err, wm.Error)
 
+	// wm.Error can be filled by handler: TLSHandshakeDone and ConnectDone
 	if errors.Is(err, context.DeadlineExceeded) {
 		wm.Expired = true
 		j.Logger().Info().Msgf("timer expired client side")
+		// timeout without a gotConn, it's an error
+		if !connected.Load() {
+			wm.Error = err
+		}
 	} else if errors.Is(err, syscall.ECONNRESET) {
 		wm.Expired = true
 		j.Logger().Info().Msgf("something expired server side")
@@ -579,7 +587,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 		j.Logger().Info().Msgf("parent got cancelled")
 	} else if err != nil {
 		wm.Error = err
-		j.Logger().Info().Err(err).Send()
+		j.Logger().Info().Err(err).Send() // TODO FIX
 		// todo: get body for more info ()
 	}
 
