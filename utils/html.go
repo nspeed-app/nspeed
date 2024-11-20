@@ -13,7 +13,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-// ReadURI opens and read an url and return its content
+// ReadURI opens and read an uri and return its content
 func readURI(uri string, fs fs.FS) ([]byte, error) {
 	url, err := url.Parse(uri)
 	if err != nil || url.Scheme == "" {
@@ -23,10 +23,6 @@ func readURI(uri string, fs fs.FS) ([]byte, error) {
 		}
 		return io.ReadAll(data)
 	}
-	if err != nil {
-		return nil, err
-	}
-
 	resp, err := http.Get(uri)
 	if err != nil {
 		return nil, err

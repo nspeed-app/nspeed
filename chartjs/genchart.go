@@ -31,6 +31,8 @@ func init() {
 	}
 }
 
+// GenerateHTMLReport produces HTML file from jsData
+// if filename is ":" opens a local web browser instead
 func GenerateHTMLReport(htmlFilename string, jsData string) {
 	var out *utils.SmartFile
 	var err error

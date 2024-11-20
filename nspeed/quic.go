@@ -119,11 +119,9 @@ func handleQUICStream(ctx context.Context, j *L4Server, conn *quic.Conn) {
 		c := utils.NewQuicStreamAsConn(str, conn)
 		go func() {
 			j.handleConnection(c)
-			conn.Abort(&quic.ApplicationError{
-				Code:   2,
-				Reason: "CLOSING",
-			})
-			_ = conn.Wait(context.Background())
+			conn.Abort(nil)
+			err = conn.Wait(context.Background())
+			//log.Debug().Msgf("L4 quic conn.Wait: %s", err)
 		}()
 	}
 }

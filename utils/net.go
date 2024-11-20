@@ -314,8 +314,13 @@ func init() {
 }
 
 // GetRoute return routing info for destination which must be "ip:port" combo
-func GetRoute(destination string) (iface *net.Interface, gw netip.Addr, src netip.Addr) {
+func GetRoute(destination string) (iface *net.Interface, gw netip.Addr, src netip.Addr, err error) {
 	if router == nil {
+		err = fmt.Errorf("no router")
+		return
+	}
+	if RouterError != nil {
+		err = fmt.Errorf("router error: %w", RouterError)
 		return
 	}
 	ap, err := netip.ParseAddrPort(destination)

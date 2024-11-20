@@ -384,7 +384,7 @@ mainloop:
 	results.Batches = jl.BatcheNames()
 	for _, v := range results.Metrics {
 		if v.Error != nil {
-			v.Logger().Warn().Err(v.Error).Msgf("error")
+			v.Logger().Warn().Err(v.Error).Msgf("error") // todo move this in text report?
 		}
 	}
 
