@@ -1,5 +1,5 @@
 # v0.0.14
-- global flag `-color` removed. On by default,use new flag `-nocolor` to disable colored ouput.
+- **breaking change**: global flag `-color` removed. Colors are now on by default, use the new flag `-nocolor` to disable them.
 # v0.0.13
 - deps: updated psutil to v4 to fix Darwin builds
 # v0.0.12
