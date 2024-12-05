@@ -33,3 +33,21 @@ https://speed.cloudflare.com/__up 200m
 
 
 https://as62240.net/
+
+
+https://vin.proof.ovh.us
+https://syd.proof.ovh.net
+https://sgp.proof.ovh.net
+https://sbg.proof.ovh.net
+https://rbx.proof.ovh.net
+https://hil.proof.ovh.us
+https://gra.proof.ovh.net
+https://eri.proof.ovh.net
+https://bom.proof.ovh.net
+https://bhs.proof.ovh.ca
+add /files/ then one of:
+1Mb.dat
+10Mb.dat
+100Mb.dat
+1Gb.dat
+10Gb.dat
