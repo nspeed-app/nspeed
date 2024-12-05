@@ -37,7 +37,7 @@ var optSamplingRate = flag.Duration("rate", 0, "data sampling rate in duration (
 var optCPURate = flag.Duration("cpurate", 0, "set cpu rate (implies -cpu)")
 var optCPU = flag.Bool("cpu", false, "display cpu usage (default is every second, use -cpurate to change)")
 
-var optColor = flag.Bool("color", false, "use colors in text output")
+var optNoColor = flag.Bool("nocolor", false, "do not use colors in text output")
 
 var optVersion = flag.Bool("version", false, "display version (add \"all\" for more build and runtime informations)")
 var optInfo = flag.Bool("info", false, "display informations about the host")
@@ -160,19 +160,6 @@ func Main() {
 	}
 	zerolog.SetGlobalLevel(consoleLevel)
 
-	// remove these ugly "???" from zerolog level formatter
-
-	formatLevel := func(i any) string {
-		if !displayLogLevels {
-			return ""
-		}
-		if i == nil {
-			return ""
-		}
-		// wish we could call the default formatter but it's not exported
-		// so we lose colors for level
-		return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
-	}
 	// for no timestamps return ""
 	formatTimestamp := func(i any) string {
 		return ""
@@ -198,8 +185,8 @@ func Main() {
 	consoleWriter := nspeed.CreateFilteredWriter(
 		zerolog.MultiLevelWriter(zerolog.ConsoleWriter{
 			Out:              os.Stderr,
-			NoColor:          !*optColor,
-			FormatLevel:      formatLevel,
+			NoColor:          *optNoColor,
+			FormatLevel:      nspeed.LogConsoleFormatLevel(*optNoColor, displayLogLevels),
 			TimeFormat:       time.TimeOnly,
 			FormatTimestamp:  formatTimestamp,
 			FormatFieldValue: formatFieldValue,
@@ -328,7 +315,7 @@ func Main() {
 			log.Debug().Msgf("progress called %d jobs (%d)", len(m), rc)
 		case nspeed.CPUMetric:
 			if cpuRate > 0 { // if this doesn't match, we did something wrong
-				cpuload, headers, _ := nspeed.PrintCPULoad(m.Pcts, *optColor)
+				cpuload, headers, _ := nspeed.PrintCPULoad(m.Pcts, !*optNoColor)
 				if printHeaders {
 					log.Log().Msgf("%s jobs | threads|", headers)
 					printHeaders = false

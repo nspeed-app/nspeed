@@ -5,6 +5,7 @@ import (
 	"io"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/rs/zerolog"
 )
@@ -81,4 +82,50 @@ func NewLineInfoHook(rel string) *LineInfoHook {
 	fmt.Println("file:", file)
 	fmt.Println("base:", lih.base)
 	return &lih
+}
+
+const unknownLevel = "???"
+
+// colorize returns the string s wrapped in ANSI code c, unless disabled is true or c is 0.
+func colorize(s interface{}, c int, disabled bool) string {
+	if c == 0 {
+		disabled = true
+	}
+
+	if disabled {
+		return fmt.Sprintf("%s", s)
+	}
+	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", c, s)
+}
+
+func stripLevel(ll string) string {
+	if len(ll) == 0 {
+		return unknownLevel
+	}
+	if len(ll) > 3 {
+		ll = ll[:3]
+	}
+	return strings.ToUpper(ll)
+}
+
+func LogConsoleFormatLevel(noColor bool, displayLevel bool) zerolog.Formatter {
+	if !displayLevel {
+		return func(i any) string {
+			return ""
+		}
+	}
+	return func(i interface{}) string {
+		if ll, ok := i.(string); ok {
+			level, _ := zerolog.ParseLevel(ll)
+			fl, ok := zerolog.FormattedLevels[level]
+			if ok {
+				return colorize(fl, zerolog.LevelColors[level], noColor)
+			}
+			return stripLevel(ll)
+		}
+		if i == nil {
+			return unknownLevel
+		}
+		return stripLevel(fmt.Sprintf("%s", i))
+	}
 }
