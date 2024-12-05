@@ -15,6 +15,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/term"
 
 	"nspeed.app/chartjs"
 	"nspeed.app/metric"
@@ -95,11 +96,6 @@ func Main() {
 
 	flag.Parse() // parse global flags
 	nspeed.OptTLSSelf = *optTLSSelf
-
-	if *optInfo {
-		fmt.Println(string(nspeed.MachineInfoJSON))
-		return
-	}
 
 	if *optVersion {
 		bi, ok := debug.ReadBuildInfo()
@@ -238,6 +234,17 @@ func Main() {
 	if *optIPv6 {
 		optIPVersion = 6
 	}
+
+	if *optInfo {
+		fmt.Println(string(nspeed.MachineInfoJSON))
+	}
+
+	if flag.NArg() == 0 && *optInfo {
+		return
+	}
+
+	// end flags handling
+
 	globalOptions := nspeed.Options{
 		ProgressInterval:     *optProgressRate,
 		Tick:                 *optSamplingRate,
@@ -249,6 +256,11 @@ func Main() {
 		IPVersion:            optIPVersion,
 	}
 
+	// if no args
+	cmds := flag.Args()
+	if flag.NArg() == 0 && !term.IsTerminal(int(os.Stdout.Fd())) {
+		cmds = []string{"ui"}
+	}
 	jl := nspeed.NewJoblist()
 	err := jl.AddBatch(&nspeed.Batch{
 		PreDelay:  *optPreDelay,
@@ -260,7 +272,7 @@ func Main() {
 		os.Exit(1)
 	}
 	// todo: nspeed.GlobalOptions is used during ParseCommands (for ipversion mainly)
-	err = nspeed.ParseCommands(flag.Args(), jl, nil, false)
+	err = nspeed.ParseCommands(cmds, jl, nil, false)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

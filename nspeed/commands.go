@@ -30,6 +30,7 @@ const (
 	benchmarkCommand = "bench"
 	fromCommand      = "from"
 	thenCommand      = "then"
+	uiCommand        = "ui"
 )
 
 // const latencyCommand = "latency"
@@ -60,6 +61,7 @@ var Commands = map[string]Command{
 	benchmarkCommand: {benchmarkCommand, 1, true, nil},
 	fromCommand:      {fromCommand, 1, true, nil},
 	thenCommand:      {thenCommand, 1, true, nil},
+	uiCommand:        {uiCommand, 1, true, CmdUIParse},
 }
 
 var CommandDescriptions = map[string]string{
@@ -74,6 +76,7 @@ var CommandDescriptions = map[string]string{
 	benchmarkCommand: "perform preselected commands",
 	fromCommand:      "read command from file (use - for stdin)",
 	thenCommand:      "executes all previous commands then continue",
+	uiCommand:        "open a web user interface",
 }
 
 // global flags
