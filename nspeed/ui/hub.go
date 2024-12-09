@@ -1,5 +1,7 @@
 package ui
 
+import "context"
+
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
@@ -25,15 +27,23 @@ func NewHub() *Hub {
 	}
 }
 
-func (h *Hub) Run() {
+func (h *Hub) Run(ctx context.Context, cancel context.CancelFunc) {
+hubrun:
 	for {
 		select {
+		case <-ctx.Done():
+			break hubrun
 		case client := <-h.Register:
 			h.clients[client] = true
 		case client := <-h.Unregister:
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.Send)
+				// last client, we terminate
+				if len(h.clients) == 0 {
+					cancel()
+					break hubrun
+				}
 			}
 		case message := <-h.Broadcast:
 			for client := range h.clients {

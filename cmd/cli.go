@@ -259,7 +259,10 @@ func Main() {
 	// if no args
 	cmds := flag.Args()
 	if flag.NArg() == 0 && !term.IsTerminal(int(os.Stdout.Fd())) {
+		log.Debug().Msgf("no args and terminal detected, launching ui")
 		cmds = []string{"ui"}
+	} else {
+		log.Debug().Msgf("terminal detected")
 	}
 	jl := nspeed.NewJoblist()
 	err := jl.AddBatch(&nspeed.Batch{

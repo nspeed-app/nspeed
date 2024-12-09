@@ -64,7 +64,7 @@ func sseHandler(w http.ResponseWriter, r *http.Request) {
 	clientGone := r.Context().Done()
 
 	rc := http.NewResponseController(w)
-	fmt.Println("lopping for", r.RemoteAddr)
+	fmt.Println("SSE loop for", r.RemoteAddr)
 clientalive:
 	for {
 		select {

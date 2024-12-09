@@ -79,8 +79,8 @@ func NewLineInfoHook(rel string) *LineInfoHook {
 		return nil
 	}
 	lih.base = filepath.Join(filepath.Dir(file), rel)
-	fmt.Println("file:", file)
-	fmt.Println("base:", lih.base)
+	// fmt.Println("file:", file)
+	// fmt.Println("base:", lih.base)
 	return &lih
 }
 

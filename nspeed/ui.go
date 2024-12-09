@@ -108,6 +108,13 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 	j.Server.RunHook = func(c context.Context) error {
 		return j.PostRun()
 	}
+	// start the hub
+	if j.hub != nil {
+		return nil, fmt.Errorf("ui hub already exists!")
+	}
+	j.hub = ui.NewHub()
+	ctx, cancel := context.WithCancel(ctx)
+	go j.hub.Run(ctx, cancel)
 	return j.Server.Run(ctx, wg, opt)
 }
 
@@ -127,10 +134,6 @@ func (j *UIHost) uiHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		return
-	}
-	if j.hub == nil {
-		j.hub = ui.NewHub()
-		go j.hub.Run()
 	}
 	client := &ui.Client{Hub: j.hub, Conn: conn, Send: make(chan []byte, 256)}
 	client.Hub.Register <- client
