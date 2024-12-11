@@ -596,7 +596,7 @@ func GenerateJSONReport(results *Metrics, tick time.Duration, command, fmtV4, fm
 }
 
 func (wm *Metric) MarshalJSON() ([]byte, error) {
-	log.Warn().Msgf("check me!")
+	//log.Warn().Msgf("check me!")
 	return json.Marshal(wm.ToNetMetric(nsutl.FormatV4full, nsutl.FormatV6Full))
 }
 

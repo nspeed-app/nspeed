@@ -61,6 +61,7 @@ func (c *Client) ReadPump() {
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
 		c.Hub.Broadcast <- message
+		c.Hub.Execute(string(message[:]))
 	}
 }
 

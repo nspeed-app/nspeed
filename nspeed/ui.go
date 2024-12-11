@@ -8,16 +8,17 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	_ "embed"
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"nspeed.app/metric"
 	"nspeed.app/nspeed/ui"
 	"nspeed.app/utils"
@@ -47,6 +48,7 @@ type UIHost struct {
 	OpenBrowser   bool
 	globalOptions Options
 	hub           *ui.Hub
+	headers       http.Header
 }
 
 func (j *UIHost) GetTarget() string {
@@ -98,6 +100,8 @@ func (j *UIHost) Init(opt Options) error {
 	j.Server.Mux.Handle("/", uiRootHandler())
 	j.Server.Mux.Handle("/ws", http.HandlerFunc(j.uiHandler))
 
+	log.Logger = log.Output(j)
+	j.headers = make(http.Header)
 	return nil
 }
 
@@ -114,6 +118,9 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 	}
 	j.hub = ui.NewHub()
 	ctx, cancel := context.WithCancel(ctx)
+	j.hub.Execute = func(args string) {
+		j.RunCmd(ctx, strings.Fields(args))
+	}
 	go j.hub.Run(ctx, cancel)
 	return j.Server.Run(ctx, wg, opt)
 }
@@ -132,7 +139,7 @@ func (j *UIHost) uiHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
-		log.Println(err)
+		log.Error().Err(err).Msg("ws upgrade error")
 		return
 	}
 	client := &ui.Client{Hub: j.hub, Conn: conn, Send: make(chan []byte, 256)}
@@ -189,4 +196,31 @@ func CmdUIParse(command string, cmdargs []string, jl *JobList, output io.Writer)
 	args := fs.Args()
 	err := jl.AddJobs(&j)
 	return args, err
+}
+
+// implements http.ResponseWriter :
+// Header() Header
+// Write([]byte) (int, error)
+// WriteHeader(statusCode int)
+func (j *UIHost) Header() http.Header {
+	return j.headers
+}
+func (j *UIHost) Write(msg []byte) (int, error) {
+	if j.hub == nil {
+		return 0, nil
+	}
+	j.hub.Broadcast <- msg
+	return len(msg), nil
+}
+func (j *UIHost) WriteHeader(statusCode int) {
+	// do nothing
+}
+
+func (j *UIHost) RunCmd(ctx context.Context, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("RunCmd no args")
+	}
+	cmd := args[0]
+	args = args[1:]
+	return APIRun(ctx, j.globalOptions, cmd, args, j, "ui")
 }

@@ -16,11 +16,14 @@ type Hub struct {
 
 	// Unregister requests from clients.
 	Unregister chan *Client
+
+	ctx     context.Context
+	Execute func(args string)
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		Broadcast:  make(chan []byte),
+		Broadcast:  make(chan []byte, 100),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		clients:    make(map[*Client]bool),
@@ -28,6 +31,7 @@ func NewHub() *Hub {
 }
 
 func (h *Hub) Run(ctx context.Context, cancel context.CancelFunc) {
+	h.ctx = ctx
 hubrun:
 	for {
 		select {

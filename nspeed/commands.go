@@ -61,7 +61,7 @@ var Commands = map[string]Command{
 	benchmarkCommand: {benchmarkCommand, 1, true, nil},
 	fromCommand:      {fromCommand, 1, true, nil},
 	thenCommand:      {thenCommand, 1, true, nil},
-	uiCommand:        {uiCommand, 1, true, CmdUIParse},
+	uiCommand:        {uiCommand, 0, true, CmdUIParse},
 }
 
 var CommandDescriptions = map[string]string{
