@@ -7,7 +7,7 @@ The currently available API endpoints are only with the `GET` verb and are:
 ### `/api/v1/help` and `/api/`
 return this file
 ### `/api/v1/run`
-run job(s) , same as invoking `npeed` from the command line , pass arguments in the `args` query parameter
+run job(s) , same as invoking `nspeed` from the command line , pass arguments in the `args` query parameter
 
 example:  
 `/api/v1/run?args=get%20http://google.com`  

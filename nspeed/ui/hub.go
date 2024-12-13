@@ -1,6 +1,10 @@
 package ui
 
-import "context"
+import (
+	"context"
+
+	"github.com/gorilla/websocket"
+)
 
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
@@ -9,13 +13,16 @@ type Hub struct {
 	clients map[*Client]bool
 
 	// Inbound messages from the clients.
-	Broadcast chan []byte
+	broadcast chan []byte
 
 	// Register requests from the clients.
-	Register chan *Client
+	register chan *Client
 
 	// Unregister requests from clients.
-	Unregister chan *Client
+	unregister chan *Client
+
+	// Logger
+	//Logger *zerolog.Logger
 
 	ctx     context.Context
 	Execute func(args string)
@@ -23,23 +30,25 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		Broadcast:  make(chan []byte, 100),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		clients:    make(map[*Client]bool),
+		broadcast:  make(chan []byte, 1),
+		register:   make(chan *Client, 1),
+		unregister: make(chan *Client, 1),
+		clients:    make(map[*Client]bool, 1),
 	}
 }
 
 func (h *Hub) Run(ctx context.Context, cancel context.CancelFunc) {
 	h.ctx = ctx
+	// main hub loop. Wait for client events, register, unregister or broadcast
+	// ends on last client unregistering or ctx
 hubrun:
 	for {
 		select {
 		case <-ctx.Done():
 			break hubrun
-		case client := <-h.Register:
+		case client := <-h.register:
 			h.clients[client] = true
-		case client := <-h.Unregister:
+		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.Send)
@@ -49,7 +58,7 @@ hubrun:
 					break hubrun
 				}
 			}
-		case message := <-h.Broadcast:
+		case message := <-h.broadcast:
 			for client := range h.clients {
 				select {
 				case client.Send <- message:
@@ -60,4 +69,23 @@ hubrun:
 			}
 		}
 	}
+}
+
+func (b *Hub) Subscribe(conn *websocket.Conn) *Client {
+	client := &Client{Hub: b, Conn: conn, Send: make(chan []byte, 256)}
+	b.register <- client
+	return client
+}
+
+func (b *Hub) Unsubscribe(client *Client) {
+	b.unregister <- client
+}
+func (h *Hub) SendMessage(msg []byte) {
+	h.broadcast <- msg
+}
+
+// implements io.Writer, used for logging
+func (h *Hub) Write(msg []byte) (int, error) {
+	h.SendMessage(msg)
+	return len(msg), nil
 }

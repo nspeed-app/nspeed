@@ -3,6 +3,7 @@ package nspeed
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -48,7 +49,6 @@ type UIHost struct {
 	OpenBrowser   bool
 	globalOptions Options
 	hub           *ui.Hub
-	headers       http.Header
 }
 
 func (j *UIHost) GetTarget() string {
@@ -100,8 +100,6 @@ func (j *UIHost) Init(opt Options) error {
 	j.Server.Mux.Handle("/", uiRootHandler())
 	j.Server.Mux.Handle("/ws", http.HandlerFunc(j.uiHandler))
 
-	log.Logger = log.Output(j)
-	j.headers = make(http.Header)
 	return nil
 }
 
@@ -116,12 +114,20 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 	if j.hub != nil {
 		return nil, fmt.Errorf("ui hub already exists!")
 	}
+
 	j.hub = ui.NewHub()
 	ctx, cancel := context.WithCancel(ctx)
 	j.hub.Execute = func(args string) {
-		j.RunCmd(ctx, strings.Fields(args))
+		err := j.RunCmd(ctx, strings.Fields(args))
+		if err != nil {
+			j.Logger().Err(err).Msgf("Execute")
+		}
 	}
+
+	logger := j.Logger().Output(j.hub)
+	j.SetLogger(&logger)
 	go j.hub.Run(ctx, cancel)
+
 	return j.Server.Run(ctx, wg, opt)
 }
 
@@ -142,13 +148,22 @@ func (j *UIHost) uiHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Msg("ws upgrade error")
 		return
 	}
-	client := &ui.Client{Hub: j.hub, Conn: conn, Send: make(chan []byte, 256)}
-	client.Hub.Register <- client
+	client := j.hub.Subscribe(conn)
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
-	go client.WritePump()
-	go client.ReadPump()
+	go func() {
+		err := client.WritePump()
+		if err != nil {
+			j.logger.Error().Err(err).Msgf("writepump error")
+		}
+	}()
+	go func() {
+		err := client.ReadPump()
+		if err != nil {
+			j.logger.Error().Err(err).Msgf("writepump error")
+		}
+	}()
 }
 
 func CmdUIParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
@@ -198,29 +213,29 @@ func CmdUIParse(command string, cmdargs []string, jl *JobList, output io.Writer)
 	return args, err
 }
 
-// implements http.ResponseWriter :
-// Header() Header
-// Write([]byte) (int, error)
-// WriteHeader(statusCode int)
-func (j *UIHost) Header() http.Header {
-	return j.headers
-}
-func (j *UIHost) Write(msg []byte) (int, error) {
-	if j.hub == nil {
-		return 0, nil
-	}
-	j.hub.Broadcast <- msg
-	return len(msg), nil
-}
-func (j *UIHost) WriteHeader(statusCode int) {
-	// do nothing
-}
-
 func (j *UIHost) RunCmd(ctx context.Context, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("RunCmd no args")
 	}
 	cmd := args[0]
 	args = args[1:]
-	return APIRun(ctx, j.globalOptions, cmd, args, j, "ui")
+	results, err := APIRun(ctx, j.globalOptions, cmd, args, j, "ui")
+	if err != nil {
+		return err
+	}
+	j.hub.SendMessage(results)
+	return nil
+}
+
+type logmsg struct {
+	Message string `json:"message"`
+}
+
+func (j *UIHost) Write(msg []byte) (int, error) {
+	js, err := json.Marshal(&logmsg{Message: string(msg)})
+	if err != nil {
+		return 0, err
+	}
+	j.hub.SendMessage(js)
+	return len(msg), nil
 }

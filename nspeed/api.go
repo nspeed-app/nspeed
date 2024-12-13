@@ -108,6 +108,7 @@ func (j *APIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*me
 }
 
 func (j *APIHost) apiHelpHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
 	_, _ = w.Write(APIDocumentation)
 }
 
@@ -152,10 +153,14 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			args = append(args, strings.Fields(a[i])...)
 		}
 	}
-	err := APIRun(r.Context(), j.globalOptions, cmd, args, w, r.RemoteAddr)
+	results, err := APIRun(r.Context(), j.globalOptions, cmd, args, w, r.RemoteAddr)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		j.logger.Error().Err(err).Msgf("APIRun error")
+		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(results)
 }
 
 // PostRun is called when the endpoint server is running

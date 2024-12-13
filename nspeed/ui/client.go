@@ -2,7 +2,7 @@ package ui
 
 import (
 	"bytes"
-	"log"
+	"fmt"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -43,26 +43,31 @@ type Client struct {
 // The application runs ReadPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
-func (c *Client) ReadPump() {
+func (c *Client) ReadPump() error {
 	defer func() {
-		c.Hub.Unregister <- c
+		c.Hub.Unsubscribe(c)
 		c.Conn.Close()
 	}()
+	if c.Conn == nil {
+		return fmt.Errorf("no connection")
+	}
 	c.Conn.SetReadLimit(maxMessageSize)
-	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	_ = c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error {
+		return c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				return err
 			}
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.Hub.Broadcast <- message
 		c.Hub.Execute(string(message[:]))
 	}
+	return nil
 }
 
 // WritePump pumps messages from the hub to the websocket connection.
@@ -70,7 +75,7 @@ func (c *Client) ReadPump() {
 // A goroutine running WritePump is started for each connection. The
 // application ensures that there is at most one writer to a connection by
 // executing all writes from this goroutine.
-func (c *Client) WritePump() {
+func (c *Client) WritePump() error {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -79,33 +84,48 @@ func (c *Client) WritePump() {
 	for {
 		select {
 		case message, ok := <-c.Send:
-			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				return
+				err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				if err != websocket.ErrCloseSent {
+					return err
+				}
+				return nil
 			}
 
 			w, err := c.Conn.NextWriter(websocket.TextMessage)
 			if err != nil {
-				return
+				return err
 			}
-			w.Write(message)
+			_, err = w.Write(message)
+			if err != nil {
+				return err
+			}
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.Send)
 			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-c.Send)
+				_, err = w.Write(newline)
+				if err != nil {
+					return err
+				}
+				_, err = w.Write(<-c.Send)
+				if err != nil {
+					return err
+				}
 			}
 
 			if err := w.Close(); err != nil {
-				return
+				return err
 			}
 		case <-ticker.C:
-			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			err := c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err != nil {
+				return err
+			}
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				return
+				return err
 			}
 		}
 	}
