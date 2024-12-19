@@ -219,7 +219,12 @@ func (j *UIHost) RunCmd(ctx context.Context, args []string) error {
 	}
 	cmd := args[0]
 	args = args[1:]
-	results, err := APIRun(ctx, j.globalOptions, cmd, args, j, "ui")
+
+	marshaller := func(v any) ([]byte, error) {
+		return json.MarshalIndent(v, "", "\t")
+	}
+
+	results, err := APIRun(ctx, j.globalOptions, cmd, args, j, "ui", marshaller)
 	if err != nil {
 		return err
 	}

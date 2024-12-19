@@ -2,7 +2,6 @@ package nspeed
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"runtime"
@@ -12,7 +11,7 @@ import (
 var ErrUnknowCommand = fmt.Errorf("unknown API command")
 
 // return json
-func APIRun(ctx context.Context, globalOptions Options, cmd string, args []string, output io.Writer, who string) ([]byte, error) {
+func APIRun(ctx context.Context, globalOptions Options, cmd string, args []string, output io.Writer, who string, marshaller func(any) ([]byte, error)) ([]byte, error) {
 	if cmd == "version" {
 		v := struct {
 			APIVersion     string
@@ -23,15 +22,15 @@ func APIRun(ctx context.Context, globalOptions Options, cmd string, args []strin
 			NSpeedVersion:  Version,
 			RuntimeVersion: runtime.Version(),
 		}
-		return json.Marshal(v)
+		return marshaller(v)
 	}
 
 	if cmd == "time" {
 		if len(args) == 0 {
-			return []byte(fmt.Sprintf("\"%s\"", time.Now().Format(time.RFC1123))), nil
+			return marshaller(time.Now().Format(time.RFC1123))
 		}
 		if len(args) == 1 && args[0] == "unix" {
-			return []byte(fmt.Sprintf("\"%d\"", time.Now().Unix())), nil
+			return marshaller(time.Now().Unix())
 		}
 	}
 
@@ -52,7 +51,7 @@ func APIRun(ctx context.Context, globalOptions Options, cmd string, args []strin
 						return nil, fmt.Errorf("unknown sub info: %s", field)
 					}
 				}
-				return json.Marshal(replyMap)
+				return marshaller(replyMap)
 			}
 		}
 		// stats/mem
@@ -65,7 +64,7 @@ func APIRun(ctx context.Context, globalOptions Options, cmd string, args []strin
 					runtime.GC()
 				}
 				MemStats.LoadStats()
-				return json.Marshal(MemStats)
+				return marshaller(MemStats)
 			}
 			// stats/mem/#field#
 			if len(args) >= 2 {
@@ -95,7 +94,7 @@ func APIRun(ctx context.Context, globalOptions Options, cmd string, args []strin
 		if err != nil {
 			return nil, fmt.Errorf("error running command: %w\n", err)
 		}
-		return results.MarshalJSON()
+		return marshaller(results) //results.MarshalJSON()
 	}
 	return nil, fmt.Errorf("%w: %s", ErrUnknowCommand, cmd)
 }

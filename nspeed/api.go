@@ -2,6 +2,7 @@ package nspeed
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -153,7 +154,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 			args = append(args, strings.Fields(a[i])...)
 		}
 	}
-	results, err := APIRun(r.Context(), j.globalOptions, cmd, args, w, r.RemoteAddr)
+	results, err := APIRun(r.Context(), j.globalOptions, cmd, args, w, r.RemoteAddr, json.Marshal)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		j.logger.Error().Err(err).Msgf("APIRun error")
@@ -163,7 +164,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(results)
 }
 
-// PostRun is called when the endpoint server is running
+// PostRun is called once the endpoint server is running
 func (j *APIHost) PostRun() error {
 	url := j.Server.URL.JoinPath(StatsPath)
 	if j.WebStats {

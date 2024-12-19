@@ -39,6 +39,19 @@ var MachineInfo = loadMachInfo()
 var MachineInfoMap map[string]any
 var MachineInfoJSON, _ = StructToJSON(MachineInfo, &MachineInfoMap)
 
+// StructToJSON converts a Go struct into a map[string]any where each entry is the json name of the struct members and their value
+// for instance:
+//
+//	type info struct {
+//	  GoVal int `json:"jsonval"`
+//	}
+//	i := info{GoVal:10}
+//	var j map[string]any
+//	var k,err = StructToJSON(i,&j)
+//
+// k will contains a single entry with key "jsonval" and value 10
+//
+// see https://go.dev/play/p/mdSOnWD-axj
 func StructToJSON(v any, m *map[string]any) ([]byte, error) {
 	z, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
