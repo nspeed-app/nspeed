@@ -18,6 +18,7 @@ var viewerTmplHTML string
 var viewerTmpl *template.Template
 var StaticFiles fs.FS
 
+// review: panic in init() ?
 func init() {
 	var err error
 	StaticFiles, err = fs.Sub(staticFiles, "statics")
