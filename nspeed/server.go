@@ -99,7 +99,7 @@ func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Wri
 		fmt.Fprintf(fs.Output(), "\n")
 	}
 
-	fs.StringVar(&host.Protocol, "P", "http", "comunication protocol")
+	fs.StringVar(&host.Protocol, "P", "http", "communication protocol")
 	fs.StringVar(&host.Host, "a", "localhost", "Hostname or ip address to listen (use \"\" for all interfaces/all addresses)")
 	//flag.Lookup("address").NoOptDefVal = ""
 	useIPv4 := fs.Bool("4", false, "use IPv4 only")

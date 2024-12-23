@@ -531,6 +531,9 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 			j.wm.Logger().Trace().Err(wri.Err).Msgf("ClientTrace-WroteRequest")
 			// todo: can we catch stuff here ?!
 		},
+		PutIdleConn: func(err error) {
+			j.wm.Logger().Trace().Err(err).Msgf("ClientTrace-PutIdleConn")
+		},
 	}
 
 	// this is where we wait
