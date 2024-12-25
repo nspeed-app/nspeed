@@ -232,6 +232,7 @@ type clientFlags struct {
 	UseHTTP2  bool
 	UseHTTP3  bool
 	H2C       bool
+	Repeat    uint
 }
 
 // common GET/PUT flags
@@ -241,7 +242,7 @@ func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, outpu
 
 	hf := clientFlags{}
 
-	fs.StringVar(&hf.Protocol, "P", "http", "comunication protocol")
+	fs.StringVar(&hf.Protocol, "P", "http", "communication protocol")
 	fs.IntVar(&hf.Instances, "n", 1, "number of times to process an item")
 	fs.StringVar(&hf.Host, "a", "", "specific local address or port to use (ip or ip:port or :port. ip can also be an interface name)")
 	fs.BoolVar(&hf.SkipTLSCheck, "k", false, "skip certificates validation")
@@ -260,6 +261,7 @@ func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, outpu
 	fs.BoolVar(&hf.UseHTTP3, "http3", false, "use HTTP3")
 	fs.StringVar(&hf.URL, urlFlag, "", "target url for the command")
 	fs.StringVar(&hf.ID, "id", "", "name/id of this command")
+	fs.UintVar(&hf.Repeat, "r", 1, "number of repeat loop)")
 
 	//fs.StringVar(&hf.RemoteHost, "remote", "", "use a remote nspeed instance (hostname:port)")
 	return fs, &hf
@@ -334,6 +336,12 @@ func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClien
 		job.H2C = true
 		job.HTTPVersion = 2
 	}
+	// Repeat
+	job.Repeat = hf.Repeat
+	if hf.Repeat == 0 {
+		return errors.New("repeat cannot be zero")
+	}
+	// ID
 	job.SetID(hf.ID)
 	return nil
 }

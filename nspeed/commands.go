@@ -344,8 +344,8 @@ func ParseCommands(rawArgs []string, joblist *JobList, output io.Writer, fromAPI
 	return nil
 }
 
-// PrintMemUsage displays runtime.ReadMemStats() in user friendly format
-func PrintMemUsage(log *zerolog.Logger, mess string) {
+// LogMemUsage displays runtime.ReadMemStats() in user friendly format
+func LogMemUsage(log *zerolog.Logger, mess string, v ...any) {
 	if log == nil {
 		return
 	}
@@ -355,7 +355,8 @@ func PrintMemUsage(log *zerolog.Logger, mess string) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	log.Debug().Msgf("%s: - Alloc = %vB\tTotalAlloc = %vB\tSys = %vB\tNumGC = %v", mess,
+	log.Debug().Msgf("%s (Alloc = %vB TotalAlloc = %vB Sys = %vB NumGC = %v)",
+		fmt.Sprintf(mess, v...),
 		utils.FormatByteDecimalUnits(int64(m.Alloc)),
 		utils.FormatByteDecimalUnits(int64(m.TotalAlloc)),
 		utils.FormatByteDecimalUnits(int64(m.Sys)),

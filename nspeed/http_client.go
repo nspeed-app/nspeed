@@ -63,6 +63,7 @@ type JobClient struct {
 	Command          string
 	Protocol         string // "http" or one of the L4Protocols
 	Instance         int    //=0 single, >0 index of instance
+	Repeat           uint   // 0 or 1 is 1
 	IPVersion        utils.IPVersion
 	Host             string
 	Target           string
@@ -272,6 +273,11 @@ func (j *JobClient) Init(opt Options) error {
 		return j.dialer.DialContext(ctx, network, address)
 	}
 
+	// check Repeat
+	if j.Repeat == 0 {
+		j.Logger().Debug().Msgf("Repeat set to 1")
+		j.Repeat = 1
+	}
 	// branch to L4 or HTTP client
 	switch j.targetURL.Scheme {
 	case "http", "https":
@@ -403,7 +409,7 @@ func (j *JobClient) HTTPInit() error {
 	}
 	if j.Command == "GET" {
 		j.wm.ContentWriteSize = 0
-		j.wm.ContentReadSize = j.ContentSize
+		j.wm.ContentReadSize = j.ContentSize * int64(j.Repeat)
 		j.wm.TotalRead = 0
 	}
 
@@ -556,176 +562,183 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 	refdate = time.Now()
 	// resp, err := client.Transport.RoundTrip(req)
 	wm.InitNew()
-	done := make(chan any)
-	if j.Command == "PUT" || j.Command == "POST" {
-		wm.StartTicker(done)
+	if j.Repeat == 0 {
+		j.Logger().Warn().Msgf("zero repeat!")
 	}
-	PrintMemUsage(j.Logger(), "before Do")
-	resp, err := j.client.Do(j.req)
+	for loop := range j.Repeat {
+		LogMemUsage(j.Logger(), "before Loop #%d", loop)
+		done := make(chan any)
+		if j.Command == "PUT" || j.Command == "POST" {
+			wm.StartTicker(done)
+		}
+		// ***** http request happens here
+		resp, err := j.client.Do(j.req)
+		// *****
+		if j.Command == "PUT" || j.Command == "POST" {
+			close(done)
+		}
+		LogMemUsage(j.Logger(), "after Do loop #%d", loop)
+		j.tr.end = time.Now()
+		err = fixH2H3Errors(err, j.req.Method, j.Logger())
+		j.Logger().Debug().Msgf("client.Do (loop %d): %v - %v", loop, err, wm.Error)
 
-	if j.Command == "PUT" || j.Command == "POST" {
-		close(done)
-	}
-
-	PrintMemUsage(j.Logger(), "after Do")
-	j.tr.end = time.Now()
-
-	err = fixH2H3Errors(err, j.req.Method, j.Logger())
-	j.Logger().Debug().Msgf("client.Do: %v - %v", err, wm.Error)
-
-	// wm.Error can be filled by handler: TLSHandshakeDone and ConnectDone
-	if errors.Is(err, context.DeadlineExceeded) {
-		wm.Expired = true
-		j.Logger().Info().Msgf("timer expired client side")
-		// timeout without a gotConn, it's an error
-		if !connected.Load() {
+		// wm.Error can be filled by handler: TLSHandshakeDone and ConnectDone
+		if errors.Is(err, context.DeadlineExceeded) {
+			wm.Expired = true
+			j.Logger().Info().Msgf("timer expired client side")
+			// timeout without a gotConn, it's an error
+			if !connected.Load() {
+				wm.Error = err
+			}
+		} else if errors.Is(err, syscall.ECONNRESET) {
+			wm.Expired = true
+			j.Logger().Info().Msgf("something expired server side")
+		} else if errors.Is(err, context.Canceled) {
+			wm.Expired = true
+			wm.Cancelled = true
+			j.Logger().Info().Msgf("parent got cancelled")
+		} else if err != nil {
 			wm.Error = err
+			j.Logger().Info().Err(err).Send() // TODO FIX
+			// todo: get body for more info ()
 		}
-	} else if errors.Is(err, syscall.ECONNRESET) {
-		wm.Expired = true
-		j.Logger().Info().Msgf("something expired server side")
-	} else if errors.Is(err, context.Canceled) {
-		wm.Expired = true
-		wm.Cancelled = true
-		j.Logger().Info().Msgf("parent got cancelled")
-	} else if err != nil {
-		wm.Error = err
-		j.Logger().Info().Err(err).Send() // TODO FIX
-		// todo: get body for more info ()
-	}
 
-	if j.tr.ConnInfo.Conn != nil {
-		wm.Remote, err = netip.ParseAddrPort(j.tr.ConnInfo.Conn.RemoteAddr().String())
-		if err != nil {
-			j.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", j.tr.ConnInfo.Conn.RemoteAddr().String())
-		}
-		wm.AvgLatency = j.tr.connectDone.Sub(j.tr.connectStart)
-	}
-
-	// completed or expired (timeout)
-	if wm.Error == nil && !wm.Cancelled {
 		if j.tr.ConnInfo.Conn != nil {
-			j.Logger().Debug().
-				Stringer("LocalAddr", j.tr.ConnInfo.Conn.LocalAddr()).
-				Stringer("RemoteAddr", j.tr.ConnInfo.Conn.RemoteAddr()).Send()
-		}
-		j.Logger().Debug().
-			Dur("DNSInfoTime", j.tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
-			Dur("ConnInfoTime", j.tr.gotConn.Sub(refdate)).
-			Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
-			Send()
-
-		for _, a := range j.tr.DNSInfo.Addrs {
-			j.Logger().Debug().Stringer("dnsinfo", &a).Send()
-		}
-
-		if j.tr.ConnInfo.Reused {
-			log.Info().Msg("REUSING CONNECTION")
-		}
-
-		if j.tr.TLSDone {
-			j.Logger().Debug().
-				Str("crypto", utils.TLSVersionName(j.tr.TLS.Version)).
-				Str("cipher", tls.CipherSuiteName(j.tr.TLS.CipherSuite)).
-				Dur("TLSDuration", j.tr.tlsDone.Sub(refdate)).Send()
-		}
-	}
-	// todo: time'd out 'POST/PUT' don't have a resp so we're missing informations like protocol ,tls, etc
-	// todo: find a way to get the missing informations elsewhere ?
-	// possible workaround: do a HEAD before the POST/PUT but that will count has 2 requests and could mess the server stats and Maxrequests option
-	// or HEAD shouldn't count as a request server side ?
-	if wm.Error == nil && resp != nil {
-		wm.Protocol = resp.Proto
-		wm.Cipher = utils.TLSCipherSuite(resp.TLS)
-		wm.TLSVersion = utils.TLSVersionFriendlyName(utils.TLSVersion(resp.TLS))
-
-		j.Logger().Debug().
-			Str("protocol", wm.Protocol).
-			Send()
-		j.Logger().Debug().
-			Int64("ContentLength", resp.ContentLength).
-			Str("ContentLength-Decimal", utils.ByteCountDecimal(resp.ContentLength)+"B").
-			Str("ContentLength-Binary", utils.ByteCountBinary(resp.ContentLength)+"B").
-			Send()
-
-		// dump resp if trace on
-		if ShouldLog(j.Logger(), zerolog.TraceLevel) {
-			dump, err := httputil.DumpResponse(resp, false)
+			wm.Remote, err = netip.ParseAddrPort(j.tr.ConnInfo.Conn.RemoteAddr().String())
 			if err != nil {
-				j.Logger().Fatal().Err(err).Send()
+				j.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", j.tr.ConnInfo.Conn.RemoteAddr().String())
 			}
-			j.Logger().Debug().Msgf("Response:\n%s", dump)
+			wm.AvgLatency = j.tr.connectDone.Sub(j.tr.connectStart)
 		}
 
-		if resp.StatusCode != http.StatusOK {
-			wm.Error = errors.New("http status code: " + resp.Status)
-			j.Logger().Debug().Msg(resp.Status)
-			wm.Valid = false
-		} else {
-			if j.Command == "GET" {
-				defer func() {
-					if resp.Body != nil {
-						resp.Body.Close()
-					}
-				}()
-				if wm.ContentReadSize == 0 && resp.ContentLength > 0 {
-					wm.ContentReadSize = resp.ContentLength
-				}
-				wm.StartTicker(done)
-				// this is where the GET transfert happens.
-				//   iteration 3: we use io.CopyBuffer the body to 'wm' (which is a Discard) and
-				//   the resp (thru req) context will handle timeout & parent cancellation
-
-				//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
-				//todo: invesstigate why the following gives results too high
-				totalread, err := io.CopyBuffer(wm, resp.Body, utils.BigBuffer)
-				close(done)
-				j.Logger().Debug().Err(err).Msgf("copybuffer ended with %d totalread", totalread)
-
-				err = fixH2H3Errors(err, j.req.Method, j.Logger())
-				if errors.Is(err, context.DeadlineExceeded) {
-					wm.Expired = true
-					j.Logger().Info().Str("cause", "timer expired client side").Msg("ended")
-				} else if err == io.ErrUnexpectedEOF {
-					wm.Expired = true
-					j.Logger().Info().Str("cause", "something expired server side").Msg("ended")
-				} else if err != nil {
-					j.Logger().Error().Err(err)
-					wm.Valid = false
-					wm.Error = err
-				} else {
-					j.Logger().Info().Str("cause", "completed normally").Msg("ended")
-					if totalread != wm.TotalRead {
-						j.Logger().Info().Msgf("less data was read: %d - %d", totalread, wm.TotalRead)
-					}
-				}
+		// completed or expired (timeout)
+		if wm.Error == nil && !wm.Cancelled {
+			if j.tr.ConnInfo.Conn != nil {
+				j.Logger().Debug().
+					Stringer("LocalAddr", j.tr.ConnInfo.Conn.LocalAddr()).
+					Stringer("RemoteAddr", j.tr.ConnInfo.Conn.RemoteAddr()).Send()
 			}
-			// todo: get the server response for put/post here
-			// if (j.Command == "PUT" || j.Command == "POST") && j.Logger().GetLevel() <= zerolog.TraceLevel {
+			j.Logger().Debug().
+				Dur("DNSInfoTime", j.tr.dnsDone.Sub(refdate)). //wm.DNSInfoTime.Sub(refdate),
+				Dur("ConnInfoTime", j.tr.gotConn.Sub(refdate)).
+				Dur("FirstResponseByte", wm.FirstResponseByte.Sub(refdate)).
+				Send()
 
-			// 	b, err := io.ReadAll(resp.Body)
-			// 	if err != nil {
-			// 		log.Error().Err(err).Msg("read response.Body")
-			// 	}
-			// 	n := len(b)
-			// 	if n == 0 {
-			// 		log.Error().Msg("empty body")
-			// 	} else {
-			// 		fmt.Println("HEAD OF BOBY----------------------------------------------------------------")
-			// 		fmt.Println(string(b[:Min(1000, len(b)-1)]))
-			// 		fmt.Println("----------------------------------------------------------------------------")
-			// 	}
-			// }
-			j.Logger().Debug().Msgf("closing Metric")
-			wm.Close()
+			for _, a := range j.tr.DNSInfo.Addrs {
+				j.Logger().Debug().Stringer("dnsinfo", &a).Send()
+			}
+
+			if j.tr.ConnInfo.Reused {
+				log.Warn().Msg("REUSING CONNECTION")
+			}
+
+			if j.tr.TLSDone {
+				j.Logger().Debug().
+					Str("crypto", utils.TLSVersionName(j.tr.TLS.Version)).
+					Str("cipher", tls.CipherSuiteName(j.tr.TLS.CipherSuite)).
+					Dur("TLSDuration", j.tr.tlsDone.Sub(refdate)).Send()
+			}
 		}
-	}
-	// do this only if port is fixed
+		// todo: time'd out 'POST/PUT' don't have a resp so we're missing informations like protocol ,tls, etc
+		// todo: find a way to get the missing informations elsewhere ?
+		// possible workaround: do a HEAD before the POST/PUT but that will count has 2 requests and could mess the server stats and Maxrequests option
+		// or HEAD shouldn't count as a request server side ?
+		if wm.Error == nil && resp != nil {
+			wm.Protocol = resp.Proto
+			wm.Cipher = utils.TLSCipherSuite(resp.TLS)
+			wm.TLSVersion = utils.TLSVersionFriendlyName(utils.TLSVersion(resp.TLS))
+
+			j.Logger().Debug().
+				Str("protocol", wm.Protocol).
+				Send()
+			j.Logger().Debug().
+				Int64("ContentLength", resp.ContentLength).
+				Str("ContentLength-Decimal", utils.ByteCountDecimal(resp.ContentLength)+"B").
+				Str("ContentLength-Binary", utils.ByteCountBinary(resp.ContentLength)+"B").
+				Send()
+
+			// dump resp if trace on
+			if ShouldLog(j.Logger(), zerolog.TraceLevel) {
+				dump, err := httputil.DumpResponse(resp, false)
+				if err != nil {
+					j.Logger().Fatal().Err(err).Send()
+				}
+				j.Logger().Debug().Msgf("Response:\n%s", dump)
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				wm.Error = errors.New("http status code: " + resp.Status)
+				j.Logger().Debug().Msg(resp.Status)
+				wm.Valid = false
+				break // j.Repeat
+			} else { // here we consume the body
+				if j.Command == "GET" {
+					defer func() {
+						if resp.Body != nil {
+							resp.Body.Close()
+						}
+					}()
+					wm.ContentReadSize += resp.ContentLength
+					// if wm.ContentReadSize == 0 && resp.ContentLength > 0 {
+					// 	wm.ContentReadSize = resp.ContentLength
+					// }
+					wm.StartTicker(done)
+					// this is where the GET transfert happens.
+					//   iteration 3: we use io.CopyBuffer the body to 'wm' (which is a Discard) and
+					//   the resp (thru req) context will handle timeout & parent cancellation
+
+					//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
+					//todo: invesstigate why the following gives results too high
+					totalread, err := io.CopyBuffer(wm, resp.Body, utils.BigBuffer)
+					close(done)
+					j.Logger().Debug().Err(err).Msgf("copybuffer ended with %d totalread", totalread)
+
+					err = fixH2H3Errors(err, j.req.Method, j.Logger())
+					if errors.Is(err, context.DeadlineExceeded) {
+						wm.Expired = true
+						j.Logger().Info().Str("cause", "timer expired client side").Msg("ended")
+					} else if err == io.ErrUnexpectedEOF {
+						wm.Expired = true
+						j.Logger().Info().Str("cause", "something expired server side").Msg("ended")
+					} else if err != nil {
+						j.Logger().Error().Err(err)
+						wm.Valid = false
+						wm.Error = err
+					} else {
+						j.Logger().Info().Str("cause", "completed normally").Msg("ended")
+						if totalread != wm.TotalRead {
+							j.Logger().Info().Msgf("less data was read: %d - %d", totalread, wm.TotalRead)
+						}
+					}
+				}
+				// todo: get the server response for put/post here
+				// if (j.Command == "PUT" || j.Command == "POST") && j.Logger().GetLevel() <= zerolog.TraceLevel {
+
+				// 	b, err := io.ReadAll(resp.Body)
+				// 	if err != nil {
+				// 		log.Error().Err(err).Msg("read response.Body")
+				// 	}
+				// 	n := len(b)
+				// 	if n == 0 {
+				// 		log.Error().Msg("empty body")
+				// 	} else {
+				// 		fmt.Println("HEAD OF BOBY----------------------------------------------------------------")
+				// 		fmt.Println(string(b[:Min(1000, len(b)-1)]))
+				// 		fmt.Println("----------------------------------------------------------------------------")
+				// 	}
+				// }
+				// if loop == j.Repeat-1 {
+				// 	j.Logger().Debug().Msgf("closing Metric")
+				wm.Close() // todo check if loop
+				// }
+			}
+		}
+	} // Repeat
 	j.client.CloseIdleConnections()
 	wm.Done = true
 	j.wm.Command = j.PrintString(false, false)
 
-	PrintMemUsage(j.Logger(), "client ended")
+	LogMemUsage(j.Logger(), "client ended")
 	wm.LogFinal(j.Logger())
 	return wm, nil
 }

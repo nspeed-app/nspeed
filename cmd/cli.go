@@ -173,22 +173,26 @@ func Main() {
 
 	consolePartsOrder := []string{
 		zerolog.TimestampFieldName,
+		"job",
 		zerolog.LevelFieldName,
 		zerolog.CallerFieldName,
-		"job",
 		zerolog.MessageFieldName,
 	}
+	cw := zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
+		w.Out = os.Stderr
+		w.NoColor = *optNoColor
+		w.FormatLevel = nspeed.LogConsoleFormatLevel(*optNoColor, displayLogLevels)
+		w.TimeFormat = time.TimeOnly
+		w.FormatTimestamp = formatTimestamp
+		w.FormatFieldValue = formatFieldValue
+		w.PartsOrder = consolePartsOrder
+		w.FieldsExclude = []string{"job"}
+	})
+	// this will add an extra line between log messages if there is a delay between them
+	spacer := utils.NewSpacer(cw.Out, 1*time.Second, true, utils.SpacerNewLine)
+
 	consoleWriter := nspeed.CreateFilteredWriter(
-		zerolog.MultiLevelWriter(zerolog.ConsoleWriter{
-			Out:              os.Stderr,
-			NoColor:          *optNoColor,
-			FormatLevel:      nspeed.LogConsoleFormatLevel(*optNoColor, displayLogLevels),
-			TimeFormat:       time.TimeOnly,
-			FormatTimestamp:  formatTimestamp,
-			FormatFieldValue: formatFieldValue,
-			PartsOrder:       consolePartsOrder,
-			FieldsExclude:    []string{"job"},
-		}),
+		zerolog.MultiLevelWriter(spacer, cw),
 		consoleLevel,
 		false)
 
