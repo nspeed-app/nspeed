@@ -40,7 +40,7 @@ const (
 	DefaultMaxDuration       = 10 * time.Second
 	DefaultIdelTimeout       = 10 * time.Second
 	DirPath                  = "/dir/"
-	GUIDHeader               = "X-Nspeed-Guid"
+	GUIDHeader               = "x-nspeed-guid"
 	TTLGuidTimeout           = 5 * time.Second
 	TTLGuidMaxSize           = 10000
 )
