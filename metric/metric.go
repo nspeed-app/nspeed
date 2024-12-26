@@ -40,6 +40,8 @@ type MetricsData struct {
 	TotalWrite         int64
 	ReadStepSize       int64
 	WriteStepSize      int64
+	Loop               uint
+	LoopMax            uint
 	TransfertStartTime time.Time
 	ElapsedTime        time.Duration
 	FirstResponseByte  time.Time
@@ -232,6 +234,8 @@ func (wm *Metric) LogProgress(logger *zerolog.Logger) {
 		Int64("ReadCount", m.ReadCount).
 		Int64("WriteStepsize", m.WriteStepSize).
 		Int64("WriteCount", m.WriteCount).
+		Uint("Loop", m.Loop).
+		Uint("LoopMax", m.LoopMax).
 		Send()
 }
 
@@ -265,6 +269,8 @@ func (wm *Metric) LogFinal(logger *zerolog.Logger) {
 			Str("RBPS", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
 			Str("WBPS", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
 			Float64("Dur", wm.ElapsedTime.Seconds()).
+			Uint("Loop", wm.Loop).
+			Uint("LoopMax", wm.LoopMax).
 			Str("URL", wm.Target).
 			Send()
 	} else {
@@ -278,7 +284,7 @@ func (wm *Metric) PrintFinal(w io.Writer) {
 		fmt.Fprintf(w, "Write: %s ", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
 		fmt.Fprintf(w, "TotalRead: %d (%sB) ", wm.TotalRead, utils.ByteCountBinary(wm.TotalRead))
 		fmt.Fprintf(w, "TotalWrite: %d (%sB)", wm.TotalWrite, utils.ByteCountBinary(wm.TotalWrite))
-		fmt.Fprintf(w, "duration: %s ", wm.ElapsedTime)
+		fmt.Fprintf(w, "duration: %s (%d/%d)", wm.ElapsedTime, wm.Loop, wm.LoopMax)
 		fmt.Fprintf(w, "command: %s", wm.Command)
 		fmt.Fprintf(w, "\n")
 
@@ -626,6 +632,8 @@ func (wm *Metric) ToNetMetric(fmtV4, fmtV6 string) NetMetric {
 		Cipher:     wm.Cipher,
 		TLSVersion: wm.TLSVersion,
 		SampleRate: uint64(wm.Tick),
+		Loop:       wm.Loop,
+		LoopMax:    wm.LoopMax,
 		Samples:    wm.ToSamples(),
 	}
 	if wm.Interface != nil {
@@ -903,6 +911,8 @@ type NetMetric struct {
 	Gateway    string        `json:"gateway"`
 	SrcAddr    string        `json:"sourceaddr"`
 	SampleRate uint64        `json:"samplerate"`
+	Loop       uint          `json:"loop"`
+	LoopMax    uint          `json:"loopmax"`
 	Samples    []NetMetricSample
 }
 
@@ -914,6 +924,7 @@ type NetMetricSample struct {
 	Duration float64   `json:"duration"` // in ms or ns ? - should be constant - keep?
 	RXhbps   string    `json:"rxhbps"`
 	TXhbps   string    `json:"txhbps"`
+	Loop     uint      `json:"loop"`
 }
 
 /*  echarts.apache.org

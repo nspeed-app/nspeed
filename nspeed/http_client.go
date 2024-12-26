@@ -151,7 +151,7 @@ func (j *JobClient) PrintString(verbose bool, group bool) string {
 		latency := j.wm.AvgLatency.Milliseconds()
 		latencyMicroRem := j.wm.AvgLatency.Microseconds() % 1000
 		ipv := utils.GetIPVersion(j.wm.Remote.Addr())
-		details := fmt.Sprintf("%s (%s - %d.%d ms - %s - %s)", r, ipv, latency, latencyMicroRem, j.wm.Protocol, j.wm.TLSVersion)
+		details := fmt.Sprintf("%s - %d/%d(%s - %d.%d ms - %s - %s)", r, j.wm.Loop, j.wm.LoopMax, ipv, latency, latencyMicroRem, j.wm.Protocol, j.wm.TLSVersion)
 		if j.numRedirect > 0 && verbose {
 			return fmt.Sprintf("%s from %s", details, j.Target)
 		}
@@ -565,7 +565,11 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 	if j.Repeat == 0 {
 		j.Logger().Warn().Msgf("zero repeat!")
 	}
+	wm.LoopMax = j.Repeat
+	wm.Loop = 0
+	var totalwrite int64 = 0
 	for loop := range j.Repeat {
+		wm.Loop += 1
 		LogMemUsage(j.Logger(), "before Loop #%d", loop)
 		done := make(chan any)
 		if j.Command == "PUT" || j.Command == "POST" {
@@ -628,8 +632,8 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 				j.Logger().Debug().Stringer("dnsinfo", &a).Send()
 			}
 
-			if j.tr.ConnInfo.Reused {
-				log.Warn().Msg("REUSING CONNECTION")
+			if !j.tr.ConnInfo.Reused && loop > 1 {
+				log.Warn().Msg("Repeat no reusing connection") // should we abort ? at least set this somewhere in wm
 			}
 
 			if j.tr.TLSDone {
@@ -670,7 +674,6 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 				wm.Error = errors.New("http status code: " + resp.Status)
 				j.Logger().Debug().Msg(resp.Status)
 				wm.Valid = false
-				break // j.Repeat
 			} else { // here we consume the body
 				if j.Command == "GET" {
 					defer func() {
@@ -730,10 +733,17 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 				// if loop == j.Repeat-1 {
 				// 	j.Logger().Debug().Msgf("closing Metric")
 				wm.Close() // todo check if loop
+				totalwrite += j.wm.TotalWrite
+				j.wm.TotalWrite = 0 // todo: store previous loops data
 				// }
 			}
 		}
+		// conditions to stop Repeat
+		if wm.Error != nil || wm.Expired || !wm.Valid {
+			break // Repeat
+		}
 	} // Repeat
+	j.wm.TotalWrite = int64(totalwrite)
 	j.client.CloseIdleConnections()
 	wm.Done = true
 	j.wm.Command = j.PrintString(false, false)
