@@ -14,8 +14,6 @@ import (
 	"net/textproto"
 	"net/url"
 	"slices"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -29,6 +27,8 @@ import (
 	"nspeed.app/metric"
 	"nspeed.app/utils"
 )
+
+// HTTP specific client code - complement of client.go
 
 // this will be used to set a big value for MaxReadFrameSize (HTTP/2)
 // see https://github.com/golang/go/issues/54850
@@ -53,244 +53,6 @@ type roundTripTrace struct {
 	TLS           tls.ConnectionState
 }
 
-// supported L4Protocols
-var L4Protocols = [...]string{"tcp", "quic", "quic-go"}
-
-// a client command, get or post
-// implements Job interface
-type JobClient struct {
-	JobData
-	Command          string
-	Protocol         string // "http" or one of the L4Protocols
-	Instance         int    //=0 single, >0 index of instance
-	Repeat           uint   // 0 or 1 is 1
-	IPVersion        utils.IPVersion
-	Host             string
-	Target           string
-	Timeout          time.Duration
-	DialTimeout      time.Duration
-	UserAgent        string
-	ContentType      string
-	ContentSize      int64
-	SkipTLSCheck     bool
-	UseTLSSelfConfig bool
-	Delay            time.Duration
-	HTTPVersion      int
-	H2C              bool
-	// private
-	localAddr   *net.IPAddr
-	dialer      *net.Dialer
-	dialContext func(ctx context.Context, network string, address string) (net.Conn, error)
-	tlsConfig   *tls.Config
-	client      *http.Client
-	req         *http.Request
-	tr          roundTripTrace
-	numRedirect int
-	finalTarget string
-	targetURL   *url.URL
-	wm          *metric.Metric
-}
-
-func (j *JobClient) GoString() string {
-	if zerolog.GlobalLevel() > zerolog.InfoLevel {
-		return fmt.Sprintf("%s %s %s", j.Protocol, j.Command, j.Target)
-	}
-	return j.CommandString()
-}
-
-func (j *JobClient) CommandString() string {
-	s := fmt.Sprintf("%s client {Method: %s, URL: %s, IPversion: %d, Address: %s, timeout: %s, delay: %s, h2c: %t, http:%s}",
-		strings.ToUpper(j.Protocol),
-		j.Command,
-		j.Target,
-		j.IPVersion,
-		j.Host,
-		j.Timeout.String(),
-		j.Delay.String(),
-		j.H2C,
-		utils.HTTPVersionStringer(j.HTTPVersion),
-	)
-	if j.ContentSize != 0 {
-		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, utils.ByteCountDecimal(j.ContentSize))
-	}
-	s += "}"
-	return s
-}
-
-func (j *JobClient) GetTarget() string {
-	return j.Target
-}
-
-func (j *JobClient) GetConn() *httptrace.GotConnInfo {
-	if j.wm != nil {
-		return &j.tr.ConnInfo
-	}
-	return nil
-}
-
-func (j *JobClient) GetDestination() string {
-	ci := j.GetConn()
-	if ci == nil {
-		return ""
-	}
-	if ci.Conn == nil {
-		return ""
-	}
-	return ci.Conn.RemoteAddr().String()
-}
-
-// Pretty print command and some infos
-// todo: fix me
-func (j *JobClient) PrintString(verbose bool, group bool) string {
-
-	formatOut := func(r string) string {
-		if j.wm.AvgLatency == 0 {
-			//todo: move this elsewhere
-			j.wm.AvgLatency = j.tr.connectDone.Sub(j.tr.connectStart)
-		}
-		latency := j.wm.AvgLatency.Milliseconds()
-		latencyMicroRem := j.wm.AvgLatency.Microseconds() % 1000
-		ipv := utils.GetIPVersion(j.wm.Remote.Addr())
-		details := fmt.Sprintf("%s - %d/%d(%s - %d.%d ms - %s - %s)", r, j.wm.Loop, j.wm.LoopMax, ipv, latency, latencyMicroRem, j.wm.Protocol, j.wm.TLSVersion)
-		if j.numRedirect > 0 && verbose {
-			return fmt.Sprintf("%s from %s", details, j.Target)
-		}
-		return details
-	}
-
-	groupFormat := ""
-	if group {
-		groupFormat = "-n " + strconv.Itoa(j.Instance) + " "
-	}
-	if j.Command == "GET" {
-		t := "get " + groupFormat + "%s" + j.finalTarget
-		r := fmt.Sprintf(t, utils.HTTPVersionFlag(j.HTTPVersion, j.H2C))
-		return formatOut(r)
-
-	} else if j.Command == "POST" || j.Command == "PUT" {
-		t := strings.ToLower(j.Command) + " " + groupFormat + "%s" + j.finalTarget + " " + utils.ByteCountDecimal(j.ContentSize) + "B" //todo
-		r := fmt.Sprintf(t, utils.HTTPVersionFlag(j.HTTPVersion, j.H2C))
-		return formatOut(r)
-	}
-	return "unknown command"
-}
-
-func (j *JobClient) IsInfinite() bool { return false }
-
-// init a HTTP Job
-func (j *JobClient) Init(opt Options) error {
-
-	// timeout (if none is specified use global default)
-	j.Timeout = utils.OrDefault(j.Timeout, opt.DefaultClientTimeout)
-
-	// todo move this to run ? and get ride of .wm?
-	j.wm = &metric.Metric{
-		MetricsData: metric.MetricsData{
-			Done:    false,
-			Expired: false,
-			Target:  j.GetTarget(),
-			ID:      j.ID(),
-			GroupID: j.GroupID(),
-			Command: j.CommandString(),
-		},
-		Instance: j.Instance,
-		Tick:     opt.Tick,
-	}
-	j.wm.SetLogger(j.Logger())
-
-	// prepend https scheme if no scheme
-	if !strings.Contains(j.Target, "://") {
-		j.Target = "https://" + j.Target
-	}
-
-	if !j.IPVersion.IsValid() {
-		return errors.New("invalid ip version requested")
-	}
-	j.IPVersion = utils.OrDefault(j.IPVersion, opt.IPVersion)
-	// source address & port
-	var err error
-	// j.Host can have an optionnal trailing ":port"
-	localAddr, localPort, err := utils.ParseAddressWithOptionnalPort(j.Host)
-	if err != nil {
-		return fmt.Errorf("InterfaceAddress ParseOtionnalPort error: %w", err)
-	}
-	j.localAddr, err = utils.InterfaceAddress(localAddr, j.IPVersion)
-	if err != nil {
-		return fmt.Errorf("InterfaceAddress error: %w", err)
-	}
-	// we cast a to *TCPAddr but change later for udp as needed because Dial performs a type switch
-	// and we get a  "mismatched local address type" error
-	localTCPAddr := func() net.Addr {
-		if j.localAddr == nil {
-			return nil
-		}
-		return &net.TCPAddr{
-			IP:   j.localAddr.IP,
-			Zone: j.localAddr.Zone,
-			Port: localPort,
-		}
-	}
-
-	j.targetURL, err = ResolveSchemes(j.jobList.Jobs, j.Target)
-	if err != nil {
-		return fmt.Errorf("ResolveSchemes error: %w", err)
-	}
-	j.finalTarget = j.targetURL.String()
-	j.Logger().Info().Msgf("real target is: %s", j.finalTarget)
-
-	// TLS config
-	if j.UseTLSSelfConfig {
-		j.tlsConfig = utils.GetTLSSelfConfig()
-		j.Logger().Info().Msgf("using TLSSelfConfig")
-		// for tls 1.3 we can't change cipher suites with current Go implementation: https://go.dev/blog/tls-cipher-suites
-		// so something like this won't work:
-		// netTransport.TLSClientConfig.CipherSuites = []uint16{tls.TLS_CHACHA20_POLY1305_SHA256}
-		// netTransport.TLSClientConfig.MinVersion = tls.VersionTLS13
-		// so we cannot (for now?) specify a cipher
-	}
-	if j.SkipTLSCheck {
-		j.tlsConfig = &tls.Config{InsecureSkipVerify: true}
-		j.Logger().Info().Msgf("skipping TLS Check")
-	}
-
-	if j.tlsConfig != nil {
-		j.Logger().Debug().Msgf("TLSConfig: defined")
-	}
-
-	// Dialer
-	j.dialer = &net.Dialer{
-		Timeout:       j.DialTimeout,  //
-		FallbackDelay: -1,             // don't use Happy Eyeballs
-		LocalAddr:     localTCPAddr(), //localTCPAddr,  // "-a" for client
-	}
-
-	// this is our dialContext for transports/l4
-	j.dialContext = func(ctx context.Context, network string, address string) (net.Conn, error) {
-		if network == "udp" || network == "tcp" {
-			network = utils.AddIPVersionToNetwork(network, j.IPVersion)
-		}
-		j.Logger().Debug().Msgf("DialContext %s %s %d (%s)", network, address, j.IPVersion, j.dialer.LocalAddr)
-		return j.dialer.DialContext(ctx, network, address)
-	}
-
-	// check Repeat
-	if j.Repeat == 0 {
-		j.Logger().Debug().Msgf("Repeat set to 1")
-		j.Repeat = 1
-	}
-	// branch to L4 or HTTP client
-	switch j.targetURL.Scheme {
-	case "http", "https":
-		j.Protocol = "http"
-		return j.HTTPInit()
-	case "tcp", "udp", "quic", "quic-go":
-		j.Protocol = j.targetURL.Scheme
-		return j.L4Init()
-	default:
-		return fmt.Errorf("invalid scheme: %s", j.targetURL.Scheme)
-	}
-}
-
 func (j *JobClient) HTTPInit() error {
 
 	// we clone to avoid ConfigureTransports to crash
@@ -311,7 +73,8 @@ func (j *JobClient) HTTPInit() error {
 	// interface to the transport so we can switch if needed
 	var rtTransport http.RoundTripper = netTransport
 
-	if j.HTTPVersion != 1 { // 1 means 1.11 too
+	// HTTP/2
+	if j.HTTPVersion == 2 {
 		// get a http2 transport
 		t2, err := http2.ConfigureTransports(netTransport)
 		if err != nil {
@@ -323,54 +86,56 @@ func (j *JobClient) HTTPInit() error {
 
 		// force http/2 : this is hacky: remove "http/1.1" from NextProtos.
 		// Forcing a http2.Transport fails unless it's h2c mode.
-		if j.HTTPVersion == 2 {
-			idx := slices.Index(netTransport.TLSClientConfig.NextProtos, "http/1.1")
-			if idx != -1 {
-				log.Debug().Msgf("removing http/1.1 from netTransport.TLSClientConfig")
-				netTransport.TLSClientConfig.NextProtos = append(netTransport.TLSClientConfig.NextProtos[:idx], netTransport.TLSClientConfig.NextProtos[idx+1:]...)
-			}
+		idx := slices.Index(netTransport.TLSClientConfig.NextProtos, "http/1.1")
+		if idx != -1 {
+			j.Logger().Debug().Msgf("removing http/1.1 from netTransport.TLSClientConfig")
+			netTransport.TLSClientConfig.NextProtos = append(netTransport.TLSClientConfig.NextProtos[:idx], netTransport.TLSClientConfig.NextProtos[idx+1:]...)
 		}
-		if j.H2C {
-			rtTransport = &http2.Transport{
-				DialTLSContext: func(ctx context.Context, network string, addr string, cfg *tls.Config) (net.Conn, error) {
-					return j.dialContext(ctx, network, addr)
-				},
-				TLSClientConfig:    netTransport.TLSClientConfig.Clone(),
-				DisableCompression: true,
-				AllowHTTP:          j.H2C,
-				MaxReadFrameSize:   h2MaxFrameSize,
-			}
-		}
-		if j.HTTPVersion == 3 {
-			quicConf, qTransport := quicgoInit(j)
-			// the roundtrip
-			rtTransport = &http3.Transport{
-				DisableCompression: true,
-				TLSClientConfig:    netTransport.TLSClientConfig,
-				QUICConfig:         quicConf,
-				Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quicgo.Config) (quicgo.EarlyConnection, error) {
-					j.Logger().Debug().Msgf("HTTP3 pre dialing %s ", addr)
-					udpAddr, err := netTransport.DialContext(ctx, "udp", addr)
-					if err != nil {
-						return nil, fmt.Errorf("htt3 Dial failed: %w", err)
-					}
-					if qTransport == nil {
-						// check for Zone on IPv6 link-local for instance, some OS might need the Zone too
-						udpConn, err := net.ListenUDP("udp", nil)
-						if err != nil {
-							return nil, err
-						}
-						qTransport = &quicgo.Transport{Conn: udpConn}
-					}
-					// use same dialer as other http version
-
-					j.Logger().Debug().Msgf("HTTP3 dialing %s -> %s", addr, udpAddr.RemoteAddr().String())
-					return qTransport.DialEarly(ctx, udpAddr.RemoteAddr(), tlsCfg, cfg)
-				},
-			}
+	}
+	// unencryped (ClearText) HTTP/2
+	if j.HTTPVersion == 2 && j.H2C {
+		rtTransport = &http2.Transport{
+			DialTLSContext: func(ctx context.Context, network string, addr string, cfg *tls.Config) (net.Conn, error) {
+				return j.dialContext(ctx, network, addr)
+			},
+			TLSClientConfig:    netTransport.TLSClientConfig.Clone(),
+			DisableCompression: true,
+			AllowHTTP:          j.H2C,
+			MaxReadFrameSize:   h2MaxFrameSize,
 		}
 	}
 
+	// HTTP/3
+	if j.HTTPVersion == 3 {
+		quicConf, qTransport := quicgoInit(j)
+		// the roundtrip
+		rtTransport = &http3.Transport{
+			DisableCompression: true,
+			TLSClientConfig:    netTransport.TLSClientConfig,
+			QUICConfig:         quicConf,
+			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quicgo.Config) (quicgo.EarlyConnection, error) {
+				j.Logger().Debug().Msgf("HTTP3 pre dialing %s ", addr)
+				udpAddr, err := netTransport.DialContext(ctx, "udp", addr)
+				if err != nil {
+					return nil, fmt.Errorf("htt3 Dial failed: %w", err)
+				}
+				if qTransport == nil {
+					// check for Zone on IPv6 link-local for instance, some OS might need the Zone too
+					udpConn, err := net.ListenUDP("udp", nil)
+					if err != nil {
+						return nil, err
+					}
+					qTransport = &quicgo.Transport{Conn: udpConn}
+				}
+				// use same dialer as other http version
+
+				j.Logger().Debug().Msgf("HTTP3 dialing %s -> %s", addr, udpAddr.RemoteAddr().String())
+				return qTransport.DialEarly(ctx, udpAddr.RemoteAddr(), tlsCfg, cfg)
+			},
+		}
+	}
+
+	// HTTP/1.x
 	if j.HTTPVersion == 1 {
 		// force HTTP1.1 as per https://pkg.go.dev/net/http#pkg-overview:
 		// "Programs that must disable HTTP/2 can do so by setting

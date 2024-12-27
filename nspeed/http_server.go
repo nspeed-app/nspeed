@@ -40,10 +40,11 @@ const (
 	DefaultMaxDuration       = 10 * time.Second
 	DefaultIdelTimeout       = 10 * time.Second
 	DirPath                  = "/dir/"
-	GUIDHeader               = "x-nspeed-guid"
 	TTLGuidTimeout           = 5 * time.Second
 	TTLGuidMaxSize           = 10000
 )
+
+var GUIDHeader = http.CanonicalHeaderKey("x-nspeed-guid")
 
 var StreamPathRegexp *regexp.Regexp
 var TTLGUIDCache *utils.TTLCache[string, *metric.Metric]

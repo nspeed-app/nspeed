@@ -1,6 +1,6 @@
 module nspeed.app
 
-go 1.23.2
+go 1.23
 
 require (
 	github.com/arl/statsviz v0.6.0

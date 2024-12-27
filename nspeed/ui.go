@@ -15,8 +15,6 @@ import (
 	"strings"
 	"sync"
 
-	_ "embed"
-
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
