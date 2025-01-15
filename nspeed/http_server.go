@@ -159,11 +159,10 @@ func (j *JobHTTPServer) CreateHandler() http.Handler {
 
 	mux.HandleFunc("/ip", notImplemented)
 
-	// mux and chain of middlewares (see http_middleware.go)
+	// mux and chain of middlewares
 	var handler http.Handler
 	handler = mux
 	handler = limitRequestSize(j.Parameters.MaxBodySize, handler)
-	handler = preflight(handler)
 	handler = limitNumRequests(j.OnRequestStart, j.OnRequestEnd, handler)
 	if j.Logger() != nil {
 		handler = logger(j.Logger(), handler)
@@ -171,6 +170,27 @@ func (j *JobHTTPServer) CreateHandler() http.Handler {
 	// investigate using http.TimeoutHandler
 	// handler = http.TimeoutHandler(handler, j.Parameters.MaxDuration, "...")
 	return handler
+}
+
+// limit inbound request size
+func limitRequestSize(maxSize int64, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body != nil {
+			r.Body = http.MaxBytesReader(w, r.Body, maxSize)
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func limitNumRequests(OnRequestStart func() bool, OnRequestEnd func(), h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if OnRequestStart() {
+			h.ServeHTTP(w, r)
+		} else {
+			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+		}
+		OnRequestEnd()
+	})
 }
 
 // return informations to the clients
@@ -193,7 +213,10 @@ func (j *JobHTTPServer) LandingPage(w http.ResponseWriter, r *http.Request) {
 	if r.TLS != nil {
 		rr.Cipher = tls.CipherSuiteName(r.TLS.CipherSuite)
 	}
-	_ = json.NewEncoder(w).Encode(rr)
+	err := json.NewEncoder(w).Encode(rr)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("json encoding error (%s)", err), http.StatusInternalServerError)
+	}
 }
 
 // handle '/' .. get : stream bytes, post/put - upload bytes

@@ -27,53 +27,6 @@ func logger(logger *zerolog.Logger, h http.Handler) http.Handler {
 	})
 }
 
-// limit inbound request size
-func limitRequestSize(maxSize int64, h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Body != nil {
-			r.Body = http.MaxBytesReader(w, r.Body, maxSize)
-		}
-		h.ServeHTTP(w, r)
-	})
-}
-
-func limitNumRequests(OnRequestStart func() bool, OnRequestEnd func(), h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if OnRequestStart() {
-			h.ServeHTTP(w, r)
-		} else {
-			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
-		}
-		OnRequestEnd()
-	})
-}
-
-// todo: check if this is still needed,
-// todo: add a CORS setting
-func preflight(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			origin = "*"
-		}
-		respHeader := w.Header()
-		respHeader.Set("Access-Control-Allow-Origin", origin)
-		respHeader.Set("Access-Control-Allow-Credentials", "true")
-		respHeader.Set("Server", ServerName+" "+ServerVersion) //todo:move this elsewhere ?
-
-		if r.Method == "OPTIONS" {
-			w.Header().Set("Access-Control-Allow-Methods", "HEAD, GET, POST, PUT, OPTIONS") // , HEAD, PUT, DELETE, PATCH, ") // todo
-			w.Header().Set("Access-Control-Max-Age", "3600")                                //todo
-			if r.Header.Get("Access-Control-Request-Headers") != "" {
-				w.Header().Set("Access-Control-Allow-Headers", r.Header.Get("Access-Control-Request-Headers"))
-			}
-			w.WriteHeader(200)
-			return
-		}
-		h.ServeHTTP(w, r)
-	})
-}
-
 // command line parsers
 func CmdClientParseGet(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	fs, hf := clientCommonFlagSet(command, flag.ContinueOnError, output)
