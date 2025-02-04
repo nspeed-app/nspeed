@@ -474,9 +474,10 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 						wm.Error = err
 					} else {
 						j.Logger().Info().Str("cause", "completed normally").Msg("ended")
-						if totalread != wm.TotalRead {
-							j.Logger().Info().Msgf("less data was read: %d - %d", totalread, wm.TotalRead)
-						}
+						// disable this because of loops (-r) - todo: refactor the whole loop
+						// if totalread != wm.TotalRead {
+						// 	j.Logger().Info().Msgf("less data was read: %d - %d", totalread, wm.TotalRead)
+						// }
 					}
 				}
 				// todo: get the server response for put/post here

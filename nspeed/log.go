@@ -45,7 +45,7 @@ func CreateFilteredWriter(w zerolog.LevelWriter, level zerolog.Level, exact bool
 	return &FilteredWriter{w: zerolog.MultiLevelWriter(w), level: level, exact: exact}
 }
 
-// should returns true if this logged would log at this lvl
+// should returns true if this logger would log at this lvl
 func ShouldLog(l *zerolog.Logger, lvl zerolog.Level) bool {
 	if l == nil {
 		return false

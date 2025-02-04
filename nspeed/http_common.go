@@ -214,7 +214,7 @@ func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, outpu
 	fs.BoolVar(&hf.UseHTTP3, "http3", false, "use HTTP3")
 	fs.StringVar(&hf.URL, urlFlag, "", "target url for the command")
 	fs.StringVar(&hf.ID, "id", "", "name/id of this command")
-	fs.UintVar(&hf.Repeat, "r", 1, "number of repeat loop)")
+	fs.UintVar(&hf.Repeat, "r", 1, "number of repeat loops")
 
 	//fs.StringVar(&hf.RemoteHost, "remote", "", "use a remote nspeed instance (hostname:port)")
 	return fs, &hf
