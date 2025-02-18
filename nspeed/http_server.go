@@ -722,7 +722,7 @@ func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) 
 	return j.wm, err
 }
 
-// Listen opens the listening conn
+// Listen opens the listening conn - HTTP/1.1 and HTTP/2
 func (j *JobHTTPServer) Listen(ctx context.Context) error {
 
 	if j.Parameters.HTTP3 {
@@ -773,13 +773,19 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 		return err
 	}
 	j.listener = &ln
-	if j.Parameters.ServeTLS {
-		j.URL = &url.URL{Scheme: "https", Host: ln.Addr().String()}
-		j.Logger().Warn().Msgf("server %s listening on %s (H2C = %t)", j.ID(), j.URL.String(), j.Parameters.H2C)
-	} else {
-		j.URL = &url.URL{Scheme: "http", Host: ln.Addr().String()}
-		j.Logger().Warn().Msgf("server %s listening on %s", j.ID(), j.URL.String())
+	l7proto := "HTTP/2"
+
+	if j.Parameters.HTTP11 {
+		l7proto = "HTTP/1.1"
 	}
+
+	scheme := "http"
+	if j.Parameters.ServeTLS {
+		scheme = "https"
+		l7proto += " TLS"
+	}
+	j.URL = &url.URL{Scheme: scheme, Host: ln.Addr().String()}
+	j.Logger().Warn().Msgf("server %s listening on %s (%s)", j.ID(), j.URL.String(), l7proto)
 
 	return nil
 }

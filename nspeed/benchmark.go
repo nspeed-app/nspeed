@@ -53,11 +53,11 @@ var benchmarksTemplates = map[string]Benchmark{
 		Name: "TCP GET, localhost, tls",
 	},
 	// HTTP/1.1
-	"h1g": {
+	"h1cg": {
 		Tpl:  "server {{.Args}} -id s{{.ID}} get {{.Args}} -n {{.N}} nspeed://s{{.ID}}/{{.Size}}",
 		Name: "HTTP/1.1 GET, localhost",
 	},
-	"h1p": {
+	"h1cp": {
 		Tpl:  "server {{.Args}} -id s{{.ID}} put {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
 		Name: "HTTP/1.1 PUT, localhost",
 	},
@@ -73,22 +73,22 @@ var benchmarksTemplates = map[string]Benchmark{
 	},
 
 	// HTTPS/1.1
-	"h1sg": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -self get {{.Args}} -n {{.N}} -self -http1.1 nspeed://s{{.ID}}/{{.Size}}",
+	"h1g": {
+		Tpl:  "server {{.Args}} -http1.1 -id s{{.ID}} -self get {{.Args}} -n {{.N}} -self -http1.1 nspeed://s{{.ID}}/{{.Size}}",
 		Name: "HTTPS/1.1 GET, localhost, TLS",
 	},
-	"h1sp": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -self put {{.Args}} -n {{.N}} -self -http1.1 nspeed://s{{.ID}}/ {{.Size}}",
+	"h1p": {
+		Tpl:  "server {{.Args}} -http1.1 -id s{{.ID}} -self put {{.Args}} -n {{.N}} -self -http1.1 nspeed://s{{.ID}}/ {{.Size}}",
 		Name: "HTTPS/1.1 PUT, localhost, TLS",
 	},
 
 	// HTTPS/2
 	"h2g": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -self get {{.Args}} -n {{.N}} -self -http2 nspeed://s{{.ID}}/{{.Size}}",
+		Tpl:  "server {{.Args}} -http2 -id s{{.ID}} -self get {{.Args}} -n {{.N}} -self -http2 nspeed://s{{.ID}}/{{.Size}}",
 		Name: "HTTPS/2 GET , localhost, tls",
 	},
 	"h2p": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -self put {{.Args}} -n {{.N}} -self -http2 nspeed://s{{.ID}}/ {{.Size}}",
+		Tpl:  "server {{.Args}} -http2 -id s{{.ID}} -self put {{.Args}} -n {{.N}} -self -http2 nspeed://s{{.ID}}/ {{.Size}}",
 		Name: "HTTPS/2 PUT , localhost, tls",
 	},
 
