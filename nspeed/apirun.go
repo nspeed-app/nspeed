@@ -83,16 +83,16 @@ func APIRun(ctx context.Context, globalOptions Options, cmd string, args []strin
 		name := fmt.Sprintf("from %s", who)
 		err := jl.AddBatch(&Batch{Name: name})
 		if err != nil {
-			return nil, fmt.Errorf("error adding batch: %w\n", err)
+			return nil, fmt.Errorf("error adding batch: %w", err)
 		}
 		err = ParseCommands(args, jl, output, true)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing run command: %w\n", err)
+			return nil, fmt.Errorf("error parsing run command: %w", err)
 		}
 
 		results, err := RunJobs(ctx, jl, globalOptions, nil)
 		if err != nil {
-			return nil, fmt.Errorf("error running command: %w\n", err)
+			return nil, fmt.Errorf("error running command: %w", err)
 		}
 		return marshaller(results) //results.MarshalJSON()
 	}

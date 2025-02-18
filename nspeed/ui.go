@@ -110,7 +110,7 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 	}
 	// start the hub
 	if j.hub != nil {
-		return nil, fmt.Errorf("ui hub already exists!")
+		return nil, fmt.Errorf("ui hub already exists")
 	}
 
 	j.hub = ui.NewHub()
