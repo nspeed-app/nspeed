@@ -11,6 +11,7 @@
 stack bars:
   https://echarts.apache.org/examples/en/editor.html?c=bar-stack
 -->
+
 <body>
   <style>
     .box {
@@ -41,7 +42,7 @@ stack bars:
 
       function formatTooltip(params) {
         console.log(params);
-        var output = '<b>' + params[0].axisValueLabel + '</b><br/>'
+        var output = '<b>' + params[0].axisValueLabel + '</b><br/>' // would be nice to have same formating as the axis
         for (var i = 0; i < params.length; i++) {
           output += params[i].marker + params[i].seriesName + ': ' + formatBytes(params[i].value[1], "bps"); //
           if (i != params.length - 1) { // Append a <br/> tag if not last in loop
@@ -54,7 +55,7 @@ stack bars:
 
       let base = Date.now();
       let onesec = 1000;
-      let xAxisData = [base, base + onesec, base + onesec * 2, base + onesec * 3, base + 1000 * 60]
+      let xAxisData = [base, base + onesec, base + onesec * 2, base + onesec * 3, base + 1000 * 10]
       let goecharts_testchart = echarts.init(document.getElementById('testchart'), "macarons", { renderer: "canvas" });
       let option_testchart =
       {
@@ -68,23 +69,23 @@ stack bars:
           show: true,
           align: 'left',
           type: 'scroll',
-        //   orient: 'vertical'
+          //   orient: 'vertical'
         },
-        "series": [
+        series: [
           {
-            "name": "lo",
-            "type": "line",
-            "data": zip(xAxisData, [50, 5000, 6000, 10]),
-            "markPoint": {
-              "data": [
+            name: 'lo',
+            type: 'line',
+            data: zip(xAxisData, [50, 5000, 6000, 10]),
+            markPoint: {
+              data: [
                 {
-                  "name": "Max",
-                  "type": "max"
+                  name: 'Max',
+                  type: 'max'
                 }
               ],
-              "label": {
-                "show": true,
-                "formatter": function (params) {
+              label: {
+                show: true,
+                formatter: function (params) {
                   return formatBytes(params.value, 'bps',
                     2)
                 }
@@ -92,19 +93,19 @@ stack bars:
             }
           },
           {
-            "name": "eno1",
-            "type": "line",
-            "data": zip(xAxisData, [1000000000, 2000000000, 100000000, 10000]),
-            "markPoint": {
-              "data": [
+            name: 'eno1',
+            type: 'line',
+            data: zip(xAxisData, [1000000000, 2000000000, 100000000, 10000]),
+            markPoint: {
+              data: [
                 {
-                  "name": "Max",
-                  "type": "max"
+                  name: "Max",
+                  type: "max"
                 }
               ],
-              "label": {
-                "show": true,
-                "formatter": function (params) {
+              label: {
+                show: true,
+                formatter: function (params) {
                   return formatBytes(params.value, 'bps',
                     2)
                 }
@@ -116,17 +117,18 @@ stack bars:
           text: 'NSpeed'
         },
         toolbox: {
-          "show": true,
-          "feature": {
-            "saveAsImage": {},
-            "dataZoom": {
+          show: true,
+          feature: {
+            saveAsImage: {},
+            dataZoom: {
               yAxisIndex: 'none'
             },
+            magicType: { type: ['line', 'bar'] },
             restore: {},
-            "dataView": {
-              "show": true,
-              "lang": null,
-              "backgroundColor": ""
+            dataView: {
+              show: true,
+              lang: null,
+              backgroundColor: ""
             }
           }
         },
@@ -149,29 +151,29 @@ stack bars:
             return formatTooltip(params)
           }
         },
-        "xAxis": [
+        xAxis: [
           {
             type: 'time',
             name: 'Time',
           }
         ],
-        "yAxis": [
+        yAxis: [
           {
-            "name": "Download",
-            "axisLabel": {
-              "formatter": function (value, index) {
+            name: 'Download',
+            axisLabel: {
+              formatter: function (value, index) {
                 return formatBytes(value, 'bps',
                   2)
               },
-              "showMinLabel": null,
-              "showMaxLabel": null
+              showMinLabel: null,
+              showMaxLabel: null
             }
           }
         ]
       }
 
       goecharts_testchart.setOption(option_testchart);
-      goecharts_testchart.group = "group1"; // group to sync mouse
+      goecharts_testchart.group = 'group1'; // group to sync mouse
     </script>
 </body>
 
