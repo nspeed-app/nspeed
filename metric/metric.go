@@ -32,14 +32,14 @@ type MetricsData struct {
 	Expired            bool // job timed out or other side ended
 	Cancelled          bool
 	Target             string
-	ContentReadSize    int64
-	ContentWriteSize   int64
-	ReadCount          int64
-	WriteCount         int64
-	TotalRead          int64
-	TotalWrite         int64
-	ReadStepSize       int64
-	WriteStepSize      int64
+	ContentReadSize    int64 // Counter
+	ContentWriteSize   int64 // Counter
+	ReadCount          int64 // Counter
+	WriteCount         int64 // Counter
+	TotalRead          int64 // Counter
+	TotalWrite         int64 // Counter
+	ReadStepSize       int64 // histo?
+	WriteStepSize      int64 // histo?
 	Loop               uint
 	LoopMax            uint
 	TransfertStartTime time.Time
@@ -67,8 +67,8 @@ type Metric struct {
 	Gateway         netip.Addr
 	RouteSourceAddr netip.Addr
 	// optional time series
-	Tick  time.Duration
-	Serie []MetricsData
+	Tick   time.Duration
+	Series []MetricsData
 	// logger
 	logger *zerolog.Logger
 }
@@ -129,11 +129,11 @@ func (wm *Metric) UpdateData() MetricsData {
 	if !wm.Valid && !wm.Done && !wm.Cancelled && !wm.Expired {
 		d := wm.MetricsData
 		// make this 'copy' the MetricsData
-		wm.Serie = append(wm.Serie, d)
+		wm.Series = append(wm.Series, d)
 		return d
 	}
-	if len(wm.Serie) > 0 {
-		return wm.Serie[len(wm.Serie)-1]
+	if len(wm.Series) > 0 {
+		return wm.Series[len(wm.Series)-1]
 	}
 	// no history , return 0
 	return MetricsData{}
@@ -305,7 +305,7 @@ func (wm *Metric) InitNew() {
 	wm.TotalWrite = 0
 	wm.ReadCount = 0
 	wm.WriteCount = 0
-	wm.Serie = nil
+	wm.Series = nil
 	wm.Logger().Debug().Msgf("wm InitNew called")
 }
 
@@ -530,7 +530,7 @@ func (wm *Metric) Clone() *Metric {
 		SourceAddr:  wm.SourceAddr,
 		Gateway:     wm.Gateway,
 		Tick:        wm.Tick,
-		Serie:       wm.Serie,
+		Series:      wm.Series,
 	}
 	return &c
 }
@@ -654,15 +654,15 @@ func (wm *Metric) ToNetMetric(fmtV4, fmtV6 string) NetMetric {
 // todo: investigate if the last entry can be 0 (exact divsion between of total duration by rate)
 func (wm *Metric) ToSamples() []NetMetricSample {
 	nbSamples := 1
-	if wm.Serie != nil {
-		nbSamples = len(wm.Serie) + 1
+	if wm.Series != nil {
+		nbSamples = len(wm.Series) + 1
 	}
 	nms := make([]NetMetricSample, nbSamples)
 	var prevElapsed time.Duration
 	var rxSoFar, txSoFar uint64
 	var nextTime = wm.TransfertStartTime
-	if wm.Serie != nil {
-		for i, s := range wm.Serie {
+	if wm.Series != nil {
+		for i, s := range wm.Series {
 			n := NetMetricSample{}
 			duration := s.ElapsedTime
 			if i == 0 {
@@ -699,7 +699,7 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 func (wm *Metric) SerieReport() (report string) {
 	var ReadCount, WriteCount, TotalRead, TotalWrite int64
 	var ElapsedTime time.Duration
-	for i, w := range wm.Serie {
+	for i, w := range wm.Series {
 		if i == 0 {
 			TotalRead = w.TotalRead
 			ReadCount = w.ReadCount
