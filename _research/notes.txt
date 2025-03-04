@@ -1,10 +1,5 @@
 # nspeed-client
 
-#install
- Windows: `iwr https://nspeed.app/nspeed-client/v0.2/Windows-x64/nspeed-client.exe -useb -outfile nspeed-client.exe`
- Linux
- Mac
-
 get interface & crosstalk
 
 #linux
@@ -19,12 +14,14 @@ routing: /proc/net/route and /proc/net/ipv6_route
 netlink:
 https://github.com/vishvananda/netlink
 
+--> this is IOCTL under the hood
 #windows
 prereq: powershell
  Get-NetRoute | Where-Object -FilterScript {$_.NextHop -Ne "::"} | Where-Object -FilterScript { $_.NextHop -Ne "0.0.0.0" } | Where-Object -FilterScript { ($_.NextHop.SubString(0,6) -Ne "fe80::") } | Get-NetAdapter
 to display `$Name`
 
-Get-NetAdapterStatistics -Name $Name
+Get-NetAdapterStatistics -Name $Name --> this is WMI under the hood 
+
 
 #mac
 

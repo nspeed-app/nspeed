@@ -324,12 +324,12 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 
 		dialerContext = func(ctx context.Context, network, address string) (net.Conn, error) {
 
-			j.Logger().Warn().Msgf("L4 QUIC client dialing %s %s", network, j.targetURL.Host)
+			j.Logger().Info().Msgf("L4 QUIC client dialing %s %s", network, j.targetURL.Host)
 			qconn, err := endp.Dial(ctx, network, address, quicConf)
 			if err != nil {
 				return nil, fmt.Errorf("quic dial error: %w", err)
 			}
-			j.Logger().Warn().Msgf("L4 QUIC client connected to %s %s", network, j.targetURL.Host)
+			j.Logger().Info().Msgf("L4 QUIC client connected to %s %s", network, j.targetURL.Host)
 			stream, err := qconn.NewStream(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("quic new stream error: %w", err)
