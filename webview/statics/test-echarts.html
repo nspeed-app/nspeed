@@ -41,7 +41,6 @@ stack bars:
 
 
       function formatTooltip(params) {
-        console.log(params);
         var output = '<b>' + params[0].axisValueLabel + '</b><br/>' // would be nice to have same formating as the axis
         for (var i = 0; i < params.length; i++) {
           output += params[i].marker + params[i].seriesName + ': ' + formatBytes(params[i].value[1], "bps"); //
@@ -174,6 +173,7 @@ stack bars:
 
       goecharts_testchart.setOption(option_testchart);
       goecharts_testchart.group = 'group1'; // group to sync mouse
+      console.log(option_testchart)
     </script>
 </body>
 

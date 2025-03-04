@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>NSpeed Results</title>
+    <style>
+        .flex-container {
+            display: flex;
+            flex-flow: column;
+            flex-direction: column;
+            background-color: var(--bkg-color);
+            height: 100%;
+            padding: 15px;
+            gap: 5px;
+
+        }
+
+        .flex-container>div {
+            background: var(--bkg-color);
+            border: 3px solid #ffcc80;
+            border-radius: 5px;
+            padding: 8px;
+        }
+    </style>
+    <script src="echarts.min.js"></script>
+    <script src="jquery.min.js"></script>
+    <script src="nspeed-chartjs.js"></script>
+    <script src="macarons.js"></script>
+    <script removeimports="true" src="gen-echarts.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="flex-container" style="flex-direction:row">
+        <div id="dlgJSON" style="display:none; border: none;">
+            <input type="file" id="file" style="display:none;" />
+            <button type="button">
+                <label for="file">open</label>
+            </button>
+        </div>
+
+        <h3 style="display:inline;flex: 1 1 auto; text-align: center;"> NSpeed 1.0.0</h3>
+
+        <label class="switch">
+            <input type="checkbox" id="theme-switcher">
+            <span class="slider round"></span>
+        </label>
+
+    </div>
+    <div class="flex-container">
+        <div style="flex-grow:1; height:80vh;" id="#chart">
+            <!-- <canvas id="#chart"></canvas> -->
+        </div>
+        <div onclick="toggleCommand()">
+            <hr style="height:2px;border:none;color:#333;background-color:#333;" />
+            <pre id="#Command">	not loaded </pre>
+            <hr style="height:2px;border:none;color:#333;background-color:#333;" />
+        </div>
+    </div>
+    <script>
+        function toggleCommand() {
+            var x = document.getElementById("#Command");
+            if (x.style.display === "none") {
+                x.style.display = "block";
+            } else {
+                x.style.display = "none";
+            }
+        }
+        let data = `{{.}}`;
+        let jsonreport = null;
+        function loadJSON(data, cmd) {
+            try {
+                jsonreport = JSON.parse(data); // Go template will replace this with actual json
+            }
+            catch (error) {
+                cmd.textContent = error.name + ":" + error.message;
+                return null
+            }
+            // for here, jsonreport is valid
+            cmd.textContent = jsonreport.command;
+            return genChart(/**@type {HTMLCanvasElement}*/document.getElementById("#chart"), jsonreport);
+        }
+
+        let ActiveChart = null;
+        let Command = document.getElementById('#Command');
+        // load a json from an input.onchange event
+        loadJSONFiles = function (event) {
+            let files = event.target.files;
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    ActiveChart.destroy();
+                }
+                catch (error) { }
+                ActiveChart = loadJSON(e.target.result, Command);
+            };
+            reader.readAsText(files[0]);
+        }
+        window.onload = function () {
+            var dlgJSON = document.getElementById('dlgJSON');
+            if (data.length > 5) {
+                ActiveChart = loadJSON(data, Command);
+            }
+            if (jsonreport == null) {
+                dlgJSON.style.display = "block";
+                let input = document.getElementById('file');
+                input.onchange = loadJSONFiles;
+            }
+        }
+
+        // dark/light mode stuff
+        document.addEventListener('DOMContentLoaded', function () {
+            const themeSwitcher = document.getElementById('theme-switcher');
+
+            // Load saved theme preference
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark');
+                themeSwitcher.checked = true;
+            }
+
+            // Detect OS preference if no saved preference
+            else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+                document.body.classList.add('dark');
+                themeSwitcher.checked = true;
+            }
+
+            // Handle toggle switch
+            themeSwitcher.addEventListener('change', function () {
+                document.body.classList.toggle('dark');
+                localStorage.setItem('theme', this.checked ? 'dark' : 'light');
+            });
+        });
+    </script>
+</body>
+
+</html>

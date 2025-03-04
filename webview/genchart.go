@@ -1,8 +1,8 @@
-package chartjs
+package webview
 
 import (
 	"bytes"
-	"embed"
+	_ "embed"
 	"io/fs"
 	"text/template"
 
@@ -10,11 +10,8 @@ import (
 	"nspeed.app/utils"
 )
 
-//go:embed statics
-var staticFiles embed.FS
-
-//go:embed statics/viewer.html
-var viewerTmplHTML string
+//go:embed statics/viewer-echarts.html
+var viewerTmplHTML string // the template has only one unnamed action ({{.}}) which will be replaced with json data
 var viewerTmpl *template.Template
 var StaticFiles fs.FS
 
@@ -23,7 +20,7 @@ func init() {
 	var err error
 	StaticFiles, err = fs.Sub(staticFiles, "statics")
 	if err != nil {
-		panic("jschart: failed to get embeded static filesystem: " + err.Error())
+		panic("genchart: failed to get embeded static filesystem: " + err.Error())
 	}
 
 	viewerTmpl, err = template.New("viewer").Parse(viewerTmplHTML)
@@ -33,7 +30,7 @@ func init() {
 }
 
 // GenerateHTMLReport produces HTML file from jsData
-// if filename is ":" opens a local web browser instead
+// if filename is ":" opens result from a temporary local web browser
 func GenerateHTMLReport(htmlFilename string, jsData string) {
 	var out *utils.SmartFile
 	var err error

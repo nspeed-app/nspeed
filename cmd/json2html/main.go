@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	"nspeed.app/chartjs"
 	"nspeed.app/utils"
+	"nspeed.app/webview"
 )
 
 func main() {
@@ -38,5 +38,5 @@ func main() {
 		return
 	}
 
-	chartjs.GenerateHTMLReport(flag.Arg(1), string(json))
+	webview.GenerateHTMLReport(flag.Arg(1), string(json))
 }

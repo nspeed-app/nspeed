@@ -1,13 +1,16 @@
 {
     "compilerOptions": {
+        "allowJs": true,
         "checkJs": true,
+        "module": "CommonJS",
         "target": "ES6"
     },
     "include": ["*.js"],
+    "exclude": ["node_modules", "**/node_modules/*","*.min.js"],
     "typeAcquisition": {
         "enable": true,
         "include": [
-            "chart.js"
+            "echarts"
         ]
     }
 }

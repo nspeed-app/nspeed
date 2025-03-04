@@ -17,11 +17,11 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
 
-	"nspeed.app/chartjs"
 	"nspeed.app/metric"
 	"nspeed.app/nspeed"
 	nsutl "nspeed.app/nspeed/utils"
 	"nspeed.app/utils"
+	"nspeed.app/webview"
 )
 
 // global flags
@@ -458,7 +458,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Err(err).Msgf("could not generate json report")
 		}
-		chartjs.GenerateHTMLReport(*optHTMLReport, report)
+		webview.GenerateHTMLReport(*optHTMLReport, report)
 	}
 
 	// todo: defer this block

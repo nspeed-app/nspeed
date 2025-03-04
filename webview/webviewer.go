@@ -20,6 +20,9 @@ import (
 	"github.com/go-echarts/statsview/viewer"
 )
 
+//go:embed statics
+var staticFiles embed.FS
+
 // the path for Go stats
 var GoStatsRoute = "/rt/gostats"
 
@@ -86,9 +89,6 @@ func init() {
 {{ end }}
 `
 }
-
-//go:embed statics
-var staticFiles embed.FS
 
 // New creates a new ViewManager instance
 func NewViewManager(tick time.Duration, path string, interfaceNames []string, debug bool) (*ViewManager, error) {
