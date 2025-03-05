@@ -834,7 +834,7 @@ func (j *JobHTTPServer) HTTP2Serve() error {
 
 	idx := slices.Index(j.Server.TLSConfig.NextProtos, "http/1.1")
 	if idx != -1 {
-		j.Logger().Warn().Msgf("removing http/1.1 from server.TLSConfig")
+		j.Logger().Debug().Msgf("removing http/1.1 from server.TLSConfig")
 		j.Server.TLSConfig.NextProtos = append(j.Server.TLSConfig.NextProtos[:idx], j.Server.TLSConfig.NextProtos[idx+1:]...)
 	}
 

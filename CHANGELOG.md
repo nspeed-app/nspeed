@@ -1,6 +1,8 @@
 # v0.0.15
 - client: **new flag** repeat flag `-r n` allow to repeat the command `n` times. The client we'll try to reuse the connection if possible.
 - bench: **breaking change** HTTP/1.1 benchmark names are now consistent with HTTP/2 (`h1g` is with tls, `h1cg` without)
+- bench: id are names
+- general: id value now support double-quoted value (`-id "my id"`)
 # v0.0.14
 - **breaking change**: global flag `-color` removed. Colors are now on by default, use the new flag `-nocolor` to disable them.
 # v0.0.13

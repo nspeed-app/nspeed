@@ -1,6 +1,6 @@
 //@ts-check
 
-//import * as echarts from 'echarts';
+import {echarts} from 'echarts';
 
 function zip(arr1, arr2) {
     return arr1.map((element, index) => [element, arr2[index]]);

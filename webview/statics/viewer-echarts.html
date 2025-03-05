@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8" />
     <title>NSpeed Results</title>
@@ -15,7 +14,6 @@
             gap: 5px;
 
         }
-
         .flex-container>div {
             background: var(--bkg-color);
             border: 3px solid #ffcc80;
@@ -24,14 +22,11 @@
         }
     </style>
     <script src="echarts.min.js"></script>
-    <script src="jquery.min.js"></script>
-    <script src="nspeed-chartjs.js"></script>
+    <script src="nspeed-echarts.js"></script>
     <script removeimports="true" src="gen-echarts.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
-
     <div class="flex-container" style="flex-direction:row">
         <div id="dlgJSON" style="display:none; border: none;">
             <input type="file" id="file" style="display:none;" />
@@ -39,17 +34,14 @@
                 <label for="file">open</label>
             </button>
         </div>
-
-        <h3 style="display:inline;flex: 1 1 auto; text-align: center;"> NSpeed 1.0.0</h3>
-
+        <div style="display:inline;flex: 1 1 auto; text-align: center; border: none"> NSpeed 1.0.0</div>
         <label class="switch">
             <input type="checkbox" id="theme-switcher">
             <span class="slider round"></span>
         </label>
-
     </div>
     <div class="flex-container">
-        <div style="flex-grow:1; height:80vh;" id="#chart">
+        <div style="flex-grow:1; height:75vh;" id="#chart">
             <!-- <canvas id="#chart"></canvas> -->
         </div>
         <div onclick="toggleCommand()">

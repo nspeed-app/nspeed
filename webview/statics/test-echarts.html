@@ -55,7 +55,7 @@ stack bars:
       let base = Date.now();
       let onesec = 1000;
       let xAxisData = [base, base + onesec, base + onesec * 2, base + onesec * 3, base + 1000 * 10]
-      let goecharts_testchart = echarts.init(document.getElementById('testchart'), "macarons", { renderer: "canvas" });
+      let goecharts_testchart = echarts.init(document.getElementById('testchart'), { renderer: "canvas" });
       let option_testchart =
       {
         grid: {
