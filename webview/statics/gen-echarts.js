@@ -1,6 +1,6 @@
 //@ts-check
 
-import {echarts} from 'echarts';
+//import {echarts} from 'echarts';
 
 function zip(arr1, arr2) {
     return arr1.map((element, index) => [element, arr2[index]]);
@@ -51,9 +51,6 @@ function option_testchart(title, yAxisName, series_data) {
             show: true,
             feature: {
                 saveAsImage: {},
-                dataZoom: {
-                    yAxisIndex: 'none'
-                },
                 magicType: { type: ['line', 'bar'] },
                 restore: {},
                 dataView: {
@@ -65,13 +62,8 @@ function option_testchart(title, yAxisName, series_data) {
         },
         dataZoom: [
             {
-                type: 'inside',
-                start: 0,
-                end: 100
-            },
-            {
-                start: 0,
-                end: 100
+                type: 'slider',
+                filterMode: 'none'
             }
         ],
 
@@ -103,17 +95,16 @@ function option_testchart(title, yAxisName, series_data) {
         ]
     }
 }
-function addEChart(canvas, theme, xscales, datasets, labels) {
+function addEChart(container, theme, xscales, datasets, labels) {
     // loop over chart
-    let goecharts_testchart = echarts.init(canvas,theme);
+    let goecharts_testchart = echarts.init(container,theme);
     let data = chart_series(datasets);
-    let opt = option_testchart("NSPEED", "Download", data)
+    let opt = option_testchart("NSPEED", "bps", data)
     goecharts_testchart.setOption(opt);
     goecharts_testchart.group = 'group1'; // group to sync mouse
-    console.log(opt);
     return goecharts_testchart
 }
-function genChart(canvas, theme, jsonreport) {
+function genChart(container, theme, jsonreport) {
     // results is an array of "result"
     var results = jsonreport.Results;
     var chartType = (jsonreport.samplerate === 0) ? "line" : "bar";
@@ -155,6 +146,6 @@ function genChart(canvas, theme, jsonreport) {
             data: result.Samples.map(e => ([new Date(e.date), (e.rxbytes + e.txbytes) * 8.0 / e.duration ]))
         }));
     }
-    var chart = addEChart(canvas, theme, xscales, datasets, labels);
+    var chart = addEChart(container, theme, xscales, datasets, labels);
     return chart;
 }
