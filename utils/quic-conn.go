@@ -9,6 +9,7 @@ import (
 	"golang.org/x/net/quic"
 )
 
+// wip. x/net/quic isn't yet production ready
 // quicStreamAsConn (temporary name) is a quic.Stream which satisfies the net.Conn interface
 type quicStreamAsConn struct {
 	*quic.Stream

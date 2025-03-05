@@ -16,7 +16,7 @@ func Map[S ~[]U, U any, V any](a S, f func(U) V) []V {
 	return lv
 }
 
-// Partition copies the elements of array into 2 arrays based on the predicate function test
+// Partition separates the elements of an array into 2 arrays based a predicate test function
 func Partition[T any](array []T, test func(T) bool) (matched []T, notmatched []T) {
 	for _, t := range array {
 		if test(t) {
