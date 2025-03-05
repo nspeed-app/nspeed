@@ -103,17 +103,17 @@ function option_testchart(title, yAxisName, series_data) {
         ]
     }
 }
-function addEChart(canvas, xscales, datasets, labels) {
+function addEChart(canvas, theme, xscales, datasets, labels) {
     // loop over chart
-    let goecharts_testchart = echarts.init(canvas, "macarons", { renderer: "canvas" });
+    let goecharts_testchart = echarts.init(canvas,theme);
     let data = chart_series(datasets);
     let opt = option_testchart("NSPEED", "Download", data)
     goecharts_testchart.setOption(opt);
     goecharts_testchart.group = 'group1'; // group to sync mouse
     console.log(opt);
-
+    return goecharts_testchart
 }
-function genChart(canvas, jsonreport) {
+function genChart(canvas, theme, jsonreport) {
     // results is an array of "result"
     var results = jsonreport.Results;
     var chartType = (jsonreport.samplerate === 0) ? "line" : "bar";
@@ -155,6 +155,6 @@ function genChart(canvas, jsonreport) {
             data: result.Samples.map(e => ([new Date(e.date), (e.rxbytes + e.txbytes) * 8.0 / e.duration ]))
         }));
     }
-    var chart = addEChart(canvas, xscales, datasets, labels);
+    var chart = addEChart(canvas, theme, xscales, datasets, labels);
     return chart;
 }

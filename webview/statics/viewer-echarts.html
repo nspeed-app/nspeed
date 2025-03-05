@@ -26,7 +26,6 @@
     <script src="echarts.min.js"></script>
     <script src="jquery.min.js"></script>
     <script src="nspeed-chartjs.js"></script>
-    <script src="macarons.js"></script>
     <script removeimports="true" src="gen-echarts.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -68,8 +67,21 @@
                 x.style.display = "none";
             }
         }
-        let data = `{{.}}`;
+        // globals
+        let data = `{{.}}`; // Go template will fill 
         let jsonreport = null;
+        let ActiveChart = null;
+        let darkmode = false;
+        //
+        function makeCharts() {
+            if (ActiveChart != null) {
+                ActiveChart.dispose();
+                ActiveChart = null;
+            }
+            ActiveChart = genChart(/**@type {HTMLCanvasElement}*/document.getElementById("#chart"), darkmode ? "dark": "", jsonreport);
+        }
+
+        // load json from data, update jsonreport
         function loadJSON(data, cmd) {
             try {
                 jsonreport = JSON.parse(data); // Go template will replace this with actual json
@@ -80,10 +92,8 @@
             }
             // for here, jsonreport is valid
             cmd.textContent = jsonreport.command;
-            return genChart(/**@type {HTMLCanvasElement}*/document.getElementById("#chart"), jsonreport);
         }
 
-        let ActiveChart = null;
         let Command = document.getElementById('#Command');
         // load a json from an input.onchange event
         loadJSONFiles = function (event) {
@@ -94,14 +104,17 @@
                     ActiveChart.destroy();
                 }
                 catch (error) { }
-                ActiveChart = loadJSON(e.target.result, Command);
+                loadJSON(e.target.result, Command);
+                makeCharts();
+
             };
             reader.readAsText(files[0]);
         }
         window.onload = function () {
             var dlgJSON = document.getElementById('dlgJSON');
             if (data.length > 5) {
-                ActiveChart = loadJSON(data, Command);
+                loadJSON(data, Command);
+                makeCharts();
             }
             if (jsonreport == null) {
                 dlgJSON.style.display = "block";
@@ -126,11 +139,14 @@
                 document.body.classList.add('dark');
                 themeSwitcher.checked = true;
             }
+            darkmode = themeSwitcher.checked;
 
             // Handle toggle switch
             themeSwitcher.addEventListener('change', function () {
                 document.body.classList.toggle('dark');
                 localStorage.setItem('theme', this.checked ? 'dark' : 'light');
+                darkmode = themeSwitcher.checked;
+                makeCharts();
             });
         });
     </script>
