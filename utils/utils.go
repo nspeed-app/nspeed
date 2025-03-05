@@ -5,6 +5,7 @@
 package utils
 
 import (
+	"encoding/csv"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 )
@@ -198,4 +200,17 @@ func ToArgv(s string) ([]string, error) {
 	}
 
 	return argv, nil
+}
+
+// Fields is like string.Fields but dont split double-quoted strings
+// if parsing fails, nil is returned
+func Fields(s string) []string {
+	r := csv.NewReader(strings.NewReader(s))
+	r.Comma = ' '
+	r.TrimLeadingSpace = true
+	fields, err := r.Read()
+	if err != nil {
+		return nil
+	}
+	return fields
 }

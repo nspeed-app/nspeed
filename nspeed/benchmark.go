@@ -7,99 +7,119 @@ import "sort"
 type Benchmark struct {
 	Tpl  string
 	Name string
+	Help string
 }
 
 type BenchmarkArgs struct {
-	Args string
-	N    int
-	Size string
-	ID   int
+	SArgs string
+	CArgs string
+	N     int
+	Size  string
+	ID    int
 }
 
 var benchmarksTemplates = map[string]Benchmark{
 	// QUIC (stdlib implementation)
 	"qp": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -P quic put -self -P quic {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "QUIC PUT, localhost",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -P quic put -self -P quic {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "QUIC PUT",
+		Help: "QUIC PUT, localhost",
 	},
 	"qg": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -P quic get -size {{.Size}} -self -P quic {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
-		Name: "QUIC GET, localhost",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -P quic get -size {{.Size}} -self -P quic {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/",
+		Name: "QUIC GET",
+		Help: "QUIC GET, localhost",
 	},
 	// QUIC (quic-go implementation)
 	"qgp": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -P quic-go put -self -P quic-go {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "QUIC-GO PUT, localhost",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -P quic-go put -self -P quic-go {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "QUIC-GO PUT",
+		Help: "QUIC-GO PUT, localhost",
 	},
 	"qgg": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -P quic-go get -self -size {{.Size}} -P quic-go {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
-		Name: "QUIC-GO GET, localhost",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -P quic-go get -self -size {{.Size}} -P quic-go {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/",
+		Name: "QUIC-GO GET",
+		Help: "QUIC-GO GET, localhost",
 	},
 	// TCP
 	"tp": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp put -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "TCP PUT, localhost",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -P tcp put -P tcp {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "TCP PUT",
+		Help: "TCP PUT, localhost",
 	},
 	"tsp": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp -self put -self -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "TCP PUT, localhost, tls",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -P tcp -self put -self -P tcp {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "TCP PUT TLS",
+		Help: "TCP PUT, localhost, tls",
 	},
 	"tg": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp get -size {{.Size}} -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
-		Name: "TCP GET, localhost",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -P tcp get -size {{.Size}} -P tcp {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/",
+		Name: "TCP GET",
+		Help: "TCP GET, localhost",
 	},
 	"tsg": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -P tcp -self get -self -size {{.Size}} -P tcp {{.Args}} -n {{.N}} nspeed://s{{.ID}}/",
-		Name: "TCP GET, localhost, tls",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -P tcp -self get -self -size {{.Size}} -P tcp {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/",
+		Name: "TCP GET TLS",
+		Help: "TCP GET, localhost, tls",
 	},
 	// HTTP/1.1
 	"h1cg": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} get {{.Args}} -n {{.N}} nspeed://s{{.ID}}/{{.Size}}",
-		Name: "HTTP/1.1 GET, localhost",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} get {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/{{.Size}}",
+		Name: "HTTP1 GET",
+		Help: "HTTP/1.1 GET, localhost",
 	},
 	"h1cp": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} put {{.Args}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "HTTP/1.1 PUT, localhost",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} put {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "HTTP1 PUT",
+		Help: "HTTP/1.1 PUT, localhost",
 	},
 
 	// HTTP/2C
 	"h2cg": {
-		Tpl:  "server -h2c {{.Args}} -id s{{.ID}} get {{.Args}} -n {{.N}} -h2c nspeed://s{{.ID}}/{{.Size}}",
-		Name: "HTTP/2 GET, localhost, H2C (no encryption)",
+		Tpl:  "server -h2c {{.CArgs}} -id s{{.ID}} get {{.CArgs}} -n {{.N}} -h2c nspeed://s{{.ID}}/{{.Size}}",
+		Name: "HTTP/2 GET",
+		Help: "HTTP/2 GET, localhost, H2C (no encryption)",
 	},
 	"h2cp": {
-		Tpl:  "server -h2c {{.Args}} -id s{{.ID}} put {{.Args}} -n {{.N}} -h2c nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "HTTP/2 PUT, localhost, h2c (no encryption)",
+		Tpl:  "server -h2c {{.CArgs}} -id s{{.ID}} put {{.CArgs}} -n {{.N}} -h2c nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "HTTP/2 PUT",
+		Help: "HTTP/2 PUT, localhost, h2c (no encryption)",
 	},
 
 	// HTTPS/1.1
 	"h1g": {
-		Tpl:  "server {{.Args}} -http1.1 -id s{{.ID}} -self get {{.Args}} -n {{.N}} -self -http1.1 nspeed://s{{.ID}}/{{.Size}}",
-		Name: "HTTPS/1.1 GET, localhost, TLS",
+		Tpl:  "server {{.SArgs}} -http1.1 -id s{{.ID}} -self get {{.CArgs}} -n {{.N}} -self -http1.1 nspeed://s{{.ID}}/{{.Size}}",
+		Name: "HTTPS/1.1 GET",
+		Help: "HTTPS/1.1 GET, localhost, TLS",
 	},
 	"h1p": {
-		Tpl:  "server {{.Args}} -http1.1 -id s{{.ID}} -self put {{.Args}} -n {{.N}} -self -http1.1 nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "HTTPS/1.1 PUT, localhost, TLS",
+		Tpl:  "server {{.SArgs}} -http1.1 -id s{{.ID}} -self put {{.CArgs}} -n {{.N}} -self -http1.1 nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "HTTPS/1.1 PUT",
+		Help: "HTTPS/1.1 PUT, localhost, TLS",
 	},
 
 	// HTTPS/2
 	"h2g": {
-		Tpl:  "server {{.Args}} -http2 -id s{{.ID}} -self get {{.Args}} -n {{.N}} -self -http2 nspeed://s{{.ID}}/{{.Size}}",
-		Name: "HTTPS/2 GET , localhost, tls",
+		Tpl:  "server {{.SArgs}} -http2 -id s{{.ID}} -self get {{.CArgs}} -n {{.N}} -self -http2 nspeed://s{{.ID}}/{{.Size}}",
+		Name: "HTTPS/2 GET",
+		Help: "HTTPS/2 GET , localhost, tls",
 	},
 	"h2p": {
-		Tpl:  "server {{.Args}} -http2 -id s{{.ID}} -self put {{.Args}} -n {{.N}} -self -http2 nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "HTTPS/2 PUT , localhost, tls",
+		Tpl:  "server {{.SArgs}} -http2 -id s{{.ID}} -self put {{.CArgs}} -n {{.N}} -self -http2 nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "HTTPS/2 PUT",
+		Help: "HTTPS/2 PUT , localhost, tls",
 	},
 
 	// HTTPS/3
 	"h3g": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 get -self {{.Args}} -n {{.N}} -http3 nspeed://s{{.ID}}/{{.Size}}",
-		Name: "HTTP/3 GET, localhost, tls, udp",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -http3 get -self {{.CArgs}} -n {{.N}} -http3 nspeed://s{{.ID}}/{{.Size}}",
+		Name: "HTTPS/3 GET",
+		Help: "HTTP/3 GET, localhost, tls, udp",
 	},
 	"h3p": {
-		Tpl:  "server {{.Args}} -id s{{.ID}} -http3 put -self {{.Args}} -n {{.N}} -http3 nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "HTTP/3 PUT, localhost, tls, udp",
+		Tpl:  "server {{.SArgs}} -id s{{.ID}} -http3 put -self {{.CArgs}} -n {{.N}} -http3 nspeed://s{{.ID}}/ {{.Size}}",
+		Name: "HTTPS/3 PUT",
+		Help: "HTTP/3 PUT, localhost, tls, udp",
 	},
 }
 

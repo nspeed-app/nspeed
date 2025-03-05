@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -116,7 +115,7 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 	j.hub = ui.NewHub()
 	ctx, cancel := context.WithCancel(ctx)
 	j.hub.Execute = func(args string) {
-		err := j.RunCmd(ctx, strings.Fields(args))
+		err := j.RunCmd(ctx, utils.Fields(args))
 		if err != nil {
 			j.Logger().Err(err).Msgf("Execute")
 		}

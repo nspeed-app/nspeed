@@ -151,7 +151,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	a, ok := r.URL.Query()["args"]
 	if ok {
 		for i := range a {
-			args = append(args, strings.Fields(a[i])...)
+			args = append(args, utils.Fields(a[i])...)
 		}
 	}
 	results, err := APIRun(r.Context(), j.globalOptions, cmd, args, w, r.RemoteAddr, json.Marshal)

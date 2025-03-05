@@ -6,11 +6,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html/template"
 	"io"
 	"os"
 	"runtime"
 	"strings"
+	"text/template"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -131,7 +131,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			fmt.Fprintf(fs.Output(), "\nAvailable benchmark:\n")
 
 			for _, k := range benchmarKeys {
-				fmt.Fprintf(fs.Output(), "  %-4s: %s\n", k, benchmarksTemplates[k].Name)
+				fmt.Fprintf(fs.Output(), "  %-4s: %s\n", k, benchmarksTemplates[k].Help)
 			}
 
 			fmt.Fprintf(fs.Output(), "\nAvailable options:\n")
@@ -178,10 +178,11 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		args = args[1:]
 
 		values := BenchmarkArgs{
-			Args: argsLine,
-			N:    *nStreams,
-			Size: *size,
-			ID:   batchID,
+			SArgs: argsLine,
+			CArgs: argsLine,
+			N:     *nStreams,
+			Size:  *size,
+			ID:    batchID,
 		}
 		for _, arg := range benchs {
 			ct, ok := benchmarksTemplates[arg]
@@ -191,13 +192,15 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			tpl := template.New("T")
 			t := template.Must(tpl.Parse(ct.Tpl))
 
+			values.ID = batchID
+			values.CArgs = argsLine + ` -id "` + ct.Name + " " + fmt.Sprint(batchID) + `"`
+
 			var c bytes.Buffer
 			if err := t.Execute(&c, values); err != nil {
 				log.Fatal().Err(err).Send()
 			}
-			cmd := strings.Fields(c.String())
+			cmd := utils.Fields(c.String())
 			batchID++
-			values.ID = batchID
 			log.Info().Msgf("benchmark: %s", cmd)
 			err := ParseCommands(cmd, jl, output, false)
 			if err != nil {
