@@ -434,7 +434,7 @@ mainloop:
 		}
 	}
 
-	command := strings.Join(os.Args, " ")
+	command := strings.Join(os.Args[1:], " ")
 	// json report:
 	if *optJSONReport != "" {
 		f, err := utils.FileCreate(*optJSONReport)

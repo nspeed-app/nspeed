@@ -280,16 +280,16 @@ func (wm *Metric) LogFinal(logger *zerolog.Logger) {
 
 func (wm *Metric) PrintFinal(w io.Writer) {
 	if wm.Valid {
-		fmt.Fprintf(w, "Read: %s ", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
-		fmt.Fprintf(w, "Write: %s ", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
-		fmt.Fprintf(w, "TotalRead: %d (%sB) ", wm.TotalRead, utils.ByteCountBinary(wm.TotalRead))
-		fmt.Fprintf(w, "TotalWrite: %d (%sB)", wm.TotalWrite, utils.ByteCountBinary(wm.TotalWrite))
-		fmt.Fprintf(w, "duration: %s (%d/%d)", wm.ElapsedTime, wm.Loop, wm.LoopMax)
-		fmt.Fprintf(w, "command: %s", wm.Command)
+		fmt.Fprintf(w, "job %s command: %s\n", wm.ID, wm.Command)
+		fmt.Fprintf(w, "Read: %s \n", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
+		fmt.Fprintf(w, "Write: %s \n", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
+		fmt.Fprintf(w, "TotalRead: %d (%sB)\n", wm.TotalRead, utils.ByteCountBinary(wm.TotalRead))
+		fmt.Fprintf(w, "TotalWrite: %d (%sB)\n", wm.TotalWrite, utils.ByteCountBinary(wm.TotalWrite))
+		fmt.Fprintf(w, "duration: %s (%d/%d)\n", wm.ElapsedTime, wm.Loop, wm.LoopMax)
 		fmt.Fprintf(w, "\n")
 
 	} else {
-		fmt.Fprintf(w, "job %s error: %v\n", wm.ID, wm.Error)
+		fmt.Fprintf(w, "job %s not valid. error = %v\n", wm.ID, wm.Error)
 	}
 }
 
@@ -313,7 +313,9 @@ func (wm *Metric) InitNew() {
 func (wm *Metric) Close() error {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
-	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+	if wm.ElapsedTime == 0 {
+		wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+	}
 	wm.Logger().Debug().Msgf("Close() called after %v", wm.ElapsedTime)
 	// assert wm.Done == false
 	// we don't report 2+ calls to Close

@@ -307,7 +307,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 		},
 	}
 
-	// this is where we wait
+	// this is where we wait -fixme: use select / context to catch interupt
 	if j.Delay > 0 {
 		j.Logger().Debug().Dur("delay", j.Delay).Msg("waiting")
 		time.Sleep(j.Delay)
@@ -333,6 +333,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 	wm.LoopMax = j.Repeat
 	wm.Loop = 0
 	var totalwrite int64 = 0
+	// main loop for -r
 	for loop := range j.Repeat {
 		wm.Loop += 1
 		LogMemUsage(j.Logger(), "before Loop #%d", loop)
@@ -346,10 +347,12 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 		if j.Command == "PUT" || j.Command == "POST" {
 			close(done)
 		}
+		// fmt.Printf("LOOP: ")
+		// wm.PrintFinal(os.Stdout)
 		LogMemUsage(j.Logger(), "after Do loop #%d", loop)
 		j.tr.end = time.Now()
 		err = fixH2H3Errors(err, j.req.Method, j.Logger())
-		j.Logger().Debug().Msgf("client.Do (loop %d): %v - %v", loop, err, wm.Error)
+		j.Logger().Info().Msgf("client.Do (loop %d): %v - %v", loop, err, wm.Error)
 
 		// wm.Error can be filled by handler: TLSHandshakeDone and ConnectDone
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -498,18 +501,21 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 				// }
 				// if loop == j.Repeat-1 {
 				// 	j.Logger().Debug().Msgf("closing Metric")
-				wm.Close() // todo check if loop
-				totalwrite += j.wm.TotalWrite
-				j.wm.TotalWrite = 0 // todo: store previous loops data
 				// }
 			}
 		}
+		// this is bad: refactor the 'loop' stuff to store each loop metrics
+		wm.Close() // todo check if loop
+		totalwrite += j.wm.TotalWrite
+		j.wm.TotalWrite = 0
 		// conditions to stop Repeat
 		if wm.Error != nil || wm.Expired || !wm.Valid {
 			break // Repeat
 		}
 	} // Repeat
 	j.wm.TotalWrite = int64(totalwrite)
+	// fmt.Printf("POST: ")
+	// wm.PrintFinal(os.Stdout)
 	j.client.CloseIdleConnections()
 	wm.Done = true
 	j.wm.Command = j.PrintString(false, false)

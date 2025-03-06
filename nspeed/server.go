@@ -114,8 +114,8 @@ func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Wri
 	fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
 	fs.StringVar(&host.Directory, "dir", "", "directory to serve content from (url will be /dir)")
 	fs.BoolVar(&host.H2C, "h2c", false, "listen in HTTP/2 Cleartext (H2C) mode")
-	fs.BoolVar(&host.HTTP11, "http1.1", false, "listen only in HTTP/1.1 (this will disable HTTP/2) - implies -self is no cert/key ")
-	fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key ")
+	fs.BoolVar(&host.HTTP11, "http1.1", false, "listen only in HTTP/1.1 (this will disable HTTP/2) - implies -self is no cert/key")
+	fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key")
 	fs.BoolVar(&host.HTTP3, "http3", false, "also listen using HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
 	fs.BoolVar(&host.API, "api", false, "enable API endpoint (activate /api url)")
 	// fs.StringVar(&host.AltSvc, "alt", "", "add alt-svc endpoints (use id names, comma separated)") NYI

@@ -240,16 +240,22 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 	return &wcWorkers, nil
 }
 
-func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, opt Options, wg *sync.WaitGroup, results chan *metric.Metric) (int, error) {
+func runBatch(ctx context.Context, batchIdx int, jl *JobList, infinite bool, opt Options, wg *sync.WaitGroup, results chan *metric.Metric) (int, error) {
+
 	if jl == nil {
 		return 0, fmt.Errorf("no job list")
 	}
 	jobs := jl.Jobs
+	if batchIdx < 0 || batchIdx > len(jl.Batches) {
+		// oob batchIdx
+		return 0, fmt.Errorf("bad batch index %d", batchIdx)
+	}
+	batch := jl.Batches[batchIdx]
 
 	// create & init workers for jobs (synchronously one after the others)
 	// run infinite jobs
 	for i, j := range jobs {
-		if j.Batch() != batch {
+		if j.Batch() != batchIdx {
 			continue
 		}
 		log.Debug().Msgf(" %s, %s", i, j.GoString())
@@ -267,10 +273,19 @@ func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, opt Op
 			}
 		}
 	}
+	// pre delay
+	if batch.PreDelay > 0 && !infinite {
+		log.Warn().Msgf("pre-delay of batch %d started - sleeping %s", batchIdx, batch.PreDelay)
+		select {
+		case <-ctx.Done():
+		case <-time.After(batch.PreDelay):
+			log.Warn().Msgf("pre-delay ended")
+		}
+	}
 
 	njobs := 0
 	for _, j := range jobs {
-		if j.Batch() != batch {
+		if j.Batch() != batchIdx {
 			continue
 		}
 		if j.IsInfinite() != infinite {
@@ -295,5 +310,15 @@ func runBatch(ctx context.Context, batch int, jl *JobList, infinite bool, opt Op
 			j.Logger().Debug().Msgf("test mode: skipping workload %s %s", j.ID(), j.GetTarget())
 		}
 	}
+	// post delay
+	if batch.PostDelay > 0 && !infinite {
+		log.Warn().Msgf("post-delay of batch %d started - sleeping %s", batchIdx, batch.PostDelay)
+		select {
+		case <-ctx.Done():
+		case <-time.After(batch.PostDelay):
+			log.Warn().Msgf("post-delay ended")
+		}
+	}
+
 	return njobs, nil
 }

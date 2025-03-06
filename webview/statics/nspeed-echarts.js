@@ -17,6 +17,8 @@ function formatTooltip(params) {
 
 	let output = '<b>' + params[0].axisValueLabel + '</b><br/>'
 	
+	params.sort((a, b) => b.value[1] - a.value[1]);
+
 	for (let i = 0; i < params.length; i++) {
 		output += params[i].marker + params[i].seriesName + ': ' + formatBytes(params[i].value[1], "bps"); //
 		if (i != params.length - 1) { // Append a <br/> tag if not last in loop

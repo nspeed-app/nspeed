@@ -1,8 +1,13 @@
 # v0.0.15
 - client: **new flag** repeat flag `-r n` allow to repeat the command `n` times. The client we'll try to reuse the connection if possible.
 - bench: **breaking change** HTTP/1.1 benchmark names are now consistent with HTTP/2 (`h1g` is with tls, `h1cg` without)
-- bench: id are names
+- bench: id are now names of the benchmarks
 - general: id value now support double-quoted value (`-id "my id"`)
+- using go 1.24.1
+- general: `-pre-delay` or `post-delay` implemented for `then`
+- ui: preview of ui, for now it's a CLI in web page
+- charting: moved from chartjs to echarts. `-html` now produces working graphs.
+
 # v0.0.14
 - **breaking change**: global flag `-color` removed. Colors are now on by default, use the new flag `-nocolor` to disable them.
 # v0.0.13
