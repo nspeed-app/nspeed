@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
@@ -23,11 +25,22 @@ type Options struct {
 	Test                 bool
 	TLSSelf              bool
 	IPVersion            utils.IPVersion // 0, 4 or 6
+	Buffer               int64
 }
 
 // RunJobs runs all the jobs, one batch at a time, this is a synchronous function
 // update/progress can be obtained thru the optionnal message channel
 func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*metric.Metrics, error) {
+
+	// ************************
+	memlimit := debug.SetMemoryLimit(math.MaxInt64)
+	gcpercent := debug.SetGCPercent(-1)
+
+	defer func() {
+		debug.SetMemoryLimit(memlimit)
+		debug.SetGCPercent(gcpercent)
+	}()
+	// *************************
 
 	if jl == nil {
 		return nil, fmt.Errorf("no joblist to run")

@@ -5,9 +5,10 @@
 - general: id value now support double-quoted value (`-id "my id"`)
 - using go 1.24.1
 - general: `-pre-delay` or `post-delay` implemented for `then`
-- ui: preview of ui, for now it's a CLI in web page
+- general: **new flag** `-buffer value` allows to set the buffer size used for i/o operations (-1 for max value)
+- ui: preview of ui, for now it's a CLI/terminal in web page
 - charting: moved from chartjs to echarts. `-html` now produces working graphs.
-
+- experimental: disable GC nside a batch
 # v0.0.14
 - **breaking change**: global flag `-color` removed. Colors are now on by default, use the new flag `-nocolor` to disable them.
 # v0.0.13

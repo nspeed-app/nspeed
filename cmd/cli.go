@@ -36,7 +36,7 @@ var optTrace = flag.Bool("trace", false, "maximum debug and tracing informations
 var optProgressRate = flag.Duration("tick", 1*time.Second, "display progress rate in duration (used for -debug, -trace and webstats")
 var optSamplingRate = flag.Duration("rate", 0, "data sampling rate in duration (used for time series generation)")
 var optCPURate = flag.Duration("cpurate", 0, "set cpu rate (implies -cpu)")
-var optCPU = flag.Bool("cpu", false, "display cpu usage (default is every second, use -cpurate to change)")
+var optCPU = flag.Bool("cpu", false, "display cpu usage (default is every second, use -cpurate to change). Also collect mem/gc stats")
 
 var optNoColor = flag.Bool("nocolor", false, "do not use colors in text output")
 
@@ -70,6 +70,8 @@ var optFormatV4 = flag.String("formatV4", nsutl.FormatV4First, "specific anonymi
 var optFormatV6 = flag.String("formatV6", nsutl.FormatV6FirstLast, "specific anonymizer format for IPv6 addresses")
 
 var optDefaultClientTimeout = flag.Duration("maxtime", 8*time.Second, "maximum default duration of each commands")
+
+var optUseBuffer = flag.Int64("buffer", 0, "size of I/O buffer to use (default is 0 for system size, use -1 for max)")
 
 // todo: automate this.
 // relative path of this file to go.mod
@@ -247,8 +249,6 @@ func Main() {
 		return
 	}
 
-	// end flags handling
-
 	globalOptions := nspeed.Options{
 		ProgressInterval:     *optProgressRate,
 		Tick:                 *optSamplingRate,
@@ -260,6 +260,15 @@ func Main() {
 		IPVersion:            optIPVersion,
 	}
 
+	var err error
+	if *optUseBuffer != 0 {
+		if globalOptions.Buffer, err = utils.UseBuffer(*optUseBuffer); err != nil {
+			log.Fatal().Err(err).Msg("error setting buffer size")
+		}
+		log.Warn().Msgf("Buffer size is %s", utils.FormatByteBinaryUnits(globalOptions.Buffer))
+	}
+
+	// end flags handling
 	// if no args
 	cmds := flag.Args()
 	if flag.NArg() == 0 && !term.IsTerminal(int(os.Stdout.Fd())) {
@@ -269,7 +278,7 @@ func Main() {
 		log.Debug().Msgf("terminal detected")
 	}
 	jl := nspeed.NewJoblist()
-	err := jl.AddBatch(&nspeed.Batch{
+	err = jl.AddBatch(&nspeed.Batch{
 		PreDelay:  *optPreDelay,
 		PostDelay: *optPostDelay,
 		Name:      *optName,
@@ -341,6 +350,7 @@ func Main() {
 				}
 				log.Log().Msgf("%s %-4d | %-4d   |", cpuload, m.ActiveJobs, runtime.NumGoroutine())
 			}
+			// todo: collect cpu & gc in data
 		}
 	}
 

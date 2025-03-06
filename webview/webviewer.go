@@ -100,7 +100,7 @@ func NewViewManager(tick time.Duration, path string, interfaceNames []string, de
 	page.PageTitle = "NSpeed Webview"
 	page.AssetsHost = fmt.Sprintf("/%s/statics/", path)
 	page.Assets.JSAssets.Add("jquery.min.js")
-	page.Assets.JSAssets.Add("nspeed.js")
+	page.Assets.JSAssets.Add("nspeed-monitor.js")
 
 	mgr := &ViewManager{
 		// srv: &http.Server{

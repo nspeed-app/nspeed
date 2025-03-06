@@ -460,7 +460,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, err
 
 					//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 					//todo: invesstigate why the following gives results too high
-					totalread, err := io.CopyBuffer(wm, resp.Body, utils.BigBuffer)
+					totalread, err := utils.Copy(wm, resp.Body)
 					close(done)
 					j.Logger().Debug().Err(err).Msgf("copybuffer ended with %d totalread", totalread)
 

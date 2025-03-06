@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -197,8 +198,7 @@ func (wm *Metric) FixMeReadFrom(r io.Reader) (n int64, err error) {
 	wm.TransfertStartTime = time.Now()
 	wm.mutex.Unlock()
 	for {
-		read, err := r.Read(utils.BigBuffer)
-		s := int64(read)
+		s := int64(1024 * 1024)
 		wm.mutex.Lock()
 		wm.ReadCount++
 		wm.TotalRead += s
@@ -206,9 +206,9 @@ func (wm *Metric) FixMeReadFrom(r io.Reader) (n int64, err error) {
 			wm.ReadStepSize = s
 		}
 		wm.mutex.Unlock()
-		if err != nil {
-			break
-		}
+		// if err != nil {
+		// 	break
+		// }
 	}
 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
 	fmt.Printf("ReadFrom used with %d Read and %d max buff", wm.ReadCount, wm.ReadStepSize)
@@ -388,7 +388,7 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 	wm.ElapsedTime = 0
 	wm.mutex.Unlock()
 
-	buflen := int64(len(utils.BigBuffer))
+	buflen := int64(1024) //int64(len(utils.BigBuffer))
 
 	wm.Logger().Debug().Msgf("WriteTo loop starting for %d bytes (%d)\n", wm.TotalWrite, time.Since(wm.TransfertStartTime))
 	for {
@@ -396,7 +396,7 @@ func (wm *Metric) FixWriteTo(w io.Writer) (n int64, err error) {
 		if todo <= 0 {
 			break
 		}
-		n, err := w.Write(utils.BigBuffer[:todo])
+		n, err := 0, errors.New("NYI") //w.Write(utils.BigBuffer[:todo])
 		written := int64(n)
 		if err != nil {
 			return wm.TotalWrite + written, err
