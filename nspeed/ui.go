@@ -17,7 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	"nspeed.app/nspeed/ui"
 	"nspeed.app/utils"
 )
@@ -100,7 +100,7 @@ func (j *UIHost) Init(opt Options) error {
 	return nil
 }
 
-func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
+func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metrics.Metric, error) {
 	if j.Server == nil {
 		return nil, errors.New("ui: no server")
 	}

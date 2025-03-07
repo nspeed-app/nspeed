@@ -10,7 +10,7 @@ import (
 
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	"nspeed.app/utils"
 )
 
@@ -56,7 +56,7 @@ func (str quicgoStreamAsConn) RemoteAddr() net.Addr {
 	return str.c.RemoteAddr()
 }
 
-func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.WaitGroup) (*metrics.Metric, error) {
 	// this avoid calling wg.Done() twice
 	done := false
 	defer func() {
@@ -94,7 +94,7 @@ func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.Wai
 	done = true
 
 	//spawn the accept loop
-	//result := make(chan metric.Metric)
+	//result := make(chan metrics.Metric)
 	var running atomic.Bool
 	running.Store(true)
 	go func() {
@@ -131,7 +131,7 @@ func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.Wai
 	// wait for sub go routine (ls.Accept should unblock with an "use of closed network connection") to end
 	<-acceptDone
 	j.Logger().Debug().Err(err).Msgf("L4 server ended")
-	return &metric.Metric{}, err
+	return &metrics.Metric{}, err
 
 }
 

@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 
 	"golang.org/x/net/quic"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	"nspeed.app/utils"
 )
 
@@ -29,7 +29,7 @@ import (
 
 // SERVER
 
-func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitGroup) (*metrics.Metric, error) {
 	// this avoid calling wg.Done() twice
 	done := false
 	defer func() {
@@ -63,7 +63,7 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 	done = true
 
 	//spawn the accept loop
-	//result := make(chan metric.Metric)
+	//result := make(chan metrics.Metric)
 	var running atomic.Bool
 	running.Store(true)
 	go func() {
@@ -105,7 +105,7 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 		<-acceptDone
 	}
 	j.Logger().Debug().Err(err).Msgf("L4 server ended")
-	return &metric.Metric{}, err
+	return &metrics.Metric{}, err
 
 }
 

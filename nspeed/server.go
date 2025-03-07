@@ -18,7 +18,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	"nspeed.app/utils"
 )
 
@@ -207,7 +207,7 @@ type L4Server struct {
 	tlsConfig *tls.Config
 	// allow extension
 	JobList *JobList
-	// wm      *metric.Metric
+	// wm      *metrics.Metric
 	URL *url.URL
 }
 
@@ -221,7 +221,7 @@ func (j *L4Server) GetURL() *url.URL {
 //   PrintString(bool, bool) string
 //   IsInfinite() bool
 //   Init() error
-//   Run(context.Context, *sync.WaitGroup) (*metric.Metric, error)
+//   Run(context.Context, *sync.WaitGroup) (*metrics.Metric, error)
 
 func (j *L4Server) GetTarget() string {
 	return fmt.Sprintf("%s server %s:%d (IP version: %d)", j.Parameters.Protocol, j.Parameters.Host, j.Parameters.Port, j.Parameters.IPVersion)
@@ -282,7 +282,7 @@ func (j *L4Server) Init(opt Options) error {
 	return nil
 }
 
-func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*metric.Metric, error) {
+func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*metrics.Metric, error) {
 
 	ctx, j.Cancel = context.WithCancel(ctx)
 	if j.Parameters.RunDuration != 0 {
@@ -311,7 +311,7 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 	return nil, fmt.Errorf("protocol %s not yet implemented", j.Parameters.Protocol)
 }
 
-func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGroup) (*metric.Metric, error) {
+func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGroup) (*metrics.Metric, error) {
 	// TCP server
 
 	// this avoid calling wg.Done() twice
@@ -349,7 +349,7 @@ func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGr
 	done = true
 
 	//spawn the accept loop
-	//result := make(chan metric.Metric)
+	//result := make(chan metrics.Metric)
 	var running atomic.Bool
 	running.Store(true)
 	go func() {
@@ -384,7 +384,7 @@ func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGr
 	// wait for sub go routine (ls.Accept should unblock with an "use of closed network connection") to end
 	<-acceptDone
 	j.Logger().Debug().Err(err).Msgf("L4 server ended")
-	return &metric.Metric{}, err
+	return &metrics.Metric{}, err
 }
 
 // MT
@@ -396,7 +396,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 	var chunkSize int64 = 1 * 1024 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 	chunk := utils.GetChunk(chunkSize)
 
-	wm := metric.Metric{}
+	wm := metrics.Metric{}
 	wm.InitNew()
 	wm.Command = fmt.Sprintf("%s with %s", j.GetTarget(), conn.RemoteAddr())
 	err := conn.SetDeadline(time.Now().Add(j.Parameters.MaxDuration))

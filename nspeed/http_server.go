@@ -26,7 +26,7 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	nsutl "nspeed.app/nspeed/utils"
 	"nspeed.app/utils"
 )
@@ -47,11 +47,11 @@ const (
 var GUIDHeader = http.CanonicalHeaderKey("x-nspeed-guid")
 
 var StreamPathRegexp *regexp.Regexp
-var TTLGUIDCache *utils.TTLCache[string, *metric.Metric]
+var TTLGUIDCache *utils.TTLCache[string, *metrics.Metric]
 
 func init() {
 	StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
-	TTLGUIDCache = utils.NewTTLCache[string, *metric.Metric](20, TTLGuidMaxSize)
+	TTLGUIDCache = utils.NewTTLCache[string, *metrics.Metric](20, TTLGuidMaxSize)
 }
 
 // the HTTP Server
@@ -74,8 +74,8 @@ type JobHTTPServer struct {
 	InitHook    func() error
 	RunHook     func(context.Context) error
 	JobList     *JobList
-	wm          *metric.Metric
-	ResultCache map[string]*metric.Metric
+	wm          *metrics.Metric
+	ResultCache map[string]*metrics.Metric
 }
 
 func (j *JobHTTPServer) GetURL() *url.URL {
@@ -346,8 +346,8 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	w.WriteHeader(http.StatusOK) // this could also be done by the first w.Write()
 
 	// prepare metrics handler
-	wm := metric.Metric{
-		MetricsData: metric.MetricsData{
+	wm := metrics.Metric{
+		MetricsData: metrics.MetricsData{
 			Command:          fmt.Sprintf("%s %s from %s (%d bytes)", r.Method, r.URL.Path, r.RemoteAddr, numBytes),
 			Done:             false,
 			Expired:          false,
@@ -476,7 +476,7 @@ func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, guid string) {
 	}
 }
 
-func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *metric.Metric) error {
+func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *metrics.Metric) error {
 	m := wm.ToNetMetric(nsutl.FormatV4full, nsutl.FormatV6Full)
 	result, err := json.MarshalIndent(m, "", "\t")
 	if err != nil {
@@ -494,7 +494,7 @@ func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *metric.Metric) err
 
 const safeRate = 1 * time.Millisecond // TODO: place this else and/or as a global setting
 
-func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *metric.Metric) (chan any, error) {
+func (j *JobHTTPServer) ParseRate(w http.ResponseWriter, r *http.Request, wm *metrics.Metric) (chan any, error) {
 	if rate := r.URL.Query().Get("rate"); rate != "" {
 		j.Logger().Info().Msgf("Upload: %s from %s - set rate to %s", r.Method, r.RemoteAddr, rate)
 		tick, err := time.ParseDuration(rate)
@@ -519,8 +519,8 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 	j.Logger().Info().Msgf("starting Upload (%s) from %s (%d)", r.Method, r.RemoteAddr, r.ContentLength)
 
 	// metric for this request
-	wm := &metric.Metric{
-		MetricsData: metric.MetricsData{
+	wm := &metrics.Metric{
+		MetricsData: metrics.MetricsData{
 			Command:            fmt.Sprintf("%s %s from %s (%d)", r.Method, r.URL.Path, r.RemoteAddr, r.ContentLength),
 			Done:               false,
 			Expired:            false,
@@ -574,8 +574,8 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 func (j *JobHTTPServer) Init(opt Options) error {
 
-	j.wm = &metric.Metric{
-		MetricsData: metric.MetricsData{
+	j.wm = &metrics.Metric{
+		MetricsData: metrics.MetricsData{
 			Done:    false,
 			Expired: false,
 			Target:  j.GetTarget(),
@@ -641,7 +641,7 @@ func (j *JobHTTPServer) Init(opt Options) error {
 	}
 	return nil
 }
-func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*metric.Metric, error) {
+func (j *JobHTTPServer) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*metrics.Metric, error) {
 
 	done := false
 	defer func() {

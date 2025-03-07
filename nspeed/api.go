@@ -16,7 +16,7 @@ import (
 	_ "embed"
 
 	"github.com/rs/zerolog"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	"nspeed.app/utils"
 	"nspeed.app/webview"
 )
@@ -98,7 +98,7 @@ func (j *APIHost) Init(opt Options) error {
 	return nil
 }
 
-func (j *APIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
+func (j *APIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metrics.Metric, error) {
 	if j.Server == nil {
 		return nil, errors.New("API: no server")
 	}

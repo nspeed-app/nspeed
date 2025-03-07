@@ -22,7 +22,7 @@ import (
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/quic"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	"nspeed.app/utils"
 )
 
@@ -61,7 +61,7 @@ type JobClient struct {
 	numRedirect int
 	finalTarget string
 	targetURL   *url.URL
-	wm          *metric.Metric
+	wm          *metrics.Metric
 }
 
 func (j *JobClient) GoString() string {
@@ -157,8 +157,8 @@ func (j *JobClient) Init(opt Options) error {
 	j.Timeout = utils.OrDefault(j.Timeout, opt.DefaultClientTimeout)
 
 	// todo move this to run ? and get ride of .wm?
-	j.wm = &metric.Metric{
-		MetricsData: metric.MetricsData{
+	j.wm = &metrics.Metric{
+		MetricsData: metrics.MetricsData{
 			Done:    false,
 			Expired: false,
 			Target:  j.GetTarget(),
@@ -272,7 +272,7 @@ func (j *JobClient) L4Init() error {
 	return nil
 }
 
-func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, error) {
+func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, error) {
 
 	if !slices.Contains(L4Protocols[:], j.Protocol) {
 		return nil, fmt.Errorf("unknown protocol: %s", j.Protocol)
@@ -391,8 +391,8 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metric.Metric, err
 	}
 
 	// setup the metric
-	j.wm = &metric.Metric{
-		MetricsData: metric.MetricsData{
+	j.wm = &metrics.Metric{
+		MetricsData: metrics.MetricsData{
 			Done:    false,
 			Expired: false,
 			Target:  j.GetTarget(),

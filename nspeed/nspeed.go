@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	"nspeed.app/utils"
 )
 
@@ -30,7 +30,7 @@ type Options struct {
 
 // RunJobs runs all the jobs, one batch at a time, this is a synchronous function
 // update/progress can be obtained thru the optionnal message channel
-func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*metric.Metrics, error) {
+func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*metrics.Metrics, error) {
 
 	// ************************
 	memlimit := debug.SetMemoryLimit(math.MaxInt64)
@@ -89,13 +89,13 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 	}
 
 	// this will collect result from jobs
-	result := make(chan *metric.Metric, nJobs)
+	result := make(chan *metrics.Metric, nJobs)
 	// run workers by launching a go routine for each one
 	// we use 2 waitgroup, one for short-lived jobs (get, put,etc), one for infinite jobs (server, api)
 	var wgi sync.WaitGroup // infinite
 
 	rc := nJobs
-	wcWorkers := metric.NewMetrics()
+	wcWorkers := metrics.NewMetrics()
 
 	// batch loop
 
@@ -121,6 +121,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 		t := time.NewTicker(opt.CPU) // todo: pass value
 		log.Debug().Msgf("setting CPU ticker to %s", opt.CPU)
 		tickCPUChannel = t.C
+		defer t.Stop()
 	}
 
 	batch := 0
@@ -190,11 +191,11 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 					wc.UpdateData()
 				}
 			case <-tickCPUChannel:
-				pcts, err := GetCPULoad(0, true)
+				pcts, err := metrics.GetCPULoad(0, true)
 				if err != nil {
 					log.Log().Err(err).Msgf("failed to get cpu load")
 				}
-				message <- CPUMetric{pcts, rc}
+				message <- &metrics.CPUMetric{Pcts: pcts, ActiveJobs: rc}
 			case <-progressTickerChannel:
 				message <- wcWorkers
 			case wm := <-result:
@@ -253,7 +254,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 	return &wcWorkers, nil
 }
 
-func runBatch(ctx context.Context, batchIdx int, jl *JobList, infinite bool, opt Options, wg *sync.WaitGroup, results chan *metric.Metric) (int, error) {
+func runBatch(ctx context.Context, batchIdx int, jl *JobList, infinite bool, opt Options, wg *sync.WaitGroup, results chan *metrics.Metric) (int, error) {
 
 	if jl == nil {
 		return 0, fmt.Errorf("no job list")

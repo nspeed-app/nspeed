@@ -24,7 +24,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	"nspeed.app/utils"
 )
 
@@ -199,7 +199,7 @@ func (j *JobClient) HTTPInit() error {
 	return nil
 }
 
-func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metric.Metric, error) {
+func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metrics.Metric, error) {
 	defer wg.Done()
 	if j.Protocol == "http" {
 		return j.HTTPRun(ctx, opt)
@@ -207,7 +207,7 @@ func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*
 	return j.L4Run(ctx, opt)
 }
 
-func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metric.Metric, error) {
+func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, error) {
 
 	if j.req == nil {
 		return nil, errors.New("no request")

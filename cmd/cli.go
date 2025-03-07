@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
 
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 	"nspeed.app/nspeed"
 	nsutl "nspeed.app/nspeed/utils"
 	"nspeed.app/utils"
@@ -300,7 +300,7 @@ func Main() {
 		return
 	}
 
-	log.Debug().Msgf("max cores = %d", nspeed.MaxParallelism())
+	log.Debug().Msgf("max cores = %d", utils.MaxParallelism())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -326,11 +326,15 @@ func Main() {
 		log.Warn().Msgf("pre-delay ended")
 	}
 
-	printHeaders := true
+	var otelCPU *metrics.CPUOtel
+	if *optCPU {
+		otelCPU = metrics.NewMetricsCPU()
+	}
+	//metrics.OTELInit(ctx, "nspeed", nspeed.Version, consoleWriter, globalOptions.CPU)
 	progressHandler := func(p any) {
 		switch m := p.(type) {
 		// this is bad, review/refactor
-		case []*metric.Metric:
+		case []*metrics.Metric:
 			rc := 0
 			for _, wm := range m {
 				if !wm.Done {
@@ -341,16 +345,10 @@ func Main() {
 				}
 			}
 			log.Debug().Msgf("progress called %d jobs (%d)", len(m), rc)
-		case nspeed.CPUMetric:
-			if cpuRate > 0 { // if this doesn't match, we did something wrong
-				cpuload, headers, _ := nspeed.PrintCPULoad(m.Pcts, !*optNoColor)
-				if printHeaders {
-					log.Log().Msgf("%s jobs | threads|", headers)
-					printHeaders = false
-				}
-				log.Log().Msgf("%s %-4d | %-4d   |", cpuload, m.ActiveJobs, runtime.NumGoroutine())
+		case *metrics.CPUMetric:
+			if otelCPU != nil {
+				otelCPU.RecordCPU(ctx, m, &log.Logger, !*optNoColor)
 			}
-			// todo: collect cpu & gc in data
 		}
 	}
 
@@ -358,7 +356,7 @@ func Main() {
 	// results will be in wcWorkers
 	waitChan := make(chan error)
 	progress := make(chan any)
-	var results *metric.Metrics //todo: rename this var
+	var results *metrics.Metrics //todo: rename this var
 	go func() {
 		var err error
 		results, err = nspeed.RunJobs(ctx, jl, globalOptions, progress)
@@ -424,7 +422,7 @@ mainloop:
 	}
 
 	// text report:
-	report := metric.GenerateTextReport(results, *optUngroup)
+	report := metrics.GenerateTextReport(results, *optUngroup)
 	if *optTextReport != "" {
 		f, err := utils.FileCreate(*optTextReport)
 		if err != nil {
@@ -451,7 +449,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}
-		report, err := metric.GenerateJSONReport(results, *optSamplingRate, command, *optFormatV4, *optFormatV6)
+		report, err := metrics.GenerateJSONReport(results, *optSamplingRate, command, *optFormatV4, *optFormatV6)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("could not generate json report")
 		}
@@ -464,7 +462,7 @@ mainloop:
 
 	// html report:
 	if *optHTMLReport != "" {
-		report, err := metric.GenerateJSONReport(results, *optSamplingRate, command, *optFormatV4, *optFormatV6)
+		report, err := metrics.GenerateJSONReport(results, *optSamplingRate, command, *optFormatV4, *optFormatV6)
 		if err != nil {
 			log.Fatal().Err(err).Msgf("could not generate json report")
 		}

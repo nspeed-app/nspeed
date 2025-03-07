@@ -9,7 +9,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/metric"
+	"nspeed.app/metrics"
 )
 
 type Job interface {
@@ -19,7 +19,7 @@ type Job interface {
 	PrintString(bool, bool) string
 	IsInfinite() bool
 	Init(Options) error
-	Run(context.Context, *sync.WaitGroup, Options) (*metric.Metric, error)
+	Run(context.Context, *sync.WaitGroup, Options) (*metrics.Metric, error)
 	//common, implemented here if JobData is embeded
 	Logger() *zerolog.Logger
 	SetLogger(*zerolog.Logger)
