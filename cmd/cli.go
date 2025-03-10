@@ -307,24 +307,11 @@ func Main() {
 
 	// osInterrupt triggers graceful shutdown on SIGINT or SIGTERM
 	// since we won't call signal.Reset(...), make sure all execution paths exit at some point
-	// otherwise add signal.Reset(...) after post-delay handling code
+	// otherwise add signal.Reset(...) after main loop
 	osInterrupt := make(chan os.Signal, 1)
 	signal.Notify(osInterrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	errs := make(chan error, 1)
-
-	// pre delay
-	if *optPreDelay != 0 {
-		log.Warn().Msgf("pre-delay started - sleeping %s", *optPreDelay)
-		select {
-		case <-ctx.Done():
-		case <-time.After(*optPreDelay):
-		case sig := <-osInterrupt:
-			log.Warn().Msgf("global shutdown started by signal: %s", sig)
-			return
-		}
-		log.Warn().Msgf("pre-delay ended")
-	}
 
 	var otelCPU *metrics.CPUOtel
 	if *optCPU {
@@ -404,22 +391,6 @@ mainloop:
 
 	// remove invalid jobs
 	results.Cleanup()
-
-	// post delay -todo share more code with pre delay
-	if *optPostDelay != 0 && ctx.Err() == nil {
-		log.Warn().Msgf("post-delay started - sleeping %s", *optPostDelay)
-		select {
-		case <-time.After(*optPostDelay):
-		case sig := <-osInterrupt:
-			log.Warn().Msgf("global shutdown started by signal: %s", sig)
-			cancel()
-		}
-		log.Warn().Msgf("post-delay ended")
-	}
-
-	if *optPostDelay != 0 && ctx.Err() != nil {
-		log.Debug().Msgf("post-delay skipped because ctx.Err = %s", ctx.Err())
-	}
 
 	// text report:
 	report := metrics.GenerateTextReport(results, *optUngroup)

@@ -325,7 +325,7 @@ func runBatch(ctx context.Context, batchIdx int, jl *JobList, infinite bool, opt
 		}
 	}
 	// post delay
-	if batch.PostDelay > 0 && !infinite {
+	if batch.PostDelay > 0 && !infinite && ctx.Err() == nil {
 		log.Warn().Msgf("post-delay of batch %d started - sleeping %s", batchIdx, batch.PostDelay)
 		select {
 		case <-ctx.Done():
