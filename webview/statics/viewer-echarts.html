@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8" />
     <title>NSpeed Results</title>
@@ -19,6 +20,18 @@
             border: 3px solid #ffcc80;
             border-radius: 5px;
             padding: 8px;
+            flex-grow: 1;
+        }
+        .flex-charts {
+            display: flex;
+            flex-direction: row;
+            flex-flow: row wrap;
+            flex-wrap: warp;
+            /* flex-grow: 1; */
+            height: 75vh;
+        }
+        .flex-charts>div {
+            flex-grow: 1;
         }
     </style>
     <script src="echarts.min.js"></script>
@@ -26,6 +39,7 @@
     <script removeimports="true" src="gen-echarts.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="flex-container" style="flex-direction:row">
         <div id="dlgJSON" style="display:none; border: none;">
@@ -41,8 +55,7 @@
         </label>
     </div>
     <div class="flex-container">
-        <div style="flex-grow:1; height:75vh;" id="#chart">
-            <!-- <canvas id="#chart"></canvas> -->
+        <div class="flex-charts" id="#charts">
         </div>
         <div onclick="toggleCommand()">
             <hr style="height:2px;border:none;color:#333;background-color:#333;" />
@@ -62,15 +75,17 @@
         // globals
         let data = `{{.}}`; // Go template will fill 
         let jsonreport = null;
-        let ActiveChart = null;
+        let ActiveCharts = [];
         let darkmode = false;
         //
         function makeCharts() {
-            if (ActiveChart != null) {
-                ActiveChart.dispose();
-                ActiveChart = null;
+            let charts = /**@type {HTMLCanvasElement}*/document.getElementById("#charts")
+            if (ActiveCharts != []) {
+                ActiveCharts.map(c => c.dispose());
+                ActiveCharts = [];
+                charts.innerHTML = '';
             }
-            ActiveChart = genChart(/**@type {HTMLCanvasElement}*/document.getElementById("#chart"), darkmode ? "dark": "", jsonreport);
+            ActiveCharts = genCharts(charts, darkmode ? "dark" : "", jsonreport);
         }
 
         // load json from data, update jsonreport
@@ -92,10 +107,6 @@
             let files = event.target.files;
             var reader = new FileReader();
             reader.onload = function (e) {
-                try {
-                    ActiveChart.destroy();
-                }
-                catch (error) { }
                 loadJSON(e.target.result, Command);
                 makeCharts();
 

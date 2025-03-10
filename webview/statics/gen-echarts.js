@@ -1,4 +1,4 @@
-//@ts-check
+// @ts-check
 
 //import {echarts} from 'echarts';
 
@@ -6,12 +6,15 @@ function zip(arr1, arr2) {
     return arr1.map((element, index) => [element, arr2[index]]);
 }
 
-// data was =zip(xAxisData, series1_data[0])
+var yMax = "dataMax";
+
 function chart_series(dataset) {
     return dataset.map(d => ({
-        name: d.stack,
+        name: d.id,
+        stack: d.stack,
         type: 'line',
         data: d.data,
+        smooth: true,
         markPoint: {
             data: [
                 {
@@ -29,6 +32,16 @@ function chart_series(dataset) {
         }
     }))
 }
+
+function chart_single(dataset) {
+    return dataset.map(d => ({
+        name: d.id,
+        stack: d.stack,
+        type: 'bar',
+        data: d.data,
+    }))
+}
+
 function option_testchart(title, yAxisName, series_data) {
     return {
         grid: {
@@ -83,6 +96,7 @@ function option_testchart(title, yAxisName, series_data) {
         yAxis: [
             {
                 name: yAxisName,
+                max: yMax,
                 axisLabel: {
                     formatter: function (value, index) {
                         return formatBytes(value, 'bps',
@@ -97,39 +111,47 @@ function option_testchart(title, yAxisName, series_data) {
 }
 function addEChart(container, theme, xscales, datasets, labels) {
     // loop over chart
-    let goecharts_testchart = echarts.init(container,theme);
+    let c = echarts.init(container, theme);
     let data = chart_series(datasets);
-    let opt = option_testchart("NSPEED", "bps", data)
-    goecharts_testchart.setOption(opt);
-    goecharts_testchart.group = 'group1'; // group to sync mouse
-    return goecharts_testchart
+    let opt = option_testchart("TODO", "bps", data)
+    opt.xAxis = [xscales];
+    c.setOption(opt);
+    c.group = 'group1'; // group to sync mouse
+    console.log("INIT:", c)
+    return c
 }
-function genChart(container, theme, jsonreport) {
-    // results is an array of "result"
-    var results = jsonreport.Results;
-    var chartType = (jsonreport.samplerate === 0) ? "line" : "bar";
+/**
+ * @param {HTMLElement} container
+ * @param {any} theme
+ * @param {boolean} hasSeries
+ * @param {any[]} results
+ */
+function genChart(container, theme, hasSeries, results) {
+    console.log("hasSeries", hasSeries);
+    console.log("results", results);
     var xscales = {
         type: 'time',
         title: {
             display: true,
-            text: "time"
+            text: "Time"
         }
     };
     var labels = {}
     var datasets = [];
-    if (jsonreport.samplerate === 0) {
-        labels = results.map(r => r.id); //[... new Set(results.map(r => r.batchname))];
+
+    if (!hasSeries) {
+        labels = Array.from(new Set(results.map(r => r.batchname))); //[... new Set(results.map(r => r.batchname))];
         xscales = {
             stacked: true,
             type: 'category',
             title: {
-                display: false,
-                text: ""
+                display: true,
+                text: "batch"
             }
         };
         datasets = [{
-            label: 'Dataset 1',
-            data: results.map((e, i) => ({ x: e.id, y: e.rxbps + e.txbps }))
+            label: "TODO",
+            data: results.map((e, i) => (e.rxbps + e.txbps))
         }];
     } else {
         datasets = results.map((result, i) => ({
@@ -138,14 +160,54 @@ function genChart(container, theme, jsonreport) {
             hoverBorderRadius: 2,
             hoverBorderWidth: 2,
             interpolate: true,
-            label: (jsonreport.samplerate === 0) ? result.id : result.Samples.map(e => e.date),
+            label: result.Samples.map(e => e.date), // (jsonreport.samplerate === 0) ? result.id : 
             order: i,
             pointRadius: 2,
             showLine: true,
             stack: result.gid,
-            data: result.Samples.map(e => ([new Date(e.date), (e.rxbytes + e.txbytes) * 8.0 / e.duration ]))
+            id: result.id,
+            data: result.Samples.map(e => ([new Date(e.date), (e.rxbytes + e.txbytes) * 8.0 / e.duration]))
         }));
+        console.log("dataset", datasets);
     }
-    var chart = addEChart(container, theme, xscales, datasets, labels);
-    return chart;
+    return addEChart(container, theme, xscales, datasets, labels);
+}
+/**
+ * @param {HTMLElement} container
+ * @param {string} theme
+ * @param {any} jsonreport
+ */
+function genCharts(container, theme, jsonreport) {
+    // results is an array of "result"
+    var results = jsonreport.Results;
+    // todo: change json to group by batch
+    // this does  "uniq" on batch , carefull of inversion.
+    var batches = Array.from(new Set(results.map(r => (r.batch, r.batchname))));
+    console.log("batches", batches);
+    console.log("results", results);
+
+    var degroup = false;
+    if (degroup) {
+        // create a div per chart
+        var divs = batches.map((b, bn) => {
+            var element = document.createElement("div");
+            element.id = "Batch" + bn;
+            element.style = "width: " + 100 / batches.length + "%";
+            container.appendChild(element);
+            return element;
+        });
+
+        // loop thru batches, adding a chart per batch
+        var charts = batches.map((b, bn) => {
+            return genChart(divs[bn], theme, (results.samplerate != 0), results.filter(r => r.batch == bn));
+        });
+    } else {
+        var element = document.createElement("div");
+        element.id = "All Batchs";
+        element.style = "width: 100%";
+        container.appendChild(element);
+        return genChart(element, theme, (results.samplerate != 0), results);
+    }
+    echarts.connect('group1');
+    return charts;
 }
