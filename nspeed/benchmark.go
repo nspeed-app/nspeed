@@ -65,12 +65,12 @@ var benchmarksTemplates = map[string]Benchmark{
 	// HTTP/1.1
 	"h1cg": {
 		Tpl:  "server {{.SArgs}} -id s{{.ID}} get {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/{{.Size}}",
-		Name: "HTTP1 GET",
+		Name: "HTTP/1 GET",
 		Help: "HTTP/1.1 GET, localhost",
 	},
 	"h1cp": {
 		Tpl:  "server {{.SArgs}} -id s{{.ID}} put {{.CArgs}} -n {{.N}} nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "HTTP1 PUT",
+		Name: "HTTP/1 PUT",
 		Help: "HTTP/1.1 PUT, localhost",
 	},
 

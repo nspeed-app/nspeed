@@ -2,14 +2,21 @@
 
 //import {echarts} from 'echarts';
 
+/**
+ * @param {any[]} arr1
+ * @param {{ [x: string]: any; }} arr2
+ */
 function zip(arr1, arr2) {
-    return arr1.map((element, index) => [element, arr2[index]]);
+    return arr1.map((/** @type {any} */ element, /** @type {string | number} */ index) => [element, arr2[index]]);
 }
 
 var yMax = "dataMax";
 
+/**
+ * @param {any[]} dataset
+ */
 function chart_series(dataset) {
-    return dataset.map(d => ({
+    return dataset.map((/** @type {{ id: any; stack: any; data: any; }} */ d) => ({
         name: d.id,
         stack: d.stack,
         type: 'line',
@@ -19,12 +26,12 @@ function chart_series(dataset) {
             data: [
                 {
                     name: 'Max',
-                    type: 'max'
+                    type: 'average'
                 }
             ],
             label: {
                 show: true,
-                formatter: function (params) {
+                formatter: function (/** @type {{ value: any; }} */ params) {
                     return formatBytes(params.value, 'bps',
                         2)
                 }
@@ -33,8 +40,12 @@ function chart_series(dataset) {
     }))
 }
 
-function chart_single(dataset) {
-    return dataset.map(d => ({
+/**
+ * @param {any} labels
+ * @param {any[]} dataset
+ */
+function chart_noseries(labels, dataset) {
+    return dataset.map((/** @type {{ id: any; stack: any; data: any; }} */ d) => ({
         name: d.id,
         stack: d.stack,
         type: 'bar',
@@ -42,8 +53,14 @@ function chart_single(dataset) {
     }))
 }
 
-function option_testchart(title, yAxisName, series_data) {
-    return {
+/**
+ * @param {string} title
+ * @param {string} yAxisName
+ * @param {any} series_data
+ * @param {boolean} ttformat
+ */
+function option_testchart(title, yAxisName, series_data, hasSeries) {
+    let opts = {
         grid: {
             left: '3%',
             right: '4%',
@@ -54,7 +71,6 @@ function option_testchart(title, yAxisName, series_data) {
             show: true,
             align: 'left',
             type: 'scroll',
-            //   orient: 'vertical'
         },
         series: series_data,
         title: {
@@ -64,7 +80,6 @@ function option_testchart(title, yAxisName, series_data) {
             show: true,
             feature: {
                 saveAsImage: {},
-                magicType: { type: ['line', 'bar'] },
                 restore: {},
                 dataView: {
                     show: true,
@@ -83,9 +98,6 @@ function option_testchart(title, yAxisName, series_data) {
         tooltip: {
             show: true,
             trigger: 'axis',
-            formatter: function (params) {
-                return formatTooltip(params)
-            }
         },
         xAxis: [
             {
@@ -98,7 +110,7 @@ function option_testchart(title, yAxisName, series_data) {
                 name: yAxisName,
                 max: yMax,
                 axisLabel: {
-                    formatter: function (value, index) {
+                    formatter: function (/** @type {any} */ value, /** @type {any} */ index) {
                         return formatBytes(value, 'bps',
                             2)
                     },
@@ -108,21 +120,43 @@ function option_testchart(title, yAxisName, series_data) {
             }
         ]
     }
+
+    if (hasSeries) {
+        opts.toolbox.feature.magicType = { type: ['line', 'bar'] };
+        opts.tooltip.formatter = formatSeriesTooltip;
+    } else {
+        opts.tooltip.formatter = formatTooltip;
+    }
+    return opts
 }
-function addEChart(container, theme, xscales, datasets, labels) {
+/**
+ * @param {HTMLElement} container
+ * @param {string} theme
+ * @param {boolean} hasSeries
+ * @param {any} xscales
+ * @param {any} datasets
+ */
+function addEChart(container, theme, hasSeries, xscales, datasets) {
     // loop over chart
     let c = echarts.init(container, theme);
-    let data = chart_series(datasets);
-    let opt = option_testchart("TODO", "bps", data)
-    opt.xAxis = [xscales];
-    c.setOption(opt);
+    if (hasSeries) {
+        let data = chart_series(datasets);
+        let opt = option_testchart("TODO", "bps", data, hasSeries)
+        opt.xAxis = [xscales];
+        c.setOption(opt);
+    } else {
+        let data = datasets;
+        let opt = option_testchart("TODO", "bps", data, hasSeries)
+        opt.xAxis = [xscales]
+        c.setOption(opt);
+    }
     c.group = 'group1'; // group to sync mouse
     console.log("INIT:", c)
     return c
 }
 /**
  * @param {HTMLElement} container
- * @param {any} theme
+ * @param {string} theme
  * @param {boolean} hasSeries
  * @param {any[]} results
  */
@@ -142,17 +176,30 @@ function genChart(container, theme, hasSeries, results) {
     if (!hasSeries) {
         labels = Array.from(new Set(results.map(r => r.batchname))); //[... new Set(results.map(r => r.batchname))];
         xscales = {
-            stacked: true,
             type: 'category',
             title: {
                 display: true,
                 text: "batch"
-            }
+            },
+            data:labels
         };
-        datasets = [{
-            label: "TODO",
-            data: results.map((e, i) => (e.rxbps + e.txbps))
-        }];
+        datasets = results.map((r,i)=> {
+            console.log("i",i,"r",r);
+            return {
+                type:'bar',
+                name:r.gid,
+                stack:r.batchname,
+                data: labels.map( (/** @type {any} */ l) => {
+                    if (l==r.batchname) {
+                        return r.rxbps+r.txbps;
+                    }
+                    return ;
+                })
+            };
+        }); //[{
+        //     label: "TODO",
+        //     data: results.map((e, i) => (e.rxbps + e.txbps))
+        // }];
     } else {
         datasets = results.map((result, i) => ({
             fill: true,
@@ -160,17 +207,17 @@ function genChart(container, theme, hasSeries, results) {
             hoverBorderRadius: 2,
             hoverBorderWidth: 2,
             interpolate: true,
-            label: result.Samples.map(e => e.date), // (jsonreport.samplerate === 0) ? result.id : 
+            label: result.Samples.map((/** @type {{ date: any; }} */ e) => e.date), // (jsonreport.samplerate === 0) ? result.id : 
             order: i,
             pointRadius: 2,
             showLine: true,
             stack: result.gid,
             id: result.id,
-            data: result.Samples.map(e => ([new Date(e.date), (e.rxbytes + e.txbytes) * 8.0 / e.duration]))
+            data: result.Samples.map((/** @type {{ date: string | number | Date; rxbytes: any; txbytes: any; duration: number; }} */ e) => ([new Date(e.date), (e.rxbytes + e.txbytes) * 8.0 / e.duration]))
         }));
         console.log("dataset", datasets);
     }
-    return addEChart(container, theme, xscales, datasets, labels);
+    return addEChart(container, theme, hasSeries, xscales, datasets);
 }
 /**
  * @param {HTMLElement} container
@@ -182,12 +229,13 @@ function genCharts(container, theme, jsonreport) {
     var results = jsonreport.Results;
     // todo: change json to group by batch
     // this does  "uniq" on batch , carefull of inversion.
-    var batches = Array.from(new Set(results.map(r => (r.batch, r.batchname))));
+    var batches = Array.from(new Set(results.map((/** @type {{ batch: any; batchname: any; }} */ r) => (r.batch, r.batchname))));
     console.log("batches", batches);
     console.log("results", results);
 
     var degroup = false;
-    if (degroup) {
+    charts = [];
+    if (degroup) { // wip
         // create a div per chart
         var divs = batches.map((b, bn) => {
             var element = document.createElement("div");
@@ -199,14 +247,15 @@ function genCharts(container, theme, jsonreport) {
 
         // loop thru batches, adding a chart per batch
         var charts = batches.map((b, bn) => {
-            return genChart(divs[bn], theme, (results.samplerate != 0), results.filter(r => r.batch == bn));
+            return genChart(divs[bn], theme, (jsonreport.samplerate != 0), results.filter((/** @type {{ batch: number; }} */ r) => r.batch == bn));
         });
     } else {
         var element = document.createElement("div");
         element.id = "All Batchs";
         element.style = "width: 100%";
         container.appendChild(element);
-        return genChart(element, theme, (results.samplerate != 0), results);
+        console.log("samplerate", jsonreport.samplerate)
+        charts.push(genChart(element, theme, (jsonreport.samplerate != 0), results));
     }
     echarts.connect('group1');
     return charts;

@@ -152,6 +152,11 @@
                 makeCharts();
             });
         });
+        // resize
+        window.onresize = function() {
+              ActiveCharts.map( c=>c.resize());
+        };
+
     </script>
 </body>
 

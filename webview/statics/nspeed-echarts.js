@@ -12,11 +12,11 @@ function formatBytes(value, unitname = '', precision = 2) {
 }
 
 // format tooltip for bps 
-function formatTooltip(params) {
+function formatSeriesTooltip(params) {
 	if (params === undefined || params.length == 0) return "NO DATA";
 
 	let output = '<b>' + params[0].axisValueLabel + '</b><br/>'
-	
+
 	params.sort((a, b) => b.value[1] - a.value[1]);
 
 	for (let i = 0; i < params.length; i++) {
@@ -24,6 +24,24 @@ function formatTooltip(params) {
 		if (i != params.length - 1) { // Append a <br/> tag if not last in loop
 			output += '<br/>'
 		}
+	}
+	return output
+}
+
+
+// format tooltip for bps 
+function formatTooltip(params) {
+	if (params === undefined || params.length == 0) return "NO DATA";
+
+	let output = '<b>' + params[0].axisValueLabel + '</b><br/>'
+
+	let p =params.filter(p=>p.value!=null); // keep in sync with construction of data for the series
+
+	for (let i = 0; i < p.length; i++) {
+			output += p[i].marker + p[i].seriesName + ': ' + formatBytes(p[i].value, "bps"); //
+			if (i != p.length - 1) { // Append a <br/> tag if not last in loop
+				output += '<br/>'
+			}
 	}
 	return output
 }

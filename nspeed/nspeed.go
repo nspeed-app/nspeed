@@ -107,14 +107,6 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 		progressTickerChannel = t.C
 	}
 
-	// Ticker for time series
-	tickTickerChannel := make(<-chan time.Time) // forever
-	if message != nil && opt.Tick > 0 {
-		t := time.NewTicker(opt.Tick)
-		log.Debug().Msgf("setting series ticker to %s", opt.Tick)
-		tickTickerChannel = t.C
-	}
-
 	// Ticker for CPU series
 	tickCPUChannel := make(<-chan time.Time) // forever
 	if message != nil && opt.CPU > 0 {
@@ -185,11 +177,6 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 			case <-ctx.Done():
 				log.Debug().Msgf("parent cancelled us")
 				break batchloop
-			case <-tickTickerChannel:
-				// we call Update on each wcWorkers
-				for _, wc := range wcWorkers.Metrics {
-					wc.UpdateData()
-				}
 			case <-tickCPUChannel:
 				pcts, err := metrics.GetCPULoad(0, true)
 				if err != nil {
