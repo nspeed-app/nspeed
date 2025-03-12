@@ -22,21 +22,21 @@ function chart_series(dataset) {
         type: 'line',
         data: d.data,
         smooth: true,
-        markPoint: {
-            data: [
-                {
-                    name: 'Max',
-                    type: 'average'
-                }
-            ],
-            label: {
-                show: true,
-                formatter: function (/** @type {{ value: any; }} */ params) {
-                    return formatBytes(params.value, 'bps',
-                        2)
-                }
-            }
-        }
+        // markPoint: {
+        //     data: [
+        //         {
+        //             name: 'Max',
+        //             type: 'average'
+        //         }
+        //     ],
+        //     label: {
+        //         show: true,
+        //         formatter: function (/** @type {{ value: any; }} */ params) {
+        //             return formatBytes(params.value, 'bps',
+        //                 2)
+        //         }
+        //     }
+        // }
     }))
 }
 
@@ -57,7 +57,7 @@ function chart_noseries(labels, dataset) {
  * @param {string} title
  * @param {string} yAxisName
  * @param {any} series_data
- * @param {boolean} ttformat
+ * @param {boolean} hasSeries
  */
 function option_testchart(title, yAxisName, series_data, hasSeries) {
     let opts = {
@@ -82,7 +82,7 @@ function option_testchart(title, yAxisName, series_data, hasSeries) {
                 saveAsImage: {},
                 restore: {},
                 dataView: {
-                    show: true,
+                    show: false,
                     lang: null,
                     backgroundColor: ""
                 }
@@ -141,12 +141,12 @@ function addEChart(container, theme, hasSeries, xscales, datasets) {
     let c = echarts.init(container, theme);
     if (hasSeries) {
         let data = chart_series(datasets);
-        let opt = option_testchart("TODO", "bps", data, hasSeries)
+        let opt = option_testchart("", "bps", data, hasSeries)
         opt.xAxis = [xscales];
         c.setOption(opt);
     } else {
         let data = datasets;
-        let opt = option_testchart("TODO", "bps", data, hasSeries)
+        let opt = option_testchart("", "bps", data, hasSeries)
         opt.xAxis = [xscales]
         c.setOption(opt);
     }

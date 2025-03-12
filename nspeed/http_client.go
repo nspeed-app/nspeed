@@ -460,7 +460,22 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 
 					//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 					//todo: invesstigate why the following gives results too high
+
 					totalread, err := utils.Copy(wm, resp.Body)
+
+					// b, err := io.ReadAll(resp.Body)
+					// if err != nil {
+					// 	log.Error().Err(err).Msg("read response.Body")
+					// }
+					// totalread := len(b)
+					// if totalread == 0 {
+					// 	log.Error().Msg("empty body")
+					// } else {
+					// 	fmt.Println("HEAD OF BOBY - size = ", totalread)
+					// 	fmt.Println(string(b[:min(1000, len(b)-1)]))
+					// 	fmt.Println("----------------------------------------------------------------------------")
+					// }
+
 					close(done)
 					j.Logger().Debug().Err(err).Msgf("copybuffer ended with %d totalread", totalread)
 
@@ -486,19 +501,6 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 				// todo: get the server response for put/post here
 				// if (j.Command == "PUT" || j.Command == "POST") && j.Logger().GetLevel() <= zerolog.TraceLevel {
 
-				// 	b, err := io.ReadAll(resp.Body)
-				// 	if err != nil {
-				// 		log.Error().Err(err).Msg("read response.Body")
-				// 	}
-				// 	n := len(b)
-				// 	if n == 0 {
-				// 		log.Error().Msg("empty body")
-				// 	} else {
-				// 		fmt.Println("HEAD OF BOBY----------------------------------------------------------------")
-				// 		fmt.Println(string(b[:Min(1000, len(b)-1)]))
-				// 		fmt.Println("----------------------------------------------------------------------------")
-				// 	}
-				// }
 				// if loop == j.Repeat-1 {
 				// 	j.Logger().Debug().Msgf("closing Metric")
 				// }

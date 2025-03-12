@@ -43,6 +43,7 @@ func TestByteCountBinary(t *testing.T) {
 		{1024, "1.0 Ki"},
 		{1024 * 1024, "1.0 Mi"},
 		{1024*1024 + 100*1024, "1.1 Mi"},
+		{0, "0 "},
 	}
 	for _, table := range tables {
 		s := ByteCountBinary(table.x)
@@ -63,6 +64,7 @@ func TestByteCountDecimal(t *testing.T) {
 		{1024, "1.0 k"},
 		{1024 * 1024, "1.0 M"},
 		{1024*1024 + 100*1024, "1.2 M"},
+		{0, "0 "},
 	}
 	for _, table := range tables {
 		s := ByteCountDecimal(table.x)

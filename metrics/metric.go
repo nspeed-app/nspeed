@@ -105,12 +105,17 @@ func (wm *Metric) Logger() *zerolog.Logger {
 // StartTicker starts a ticker for this Metric
 func (wm *Metric) StartTicker(done chan any) {
 	if wm.Tick <= 0 {
+		//fmt.Println("NO TICKER")
 		return
 	}
 	ticker := time.NewTicker(wm.Tick)
 	wm.Logger().Debug().Msgf("starting ticker at rate %s", wm.Tick)
+	//fmt.Printf("TICKER ON for %s duration %d\n", wm.ID, wm.Tick)
 	go func() {
-		defer wm.Logger().Debug().Msg("go ticker ended")
+		defer func() {
+			//fmt.Printf("TICKER OFF for %s\n", wm.ID)
+			wm.Logger().Debug().Msg("go ticker ended")
+		}()
 		for {
 			select {
 			case <-done:
@@ -123,21 +128,23 @@ func (wm *Metric) StartTicker(done chan any) {
 }
 
 // UpdateData adds the lastest data to the history and also returns it
-func (wm *Metric) UpdateData() MetricsData {
+func (wm *Metric) UpdateData() {
 	wm.mutex.Lock()
 	defer wm.mutex.Unlock()
 	// still running, get metrics , store and return them
 	if !wm.Valid && !wm.Done && !wm.Cancelled && !wm.Expired {
+		if wm.Series != nil {
+			if wm.Series[len(wm.Series)-1] == wm.MetricsData {
+				// no change since last call
+				return
+			}
+		}
 		d := wm.MetricsData
 		// make this 'copy' the MetricsData
+		fmt.Printf("UpdateData: %d %d %d %d\n", d.TotalRead, d.TotalWrite, d.ReadCount, d.WriteCount)
+
 		wm.Series = append(wm.Series, d)
-		return d
 	}
-	if len(wm.Series) > 0 {
-		return wm.Series[len(wm.Series)-1]
-	}
-	// no history , return 0
-	return MetricsData{}
 }
 
 // serialized metrics
@@ -183,6 +190,7 @@ func (wm *Metric) WriteN(n int64) int64 {
 		wm.TotalRead += n
 	}
 	wm.ReadCount++
+	fmt.Printf("WRITE: %d\n", n)
 	return n
 }
 
@@ -320,10 +328,11 @@ func (wm *Metric) Close() error {
 	// assert wm.Done == false
 	// we don't report 2+ calls to Close
 	wm.Done = true
-	if wm.TotalWrite < wm.ContentWriteSize {
+
+	if wm.ContentWriteSize > 0 && (wm.TotalWrite < wm.ContentWriteSize) {
 		wm.Expired = true
 	}
-	if wm.TotalRead < wm.ContentReadSize {
+	if wm.ContentReadSize > 0 && (wm.TotalRead < wm.ContentReadSize) {
 		wm.Expired = true
 	}
 	wm.Valid = true
@@ -659,7 +668,11 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 	if wm.Series != nil {
 		nbSamples = len(wm.Series) + 1
 	}
-	nms := make([]NetMetricSample, nbSamples)
+
+	// j, _ := json.MarshalIndent(wm.Series, "", "\t")
+	// fmt.Println(string(j))
+
+	nms := make([]NetMetricSample, 0, nbSamples)
 	var prevElapsed time.Duration
 	var rxSoFar, txSoFar uint64
 	var nextTime = wm.TransfertStartTime
@@ -681,20 +694,29 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 			txSoFar += n.TXBytes
 			n.Time = nextTime.Round(gPrecision)
 			nextTime = n.Time.Add(duration)
+
+			n.RXbps = utils.BitPerSecondFromUInt64(n.RXBytes, duration)
+			n.TXbps = utils.BitPerSecondFromUInt64(n.TXBytes, duration)
 			n.RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.RXBytes, duration)) + "bps"
 			n.TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.TXBytes, duration)) + "bps"
+
 			n.Duration = duration.Seconds()
-			nms[i] = n
+			nms = append(nms, n)
 		}
 	}
+	// todo: review this
 	duration := wm.ElapsedTime - prevElapsed
-	nms[nbSamples-1].Duration = duration.Seconds()
-	nms[nbSamples-1].Time = nextTime.Round(gPrecision)
-	nms[nbSamples-1].RXBytes = uint64(wm.TotalRead) - rxSoFar
-	nms[nbSamples-1].TXBytes = uint64(wm.TotalWrite) - txSoFar
-	nms[nbSamples-1].RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(nms[nbSamples-1].RXBytes, duration)) + "bps"
-	nms[nbSamples-1].TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(nms[nbSamples-1].TXBytes, duration)) + "bps"
-
+	if duration != 0 && len(nms) > 0 {
+		lastSample := &(nms[len(nms)-1])
+		lastSample.Duration = duration.Seconds()
+		lastSample.Time = nextTime.Round(gPrecision)
+		lastSample.RXBytes = uint64(wm.TotalRead) - rxSoFar
+		lastSample.TXBytes = uint64(wm.TotalWrite) - txSoFar
+		lastSample.RXbps = utils.BitPerSecondFromUInt64(lastSample.RXBytes, duration)
+		lastSample.TXbps = utils.BitPerSecondFromUInt64(lastSample.TXBytes, duration)
+		lastSample.RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(lastSample.RXBytes, duration)) + "bps"
+		lastSample.TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(lastSample.TXBytes, duration)) + "bps"
+	}
 	return nms
 }
 
@@ -924,6 +946,8 @@ type NetMetricSample struct {
 	Latency  int64     `json:"latency"`
 	Time     time.Time `json:"date"`
 	Duration float64   `json:"duration"` // in ms or ns ? - should be constant - keep?
+	RXbps    int64     `json:"rxbps"`
+	TXbps    int64     `json:"txbps"`
 	RXhbps   string    `json:"rxhbps"`
 	TXhbps   string    `json:"txhbps"`
 	Loop     uint      `json:"loop"`
