@@ -7,7 +7,7 @@
     <title>NSPEED</title>
 </head>
 
-<body class="layout-simple">
+<body class="layout-simple" style="height: 100vh">
     <header>
         <h1><a class="accent" href="#">nspeed.app</a></h1>
         <nav>
@@ -61,253 +61,43 @@
     <aside data-expandable="☰ Menu">
         <nav>
             <ul>
-                <li><b><a href="#matcha">nspeed.app</a></b>
+                <li><b><a href="#nspeed">nspeed.app</a></b>
                     <ul>
-                        <li><a href="#why">Why choose <em>nspeed.app</em>?</a></li>
-                        <li><a href="#usage">Usage</a>
+                        <li><a href="#tests"><var>Standard tests</var></a>
                             <ul>
-                                <li><small><a href="#a-la-carte">À la carte</a></small></li>
-                                <li><small><a href="#preset-builds">Preset builds</a></small></li>
-                                <li><small><a href="#custom-build">️ Create a custom build</a></small></li>
-                                <li><small><a href="#preview-website">️ Preview a Website</a></small></li>
-                                <li><small><a href="#supported-browsers">️ Supported browsers</a></small></li>
+                                <li><small><a href="#sdown">Single Download</a></small></li>
+                                <li><small><a href="#sup">Single Upload</a></small></li>
+                                <li><small><a href="#mdown">️Multi Download</a></small></li>
+                                <li><small><a href="#mup">️Multi Upload</a></small></li>
+                            </ul>
+                        </li>
+                        <li><a href="#tests"><var>local tests</var></a>
+                            <ul>
+                                <li><small><a href="#lo">Benchmarks</a></small></li>
+
+                                <li><small><a href="#freebox">Freebox</a></small></li>
                             </ul>
                         </li>
                     </ul>
                 </li>
-                <li><b><a href="#sectioning">Sectioning</a></b>
-                    <ul>
-                        <li><a href="#html"><var>&lt;html&gt;</var> Document root</a>
-                            <ul>
-                                <li><small><a href="#body"><var>&lt;body&gt;</var> Document body</a></small></li>
-                                <li><small><a href="#main"><var>&lt;main&gt;</var> Main section</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#section"><var>&lt;section&gt;</var> Section</a>
-                            <ul>
-                                <li><small><a href="#header"><var>&lt;header&gt;</var> Section header</a></small></li>
-                                <li><small><a href="#footer"><var>&lt;footer&gt;</var> Section footer</a></small></li>
-                                <li><small><a href="#aside"><var>&lt;aside&gt;</var> Aside</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#article"><var>&lt;article&gt;</var> Article</a></li>
-                        <li><a href="#hr"><var>&lt;hr&gt;</var> Horizontal Rule</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#navigation">Navigation</a></b>
-                    <ul>
-                        <li><a href="#menu"><var>&lt;menu&gt;</var> Menu list</a>
-                            <ul>
-                                <li><small><a href="#li"><var>&lt;li&gt;</var> List item</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#nav"><var>&lt;nav&gt;</var> Navigation</a>
-                            <ul>
-                                <li><small><a href="#nav-ol">With ordered lists
-                                            (<code><span class="hljs-tag">&lt;<span class="hljs-name">ol</span>&gt;</span></code>)</a></small>
-                                </li>
-                                <li><small><a href="#nav-ul">With unordered lists
-                                            (<code><span class="hljs-tag">&lt;<span class="hljs-name">ul</span>&gt;</span></code>)</a></small>
-                                </li>
-                                <li><small><a href="#nav-menu">With menus
-                                            (<code><span class="hljs-tag">&lt;<span class="hljs-name">menu</span>&gt;</span></code>)</a></small>
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-                <li><b><a href="#headings">Headings</a></b>
-                    <ul>
-                        <li><a href="#hgroup"><var>&lt;hgroup&gt;</var> Heading group</a></li>
-                        <li><a href="#h1"><var>&lt;h{1..6}&gt;</var> Heading</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#flow">Flow</a></b>
-                    <ul>
-                        <li><a href="#p"><var>&lt;p&gt;</var> Paragraph</a></li>
-                        <li><a href="#blockquote"><var>&lt;blockquote&gt;</var> Quotation block</a></li>
-                        <li><a href="#pre"><var>&lt;pre&gt;</var> Preformatted text</a></li>
-                        <li><a href="#figure"><var>&lt;figure&gt;</var> Figure</a>
-                            <ul>
-                                <li><small><a href="#figcaption"><var>&lt;figcaption&gt;</var> Figure
-                                            caption</a></small></li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-                <li><b><a href="#collapsibles">Collapsibles</a></b>
-                    <ul>
-                        <li><a href="#details"><var>&lt;details&gt;</var> Details disclosure</a>
-                            <ul>
-                                <li><small><a href="#summary"><var>&lt;summary&gt;</var> Details disclosure
-                                            summary</a></small></li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-                <li><b><a href="#modals">Modals</a></b>
-                    <ul>
-                        <li><a href="#dialog"><var>&lt;dialog&gt;</var> Dialog modal</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#anchors">Anchors</a></b>
-                    <ul>
-                        <li><a href="#a"><var>&lt;a&gt;</var> Anchor link</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#abbreviations">Abbreviations</a></b>
-                    <ul>
-                        <li><a href="#abbr"><var>&lt;abbr&gt;</var> Abbreviation</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#styling">Styling and emphasis</a></b>
-                    <ul>
-                        <li><a href="#b"><var>&lt;b&gt;</var> Bold</a></li>
-                        <li><a href="#i"><var>&lt;i&gt;</var> Italic</a></li>
-                        <li><a href="#u"><var>&lt;u&gt;</var> Underline</a></li>
-                        <li><a href="#s"><var>&lt;s&gt;</var> Strikethrough</a></li>
-                        <li><a href="#q"><var>&lt;q&gt;</var> Quotation</a></li>
-                        <li><a href="#cite"><var>&lt;cite&gt;</var> Citation</a></li>
-                        <li><a href="#dfn"><var>&lt;dfn&gt;</var> Definition</a></li>
-                        <li><a href="#em"><var>&lt;em&gt;</var> Emphasis</a></li>
-                        <li><a href="#strong"><var>&lt;strong&gt;</var> Strong importance</a></li>
-                        <li><a href="#small"><var>&lt;small&gt;</var> Smaller text</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#annotations">Annotations</a></b>
-                    <ul>
-                        <li><a href="#ruby"><var>&lt;ruby&gt;</var> Ruby</a>
-                            <ul>
-                                <li><small><a href="#rp"><var>&lt;rp&gt;</var> Ruby fallback parenthesis</a></small>
-                                </li>
-                                <li><small><a href="#rt"><var>&lt;rt&gt;</var> Ruby text</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#sup"><var>&lt;sup&gt;</var> Superscript</a></li>
-                        <li><a href="#sub"><var>&lt;sub&gt;</var> Subscript</a></li>
-                        <li><a href="#mark"><var>&lt;mark&gt;</var> Marked text</a></li>
-                        <li><a href="#ins"><var>&lt;ins&gt;</var> Inserted text</a></li>
-                        <li><a href="#del"><var>&lt;del&gt;</var> Deleted text</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#computing">Computing</a></b>
-                    <ul>
-                        <li><a href="#code"><var>&lt;code&gt;</var> Code</a></li>
-                        <li><a href="#var"><var>&lt;var&gt;</var> Variable</a></li>
-                        <li><a href="#kbd"><var>&lt;kbd&gt;</var> Keyboard</a></li>
-                        <li><a href="#samp"><var>&lt;samp&gt;</var> Sample output</a></li>
-                        <li><a href="#output"><var>&lt;output&gt;</var> Output</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#forms">Forms</a></b>
-                    <ul>
-                        <li><a href="#form"><var>&lt;form&gt;</var> Form</a></li>
-                        <li><a href="#button"><var>&lt;button&gt;</var> Button</a></li>
-                        <li><a href="#label"><var>&lt;label&gt;</var> Label</a></li>
-                        <li><a href="#fieldset"><var>&lt;fieldset&gt;</var> Field set</a>
-                            <ul>
-                                <li><small><a href="#legend"><var>&lt;legend&gt;</var> Field set legend</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#input"><var>&lt;input&gt;</var> Input</a></li>
-                        <li><a href="#select"><var>&lt;select&gt;</var> Selection input</a></li>
-                        <li><a href="#textarea"><var>&lt;textarea&gt;</var> Text area input</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#bars">Bars</a></b>
-                    <ul>
-                        <li><a href="#progress"><var>&lt;progress&gt;</var> Progress bar</a></li>
-                        <li><a href="#meter"><var>&lt;meter&gt;</var> Meter bar</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#lists">Lists</a></b>
-                    <ul>
-                        <li><a href="#dl"><var>&lt;dl&gt;</var> Description list</a>
-                            <ul>
-                                <li><small><a href="#dt"><var>&lt;dt&gt;</var> Description term</a></small></li>
-                                <li><small><a href="#dd"><var>&lt;dd&gt;</var> Description details</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#ul"><var>&lt;ul&gt;</var> Unordered list</a>
-                            <ul>
-                                <li><small><a href="#li"><var>&lt;li&gt;</var> List item</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#ol"><var>&lt;ol&gt;</var> Ordered list</a>
-                            <ul>
-                                <li><small><a href="#li"><var>&lt;li&gt;</var> List item</a></small></li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-                <li><b><a href="#tables">Tables</a></b>
-                    <ul>
-                        <li><a href="#table"><var>&lt;table&gt;</var> Table</a>
-                            <ul>
-                                <li><small><a href="#caption"><var>&lt;caption&gt;</var> Table caption</a></small></li>
-                                <li><small><a href="#tr"><var>&lt;tr&gt;</var> Table row</a></small></li>
-                                <li><small><a href="#th"><var>&lt;th&gt;</var> Table header</a></small></li>
-                                <li><small><a href="#td"><var>&lt;td&gt;</var> Table data</a></small></li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-                <li><b><a href="#media">Media</a></b>
-                    <ul>
-                        <li><a href="#img"><var>&lt;img&gt;</var> Image</a></li>
-                        <li><a href="#video"><var>&lt;video&gt;</var> Video</a></li>
-                        <li><a href="#iframe"><var>&lt;iframe&gt;</var> Inline frame</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#extras">Extras</a></b>
-                    <ul>
-                        <li><a href="#layouts">Layouts</a>
-                            <ul>
-                                <li><small><a href="#layouts-simple">Simple layout</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#utilities">Utilities</a>
-                            <ul>
-                                <li><small><a href="#utilities-colors">Colors, border colors and backgrounds</a></small>
-                                </li>
-                                <li><small><a href="#utilities-flashes">Flashs</a></small></li>
-                                <li><small><a href="#utilities-classes">Classes</a></small></li>
-                                <li><small><a href="#utilities-classes-list">Utilities classes</a></small></li>
-                                <li><small><a href="#utilities-classes-spacing">Spacing classes</a></small></li>
-                                <li><small><a href="#utilities-synergies">Synergies</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#form-validation">Form validation</a></li>
-                        <li><a href="#syntax-highlighting">Syntax highlighting</a>
-                            <ul>
-                                <li><small><a href="#syntax-highlighting-code">Code</a></small></li>
-                                <li><small><a href="#syntax-highlighting-diff">Diff</a></small></li>
-                                <li><small><a href="#syntax-highlighting-markdown">Markdown</a></small></li>
-                                <li><small><a href="#syntax-highlighting-html">HTML/XML</a></small></li>
-                                <li><small><a href="#syntax-highlighting-css">CSS</a></small></li>
-                            </ul>
-                        </li>
-                        <li><a href="#code-editor">Code editor</a></li>
-                        <li><a href="#istanbul-coverage">Istanbul coverage reports</a></li>
-                        <li><a href="#shadow-root">Shadow roots</a></li>
-                    </ul>
-                </li>
-                <li><b><a href="#unstyled">Unstyled</a></b>
-                    <ul></ul>
-                </li>
+                <li><b><a href="#sectioning">Server</a></b>
+                <li><b><a href="#informations">Extras</a></b>
             </ul>
         </nav>
     </aside>
     <main>
+        <form id="form">
+            <input type="text" id="msg" size="64" autofocus />
+            <input type="submit" value="Send" />
+        </form>
         <details>
             <summary>Log</summary>
             <pre><code><span id="log"></span></code></pre>
         </details>
-
-        <form id="form">
-            <input type="submit" value="Send" />
-            <input type="text" id="msg" size="64" autofocus />
-        </form>
+        <details>
+            <summary>Console</summary>
+            <pre><code><span id="consoleLog"></span></code></pre>
+        </details>
     </main>
 
     <footer>
@@ -337,8 +127,6 @@
                         </svg>
                     </a>
                 </li>
-                <li class="muted">Made with ❤️ by <a href="https://github.com/jfgiorgi" target="_blank"><span
-                            class="accent">@jfgiorgi</span></a></li>
             </menu>
         </nav>
     </footer>
@@ -361,54 +149,76 @@
                 element.querySelector("svg.dark").style.display = dataset.colorScheme === "dark" ? "inline-block" : "none"
             }
 
-        window.onload = function () {
-            var conn;
-            var msg = document.getElementById("msg");
-            var log = document.getElementById("log");
+            window.onload = function () {
+                var conn;
+                var msg = document.getElementById("msg");
+                var log = document.getElementById("log");
 
-            function appendLog(item) {
-                var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
-                log.appendChild(item);
-                if (doScroll) {
-                    log.scrollTop = log.scrollHeight - log.clientHeight;
-                }
-            }
-
-            document.getElementById("form").onsubmit = function () {
-                if (!conn) {
-                    return false;
-                }
-                if (!msg.value) {
-                    return false;
-                }
-                conn.send(msg.value);
-                msg.value = "";
-                return false;
-            };
-
-            if (window["WebSocket"]) {
-                conn = new WebSocket("ws://" + document.location.host + "/ws");
-                conn.onclose = function (evt) {
-                    var item = document.createElement("div");
-                    item.innerHTML = "<b>Connection closed.</b>";
-                    appendLog(item);
-                };
-                conn.onmessage = function (evt) {
-                    var messages = evt.data.split('\n');
-                    for (var i = 0; i < messages.length; i++) {
-                        var item = document.createElement("div");
-                        item.innerText = messages[i];
-                        appendLog(item);
+                function appendLog(item) {
+                    var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+                    log.appendChild(item);
+                    if (doScroll) {
+                        log.scrollTop = log.scrollHeight - log.clientHeight;
                     }
+                }
+
+                document.getElementById("form").onsubmit = function () {
+                    if (!conn) {
+                        console.log("not connected to nspeed server")
+                        return false;
+                    }
+                    if (!msg.value) {
+                        return false;
+                    }
+                    conn.send(msg.value);
+                    msg.value = "";
+                    return false;
                 };
-            } else {
-                var item = document.createElement("div");
-                item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
-                appendLog(item);
-            }
-        };
+
+                if (window["WebSocket"]) {
+                    console.log("ws on");
+                    conn = new WebSocket("ws://" + document.location.host + "/ws");
+                    conn.onopen = (e) => {
+                        console.log("ws opened");
+                    };
+                    conn.onclose = (evt) => {
+                        var item = document.createElement("div");
+                        item.innerHTML = "<b>Connection closed.</b>";
+                        appendLog(item);
+                    };
+                    conn.onmessage = (evt) => {
+                        var messages = evt.data.split('\n');
+                        for (var i = 0; i < messages.length; i++) {
+                            var item = document.createElement("div");
+                            item.innerText = messages[i];
+                            appendLog(item);
+                        }
+                    };
+                    conn.onerror = (evt) => {
+                        console.log("WebSocket error");
+                    }
+                } else {
+                    var item = document.createElement("div");
+                    item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+                    appendLog(item);
+                }
+            };
         }
-        </script>
+        (function () {
+            if (!console) {
+                console = {};
+            }
+            var old = console.log;
+            var logger = document.getElementById('consoleLog');
+            console.log = function (message) {
+                if (typeof message == 'object') {
+                    logger.innerHTML += (JSON && JSON.stringify ? JSON.stringify(message) : String(message)) + '<br />';
+                } else {
+                    logger.innerHTML += message + '<br />';
+                }
+            }
+        })();
+    </script>
 </body>
 
 </html>
