@@ -296,7 +296,7 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 		j.Logger().Debug().Msgf("server will shutdown in: %v", j.Parameters.RunDuration)
 	}
 
-	L3Proto := j.Parameters.Protocol
+	L3Proto := strings.ToLower(j.Parameters.Protocol)
 	if j.Parameters.Protocol == "QUIC" || j.Parameters.Protocol == "QUIC-GO" {
 		L3Proto = "udp"
 	}
@@ -345,7 +345,7 @@ func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGr
 	if j.tlsConfig != nil {
 		tls = "(tls)"
 	}
-	j.URL = &url.URL{Scheme: j.Parameters.Protocol, Host: ls.Addr().String()}
+	j.URL = &url.URL{Scheme: strings.ToLower(j.Parameters.Protocol), Host: ls.Addr().String()}
 	j.Logger().Warn().Msgf("L4 %s server listening %s %s (URL = %s)", j.Parameters.Protocol, ls.Addr(), tls, j.URL)
 
 	// signal we're ready  to accept connections

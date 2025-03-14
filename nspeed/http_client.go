@@ -532,6 +532,7 @@ var errNotRunning = errors.New("named job not running")
 // ResolveSchemes handles special schemes:
 //   - "nspeed://id" will return the URL of the job with matching id
 func ResolveSchemes(idmap map[string]Job, target string) (*url.URL, error) {
+
 	u, err := url.Parse(target)
 	if err != nil {
 		return nil, err
