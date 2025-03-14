@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -71,7 +72,7 @@ type HostParameters struct {
 }
 
 // allowed protocols. todo: make a type ?
-var Protocols = []string{"http", "udp", "tcp", "quic", "quic-go"}
+var Protocols = []string{"HTTP", "UDP", "TCP", "QUIC", "QUIC-GO"}
 
 func validProtocol(proto string) bool {
 	return slices.Contains(Protocols, proto)
@@ -80,7 +81,7 @@ func validProtocol(proto string) bool {
 // initialize a new HostParameters
 func NewHostParameters() *HostParameters {
 	return &HostParameters{
-		Protocol:    "http",
+		Protocol:    "HTTP",
 		MaxBodySize: DefaultMaxBodySize,
 		MaxDuration: DefaultMaxDuration,
 		IdleTimeout: DefaultIdelTimeout,
@@ -124,9 +125,12 @@ func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Wri
 		return cmdargs, err
 	}
 
-	if !validProtocol(host.Protocol) {
+	// proto, we keep the passed capitalization tilazation in the error to not confuse the user
+	if !validProtocol(strings.ToUpper(host.Protocol)) {
 		return cmdargs, fmt.Errorf("unknown protocol: %s", host.Protocol)
 	}
+	host.Protocol = strings.ToUpper(host.Protocol)
+
 	//
 	host.MaxDuration = time.Duration(*maxtime) * time.Second
 
@@ -160,12 +164,12 @@ func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Wri
 		host.ServeTLS = true
 	}
 
-	if (host.HTTP11 || host.HTTP2 || host.HTTP3) && host.Protocol != "http" {
+	if (host.HTTP11 || host.HTTP2 || host.HTTP3) && host.Protocol != "HTTP" {
 		return cmdargs, errors.New("specify a http version requires http protocol")
 	}
 
 	// force -self if http2 or http3 or quic/quic-go and no tls files
-	if (host.HTTP11 || host.HTTP2 || host.HTTP3 || host.Protocol == "quic" || host.Protocol == "quic-go") && !host.ServeTLS {
+	if (host.HTTP11 || host.HTTP2 || host.HTTP3 || host.Protocol == "QUIC" || host.Protocol == "QUIC-GO") && !host.ServeTLS {
 		host.UseTLSSelfConfig = true
 		host.ServeTLS = true
 	}
@@ -181,10 +185,10 @@ func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Wri
 	args := fs.Args()
 	var j Job
 	switch host.Protocol {
-	case "http":
+	case "HTTP":
 		// fmt.Println("CREATING L7 SERVER", host.Protocol)
 		j = &JobHTTPServer{Parameters: host, JobList: jl}
-	case "tcp", "udp", "quic", "quic-go":
+	case "TCP", "UDP", "QUIC", "QUIC-GO":
 		// fmt.Println("CREATING L4 SERVER", host.Protocol)
 		j = &L4Server{Parameters: host, JobList: jl}
 	default:
@@ -293,18 +297,18 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 	}
 
 	L3Proto := j.Parameters.Protocol
-	if j.Parameters.Protocol == "quic" || j.Parameters.Protocol == "quic-go" {
+	if j.Parameters.Protocol == "QUIC" || j.Parameters.Protocol == "QUIC-GO" {
 		L3Proto = "udp"
 	}
 	network := utils.AddIPVersionToNetwork(L3Proto, j.Parameters.IPVersion)
 
-	if j.Parameters.Protocol == "tcp" {
+	if j.Parameters.Protocol == "TCP" {
 		return j.ServeTCP(ctx, network, wg)
 	}
-	if j.Parameters.Protocol == "quic-go" {
+	if j.Parameters.Protocol == "QUIC-GO" {
 		return j.ServeQUICGO(ctx, network, wg)
 	}
-	if j.Parameters.Protocol == "quic" {
+	if j.Parameters.Protocol == "QUIC" {
 		return j.ServeQUIC(ctx, network, wg)
 	}
 	defer wg.Done()
@@ -342,7 +346,7 @@ func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGr
 		tls = "(tls)"
 	}
 	j.URL = &url.URL{Scheme: j.Parameters.Protocol, Host: ls.Addr().String()}
-	j.Logger().Warn().Msgf("L4 server %s listening %s %s (URL = %s)", j.Parameters.Protocol, ls.Addr(), tls, j.URL)
+	j.Logger().Warn().Msgf("L4 %s server listening %s %s (URL = %s)", j.Parameters.Protocol, ls.Addr(), tls, j.URL)
 
 	// signal we're ready  to accept connections
 	wg.Done()

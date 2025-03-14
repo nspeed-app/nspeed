@@ -201,7 +201,7 @@ func (j *JobClient) HTTPInit() error {
 
 func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metrics.Metric, error) {
 	defer wg.Done()
-	if j.Protocol == "http" {
+	if j.Protocol == "HTTP" {
 		return j.HTTPRun(ctx, opt)
 	}
 	return j.L4Run(ctx, opt)

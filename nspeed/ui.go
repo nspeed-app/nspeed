@@ -1,6 +1,7 @@
 package nspeed
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
@@ -20,6 +22,7 @@ import (
 	"nspeed.app/metrics"
 	"nspeed.app/nspeed/ui"
 	"nspeed.app/utils"
+	"nspeed.app/webview"
 )
 
 //go:embed embed/ui/*
@@ -31,14 +34,6 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-func uiRootHandler() http.Handler {
-	sub, err := fs.Sub(uiRoot, uiPrefix)
-	if err != nil {
-		panic(err)
-	}
-	return http.FileServerFS(sub)
-}
-
 type UIHost struct {
 	JobData
 	Parameters    *HostParameters
@@ -46,6 +41,7 @@ type UIHost struct {
 	OpenBrowser   bool
 	globalOptions Options
 	hub           *ui.Hub
+	viewerMode    bool
 }
 
 func (j *UIHost) GetTarget() string {
@@ -94,38 +90,59 @@ func (j *UIHost) Init(opt Options) error {
 		return errors.New("UI: no Mux in server")
 	}
 
-	j.Server.Mux.Handle("/", uiRootHandler())
-	j.Server.Mux.Handle("/ws", http.HandlerFunc(j.uiHandler))
+	j.Server.Mux.Handle("/", j.uiRootHandler())
+	if !j.viewerMode {
+		j.Server.Mux.Handle("/ws", http.HandlerFunc(j.uiHandler))
+	}
 
 	return nil
 }
 
 func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metrics.Metric, error) {
+
 	if j.Server == nil {
 		return nil, errors.New("ui: no server")
 	}
 	j.Server.RunHook = func(c context.Context) error {
 		return j.PostRun()
 	}
-	// start the hub
-	if j.hub != nil {
-		return nil, fmt.Errorf("ui hub already exists")
-	}
-
-	j.hub = ui.NewHub()
-	ctx, cancel := context.WithCancel(ctx)
-	j.hub.Execute = func(args string) {
-		err := j.RunCmd(ctx, utils.Fields(args))
-		if err != nil {
-			j.Logger().Err(err).Msgf("Execute")
+	if !j.viewerMode {
+		// start the hub
+		if j.hub != nil {
+			return nil, fmt.Errorf("ui hub already exists")
 		}
+
+		j.hub = ui.NewHub()
+		ctx, cancel := context.WithCancel(ctx)
+		j.hub.Execute = func(args string) {
+			err := j.RunCmd(ctx, utils.Fields(args))
+			if err != nil {
+				j.Logger().Err(err).Msgf("Execute")
+			}
+		}
+
+		logger := j.Logger().Output(j.hub)
+		j.SetLogger(&logger)
+		go j.hub.Run(ctx, cancel)
 	}
-
-	logger := j.Logger().Output(j.hub)
-	j.SetLogger(&logger)
-	go j.hub.Run(ctx, cancel)
-
 	return j.Server.Run(ctx, wg, opt)
+}
+
+func (f *UIHost) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	html, err := utils.InlineAssets(webview.ViewerTmplHTML, webview.StaticFiles, true)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	http.ServeContent(w, r, "viewer.html", time.Now(), bytes.NewReader([]byte(html)))
+}
+func (j *UIHost) uiRootHandler() http.Handler {
+	// normal mode
+	sub, err := fs.Sub(uiRoot, uiPrefix)
+	if err != nil {
+		panic(err)
+	}
+	return http.FileServerFS(sub)
 }
 
 // PostRun is called when the endpoint server is running
@@ -161,6 +178,7 @@ func (j *UIHost) uiHandler(w http.ResponseWriter, r *http.Request) {
 			j.logger.Error().Err(err).Msgf("writepump error")
 		}
 	}()
+	j.hub.SendMessage([]byte("server version = " + ServerVersion))
 }
 
 func CmdUIParse(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
@@ -186,7 +204,7 @@ func CmdUIParse(command string, cmdargs []string, jl *JobList, output io.Writer)
 	fs.StringVar(&host.TLSKeyFile, "key", "", "TLS Key file")
 	fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
 	noBrowser := fs.Bool("nobrowse", false, "do not open browser")
-
+	viewer := fs.Bool("viewer", false, "viewer mode: a page for viewing json result files")
 	if err := fs.Parse(cmdargs); err != nil {
 		return cmdargs, err
 	}
@@ -204,6 +222,7 @@ func CmdUIParse(command string, cmdargs []string, jl *JobList, output io.Writer)
 		host.IPVersion = 6
 	}
 	j.OpenBrowser = !*noBrowser
+	j.viewerMode = *viewer
 
 	args := fs.Args()
 	err := jl.AddJobs(&j)

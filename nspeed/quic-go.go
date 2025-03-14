@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -86,8 +87,8 @@ func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.Wai
 
 	acceptDone := make(chan error)
 
-	j.URL = &url.URL{Scheme: j.Parameters.Protocol, Host: ln.Addr().String()}
-	j.Logger().Warn().Msgf("L4 QUIC-GO server %s listening %s (URL = %s)", j.Parameters.Protocol, ln.Addr(), j.URL)
+	j.URL = &url.URL{Scheme: strings.ToLower(j.Parameters.Protocol), Host: ln.Addr().String()}
+	j.Logger().Warn().Msgf("L4 %s server listening %s (URL = %s)", j.Parameters.Protocol, ln.Addr(), j.URL)
 
 	// signal we're ready  to accept connections
 	wg.Done()
@@ -124,13 +125,13 @@ func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.Wai
 		// todo , we silently ignore context error (cancel/timeout)
 		err = nil
 	}
-	j.Logger().Debug().Err(err).Msgf("L4 server ending")
+	j.Logger().Debug().Err(err).Msgf("L4 QUIC-GO server ending")
 
 	//todo: handle pending connections
 	_ = ln.Close()
 	// wait for sub go routine (ls.Accept should unblock with an "use of closed network connection") to end
 	<-acceptDone
-	j.Logger().Debug().Err(err).Msgf("L4 server ended")
+	j.Logger().Debug().Err(err).Msgf("L4 QUIC-GO server ended")
 	return &metrics.Metric{}, err
 
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -55,8 +56,8 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 
 	acceptDone := make(chan error)
 
-	j.URL = &url.URL{Scheme: j.Parameters.Protocol, Host: endp.LocalAddr().String()}
-	j.Logger().Warn().Msgf("L4 QUIC server %s listening %s (URL = %s)", j.Parameters.Protocol, endp.LocalAddr(), j.URL)
+	j.URL = &url.URL{Scheme: strings.ToLower(j.Parameters.Protocol), Host: endp.LocalAddr().String()}
+	j.Logger().Warn().Msgf("L4 %s server listening %s (URL = %s)", j.Parameters.Protocol, endp.LocalAddr(), j.URL)
 
 	// signal we're ready  to accept connections
 	wg.Done()
@@ -96,7 +97,7 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 		// todo , we silently ignore context error (cancel/timeout)
 		err = nil
 	}
-	j.Logger().Debug().Err(err).Msgf("L4 server ending")
+	j.Logger().Debug().Err(err).Msgf("L4 QUIC server ending")
 
 	//todo: handle pending connections
 	_ = endp.Close(ctx)
@@ -104,7 +105,7 @@ func (j *L4Server) ServeQUIC(ctx context.Context, network string, wg *sync.WaitG
 	if !accepted {
 		<-acceptDone
 	}
-	j.Logger().Debug().Err(err).Msgf("L4 server ended")
+	j.Logger().Debug().Err(err).Msgf("L4 QUIC server ended")
 	return &metrics.Metric{}, err
 
 }

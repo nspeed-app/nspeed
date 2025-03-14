@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -38,5 +39,5 @@ func main() {
 		return
 	}
 
-	webview.GenerateHTMLReport(flag.Arg(1), string(json))
+	webview.GenerateHTMLReport(context.Background(), flag.Arg(1), string(json))
 }

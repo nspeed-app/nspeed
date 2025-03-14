@@ -27,7 +27,7 @@ import (
 )
 
 // supported L4Protocols
-var L4Protocols = [...]string{"tcp", "quic", "quic-go"}
+var L4Protocols = [...]string{"TCP", "QUIC", "QUIC-GO"}
 
 // a client command, get or post
 // implements Job interface
@@ -73,7 +73,7 @@ func (j *JobClient) GoString() string {
 
 func (j *JobClient) CommandString() string {
 	s := fmt.Sprintf("%s client {Method: %s, URL: %s, IPversion: %d, Address: %s, timeout: %s, delay: %s, h2c: %t, http:%s}",
-		strings.ToUpper(j.Protocol),
+		j.Protocol,
 		j.Command,
 		j.Target,
 		j.IPVersion,
@@ -254,10 +254,10 @@ func (j *JobClient) Init(opt Options) error {
 	// branch to L4 or HTTP client
 	switch j.targetURL.Scheme {
 	case "http", "https":
-		j.Protocol = "http"
+		j.Protocol = "HTTP"
 		return j.HTTPInit()
 	case "tcp", "udp", "quic", "quic-go":
-		j.Protocol = j.targetURL.Scheme
+		j.Protocol = strings.ToUpper(j.targetURL.Scheme)
 		return j.L4Init()
 	default:
 		return fmt.Errorf("invalid scheme: %s", j.targetURL.Scheme)
@@ -282,7 +282,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 	network := j.Protocol
 
 	switch j.Protocol {
-	case "tcp":
+	case "TCP":
 		network = utils.AddIPVersionToNetwork(network, j.IPVersion)
 		if j.tlsConfig == nil {
 			j.Logger().Info().Msgf("L4 client dialing %s %s", network, j.targetURL.Host)
@@ -294,7 +294,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 			dialerContext = tlsDialer.DialContext
 			j.Logger().Info().Msgf("L4 client dialing %s %s with TLS", network, j.targetURL.Host)
 		}
-	case "quic":
+	case "QUIC":
 		if j.tlsConfig == nil {
 			return nil, fmt.Errorf("quic client error: no tls config")
 		}
@@ -338,7 +338,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 			return c, nil
 		}
 
-	case "quic-go":
+	case "QUIC-GO":
 		quicConfig, quicTransport := quicgoInit(j)
 		if j.tlsConfig == nil {
 			return nil, fmt.Errorf("quic-go client error: no tls config")

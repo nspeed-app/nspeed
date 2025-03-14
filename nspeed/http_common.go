@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -243,7 +244,7 @@ func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClien
 	}
 
 	// straigthforward flags - add more checks/controls later
-	job.Protocol = hf.Protocol
+	job.Protocol = strings.ToUpper(hf.Protocol)
 	job.Host = hf.Host
 	job.UseTLSSelfConfig = hf.UseTLSSelfConfig
 	job.SkipTLSCheck = hf.SkipTLSCheck

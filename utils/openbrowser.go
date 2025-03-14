@@ -58,12 +58,12 @@ func OpenBrowser(url string, stdout io.Writer, stderr io.Writer) error {
 // OpenHTML  will try to open the html content with the default web browser of the system.
 // To allow full HTML/JS/CSS to work, the html content is not opened as a local file but
 // served with a one-time use web server on localhost (random port).
-func OpenHTML(html string) error {
+func OpenHTML(ctx context.Context, html string, openBrowser bool) error {
 	server := &http.Server{}
 
 	// cancel() will allow to shutdown the server
 	// ctx will allow to wait for cancel() to be called
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	// serve html content and then cancel() the server
@@ -85,9 +85,13 @@ func OpenHTML(html string) error {
 		return err
 	}
 
-	err = OpenBrowser("http://"+ln.Addr().String(), nil, nil)
-	if err != nil {
-		return err
+	if openBrowser {
+		err = OpenBrowser("http://"+ln.Addr().String(), nil, nil)
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("page url = http://" + ln.Addr().String())
 	}
 
 	go func() {

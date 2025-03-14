@@ -13,6 +13,8 @@ https://dl.google.com/android/studio/maven-google-com/stable/offline-gmaven-stab
 
 https://dl.google.com/android/repository/sys-img/google_apis_playstore/x86-30_r09-windows.zip
 
+https://dl.google.com/android/repository/emulator-windows_x64-13025442.zip
+
 https://speedtest.1fichier.com/default.dat
 (https://1fichier.com/network.html)
 

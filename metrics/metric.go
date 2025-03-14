@@ -141,8 +141,6 @@ func (wm *Metric) UpdateData() {
 		}
 		d := wm.MetricsData
 		// make this 'copy' the MetricsData
-		fmt.Printf("UpdateData: %d %d %d %d\n", d.TotalRead, d.TotalWrite, d.ReadCount, d.WriteCount)
-
 		wm.Series = append(wm.Series, d)
 	}
 }
@@ -190,7 +188,6 @@ func (wm *Metric) WriteN(n int64) int64 {
 		wm.TotalRead += n
 	}
 	wm.ReadCount++
-	fmt.Printf("WRITE: %d\n", n)
 	return n
 }
 

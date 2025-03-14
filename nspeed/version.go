@@ -1,6 +1,9 @@
 package nspeed
 
-import "runtime/debug"
+import (
+	"fmt"
+	"runtime/debug"
+)
 
 // Version can be set at link time to override debug.BuildInfo.Main.Version,
 // which is "(devel)" when building from within the module. See
@@ -16,5 +19,6 @@ func init() {
 			Version = "(src)"
 		}
 	}
+	fmt.Println("VERSION:", Version)
 	ServerVersion = Version // in case one day we have a distinct version for server
 }

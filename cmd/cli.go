@@ -437,7 +437,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Err(err).Msgf("could not generate json report")
 		}
-		webview.GenerateHTMLReport(*optHTMLReport, report)
+		webview.GenerateHTMLReport(context.Background(), *optHTMLReport, report)
 	}
 
 	// todo: defer this block
