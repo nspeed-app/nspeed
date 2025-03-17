@@ -1,7 +1,6 @@
 package nspeed
 
 import (
-	"fmt"
 	"runtime/debug"
 )
 
@@ -19,6 +18,5 @@ func init() {
 			Version = "(src)"
 		}
 	}
-	fmt.Println("VERSION:", Version)
 	ServerVersion = Version // in case one day we have a distinct version for server
 }

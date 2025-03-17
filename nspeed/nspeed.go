@@ -88,8 +88,6 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 		ctx = newctx
 	}
 
-	// this will collect result from jobs
-	result := make(chan *metrics.Metric, nJobs)
 	// run workers by launching a go routine for each one
 	// we use 2 waitgroup, one for short-lived jobs (get, put,etc), one for infinite jobs (server, api)
 	var wgi sync.WaitGroup // infinite
@@ -119,9 +117,12 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 	batch := 0
 	sljob := 0
 	lljob := 0
+
+	resultsLL := make(chan *metrics.Metric, nJobs)
 	for {
 		log.Info().Msgf("processing batch '%s' (%d)", jl.Batches[batch].Name, batch)
-		llnj, err := runBatch(ctx, batch, jl, true, opt, &wgi, result)
+
+		llnj, err := runBatch(ctx, batch, jl, true, opt, &wgi, resultsLL)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -133,10 +134,11 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 		log.Info().Msg("all infinite jobs are ready")
 
 		// spawn short lived jobs
+		resultsSL := make(chan *metrics.Metric, nJobs)
 		var wgsl sync.WaitGroup // short lived sync group
 		// we add ourself to the waitgroup
 		wgsl.Add(1)
-		slnj, err := runBatch(ctx, batch, jl, false, opt, &wgsl, result)
+		slnj, err := runBatch(ctx, batch, jl, false, opt, &wgsl, resultsSL)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -170,6 +172,7 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 			log.Debug().Msgf("no SL jobs for batch %d", batch)
 			wgsl.Done()
 		}
+		// main loop for a batch
 	batchloop:
 		for {
 			log.Trace().Msgf("batchloop - select(%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
@@ -185,11 +188,12 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 				message <- &metrics.CPUMetric{Pcts: pcts, ActiveJobs: rc}
 			case <-progressTickerChannel:
 				message <- wcWorkers
-			case wm := <-result:
+			case wm := <-resultsSL:
 				// test for wm==nil ?
 				if wm == nil {
-					log.Debug().Msgf("got a nil metric")
+					log.Debug().Msgf("got a nil metric, rc = %d", rc)
 					rc--
+					slnj--
 				} else {
 					wm.Logger().Debug().Msgf("got a result for job %s batch %d (err=%s)", wm.ID, batch, wm.Error)
 					wm.Batch = batch
@@ -197,18 +201,25 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 					wcWorkers.Append(wm)
 					rc--
 					slnj--
-					if slnj == 0 {
-						log.Info().Msgf("batch %s (%d) has more SL to do", jl.Batches[batch].Name, batch)
-						wgsl.Done()
-					}
 					if wm.Done {
 						wm.Logger().Info().Msgf("job %s ended - (on timeout: %t) - (%d remaining active goroutines, rc = %d)", wm.ID, wm.Expired, runtime.NumGoroutine(), rc)
 					}
+				}
+				if slnj == 0 {
+					log.Info().Msgf("batch %s (%d) has no more SL to do", jl.Batches[batch].Name, batch)
+					wgsl.Done()
 				}
 				if rc <= 0 {
 					log.Info().Msgf("no more jobs - exiting")
 					break batchloop
 				}
+			case wm := <-resultsLL:
+				if wm == nil {
+					log.Debug().Msgf("got a nil metric, rc = %d", rc)
+				}
+				rc--
+				wm.Logger().Warn().Msgf("got result from a LL job")
+				wcWorkers.Append(wm)
 			case <-cWaitgroupSLEnded:
 				log.Info().Msgf("all sl workers ended (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
 				if !isInfinite {
@@ -220,6 +231,14 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 			}
 		}
 		log.Info().Msgf("batch %d/%d ended", batch, nBatches)
+		// drain results
+		for len(resultsSL) > 0 {
+			wm := <-resultsSL
+			if wm != nil {
+				wm.Logger().Warn().Msgf("draining SL result")
+				wcWorkers.Append(wm)
+			}
+		}
 		batch++
 		if batch >= nBatches {
 			cancel()
@@ -228,11 +247,10 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 	}
 	log.Info().Msgf("exited mainloop with %d results (%d remaining active goroutines, rc = %d)", len(wcWorkers.Metrics), runtime.NumGoroutine(), rc)
 	// drain remaining results
-	for rc > 0 {
-		wm := <-result
-		rc--
+	for len(resultsLL) > 0 {
+		wm := <-resultsLL
 		if wm != nil {
-			wm.Logger().Info().Msgf("draining result")
+			wm.Logger().Warn().Msgf("draining LL result")
 			wcWorkers.Append(wm)
 		}
 	}

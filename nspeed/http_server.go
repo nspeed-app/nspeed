@@ -871,7 +871,7 @@ func (j *JobHTTPServer) HTTP3Listen() error {
 	}
 
 	j.URL = &url.URL{Scheme: "https", Host: j.udpConn.LocalAddr().String()}
-	j.Logger().Warn().Msgf("server listening on %s (HTTP/3 on UDP)", j.URL.String())
+	j.Logger().Warn().Msgf("server %s listening on %s (HTTP/3 on UDP)", j.ID(), j.URL.String())
 	return nil
 }
 
