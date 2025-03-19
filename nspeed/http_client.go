@@ -575,7 +575,7 @@ func fixH2H3Errors(err error, method string, l *zerolog.Logger) error {
 
 	var h3err *http3.Error
 	if errors.As(err, &h3err) && h3err.ErrorCode == http3.ErrCodeRequestCanceled {
-		l.Info().Msgf("http3.Error: %d changed to context.DeadlineExceeded ", h3err.ErrorCode)
+		l.Info().Msgf("http3.Error: %s changed to context.DeadlineExceeded ", h3err.ErrorCode.String())
 		return context.DeadlineExceeded
 	}
 

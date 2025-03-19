@@ -393,18 +393,19 @@ mainloop:
 	results.Cleanup()
 
 	// text report:
-	report := metrics.GenerateTextReport(results, *optUngroup)
 	if *optTextReport != "" {
 		f, err := utils.FileCreate(*optTextReport)
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
-		_, err = f.WriteString(report)
-		// if err == nil {
-		// 	_, err = f.WriteString(metric.SeriesReport(*results))
-		// }
-		if err != nil {
-			log.Error().Err(err).Msgf("error writing text report")
+		if term.IsTerminal(int(f.Fd())) {
+			metrics.GenerateTableReport(f, results, *optUngroup)
+		} else {
+			report := metrics.GenerateTextReport(results, *optUngroup)
+			_, err = f.WriteString(report)
+			if err != nil {
+				log.Error().Err(err).Msgf("error writing text report")
+			}
 		}
 		// add history after
 		err = f.Close()
