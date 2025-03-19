@@ -778,12 +778,14 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 	if j.Parameters.HTTP11 {
 		l7proto = "HTTP/1.1"
 	}
-
 	scheme := "http"
 	if j.Parameters.ServeTLS {
 		scheme = "https"
 		l7proto += " TLS"
+	} else if !j.Parameters.H2C {
+		l7proto = "HTTP/1.1"
 	}
+
 	j.URL = &url.URL{Scheme: scheme, Host: ln.Addr().String()}
 	j.Logger().Warn().Msgf("server %s listening on %s (%s)", j.ID(), j.URL.String(), l7proto)
 

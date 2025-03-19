@@ -90,9 +90,11 @@ func (j *UIHost) Init(opt Options) error {
 		return errors.New("UI: no Mux in server")
 	}
 
-	j.Server.Mux.Handle("/", j.uiRootHandler())
 	if !j.viewerMode {
+		j.Server.Mux.Handle("/", j.uiRootHandler())
 		j.Server.Mux.Handle("/ws", http.HandlerFunc(j.uiHandler))
+	} else {
+		j.Server.Mux.Handle("/", j)
 	}
 
 	return nil
@@ -111,16 +113,15 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 		if j.hub != nil {
 			return nil, fmt.Errorf("ui hub already exists")
 		}
-
 		j.hub = ui.NewHub()
-		ctx, cancel := context.WithCancel(ctx)
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
 		j.hub.Execute = func(args string) {
 			err := j.RunCmd(ctx, utils.Fields(args))
 			if err != nil {
 				j.Logger().Err(err).Msgf("Execute")
 			}
 		}
-
 		logger := j.Logger().Output(j.hub)
 		j.SetLogger(&logger)
 		go j.hub.Run(ctx, cancel)

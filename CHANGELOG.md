@@ -8,6 +8,7 @@
 - general: **new flag** `-buffer value` allows to set the buffer size used for i/o operations (-1 for max value, 0 for Go default)
 - ui: preview of ui, for now it's just a CLI/terminal in web page
 - charting: moved from chartjs to echarts. `-html` now produces working graphs.
+- charting: use `nspeed ui -viewer` special UI mode to open the json charts viewer (equiv: `-html :` from `-json` file)
 - experimental: disable Go GC during a batch
 # v0.0.14
 - **breaking change**: global flag `-color` removed. Colors are now on by default, use the new flag `-nocolor` to disable them.

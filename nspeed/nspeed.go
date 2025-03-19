@@ -218,8 +218,12 @@ func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*
 					log.Debug().Msgf("got a nil metric, rc = %d", rc)
 				}
 				rc--
-				wm.Logger().Warn().Msgf("got result from a LL job")
+				wm.Logger().Info().Msgf("got result from a LL job")
 				wcWorkers.Append(wm)
+				if rc <= 0 {
+					wm.Logger().Info().Msgf("this is the last LL job, exiting")
+					break batchloop
+				}
 			case <-cWaitgroupSLEnded:
 				log.Info().Msgf("all sl workers ended (%d remaining active goroutines, rc = %d)", runtime.NumGoroutine(), rc)
 				if !isInfinite {
