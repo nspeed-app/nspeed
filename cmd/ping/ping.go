@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"nspeed.app/nspeed"
 	"nspeed.app/nspeed/utils"
 )
 
@@ -18,6 +17,7 @@ func main() {
 	var v6 = flag.Bool("6", false, `use IPv6`)
 
 	flag.Parse()
+
 	options := utils.PingOptions{HopLimit: *m, Timeout: *w}
 	// additionnal flags checks
 	if *v4 && *v6 {
@@ -44,8 +44,9 @@ func main() {
 
 		peer, ping, response, err := utils.Ping(host, options)
 		if err != nil {
-			nspeed.Logger.Error("boum", "error", err)
+			fmt.Println("ping error:", err)
+		} else {
+			fmt.Println(host, "ip is", peer, "time: ", ping, "code:", response)
 		}
-		fmt.Println(host, "result:", peer, ping, response)
 	}
 }
