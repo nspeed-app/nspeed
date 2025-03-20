@@ -39,7 +39,7 @@ Interoperable with standard web clients (like curl, wget and web browsers) and s
     # download 2 different targets
     nspeed get https://scaleway.testdebit.info/10G/10G.iso get https://scaleway.testdebit.info/10G/10G.iso
 
-    # downlaod the same target in IPv4 and IPv6 at the same time
+    # download the same target in IPv4 and IPv6 at the same time
     nspeed get -4 https://scaleway.testdebit.info/100M/100M.iso get -6 https://scaleway.testdebit.info/100M/100M.iso
 
     # upload two 1GB to a single target (use "1g" for 1GB (1000*1000*1000 bytes) and "1G" for 1GiB (1024*1024*1024 bytes)
@@ -60,6 +60,9 @@ Interoperable with standard web clients (like curl, wget and web browsers) and s
 
     # start a server listening on a specific IPv4 address
     nspeed server -a 192.168.1.3
+
+    # start a server listening on a specific interface using IPv4
+    nspeed server -4 -a tailscale0
 
     # start two instances of server, one listening on a specific IPv6 address and one on a specific IPv4 address
     nspeed server -a 2001:1234:5678::3 -p 7333 server -a 192.168.1.3 -p 7333
@@ -100,13 +103,13 @@ Interoperable with standard web clients (like curl, wget and web browsers) and s
     nspeed from https://dl.nspeed.app/cf
 
     # execute 3 local benchmarks at the same time
-    nspeed b h1sg,h2g,h3g
+    nspeed b h1g,h2g,h3g
 
     # execute them one after the other
-    nspeed b h1sg then b h2g then b h3g
+    nspeed b h1g then b h2g then b h3g
 
-    # execute a local benchmark with real time web monitor (must be launched on a computer with a local web browser)
-    nspeed b h1g api -browse
+    # open the monitor , wait 2 secondes and launch a local test (requires on a computer with a local web browser)
+    nspeed api -browse then -pre 2s b h1g
 
 ## Installation
 
