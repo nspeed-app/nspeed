@@ -126,7 +126,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			fmt.Fprintf(fs.Output(), "  %s [options] benchmark[,benchmark]\n", benchmarkCommand)
 			fmt.Fprintf(fs.Output(), "\nAvailable benchmark:\n")
 
-			for _, k := range benchmarKeys {
+			for _, k := range benchKeys {
 				fmt.Fprintf(fs.Output(), "  %-4s: %s\n", k, benchmarksTemplates[k].Help)
 			}
 

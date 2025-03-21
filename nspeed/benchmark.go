@@ -124,14 +124,14 @@ var benchmarksTemplates = map[string]Benchmark{
 }
 
 // sorted keys of benchmarksTemplates
-var benchmarKeys []string
+var benchKeys []string
 
 // sort the keys
 func init() {
-	benchmarKeys = make([]string, 0, len(benchmarksTemplates))
+	benchKeys = make([]string, 0, len(benchmarksTemplates))
 
 	for k := range benchmarksTemplates {
-		benchmarKeys = append(benchmarKeys, k)
+		benchKeys = append(benchKeys, k)
 	}
-	sort.Strings(benchmarKeys)
+	sort.Strings(benchKeys)
 }

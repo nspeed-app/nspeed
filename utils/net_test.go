@@ -106,30 +106,6 @@ func TestIPVersion_NumericString(t *testing.T) {
 	}
 }
 
-func TestParseIPVersionFromString(t *testing.T) {
-	tests := []struct {
-		name    string
-		address string
-		want    IPVersion
-	}{
-		{"IPv4", "192.168.1.1:80", 4},
-		{"IPv6", "[2001:db8::1]:80", 6},
-		{"IPv6 no port", "2001:db8::1", 6},
-		{"invalid", "not an ip", -1},
-		{"empty", "", -1},
-		{"IPv4 no port", "10.0.0.1", 4},
-		{"invalid with port", "10.0.0.1:notport", -1},
-		{"invalid port only", ":80", -1},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := ParseIPVersionFromString(tt.address); got != tt.want {
-				t.Errorf("ParseIPVersionFromString() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestGetIPVersion(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -16,15 +16,14 @@ import (
 // greatly inspired by https://github.com/varbhat/exatorrent
 
 type machineInfo struct {
-	Arch      string    `json:"arch"`
-	NumCPU    int       `json:"numcpu"`
-	CPUModel  string    `json:"cpumodel"`
-	Hostname  string    `json:"hostname"`
-	Platform  string    `json:"platform"`
-	OS        string    `json:"os"`
-	TotalMem  uint64    `json:"totalmem"`
-	GoVersion string    `json:"goversion"`
-	Time      time.Time `json:"time"`
+	Arch     string    `json:"arch"`
+	NumCPU   int       `json:"numcpu"`
+	CPUModel string    `json:"cpumodel"`
+	Hostname string    `json:"hostname"`
+	Platform string    `json:"platform"`
+	OS       string    `json:"os"`
+	TotalMem uint64    `json:"totalmem"`
+	Time     time.Time `json:"time"`
 }
 
 type memStats struct {
@@ -69,12 +68,13 @@ func loadMachInfo() (r machineInfo) {
 	}
 
 	cpuInfo, err := cpu.Info()
+	// should maybe build a set of all ModelName ?
 	if err == nil && len(cpuInfo) > 0 {
 		r.CPUModel = cpuInfo[0].ModelName
 	}
 
 	r.Hostname, _ = os.Hostname()
-	r.GoVersion = runtime.Version()
+	//r.GoVersion = runtime.Version()
 	r.TotalMem = memory.TotalMemory()
 	r.Arch = runtime.GOARCH
 	r.NumCPU = runtime.NumCPU()

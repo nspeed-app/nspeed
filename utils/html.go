@@ -35,6 +35,7 @@ func readURI(uri string, fs fs.FS) ([]byte, error) {
 
 // find 'import ...;" pattern and remove them
 // works onyl for single line import
+// this will add a return carriage at the end if not present
 func removeImport(js string) string {
 	keyword := "import "
 	lenK := len(keyword)

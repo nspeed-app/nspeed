@@ -190,7 +190,7 @@ func Main() {
 		w.PartsOrder = consolePartsOrder
 		w.FieldsExclude = []string{"job"}
 	})
-	// this will add an extra line between log messages if there is a delay between them
+	// this will add an extra line between log messages if there is more then a delay between them
 	spacer := utils.NewSpacer(cw.Out, 1*time.Second, true, utils.SpacerNewLine)
 
 	consoleWriter := nspeed.CreateFilteredWriter(
@@ -317,7 +317,9 @@ func Main() {
 	if *optCPU {
 		otelCPU = metrics.NewMetricsCPU()
 	}
-	//metrics.OTELInit(ctx, "nspeed", nspeed.Version, consoleWriter, globalOptions.CPU)
+
+	//metrics.OTELInit(ctx, "nspeed", nspeed.Version, os.Stdout, globalOptions.CPU)
+
 	progressHandler := func(p any) {
 		switch m := p.(type) {
 		// this is bad, review/refactor
@@ -334,7 +336,8 @@ func Main() {
 			log.Debug().Msgf("progress called %d jobs (%d)", len(m), rc)
 		case *metrics.CPUMetric:
 			if otelCPU != nil {
-				otelCPU.RecordCPU(ctx, m, &log.Logger, !*optNoColor)
+				otelCPU.RecordCPU(ctx, m)
+				metrics.PrintCPU(ctx, m, &log.Logger, !*optNoColor)
 			}
 		}
 	}

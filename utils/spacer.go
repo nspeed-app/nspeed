@@ -3,11 +3,8 @@ package utils
 import (
 	"fmt"
 	"io"
-	"os"
 	"sync"
 	"time"
-
-	"golang.org/x/term"
 )
 
 // Spacer is an io.Writer that add a given message if a given delay is elasped between 2 calls to Write
@@ -71,13 +68,4 @@ func (s *Spacer) Close() error {
 		return c.Close()
 	}
 	return nil
-}
-
-// TermFileGetSize return the terminal size is f is a tty or 0,0 if not
-func TermFileGetSize(f *os.File) (width int, height int) {
-	fd := int(f.Fd())
-	if term.IsTerminal(fd) { //todo: do we need to check if term ?
-		width, height, _ = term.GetSize(fd)
-	}
-	return
 }

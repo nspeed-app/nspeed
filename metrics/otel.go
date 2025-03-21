@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"time"
@@ -19,11 +18,13 @@ var mp *metric.MeterProvider
 func OTELInit(ctx context.Context, name, version string, w io.Writer, interval time.Duration) {
 
 	// Print with a JSON encoder that indents with two spaces.
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
+	// enc := json.NewEncoder(w)
+	// enc.SetIndent("", "  ")
 
 	exp, err := stdoutmetric.New(
-		stdoutmetric.WithEncoder(enc),
+		stdoutmetric.WithPrettyPrint(),
+		stdoutmetric.WithWriter(w),
+		//stdoutmetric.WithEncoder(enc),
 		stdoutmetric.WithoutTimestamps(),
 	)
 	if err != nil {

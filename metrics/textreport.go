@@ -55,9 +55,6 @@ func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) stri
 	groups := make(map[string]*reportGroup)
 
 	w := tabwriter.NewWriter(&out, 0, 2, 1, ' ', tabwriter.AlignRight|tabwriter.Debug)
-	t := table.New().
-		Border(lipgloss.NormalBorder()).Wrap(true).
-		Headers("Id", "Read speed", "Write speed", "Time", "Bytes read", "Bytes written", "command")
 
 	// header line
 	fmt.Fprintf(w, "Id\tRead speed\tWrite speed\tTime\tBytes read\tBytes written\tcommand\n")
@@ -71,13 +68,6 @@ func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) stri
 			utils.ByteCountDecimal(totalRead),
 			utils.ByteCountDecimal(totalWrite),
 			target))
-		t.Rows([]string{id,
-			utils.FormatBitperSecond(totalRead, elapsedTime),
-			utils.FormatBitperSecond(totalWrite, elapsedTime),
-			strconv.FormatFloat(elapsedTime.Seconds(), 'f', 2, 64),
-			utils.ByteCountDecimal(totalRead),
-			utils.ByteCountDecimal(totalWrite),
-			target})
 	}
 
 	hasGroup := false
@@ -135,7 +125,7 @@ func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) stri
 		addLine(w, "Average", elapsedTime, totalRead, totalWrite, "")
 	}
 	w.Flush()
-	return t.String() //out.String()
+	return out.String()
 }
 
 // generate a report per batch (sorted), filtering failed jobs, console / pretty print table

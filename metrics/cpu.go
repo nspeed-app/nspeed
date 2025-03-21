@@ -1,19 +1,17 @@
-package metrics
+package metrics // should rename to avoid confusion with runtime/metrics and otel later
 
 import (
 	"context"
 	"fmt"
 	"math"
 	"runtime"
-	"runtime/debug"
+	"runtime/metrics"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/shirou/gopsutil/v4/cpu"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/metric"
 )
 
 // global const
@@ -66,49 +64,34 @@ type CPUMetric struct {
 	ActiveJobs int
 }
 
-// CPUOtel - otel cpu metric
-type CPUOtel struct {
-	meter   metric.Meter
-	cpu     metric.Float64Gauge
-	gcCount metric.Int64Gauge
+var printHeaders sync.Once
+
+var MetricNames = []string{
+	"/cpu/classes/gc/pause:cpu-seconds",
+	"/cpu/classes/gc/total:cpu-seconds",
 }
 
-func NewMetricsCPU() *CPUOtel {
-	meter := otel.Meter("nspeed/metric")
-	cpu, _ := meter.Float64Gauge("metric.cpu.avg", metric.WithDescription("cpu average"))
-	gc, _ := meter.Int64Gauge("metric.go.gc", metric.WithDescription("Go GC calls"))
-	om := CPUOtel{
-		meter:   meter,
-		cpu:     cpu,
-		gcCount: gc,
-	}
-	return &om
-}
+var mtrSample []metrics.Sample
 
-var gcStats debug.GCStats
-
-func (c *CPUOtel) RecordCPU(ctx context.Context, m *CPUMetric, log *zerolog.Logger, color bool) {
-	if m == nil {
-		return
-	}
-	mean := 0.0
-	for _, cpu := range m.Pcts {
-		mean += cpu
-	}
-
-	mean /= float64(len(m.Pcts))
-	c.cpu.Record(ctx, mean)
-	debug.ReadGCStats(&gcStats)
-	c.gcCount.Record(ctx, gcStats.NumGC)
-
-	if log == nil {
-		return
-	}
-
+func PrintCPU(ctx context.Context, m *CPUMetric, log *zerolog.Logger, color bool) {
 	cpuload, headers, _ := PrintCPULoad(m.Pcts, color)
-	var printHeaders sync.Once
 	printHeaders.Do(func() {
-		log.Log().Msgf("%s jobs | threads|", headers)
+		log.Log().Msgf("%s jobs | threads| gcpause | gctotal", headers)
+		mtrSample = make([]metrics.Sample, len(MetricNames))
+		for i, name := range MetricNames {
+			mtrSample[i].Name = name
+		}
 	})
-	log.Log().Msgf("%s %-4d | %-4d   |", cpuload, m.ActiveJobs, runtime.NumGoroutine())
+
+	// Sample the metric.
+	metrics.Read(mtrSample)
+	for i, sample := range mtrSample {
+		if sample.Value.Kind() == metrics.KindBad {
+			log.Warn().Msgf("metric %q no longer supported", MetricNames[i])
+		}
+	}
+	log.Log().Msgf("%s %-4d | %-4d   | %-.4f | %-.4f", cpuload, m.ActiveJobs,
+		runtime.NumGoroutine(),
+		mtrSample[0].Value.Float64(),
+		mtrSample[1].Value.Float64())
 }
