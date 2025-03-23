@@ -2,7 +2,7 @@
 // part of nspeed.app
 // SPDX-License-Identifier: BSD-3-Clause
 
-package utils
+package generics
 
 // a collection of generic functions not yet in std lib
 

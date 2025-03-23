@@ -14,8 +14,10 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"nspeed.app/helper/crypto"
+	"nspeed.app/helper/generics"
+	"nspeed.app/helper/humanize"
 	nsutl "nspeed.app/nspeed/utils"
-	"nspeed.app/utils"
 )
 
 const gPrecision = 100 * time.Millisecond
@@ -75,8 +77,8 @@ type Metric struct {
 func (wm *Metric) SetTLSInfo(conn net.Conn) {
 	if tlsConn, ok := conn.(*tls.Conn); ok {
 		cs := tlsConn.ConnectionState()
-		wm.Cipher = utils.TLSCipherSuite(&cs)
-		wm.TLSVersion = utils.TLSVersionFriendlyName(cs.Version)
+		wm.Cipher = crypto.TLSCipherSuite(&cs)
+		wm.TLSVersion = crypto.TLSVersionFriendlyName(cs.Version)
 		wm.Protocol = "IP"
 		if _, ok := tlsConn.NetConn().(*net.TCPConn); ok {
 			wm.Protocol = "TCP"
@@ -97,7 +99,7 @@ func (wm *Metric) Logger() *zerolog.Logger {
 	if wm.logger != nil {
 		return wm.logger
 	}
-	return utils.Ptr(zerolog.Nop())
+	return generics.Ptr(zerolog.Nop())
 }
 
 // StartTicker starts a ticker for this Metric
@@ -269,8 +271,8 @@ func (wm *Metric) LogFinal(logger *zerolog.Logger) {
 			Int64("Write", wm.TotalWrite).
 			Int64("WCount", wm.WriteCount).
 			Int64("WSize", wm.GetAverageWriteSize()).
-			Str("RBPS", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
-			Str("WBPS", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
+			Str("RBPS", humanize.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime)).
+			Str("WBPS", humanize.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime)).
 			Float64("Dur", wm.ElapsedTime.Seconds()).
 			Uint("Loop", wm.Loop).
 			Uint("LoopMax", wm.LoopMax).
@@ -284,10 +286,10 @@ func (wm *Metric) LogFinal(logger *zerolog.Logger) {
 func (wm *Metric) PrintFinal(w io.Writer) {
 	if wm.Valid {
 		fmt.Fprintf(w, "job %s command: %s\n", wm.ID, wm.Command)
-		fmt.Fprintf(w, "Read: %s \n", utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
-		fmt.Fprintf(w, "Write: %s \n", utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
-		fmt.Fprintf(w, "TotalRead: %d (%sB)\n", wm.TotalRead, utils.ByteCountBinary(wm.TotalRead))
-		fmt.Fprintf(w, "TotalWrite: %d (%sB)\n", wm.TotalWrite, utils.ByteCountBinary(wm.TotalWrite))
+		fmt.Fprintf(w, "Read: %s \n", humanize.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime))
+		fmt.Fprintf(w, "Write: %s \n", humanize.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime))
+		fmt.Fprintf(w, "TotalRead: %d (%sB)\n", wm.TotalRead, humanize.ByteCountBinary(wm.TotalRead))
+		fmt.Fprintf(w, "TotalWrite: %d (%sB)\n", wm.TotalWrite, humanize.ByteCountBinary(wm.TotalWrite))
 		fmt.Fprintf(w, "duration: %s (%d/%d)\n", wm.ElapsedTime, wm.Loop, wm.LoopMax)
 		fmt.Fprintf(w, "\n")
 
@@ -624,10 +626,10 @@ func (wm *Metric) ToNetMetric(fmtV4, fmtV6 string) NetMetric {
 		RXBytes:    uint64(wm.TotalRead),
 		TXBytes:    uint64(wm.TotalWrite),
 		Duration:   wm.ElapsedTime,
-		RXHBps:     utils.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
-		TXHBps:     utils.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
-		RXBps:      utils.BitPerSecondFromInt64(wm.TotalRead, wm.ElapsedTime),
-		TXBps:      utils.BitPerSecondFromInt64(wm.TotalWrite, wm.ElapsedTime),
+		RXHBps:     humanize.FormatBitperSecond(wm.TotalRead, wm.ElapsedTime),
+		TXHBps:     humanize.FormatBitperSecond(wm.TotalWrite, wm.ElapsedTime),
+		RXBps:      humanize.BitPerSecondFromInt64(wm.TotalRead, wm.ElapsedTime),
+		TXBps:      humanize.BitPerSecondFromInt64(wm.TotalWrite, wm.ElapsedTime),
 		RXChunk:    wm.ReadStepSize,
 		TXChunk:    wm.WriteStepSize,
 		RXCount:    wm.ReadCount,
@@ -690,10 +692,10 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 			n.Time = nextTime.Round(gPrecision)
 			nextTime = n.Time.Add(duration)
 
-			n.RXbps = utils.BitPerSecondFromUInt64(n.RXBytes, duration)
-			n.TXbps = utils.BitPerSecondFromUInt64(n.TXBytes, duration)
-			n.RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.RXBytes, duration)) + "bps"
-			n.TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(n.TXBytes, duration)) + "bps"
+			n.RXbps = humanize.BitPerSecondFromUInt64(n.RXBytes, duration)
+			n.TXbps = humanize.BitPerSecondFromUInt64(n.TXBytes, duration)
+			n.RXhbps = humanize.ByteCountDecimal(humanize.BitPerSecondFromUInt64(n.RXBytes, duration)) + "bps"
+			n.TXhbps = humanize.ByteCountDecimal(humanize.BitPerSecondFromUInt64(n.TXBytes, duration)) + "bps"
 
 			n.Duration = duration.Seconds()
 			nms = append(nms, n)
@@ -707,10 +709,10 @@ func (wm *Metric) ToSamples() []NetMetricSample {
 		lastSample.Time = nextTime.Round(gPrecision)
 		lastSample.RXBytes = uint64(wm.TotalRead) - rxSoFar
 		lastSample.TXBytes = uint64(wm.TotalWrite) - txSoFar
-		lastSample.RXbps = utils.BitPerSecondFromUInt64(lastSample.RXBytes, duration)
-		lastSample.TXbps = utils.BitPerSecondFromUInt64(lastSample.TXBytes, duration)
-		lastSample.RXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(lastSample.RXBytes, duration)) + "bps"
-		lastSample.TXhbps = utils.ByteCountDecimal(utils.BitPerSecondFromUInt64(lastSample.TXBytes, duration)) + "bps"
+		lastSample.RXbps = humanize.BitPerSecondFromUInt64(lastSample.RXBytes, duration)
+		lastSample.TXbps = humanize.BitPerSecondFromUInt64(lastSample.TXBytes, duration)
+		lastSample.RXhbps = humanize.ByteCountDecimal(humanize.BitPerSecondFromUInt64(lastSample.RXBytes, duration)) + "bps"
+		lastSample.TXhbps = humanize.ByteCountDecimal(humanize.BitPerSecondFromUInt64(lastSample.TXBytes, duration)) + "bps"
 	}
 	return nms
 }
@@ -738,8 +740,8 @@ func (wm *Metric) SerieReport() (report string) {
 			ReadCount,
 			TotalWrite,
 			WriteCount,
-			utils.FormatBitperSecond(TotalRead, ElapsedTime),
-			utils.FormatBitperSecond(TotalWrite, ElapsedTime),
+			humanize.FormatBitperSecond(TotalRead, ElapsedTime),
+			humanize.FormatBitperSecond(TotalWrite, ElapsedTime),
 			ElapsedTime)
 	}
 	report += fmt.Sprintf("total: %s %d %d %d %d %s\n",

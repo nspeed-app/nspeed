@@ -11,14 +11,14 @@ import (
 
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
+	"nspeed.app/helper/network"
 	"nspeed.app/metrics"
-	"nspeed.app/utils"
 )
 
 func quicgoInit(j *JobClient) (*quicgo.Config, *quicgo.Transport) {
 	quicConf := &quicgo.Config{}
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = utils.GenerateQLogTracer(j.Logger())
+		quicConf.Tracer = network.GenerateQLogTracer(j.Logger())
 	} else {
 		quicConf.Tracer = NewQuicTracer(j.wm)
 	}

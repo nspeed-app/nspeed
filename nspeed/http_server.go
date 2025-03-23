@@ -26,9 +26,13 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"nspeed.app/helper/buffer"
+	"nspeed.app/helper/crypto"
+	"nspeed.app/helper/generics"
+	"nspeed.app/helper/humanize"
+	"nspeed.app/helper/network"
 	"nspeed.app/metrics"
 	nsutl "nspeed.app/nspeed/utils"
-	"nspeed.app/utils"
 )
 
 // name of product, used in user-agent
@@ -47,11 +51,11 @@ const (
 var GUIDHeader = http.CanonicalHeaderKey("x-nspeed-guid")
 
 var StreamPathRegexp *regexp.Regexp
-var TTLGUIDCache *utils.TTLCache[string, *metrics.Metric]
+var TTLGUIDCache *network.TTLCache[string, *metrics.Metric]
 
 func init() {
-	StreamPathRegexp = regexp.MustCompile("^(" + utils.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
-	TTLGUIDCache = utils.NewTTLCache[string, *metrics.Metric](20, TTLGuidMaxSize)
+	StreamPathRegexp = regexp.MustCompile("^(" + humanize.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
+	TTLGUIDCache = network.NewTTLCache[string, *metrics.Metric](20, TTLGuidMaxSize)
 }
 
 // the HTTP Server
@@ -94,7 +98,7 @@ func (j *JobHTTPServer) GoString() string {
 		j.Parameters.Host,
 		j.Parameters.Port,
 		j.Parameters.IPVersion,
-		utils.ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
+		humanize.ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
 		j.Parameters.MaxDuration,
 		j.Parameters.ServeTLS,
 		j.Parameters.H2C,
@@ -268,7 +272,7 @@ func (j *JobHTTPServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 // StreamBytes sends 'size' bytes using streaming (io level streaming not HTTP level).
 func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size string, extension string) {
 
-	n, err := utils.ParseByteUnits(size)
+	n, err := humanize.ParseByteUnits(size)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -291,7 +295,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	//danger zone - the cient is setting the chunk_size - be careful
 	// todo: do we still need to support this parameter ?
 	if r.URL.Query().Get("chunk_size") != "" {
-		cs, err := utils.ParseByteUnits(r.URL.Query().Get("chunk_size"))
+		cs, err := humanize.ParseByteUnits(r.URL.Query().Get("chunk_size"))
 		chunkSize = int64(cs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -303,15 +307,15 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we need a new cmd line parameter for max chunk size ?
 		// since huge chunksize can overload the server memory this is not safe
-		if chunkSize > utils.MaxChunkSize {
-			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", utils.MaxChunkSize), http.StatusBadRequest)
+		if chunkSize > buffer.MaxChunkSize {
+			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", buffer.MaxChunkSize), http.StatusBadRequest)
 			return
 		}
 		j.Logger().Info().Msgf("chunk_size set to %d", chunkSize)
 	}
 	// end danger zone
 
-	chunk := utils.GetChunk(chunkSize)
+	chunk := buffer.GetChunk(chunkSize)
 
 	// content-type
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -359,12 +363,12 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 			GroupID:          guid,
 		},
 		Protocol:   r.Proto,
-		Cipher:     utils.TLSCipherSuite(r.TLS),
-		TLSVersion: utils.TLSVersionFriendlyName(utils.TLSVersion(r.TLS)),
+		Cipher:     crypto.TLSCipherSuite(r.TLS),
+		TLSVersion: crypto.TLSVersionFriendlyName(crypto.TLSVersion(r.TLS)),
 	}
 	defer wm.Close()
 
-	wm.SetLogger(utils.Ptr(j.Logger().With().
+	wm.SetLogger(generics.Ptr(j.Logger().With().
 		Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).
 		Str("x-request-guid", guid).
 		Logger()))
@@ -529,10 +533,10 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 			FirstResponseByte:  time.Now(),
 		},
 		Protocol:   r.Proto,
-		Cipher:     utils.TLSCipherSuite(r.TLS),
-		TLSVersion: utils.TLSVersionFriendlyName(utils.TLSVersion(r.TLS)),
+		Cipher:     crypto.TLSCipherSuite(r.TLS),
+		TLSVersion: crypto.TLSVersionFriendlyName(crypto.TLSVersion(r.TLS)),
 	}
-	wm.SetLogger(utils.Ptr(j.Logger().With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger()))
+	wm.SetLogger(generics.Ptr(j.Logger().With().Str("remote", fmt.Sprintf("%s from %s", r.Method, r.RemoteAddr)).Logger()))
 
 	// handle rate parameter
 	done, err := j.ParseRate(w, r, wm)
@@ -551,7 +555,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// do the upload
 	//n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, wm), BigBuffer)
-	n, err := utils.Copy(wm, r.Body)
+	n, err := buffer.Copy(wm, r.Body)
 	// signal the evenutal ticker
 	close(done)
 
@@ -592,17 +596,17 @@ func (j *JobHTTPServer) Init(opt Options) error {
 
 	// empty host is a special case
 
-	ipVersion := utils.OrDefault(j.Parameters.IPVersion, opt.IPVersion)
+	ipVersion := generics.OrDefault(j.Parameters.IPVersion, opt.IPVersion)
 
 	j.Logger().Debug().Msgf("host parameter is:'%s'", host)
 	if host != "" {
 		// if host is an interface name
-		hostIPAddrs, err := utils.ResolveInterfaceHostAddress(j.Parameters.Host)
+		hostIPAddrs, err := network.ResolveInterfaceHostAddress(j.Parameters.Host)
 		if err != nil {
 			return err
 		}
 
-		fhostIPAddrs := utils.FilterAddresses(hostIPAddrs, ipVersion)
+		fhostIPAddrs := network.FilterAddresses(hostIPAddrs, ipVersion)
 
 		if len(fhostIPAddrs) == 0 {
 			j.Logger().Debug().Msgf("ResolveInterfaceHostAddress/FilterAddresses : %v/%v,%d", hostIPAddrs, fhostIPAddrs, ipVersion)
@@ -766,7 +770,7 @@ func (j *JobHTTPServer) Listen(ctx context.Context) error {
 	}
 
 	// enforce ipVersion here
-	network := utils.AddIPVersionToNetwork("tcp", j.Parameters.IPVersion)
+	network := network.AddIPVersionToNetwork("tcp", j.Parameters.IPVersion)
 
 	ln, err := lc.Listen(ctx, network, j.addr)
 	if err != nil {
@@ -878,8 +882,8 @@ func (j *JobHTTPServer) HTTP3Listen() error {
 }
 
 // listenUDP performs net.ResolveUDPAddr then net.ListenUDP
-func listenUDP(addr string, version utils.IPVersion) (*net.UDPConn, error) {
-	networkUDP := utils.AddIPVersionToNetwork("udp", version)
+func listenUDP(addr string, version network.IPVersion) (*net.UDPConn, error) {
+	networkUDP := network.AddIPVersionToNetwork("udp", version)
 
 	// Open the listeners
 	udpAddr, err := net.ResolveUDPAddr(networkUDP, addr)
@@ -904,7 +908,7 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 
 	// setup debug trace
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = utils.GenerateQLogTracer(j.Logger())
+		quicConf.Tracer = network.GenerateQLogTracer(j.Logger())
 	}
 
 	quicServer := &http3.Server{

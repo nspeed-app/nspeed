@@ -17,10 +17,14 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
 
+	"nspeed.app/helper/buffer"
+	"nspeed.app/helper/cpu"
+	"nspeed.app/helper/humanize"
+	"nspeed.app/helper/network"
+	"nspeed.app/helper/str"
 	"nspeed.app/metrics"
 	"nspeed.app/nspeed"
 	nsutl "nspeed.app/nspeed/utils"
-	"nspeed.app/utils"
 	"nspeed.app/webview"
 )
 
@@ -191,7 +195,7 @@ func Main() {
 		w.FieldsExclude = []string{"job"}
 	})
 	// this will add an extra line between log messages if there is more then a delay between them
-	spacer := utils.NewSpacer(cw.Out, 1*time.Second, true, utils.SpacerNewLine)
+	spacer := humanize.NewSpacer(cw.Out, 1*time.Second, true, humanize.SpacerNewLine)
 
 	consoleWriter := nspeed.CreateFilteredWriter(
 		zerolog.MultiLevelWriter(spacer, cw),
@@ -203,7 +207,7 @@ func Main() {
 	// todo : remove 'level'
 	// todo: stderr
 	if *optLogOutput != "" {
-		f, err := utils.FileCreate(*optLogOutput)
+		f, err := str.FileCreate(*optLogOutput)
 		if err != nil {
 			panic("error creating log file!" + err.Error())
 		}
@@ -221,7 +225,7 @@ func Main() {
 	}
 	//
 	if *optDNSServer != "" {
-		if err := utils.SetDNSServer(*optDNSServer); err != nil {
+		if err := network.SetDNSServer(*optDNSServer); err != nil {
 			log.Fatal().Err(err).Msg("error setting dns server")
 		}
 	}
@@ -233,7 +237,7 @@ func Main() {
 			cpuRate = time.Second
 		}
 	}
-	optIPVersion := utils.IPVersion(0)
+	optIPVersion := network.IPVersion(0)
 	if *optIPv4 {
 		optIPVersion = 4
 	}
@@ -262,10 +266,10 @@ func Main() {
 
 	var err error
 	if *optUseBuffer != 0 {
-		if globalOptions.Buffer, err = utils.UseBuffer(*optUseBuffer); err != nil {
+		if globalOptions.Buffer, err = buffer.UseBuffer(*optUseBuffer); err != nil {
 			log.Fatal().Err(err).Msg("error setting buffer size")
 		}
-		log.Warn().Msgf("Buffer size is %s", utils.FormatByteBinaryUnits(globalOptions.Buffer))
+		log.Warn().Msgf("Buffer size is %s", humanize.FormatByteBinaryUnits(globalOptions.Buffer))
 	}
 
 	// end flags handling
@@ -300,7 +304,7 @@ func Main() {
 		return
 	}
 
-	log.Debug().Msgf("max cores = %d", utils.MaxParallelism())
+	log.Debug().Msgf("max cores = %d", cpu.MaxParallelism())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -397,7 +401,7 @@ mainloop:
 
 	// text report:
 	if *optTextReport != "" {
-		f, err := utils.FileCreate(*optTextReport)
+		f, err := str.FileCreate(*optTextReport)
 		if err != nil {
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
@@ -420,7 +424,7 @@ mainloop:
 	command := strings.Join(os.Args[1:], " ")
 	// json report:
 	if *optJSONReport != "" {
-		f, err := utils.FileCreate(*optJSONReport)
+		f, err := str.FileCreate(*optJSONReport)
 		if err != nil {
 			log.Fatal().Msgf("could not open json report file (%s): %v", *optJSONReport, err)
 		}

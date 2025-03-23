@@ -2,15 +2,13 @@
 // part of nspeed.app
 // SPDX-License-Identifier: BSD-3-Clause
 
-package utils
+package str
 
 import (
 	"encoding/csv"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -68,28 +66,6 @@ func DumpRequest(req *http.Request, body bool) {
 	}
 
 	fmt.Printf("%s", dump)
-}
-
-// OpenURI opens an url or a file
-func OpenURI(uri string) (io.ReadCloser, error) {
-	url, err := url.Parse(uri)
-	if err != nil || url.Scheme == "" {
-		return os.Open(uri)
-	}
-	resp, err := http.Get(uri)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Body, nil
-}
-
-// ReadURI opens and read an url and return its content
-func ReadURI(uri string) ([]byte, error) {
-	r, err := OpenURI(uri)
-	if err != nil {
-		return nil, err
-	}
-	return io.ReadAll(r)
 }
 
 // ToArgv converts string s into an argv for exec.
@@ -213,15 +189,4 @@ func Fields(s string) []string {
 		return nil
 	}
 	return fields
-}
-
-// MaxParallelism return number of cpu cores the program can actually use
-// todo: probably obsolete to do like this, just use runtime.NumCPU()
-func MaxParallelism() int {
-	maxProcs := runtime.GOMAXPROCS(0)
-	numCPU := runtime.NumCPU()
-	if maxProcs < numCPU {
-		return maxProcs
-	}
-	return numCPU
 }

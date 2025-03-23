@@ -24,8 +24,11 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
+	"nspeed.app/helper/buffer"
+	"nspeed.app/helper/crypto"
+	"nspeed.app/helper/humanize"
+	"nspeed.app/helper/network"
 	"nspeed.app/metrics"
-	"nspeed.app/utils"
 )
 
 // HTTP specific client code - complement of client.go
@@ -242,7 +245,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 			if err != nil {
 				wm.Logger().Debug().Err(err).Msgf("error parsing local address:%s", connInfo.Conn.LocalAddr())
 			}
-			j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr, _ = utils.GetRoute(j.GetDestination())
+			j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr, _ = network.GetRoute(j.GetDestination())
 			wm.Logger().Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
 			wm.Logger().Debug().Msgf("GotConn - interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
 		},
@@ -406,7 +409,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 
 			if j.tr.TLSDone {
 				j.Logger().Debug().
-					Str("crypto", utils.TLSVersionName(j.tr.TLS.Version)).
+					Str("crypto", crypto.TLSVersionName(j.tr.TLS.Version)).
 					Str("cipher", tls.CipherSuiteName(j.tr.TLS.CipherSuite)).
 					Dur("TLSDuration", j.tr.tlsDone.Sub(refdate)).Send()
 			}
@@ -417,16 +420,16 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 		// or HEAD shouldn't count as a request server side ?
 		if wm.Error == nil && resp != nil {
 			wm.Protocol = resp.Proto
-			wm.Cipher = utils.TLSCipherSuite(resp.TLS)
-			wm.TLSVersion = utils.TLSVersionFriendlyName(utils.TLSVersion(resp.TLS))
+			wm.Cipher = crypto.TLSCipherSuite(resp.TLS)
+			wm.TLSVersion = crypto.TLSVersionFriendlyName(crypto.TLSVersion(resp.TLS))
 
 			j.Logger().Debug().
 				Str("protocol", wm.Protocol).
 				Send()
 			j.Logger().Debug().
 				Int64("ContentLength", resp.ContentLength).
-				Str("ContentLength-Decimal", utils.ByteCountDecimal(resp.ContentLength)+"B").
-				Str("ContentLength-Binary", utils.ByteCountBinary(resp.ContentLength)+"B").
+				Str("ContentLength-Decimal", humanize.ByteCountDecimal(resp.ContentLength)+"B").
+				Str("ContentLength-Binary", humanize.ByteCountBinary(resp.ContentLength)+"B").
 				Send()
 
 			// dump resp if trace on
@@ -461,7 +464,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 					//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 					//todo: invesstigate why the following gives results too high
 
-					totalread, err := utils.Copy(wm, resp.Body)
+					totalread, err := buffer.Copy(wm, resp.Body)
 
 					// b, err := io.ReadAll(resp.Body)
 					// if err != nil {

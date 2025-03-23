@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"nspeed.app/utils"
+	"nspeed.app/helper/humanize"
 )
 
 // mostly from go-httbin - todo: refactor / rewrite this
@@ -52,7 +52,7 @@ func CmdClientParseGet(command string, cmdargs []string, jl *JobList, output io.
 	// "get target" or "get -url target"
 	args := fs.Args()
 
-	cs, err := utils.ParseByteUnits(size)
+	cs, err := humanize.ParseByteUnits(size)
 	if err != nil {
 		return args, err
 	}
@@ -144,7 +144,7 @@ func CmdClientParsePutPost(command string, cmdargs []string, jl *JobList, output
 		args = args[1:]
 	}
 
-	cs, err := utils.ParseByteUnits(size)
+	cs, err := humanize.ParseByteUnits(size)
 	if err != nil {
 		return args, err
 	}

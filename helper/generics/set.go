@@ -2,7 +2,7 @@
 // part of nspeed.app
 // SPDX-License-Identifier: BSD-3-Clause
 
-package utils
+package generics
 
 // a mix of  https://gist.github.com/bgadrian/cb8b9344d9c66571ef331a14eb7a2e80
 // and https://bitfieldconsulting.com/golang/generic-set

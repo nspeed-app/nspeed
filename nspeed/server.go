@@ -19,8 +19,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"
+	"nspeed.app/helper/buffer"
+	ncrypto "nspeed.app/helper/crypto"
+	"nspeed.app/helper/humanize"
+	"nspeed.app/helper/network"
 	"nspeed.app/metrics"
-	"nspeed.app/utils"
 )
 
 type TLSSettings struct {
@@ -33,7 +36,7 @@ type TLSSettings struct {
 
 func (s *TLSSettings) MakeTLSConfig() (*tls.Config, error) {
 	if s.UseTLSSelfConfig {
-		return utils.GetTLSSelfConfig(), nil
+		return ncrypto.GetTLSSelfConfig(), nil
 	} else if s.ServeTLS {
 		// todo: this should be done earlier may be ?
 		cer, err := tls.LoadX509KeyPair(s.TLSCertFile, s.TLSKeyFile)
@@ -52,8 +55,8 @@ type HostParameters struct {
 	Protocol    string
 	Host        string
 	Port        int
-	IPVersion   utils.IPVersion // 0 (use global setting), 4 (force IPv4)  or 6 (force IPv6)
-	MaxBodySize int64           // max inbound size and outbound size for streaming (not fileserve)- todo: split into 2 distinct settings?
+	IPVersion   network.IPVersion // 0 (use global setting), 4 (force IPv4)  or 6 (force IPv6)
+	MaxBodySize int64             // max inbound size and outbound size for streaming (not fileserve)- todo: split into 2 distinct settings?
 	MaxDuration time.Duration
 	IdleTimeout time.Duration
 	H2C         bool
@@ -106,7 +109,7 @@ func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Wri
 	useIPv4 := fs.Bool("4", false, "use IPv4 only")
 	useIPv6 := fs.Bool("6", false, "use IPv6 only")
 	fs.IntVar(&host.Port, "p", 0, "Port number to listen on")
-	maxsize := fs.String("s", utils.FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
+	maxsize := fs.String("s", humanize.FormatByteDecimalUnits(DefaultMaxBodySize), "Maximum size of response, in bytes or units of bytes")
 	maxtime := fs.Uint("m", uint(DefaultMaxDuration.Seconds()), "Maximum duration in seconds a response may take")
 	fs.DurationVar(&host.RunDuration, "d", 0, "duration after which the server shutdown (can use duration units: s,m,h)")
 	fs.IntVar(&host.MaxRequests, "n", 0, "number of requests after which  the server shutdown (0 = run forever)")
@@ -146,7 +149,7 @@ func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Wri
 		host.IPVersion = 6
 	}
 
-	ms, err := utils.ParseByteUnits(*maxsize)
+	ms, err := humanize.ParseByteUnits(*maxsize)
 	if err != nil {
 		fs.Usage()
 		return cmdargs, err
@@ -240,7 +243,7 @@ func (j *L4Server) GoString() string {
 		j.Parameters.Host,
 		j.Parameters.Port,
 		j.Parameters.IPVersion,
-		utils.ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
+		humanize.ByteCountDecimal(j.Parameters.MaxBodySize)+"B",
 		j.Parameters.MaxDuration,
 		j.Parameters.ServeTLS,
 		j.Parameters.MaxRequests,
@@ -266,7 +269,7 @@ func (j *L4Server) Init(opt Options) error {
 	}
 
 	host := j.Parameters.Host
-	hostAddr, err := utils.InterfaceAddress(j.Parameters.Host, ipVersion)
+	hostAddr, err := network.InterfaceAddress(j.Parameters.Host, ipVersion)
 	if err != nil {
 		return fmt.Errorf("InterfaceAddress error: %w", err)
 	}
@@ -300,7 +303,7 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 	if j.Parameters.Protocol == "QUIC" || j.Parameters.Protocol == "QUIC-GO" {
 		L3Proto = "udp"
 	}
-	network := utils.AddIPVersionToNetwork(L3Proto, j.Parameters.IPVersion)
+	network := network.AddIPVersionToNetwork(L3Proto, j.Parameters.IPVersion)
 
 	if j.Parameters.Protocol == "TCP" {
 		return j.ServeTCP(ctx, network, wg)
@@ -398,7 +401,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 	j.Logger().Warn().Msgf("incoming connection from %s", conn.RemoteAddr())
 
 	var chunkSize int64 = 1 * 1024 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
-	chunk := utils.GetChunk(chunkSize)
+	chunk := buffer.GetChunk(chunkSize)
 
 	wm := metrics.Metric{}
 	wm.InitNew()

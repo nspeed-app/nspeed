@@ -19,9 +19,11 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"nspeed.app/helper/generics"
+	"nspeed.app/helper/html"
+	"nspeed.app/helper/str"
 	"nspeed.app/metrics"
 	"nspeed.app/nspeed/ui"
-	"nspeed.app/utils"
 	"nspeed.app/webview"
 )
 
@@ -72,7 +74,7 @@ func (j *UIHost) Init(opt Options) error {
 
 	j.globalOptions = opt
 
-	j.Parameters.IPVersion = utils.OrDefault(j.Parameters.IPVersion, opt.IPVersion)
+	j.Parameters.IPVersion = generics.OrDefault(j.Parameters.IPVersion, opt.IPVersion)
 
 	if j.Parameters == nil {
 		j.Parameters = NewHostParameters()
@@ -117,7 +119,7 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
 		j.hub.Execute = func(args string) {
-			err := j.RunCmd(ctx, utils.Fields(args))
+			err := j.RunCmd(ctx, str.Fields(args))
 			if err != nil {
 				j.Logger().Err(err).Msgf("Execute")
 			}
@@ -130,7 +132,7 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 }
 
 func (f *UIHost) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	html, err := utils.InlineAssets(webview.ViewerTmplHTML, webview.StaticFiles, true)
+	html, err := html.InlineAssets(webview.ViewerTmplHTML, webview.StaticFiles, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -151,7 +153,7 @@ func (j *UIHost) PostRun() error {
 	url := j.Server.URL
 	if j.OpenBrowser {
 		j.Logger().Warn().Msgf("opening browser at %s", url)
-		return utils.OpenBrowser(url.String(), nil, nil)
+		return html.OpenBrowser(url.String(), nil, nil)
 	}
 	return nil
 }

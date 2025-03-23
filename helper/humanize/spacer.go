@@ -1,4 +1,4 @@
-package utils
+package humanize
 
 import (
 	"fmt"

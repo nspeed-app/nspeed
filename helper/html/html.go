@@ -1,4 +1,4 @@
-package utils
+package html
 
 import (
 	"bufio"
@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -166,4 +167,26 @@ func InlineAssets(source string, fs fs.FS, doRemote bool) (string, error) {
 		return buf.String(), nil
 	}
 	return "", err
+}
+
+// OpenURI opens an url or a file
+func OpenURI(uri string) (io.ReadCloser, error) {
+	url, err := url.Parse(uri)
+	if err != nil || url.Scheme == "" {
+		return os.Open(uri)
+	}
+	resp, err := http.Get(uri)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
+// ReadURI opens and read an url and return its content
+func ReadURI(uri string) ([]byte, error) {
+	r, err := OpenURI(uri)
+	if err != nil {
+		return nil, err
+	}
+	return io.ReadAll(r)
 }

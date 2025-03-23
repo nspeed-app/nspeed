@@ -14,7 +14,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/utils"
+	"nspeed.app/helper/html"
+	"nspeed.app/helper/humanize"
+	"nspeed.app/helper/str"
 )
 
 // commands
@@ -160,7 +162,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		}
 
 		// we parse the size just to check it's valid
-		_, err := utils.ParseByteUnits(*size)
+		_, err := humanize.ParseByteUnits(*size)
 		if err != nil {
 			return cmdargs, err
 		}
@@ -195,7 +197,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			if err := t.Execute(&c, values); err != nil {
 				log.Fatal().Err(err).Send()
 			}
-			cmd := utils.Fields(c.String())
+			cmd := str.Fields(c.String())
 			batchID++
 			log.Info().Msgf("benchmark: %s", cmd)
 			err := ParseCommands(cmd, jl, output, false)
@@ -229,7 +231,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		cmdFile := io.ReadCloser(os.Stdin)
 		if uri != "-" {
 			var err error
-			cmdFile, err = utils.OpenURI(uri)
+			cmdFile, err = html.OpenURI(uri)
 			if err != nil {
 				return args, fmt.Errorf("can't open uri %s (%w)", uri, err)
 			}
@@ -247,7 +249,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 					lineNumber++
 					continue
 				}
-				line, err := utils.ToArgv(rline)
+				line, err := str.ToArgv(rline)
 				if err != nil {
 					return args, err
 				}
@@ -356,8 +358,8 @@ func LogMemUsage(log *zerolog.Logger, mess string, v ...any) {
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
 	log.Debug().Msgf("%s (Alloc = %vB TotalAlloc = %vB Sys = %vB NumGC = %v)",
 		fmt.Sprintf(mess, v...),
-		utils.FormatByteDecimalUnits(int64(m.Alloc)),
-		utils.FormatByteDecimalUnits(int64(m.TotalAlloc)),
-		utils.FormatByteDecimalUnits(int64(m.Sys)),
+		humanize.FormatByteDecimalUnits(int64(m.Alloc)),
+		humanize.FormatByteDecimalUnits(int64(m.TotalAlloc)),
+		humanize.FormatByteDecimalUnits(int64(m.Sys)),
 		m.NumGC)
 }

@@ -22,8 +22,12 @@ import (
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/quic"
+	"nspeed.app/helper/buffer"
+	"nspeed.app/helper/crypto"
+	"nspeed.app/helper/generics"
+	"nspeed.app/helper/humanize"
+	"nspeed.app/helper/network"
 	"nspeed.app/metrics"
-	"nspeed.app/utils"
 )
 
 // supported L4Protocols
@@ -37,7 +41,7 @@ type JobClient struct {
 	Protocol         string // "http" or one of the L4Protocols
 	Instance         int    //=0 single, >0 index of instance
 	Repeat           uint   // 0 or 1 is 1
-	IPVersion        utils.IPVersion
+	IPVersion        network.IPVersion
 	Host             string
 	Target           string
 	Timeout          time.Duration
@@ -81,10 +85,10 @@ func (j *JobClient) CommandString() string {
 		j.Timeout.String(),
 		j.Delay.String(),
 		j.H2C,
-		utils.HTTPVersionStringer(j.HTTPVersion),
+		network.HTTPVersionStringer(j.HTTPVersion),
 	)
 	if j.ContentSize != 0 {
-		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, utils.ByteCountDecimal(j.ContentSize))
+		s += fmt.Sprintf(",size: %d (%sB)", j.ContentSize, humanize.ByteCountDecimal(j.ContentSize))
 	}
 	s += "}"
 	return s
@@ -123,7 +127,7 @@ func (j *JobClient) PrintString(verbose bool, group bool) string {
 		}
 		latency := j.wm.AvgLatency.Milliseconds()
 		latencyMicroRem := j.wm.AvgLatency.Microseconds() % 1000
-		ipv := utils.GetIPVersion(j.wm.Remote.Addr())
+		ipv := network.GetIPVersion(j.wm.Remote.Addr())
 		details := fmt.Sprintf("%s - %d/%d(%s - %d.%d ms - %s - %s)", r, j.wm.Loop, j.wm.LoopMax, ipv, latency, latencyMicroRem, j.wm.Protocol, j.wm.TLSVersion)
 		if j.numRedirect > 0 && verbose {
 			return fmt.Sprintf("%s from %s", details, j.Target)
@@ -137,12 +141,12 @@ func (j *JobClient) PrintString(verbose bool, group bool) string {
 	}
 	if j.Command == "GET" {
 		t := "get " + groupFormat + "%s" + j.finalTarget
-		r := fmt.Sprintf(t, utils.HTTPVersionFlag(j.HTTPVersion, j.H2C))
+		r := fmt.Sprintf(t, network.HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
 
 	} else if j.Command == "POST" || j.Command == "PUT" {
-		t := strings.ToLower(j.Command) + " " + groupFormat + "%s" + j.finalTarget + " " + utils.ByteCountDecimal(j.ContentSize) + "B" //todo
-		r := fmt.Sprintf(t, utils.HTTPVersionFlag(j.HTTPVersion, j.H2C))
+		t := strings.ToLower(j.Command) + " " + groupFormat + "%s" + j.finalTarget + " " + humanize.ByteCountDecimal(j.ContentSize) + "B" //todo
+		r := fmt.Sprintf(t, network.HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
 	}
 	return "unknown command"
@@ -154,7 +158,7 @@ func (j *JobClient) IsInfinite() bool { return false }
 func (j *JobClient) Init(opt Options) error {
 
 	// timeout (if none is specified use global default)
-	j.Timeout = utils.OrDefault(j.Timeout, opt.DefaultClientTimeout)
+	j.Timeout = generics.OrDefault(j.Timeout, opt.DefaultClientTimeout)
 
 	// todo move this to run ? and get ride of .wm?
 	j.wm = &metrics.Metric{
@@ -179,15 +183,15 @@ func (j *JobClient) Init(opt Options) error {
 	if !j.IPVersion.IsValid() {
 		return errors.New("invalid ip version requested")
 	}
-	j.IPVersion = utils.OrDefault(j.IPVersion, opt.IPVersion)
+	j.IPVersion = generics.OrDefault(j.IPVersion, opt.IPVersion)
 	// source address & port
 	var err error
 	// j.Host can have an optionnal trailing ":port"
-	localAddr, localPort, err := utils.ParseAddressWithOptionnalPort(j.Host)
+	localAddr, localPort, err := network.ParseAddressWithOptionnalPort(j.Host)
 	if err != nil {
 		return fmt.Errorf("InterfaceAddress ParseOtionnalPort error: %w", err)
 	}
-	j.localAddr, err = utils.InterfaceAddress(localAddr, j.IPVersion)
+	j.localAddr, err = network.InterfaceAddress(localAddr, j.IPVersion)
 	if err != nil {
 		return fmt.Errorf("InterfaceAddress error: %w", err)
 	}
@@ -213,7 +217,7 @@ func (j *JobClient) Init(opt Options) error {
 
 	// TLS config
 	if j.UseTLSSelfConfig {
-		j.tlsConfig = utils.GetTLSSelfConfig()
+		j.tlsConfig = crypto.GetTLSSelfConfig()
 		j.Logger().Info().Msgf("using TLSSelfConfig")
 		// for tls 1.3 we can't change cipher suites with current Go implementation: https://go.dev/blog/tls-cipher-suites
 		// so something like this won't work:
@@ -238,12 +242,12 @@ func (j *JobClient) Init(opt Options) error {
 	}
 
 	// this is our dialContext for transports/l4
-	j.dialContext = func(ctx context.Context, network string, address string) (net.Conn, error) {
-		if network == "udp" || network == "tcp" {
-			network = utils.AddIPVersionToNetwork(network, j.IPVersion)
+	j.dialContext = func(ctx context.Context, netwrk string, address string) (net.Conn, error) {
+		if netwrk == "udp" || netwrk == "tcp" {
+			netwrk = network.AddIPVersionToNetwork(netwrk, j.IPVersion)
 		}
-		j.Logger().Debug().Msgf("DialContext %s %s %d (%s)", network, address, j.IPVersion, j.dialer.LocalAddr)
-		return j.dialer.DialContext(ctx, network, address)
+		j.Logger().Debug().Msgf("DialContext %s %s %d (%s)", netwrk, address, j.IPVersion, j.dialer.LocalAddr)
+		return j.dialer.DialContext(ctx, netwrk, address)
 	}
 
 	// check Repeat
@@ -279,20 +283,20 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 	}
 
 	dialerContext := j.dialContext
-	network := j.Protocol
+	netw := j.Protocol
 
 	switch j.Protocol {
 	case "TCP":
-		network = utils.AddIPVersionToNetwork(network, j.IPVersion)
+		netw = network.AddIPVersionToNetwork(netw, j.IPVersion)
 		if j.tlsConfig == nil {
-			j.Logger().Info().Msgf("L4 client dialing %s %s", network, j.targetURL.Host)
+			j.Logger().Info().Msgf("L4 client dialing %s %s", netw, j.targetURL.Host)
 		} else {
 			tlsDialer := tls.Dialer{
 				NetDialer: j.dialer,
 				Config:    j.tlsConfig,
 			}
 			dialerContext = tlsDialer.DialContext
-			j.Logger().Info().Msgf("L4 client dialing %s %s with TLS", network, j.targetURL.Host)
+			j.Logger().Info().Msgf("L4 client dialing %s %s with TLS", netw, j.targetURL.Host)
 		}
 	case "QUIC":
 		if j.tlsConfig == nil {
@@ -303,7 +307,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 			j.tlsConfig.MinVersion = tls.VersionTLS13
 		}
 
-		network = utils.AddIPVersionToNetwork("udp", j.IPVersion)
+		netw = network.AddIPVersionToNetwork("udp", j.IPVersion)
 
 		quicConf := &quic.Config{TLSConfig: j.tlsConfig}
 
@@ -316,25 +320,25 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 			localAddr = j.dialer.LocalAddr.String()
 		}
 
-		endp, err := quic.Listen(network, localAddr, nil)
+		endp, err := quic.Listen(netw, localAddr, nil)
 
 		if err != nil {
 			return nil, fmt.Errorf("L4 client quic listen error: %w", err)
 		}
 
-		dialerContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		dialerContext = func(ctx context.Context, netwrk, address string) (net.Conn, error) {
 
-			j.Logger().Info().Msgf("L4 QUIC client dialing %s %s", network, j.targetURL.Host)
-			qconn, err := endp.Dial(ctx, network, address, quicConf)
+			j.Logger().Info().Msgf("L4 QUIC client dialing %s %s", netwrk, j.targetURL.Host)
+			qconn, err := endp.Dial(ctx, netwrk, address, quicConf)
 			if err != nil {
 				return nil, fmt.Errorf("quic dial error: %w", err)
 			}
-			j.Logger().Info().Msgf("L4 QUIC client connected to %s %s", network, j.targetURL.Host)
+			j.Logger().Info().Msgf("L4 QUIC client connected to %s %s", netwrk, j.targetURL.Host)
 			stream, err := qconn.NewStream(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("quic new stream error: %w", err)
 			}
-			c := utils.NewQuicStreamAsConn(stream, qconn)
+			c := network.NewQuicStreamAsConn(stream, qconn)
 			return c, nil
 		}
 
@@ -373,7 +377,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 		return nil, fmt.Errorf("unknown protocol %s", j.Protocol)
 	}
 
-	conn, err := dialerContext(ctx, network, j.targetURL.Host)
+	conn, err := dialerContext(ctx, netw, j.targetURL.Host)
 
 	if err != nil {
 		return nil, fmt.Errorf("dial error: %w", err)
@@ -411,15 +415,15 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 	if err != nil {
 		j.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", conn.RemoteAddr().String())
 	}
-	j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr, _ = utils.GetRoute(conn.RemoteAddr().String())
+	j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr, _ = network.GetRoute(conn.RemoteAddr().String())
 	j.wm.SetTLSInfo(conn)
 	// set the logger for this metric
 	j.wm.SetLogger(j.Logger())
 
 	// init metric data
-	j.wm.WriteStepSize = min(utils.MaxChunkSize, 1*1024*1024)
-	j.wm.ReadStepSize = min(utils.MaxChunkSize, 1*1024*1024)
-	chunk := utils.GetChunk(j.wm.WriteStepSize)
+	j.wm.WriteStepSize = min(buffer.MaxChunkSize, 1*1024*1024)
+	j.wm.ReadStepSize = min(buffer.MaxChunkSize, 1*1024*1024)
+	chunk := buffer.GetChunk(j.wm.WriteStepSize)
 
 	cmd := ""
 	total := int64(0)

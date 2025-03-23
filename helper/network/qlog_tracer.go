@@ -1,4 +1,4 @@
-package utils
+package network
 
 import (
 	"bufio"
@@ -10,6 +10,7 @@ import (
 	"github.com/quic-go/quic-go/logging"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/rs/zerolog"
+	"nspeed.app/helper/buffer"
 )
 
 func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) *logging.ConnectionTracer {
@@ -27,7 +28,7 @@ func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging
 			log.Fatal().Err(err).Send()
 		}
 		log.Trace().Msgf("Creating qlog file %s.\n", filename)
-		return qlog.NewConnectionTracer(NewBufferedWriteCloser(bufio.NewWriter(f), f), p, connID)
+		return qlog.NewConnectionTracer(buffer.NewBufferedWriteCloser(bufio.NewWriter(f), f), p, connID)
 	}
 	return QLogTracer
 }

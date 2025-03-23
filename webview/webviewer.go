@@ -14,7 +14,7 @@ import (
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/templates"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/utils"
+	"nspeed.app/helper/network"
 
 	"github.com/go-echarts/statsview/statics"
 	"github.com/go-echarts/statsview/viewer"
@@ -117,7 +117,7 @@ func NewViewManager(tick time.Duration, path string, interfaceNames []string, de
 	mgr.Ctx, mgr.Cancel = context.WithCancel(context.Background())
 	//todo : may be add a message  if no support
 	if HasNetStats() == nil {
-		ifts, err := utils.GetNetInterfaces(interfaceNames)
+		ifts, err := network.GetNetInterfaces(interfaceNames)
 		if err != nil {
 			return nil, err
 		}

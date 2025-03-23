@@ -16,8 +16,10 @@ import (
 	_ "embed"
 
 	"github.com/rs/zerolog"
+	"nspeed.app/helper/generics"
+	"nspeed.app/helper/html"
+	"nspeed.app/helper/str"
 	"nspeed.app/metrics"
-	"nspeed.app/utils"
 	"nspeed.app/webview"
 )
 
@@ -67,7 +69,7 @@ func (j *APIHost) Init(opt Options) error {
 
 	j.globalOptions = opt
 
-	j.Parameters.IPVersion = utils.OrDefault(j.Parameters.IPVersion, opt.IPVersion)
+	j.Parameters.IPVersion = generics.OrDefault(j.Parameters.IPVersion, opt.IPVersion)
 
 	if j.Parameters == nil {
 		j.Parameters = NewHostParameters()
@@ -151,7 +153,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 	a, ok := r.URL.Query()["args"]
 	if ok {
 		for i := range a {
-			args = append(args, utils.Fields(a[i])...)
+			args = append(args, str.Fields(a[i])...)
 		}
 	}
 	results, err := APIRun(r.Context(), j.globalOptions, cmd, args, w, r.RemoteAddr, json.Marshal)
@@ -180,7 +182,7 @@ func (j *APIHost) PostRun() error {
 	}
 	if j.OpenBrowser {
 		j.Logger().Warn().Msgf("opening browser at %s", url)
-		return utils.OpenBrowser(url.String(), nil, nil)
+		return html.OpenBrowser(url.String(), nil, nil)
 	}
 	return nil
 }

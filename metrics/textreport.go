@@ -11,7 +11,8 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
-	"nspeed.app/utils"
+	"nspeed.app/helper/humanize"
+	"nspeed.app/helper/str"
 )
 
 // generate a report per batch (sorted), filtering failed jobs
@@ -62,11 +63,11 @@ func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) stri
 	addLine := func(w *tabwriter.Writer, id string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
 		fmt.Fprintf(w, "%s", fmt.Sprintf("%s\t%s\t%s\t%.2f\t%sB\t%sB\t%s\n",
 			id,
-			utils.FormatBitperSecond(totalRead, elapsedTime),
-			utils.FormatBitperSecond(totalWrite, elapsedTime),
+			humanize.FormatBitperSecond(totalRead, elapsedTime),
+			humanize.FormatBitperSecond(totalWrite, elapsedTime),
 			elapsedTime.Seconds(),
-			utils.ByteCountDecimal(totalRead),
-			utils.ByteCountDecimal(totalWrite),
+			humanize.ByteCountDecimal(totalRead),
+			humanize.ByteCountDecimal(totalWrite),
 			target))
 	}
 
@@ -129,7 +130,7 @@ func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) stri
 }
 
 // generate a report per batch (sorted), filtering failed jobs, console / pretty print table
-func GenerateTableReport(f *utils.SmartFile, wcWorkers *Metrics, showGroup bool) error {
+func GenerateTableReport(f *str.SmartFile, wcWorkers *Metrics, showGroup bool) error {
 	if wcWorkers == nil {
 		log.Info().Msgf("generating text report: no data")
 		return nil
@@ -163,7 +164,7 @@ func GenerateTableReport(f *utils.SmartFile, wcWorkers *Metrics, showGroup bool)
 }
 
 // generate a tabular formatted text report of given width
-func GenerateTableReportBatch(f *utils.SmartFile, width int, batch int, wcWorkers *Metrics, showGroup bool) string {
+func GenerateTableReportBatch(f *str.SmartFile, width int, batch int, wcWorkers *Metrics, showGroup bool) string {
 
 	if wcWorkers == nil {
 		return ""
@@ -187,11 +188,11 @@ func GenerateTableReportBatch(f *utils.SmartFile, width int, batch int, wcWorker
 	// use this function to add lines
 	addLine := func(id string, elapsedTime time.Duration, totalRead int64, totalWrite int64, target string) {
 		t.Row(id,
-			utils.FormatBitperSecond(totalRead, elapsedTime),
-			utils.FormatBitperSecond(totalWrite, elapsedTime),
+			humanize.FormatBitperSecond(totalRead, elapsedTime),
+			humanize.FormatBitperSecond(totalWrite, elapsedTime),
 			strconv.FormatFloat(elapsedTime.Seconds(), 'f', 2, 64),
-			utils.ByteCountDecimal(totalRead),
-			utils.ByteCountDecimal(totalWrite),
+			humanize.ByteCountDecimal(totalRead),
+			humanize.ByteCountDecimal(totalWrite),
 			target)
 	}
 

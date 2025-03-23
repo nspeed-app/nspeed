@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"nspeed.app/utils"
+	"nspeed.app/helper/html"
 	"nspeed.app/webview"
 )
 
@@ -27,7 +27,7 @@ func main() {
 	}
 
 	//read json
-	jsonFile, err := utils.OpenURI(flag.Arg(0))
+	jsonFile, err := html.OpenURI(flag.Arg(0))
 	if err != nil {
 		log.Fatalf("cannot open input file %s: %v", flag.Arg(0), err)
 		return

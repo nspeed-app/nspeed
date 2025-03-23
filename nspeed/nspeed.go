@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"nspeed.app/helper/network"
 	"nspeed.app/metrics"
-	"nspeed.app/utils"
 )
 
 type Options struct {
@@ -24,7 +24,7 @@ type Options struct {
 	DefaultClientTimeout time.Duration // default timeout for clients
 	Test                 bool
 	TLSSelf              bool
-	IPVersion            utils.IPVersion // 0, 4 or 6
+	IPVersion            network.IPVersion // 0, 4 or 6
 	Buffer               int64
 }
 

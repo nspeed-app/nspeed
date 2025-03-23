@@ -1,4 +1,4 @@
-package utils
+package html
 
 import "testing"
 

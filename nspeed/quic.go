@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 
 	"golang.org/x/net/quic"
+	"nspeed.app/helper/network"
 	"nspeed.app/metrics"
-	"nspeed.app/utils"
 )
 
 // func quicClientInit(j *JobClient) (*quic.Config, *quic.Endpoint) {
@@ -117,7 +117,7 @@ func handleQUICStream(ctx context.Context, j *L4Server, conn *quic.Conn) {
 			j.Logger().Info().Err(err).Msgf("L4 QUIC server quic.AcceptStream failed")
 			return
 		}
-		c := utils.NewQuicStreamAsConn(str, conn)
+		c := network.NewQuicStreamAsConn(str, conn)
 		go func() {
 			j.handleConnection(c)
 			conn.Abort(nil)
