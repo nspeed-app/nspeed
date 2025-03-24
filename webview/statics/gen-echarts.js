@@ -1,6 +1,6 @@
 // @ts-check
 
-//import {echarts} from 'echarts';
+import {echarts} from 'echarts';
 
 /**
  * @param {any[]} arr1

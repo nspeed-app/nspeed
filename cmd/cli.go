@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
 
-	"nspeed.app/helper/buffer"
+	"nspeed.app/helper/bigbuf"
 	"nspeed.app/helper/cpu"
 	"nspeed.app/helper/humanize"
 	"nspeed.app/helper/network"
@@ -266,7 +266,7 @@ func Main() {
 
 	var err error
 	if *optUseBuffer != 0 {
-		if globalOptions.Buffer, err = buffer.UseBuffer(*optUseBuffer); err != nil {
+		if globalOptions.Buffer, err = bigbuf.UseBuffer(*optUseBuffer); err != nil {
 			log.Fatal().Err(err).Msg("error setting buffer size")
 		}
 		log.Warn().Msgf("Buffer size is %s", humanize.FormatByteBinaryUnits(globalOptions.Buffer))
@@ -406,7 +406,10 @@ mainloop:
 			log.Fatal().Msgf("could not open text report file (%s): %v", *optTextReport, err)
 		}
 		if term.IsTerminal(int(f.Fd())) {
-			metrics.GenerateTableReport(f, results, *optUngroup)
+			err := metrics.GenerateTableReport(f, results, *optUngroup)
+			if err != nil {
+				log.Error().Err(err).Msgf("error term report")
+			}
 		} else {
 			report := metrics.GenerateTextReport(results, *optUngroup)
 			_, err = f.WriteString(report)

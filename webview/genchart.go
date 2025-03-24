@@ -8,8 +8,8 @@ import (
 	"text/template"
 
 	"github.com/rs/zerolog/log"
-	"nspeed.app/helper/html"
 	"nspeed.app/helper/str"
+	"nspeed.app/helper/web"
 )
 
 //go:embed statics/viewer-echarts.html
@@ -53,7 +53,7 @@ func GenerateHTMLReport(ctx context.Context, htmlFilename string, jsData string)
 	}
 	// output to file or directly open a browser
 	if out != nil {
-		html, err := html.InlineAssets(htmlBuff.String(), StaticFiles, true)
+		html, err := web.InlineFromString(htmlBuff.String(), StaticFiles, true)
 		if err != nil {
 			log.Fatal().Msgf("could inline html file (%s): %v", htmlFilename, err)
 		}
@@ -63,11 +63,11 @@ func GenerateHTMLReport(ctx context.Context, htmlFilename string, jsData string)
 		}
 		log.Info().Msgf("html generated to %s", htmlFilename)
 	} else {
-		h, err := html.InlineAssets(htmlBuff.String(), StaticFiles, false)
+		h, err := web.InlineFromString(htmlBuff.String(), StaticFiles, false)
 		if err != nil {
 			log.Fatal().Msgf("could inline html file (%s): %v", htmlFilename, err)
 		}
-		err = html.OpenHTML(ctx, h, true)
+		err = web.OpenHTML(ctx, h, true)
 		if err != nil {
 			log.Fatal().Msgf("could not open html: %v", err)
 		}
@@ -75,11 +75,11 @@ func GenerateHTMLReport(ctx context.Context, htmlFilename string, jsData string)
 }
 
 func OpenViewer(ctx context.Context, openBrowser bool) {
-	h, err := html.InlineAssets(ViewerTmplHTML, StaticFiles, true)
+	h, err := web.InlineFromString(ViewerTmplHTML, StaticFiles, true)
 	if err != nil {
 		log.Fatal().Msgf("open embed viewer file: %v", err)
 	}
-	err = html.OpenHTML(ctx, h, openBrowser)
+	err = web.OpenHTML(ctx, h, openBrowser)
 	if err != nil {
 		log.Fatal().Msgf("could not open html: %v", err)
 	}

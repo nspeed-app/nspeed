@@ -24,7 +24,7 @@ type quicStreamAsConn struct {
 // var _ net.Conn = (*quicStreamAsConn)(nil)
 // but NewQuicStreamAsConn does it already
 
-// NewQuicStreamAsConn exposes the net.Conn interface on a quic.Stream
+// NewQuicStreamAsConn exposes a net.Conn interface on a quic.Stream
 func NewQuicStreamAsConn(stream *quic.Stream, qconn *quic.Conn) net.Conn {
 	// should we refuse nil args?
 	return &quicStreamAsConn{

@@ -1,7 +1,7 @@
 // Copyright (c) Jean-Francois Giorgi & AUTHORS
 // part of nspeed.app
 // SPDX-License-Identifier: BSD-3-Clause
-package html
+package web
 
 import (
 	"context"
@@ -27,7 +27,7 @@ func runCmd(prog string, stdout io.Writer, stderr io.Writer, args ...string) err
 }
 
 // OpenBrowser tried to open the url with the default web browser of the system.
-// This is non blocking and will return once the browser is launched
+// This is non blocking and will return immediately once the browser is launched
 func OpenBrowser(url string, stdout io.Writer, stderr io.Writer) error {
 	var err error
 	switch runtime.GOOS {
@@ -56,8 +56,9 @@ func OpenBrowser(url string, stdout io.Writer, stderr io.Writer) error {
 }
 
 // OpenHTML  will try to open the html content with the default web browser of the system.
-// To allow full HTML/JS/CSS to work, the html content is not opened as a local file but
-// served with a one-time use web server on localhost (random port).
+// To allow full HTML/JS/CSS content to work, the html content is not opened as a local file but
+// served using a one-time use web server on localhost (random port).
+// if openBrowser is false the server url will be printed
 func OpenHTML(ctx context.Context, html string, openBrowser bool) error {
 	server := &http.Server{}
 

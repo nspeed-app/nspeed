@@ -1,4 +1,4 @@
-package buffer
+package bigbuf
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 // todo: we set a 4 MiB size. on small systems/embedded systems this could be an issue
 // This buffer can be read/written by multiple goroutines at the same time so do not use the data in it.
 // This will generate a data race
-// io.CopyBuffer default size is 32 * 1024
+// 12/2024: io.CopyBuffer default size is 32 * 1024 (Go source: src/io/io.go copyBuffer func)
 const maxBufferSize = 4 * 1024 * 1024
 
 var bigBuffer [maxBufferSize]byte

@@ -14,9 +14,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/helper/html"
 	"nspeed.app/helper/humanize"
 	"nspeed.app/helper/str"
+	"nspeed.app/helper/web"
 )
 
 // commands
@@ -231,7 +231,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		cmdFile := io.ReadCloser(os.Stdin)
 		if uri != "-" {
 			var err error
-			cmdFile, err = html.OpenURI(uri)
+			cmdFile, err = web.OpenURI(uri)
 			if err != nil {
 				return args, fmt.Errorf("can't open uri %s (%w)", uri, err)
 			}

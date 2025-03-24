@@ -17,8 +17,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"nspeed.app/helper/generics"
-	"nspeed.app/helper/html"
 	"nspeed.app/helper/str"
+	"nspeed.app/helper/web"
 	"nspeed.app/metrics"
 	"nspeed.app/webview"
 )
@@ -182,7 +182,7 @@ func (j *APIHost) PostRun() error {
 	}
 	if j.OpenBrowser {
 		j.Logger().Warn().Msgf("opening browser at %s", url)
-		return html.OpenBrowser(url.String(), nil, nil)
+		return web.OpenBrowser(url.String(), nil, nil)
 	}
 	return nil
 }

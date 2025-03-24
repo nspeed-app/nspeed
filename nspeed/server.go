@@ -19,8 +19,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"
-	"nspeed.app/helper/buffer"
-	ncrypto "nspeed.app/helper/crypto"
+	"nspeed.app/helper/bigbuf"
+	"nspeed.app/helper/crypto"
 	"nspeed.app/helper/humanize"
 	"nspeed.app/helper/network"
 	"nspeed.app/metrics"
@@ -36,7 +36,7 @@ type TLSSettings struct {
 
 func (s *TLSSettings) MakeTLSConfig() (*tls.Config, error) {
 	if s.UseTLSSelfConfig {
-		return ncrypto.GetTLSSelfConfig(), nil
+		return crypto.GetTLSSelfConfig(), nil
 	} else if s.ServeTLS {
 		// todo: this should be done earlier may be ?
 		cer, err := tls.LoadX509KeyPair(s.TLSCertFile, s.TLSKeyFile)
@@ -401,7 +401,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 	j.Logger().Warn().Msgf("incoming connection from %s", conn.RemoteAddr())
 
 	var chunkSize int64 = 1 * 1024 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
-	chunk := buffer.GetChunk(chunkSize)
+	chunk := bigbuf.GetChunk(chunkSize)
 
 	wm := metrics.Metric{}
 	wm.InitNew()

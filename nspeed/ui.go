@@ -20,8 +20,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"nspeed.app/helper/generics"
-	"nspeed.app/helper/html"
 	"nspeed.app/helper/str"
+	"nspeed.app/helper/web"
 	"nspeed.app/metrics"
 	"nspeed.app/nspeed/ui"
 	"nspeed.app/webview"
@@ -132,7 +132,7 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 }
 
 func (f *UIHost) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	html, err := html.InlineAssets(webview.ViewerTmplHTML, webview.StaticFiles, true)
+	html, err := web.InlineFromString(webview.ViewerTmplHTML, webview.StaticFiles, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -153,7 +153,7 @@ func (j *UIHost) PostRun() error {
 	url := j.Server.URL
 	if j.OpenBrowser {
 		j.Logger().Warn().Msgf("opening browser at %s", url)
-		return html.OpenBrowser(url.String(), nil, nil)
+		return web.OpenBrowser(url.String(), nil, nil)
 	}
 	return nil
 }

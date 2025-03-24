@@ -5,7 +5,7 @@ import "fmt"
 // TLS stuff
 // adapted from/inspired by https://github.com/signalsciences/tlstext
 
-// tls version to name is not in std lib ?!
+// tls "version to name" is not in std lib ?!
 var tlsversionMap = map[uint16]struct {
 	shortName    string
 	friendlyName string
@@ -27,7 +27,7 @@ func TLSVersionName(x uint16) string {
 	return s.shortName
 }
 
-// TLSVersionName return TLS version friendly name
+// TLSVersionName return TLS version user friendly name
 func TLSVersionFriendlyName(x uint16) string {
 	s, ok := tlsversionMap[x]
 	if !ok {

@@ -1,4 +1,4 @@
-package html
+package web
 
 import (
 	"bufio"
@@ -56,32 +56,40 @@ func removeImport(js string) string {
 	return out
 }
 
-// InlineHTML replaces:
+// Inline processes an HTML node tree, inlining external resources like scripts and stylesheets.
 //
-// <script src="..."></script>
-// with
-// <script>content of ...</script>
+// It traverses the HTML node tree, searching for <script> and <link> elements.
 //
-// and
+// For <script> elements with a "src" attribute:
+//   - It attempts to read the content of the script from the provided filesystem (fs) or via HTTP.
+//   - If successful, it replaces the <script> element's content with the fetched script code.
+//   - If the script tag has the attribute `removeimports="true"`, it will remove any `import ...;` statements from the script (this allows inlining of js modules)
+//   - If the URL is remote and doRemote is false, the script tag is left untouched.
 //
-// <link rel="stylesheet" href="..." />
-// with
-// <style>content of ...</style>
+// For <link> elements with "rel" set to "stylesheet" and an "href" attribute:
+//   - It attempts to read the content of the stylesheet from the provided filesystem (fs) or via HTTP (if doRemote is true).
+//   - If successful, it transforms the <link> element into a <style> element and inlines the fetched CSS code.
 //
-// parameter is parsed html to modify in place
-// see InlineAssets for a string to string version
-func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
-	if n.Type == html.ElementNode {
+// Parameters:
+//   - node: The current HTML node being processed.
+//   - fs: The filesystem to use for reading local resources.
+//   - doRemote: A boolean flag indicating whether to fetch remote resources via HTTP.
+//
+// Returns:
+//   - An error if any operation fails (e.g., reading a resource, parsing a URL).
+//   - nil if the operation is successful.
+func Inline(node *html.Node, fs fs.FS, doRemote bool) error {
+	if node.Type == html.ElementNode {
 		// <script src="..."></script>
-		if n.Data == "script" {
-			newAttr := make([]html.Attribute, 0, len(n.Attr))
+		if node.Data == "script" {
+			newAttr := make([]html.Attribute, 0, len(node.Attr))
 			removeImports := false
-			for _, s := range n.Attr {
+			for _, s := range node.Attr {
 				if s.Key == "removeimports" {
 					removeImports = s.Val == "true"
 				}
 			}
-			for _, s := range n.Attr {
+			for _, s := range node.Attr {
 				if s.Key == "src" {
 					// check the source
 					url, err := url.Parse(s.Val)
@@ -101,7 +109,7 @@ func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
 							Type: html.TextNode,
 							Data: "\n" + code + "\n",
 						}
-						n.FirstChild = &js
+						node.FirstChild = &js
 					} else {
 						newAttr = append(newAttr, s)
 					}
@@ -109,13 +117,13 @@ func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
 					newAttr = append(newAttr, s)
 				}
 			}
-			n.Attr = newAttr
+			node.Attr = newAttr
 		}
 		// <link rel="stylesheet" type="text/css" href="..." />
-		if n.Data == "link" {
+		if node.Data == "link" {
 			isCSS := false
 			href := ""
-			for _, s := range n.Attr {
+			for _, s := range node.Attr {
 				if s.Key == "rel" && s.Val == "stylesheet" {
 					isCSS = true
 				}
@@ -124,23 +132,23 @@ func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
 				}
 			}
 			if isCSS && href != "" {
-				n.Data = "style"
-				n.Attr = nil
+				node.Data = "style"
+				node.Attr = nil
 
 				css, err := readURI(href, fs)
 				if err != nil {
 					return err
 				}
 
-				n.FirstChild = &html.Node{
+				node.FirstChild = &html.Node{
 					Type: html.TextNode,
 					Data: "\n" + string(css) + "\n",
 				}
 			}
 		}
 	}
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		err := InlineHTML(child, fs, doRemote)
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		err := Inline(child, fs, doRemote)
 		if err != nil {
 			return err
 		}
@@ -148,16 +156,16 @@ func InlineHTML(n *html.Node, fs fs.FS, doRemote bool) error {
 	return nil
 }
 
-// InlineAssets takes parses source as HTML and replace all
-// script & style import elements with their content
-// and returns the corresponding HTML.
-func InlineAssets(source string, fs fs.FS, doRemote bool) (string, error) {
+// InlineFromString processes an HTML string, inlining external resources like scripts and stylesheets.
+//
+// See Inline for more details
+func InlineFromString(source string, fs fs.FS, doRemote bool) (string, error) {
 	root, err := html.Parse(strings.NewReader(source))
 	if err != nil {
 		return "", fmt.Errorf("html parse failed:%w", err)
 	}
 
-	err = InlineHTML(root, fs, doRemote)
+	err = Inline(root, fs, doRemote)
 	if err != nil {
 		return "", fmt.Errorf("inline html failed:%w", err)
 	}

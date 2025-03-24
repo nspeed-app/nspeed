@@ -26,11 +26,12 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"nspeed.app/helper/buffer"
+	"nspeed.app/helper/bigbuf"
 	"nspeed.app/helper/crypto"
 	"nspeed.app/helper/generics"
 	"nspeed.app/helper/humanize"
 	"nspeed.app/helper/network"
+	"nspeed.app/helper/ttlmap"
 	"nspeed.app/metrics"
 	nsutl "nspeed.app/nspeed/utils"
 )
@@ -51,11 +52,11 @@ const (
 var GUIDHeader = http.CanonicalHeaderKey("x-nspeed-guid")
 
 var StreamPathRegexp *regexp.Regexp
-var TTLGUIDCache *network.TTLCache[string, *metrics.Metric]
+var TTLGUIDCache *ttlmap.TTLMap[string, *metrics.Metric]
 
 func init() {
 	StreamPathRegexp = regexp.MustCompile("^(" + humanize.ByteUnitsRegexp + ")(\\.[a-zA-Z0-9]+)?$")
-	TTLGUIDCache = network.NewTTLCache[string, *metrics.Metric](20, TTLGuidMaxSize)
+	TTLGUIDCache = ttlmap.New[string, *metrics.Metric](20, TTLGuidMaxSize)
 }
 
 // the HTTP Server
@@ -307,15 +308,15 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we need a new cmd line parameter for max chunk size ?
 		// since huge chunksize can overload the server memory this is not safe
-		if chunkSize > buffer.MaxChunkSize {
-			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", buffer.MaxChunkSize), http.StatusBadRequest)
+		if chunkSize > bigbuf.MaxChunkSize {
+			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", bigbuf.MaxChunkSize), http.StatusBadRequest)
 			return
 		}
 		j.Logger().Info().Msgf("chunk_size set to %d", chunkSize)
 	}
 	// end danger zone
 
-	chunk := buffer.GetChunk(chunkSize)
+	chunk := bigbuf.GetChunk(chunkSize)
 
 	// content-type
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -457,8 +458,8 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 	if TTLGUIDCache != nil {
 		err := TTLGUIDCache.Set(guid, &wm, TTLGuidTimeout)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("cant set ttl cache : %s", err), http.StatusBadRequest)
-			wm.Logger().Error().Err(err).Msg("cant set ttl cache")
+			http.Error(w, fmt.Sprintf("cant set ttl guid cache : %s", err), http.StatusBadRequest)
+			wm.Logger().Error().Err(err).Msg("cant set ttl guid cache")
 			return
 		}
 	}
@@ -555,7 +556,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// do the upload
 	//n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, wm), BigBuffer)
-	n, err := buffer.Copy(wm, r.Body)
+	n, err := bigbuf.Copy(wm, r.Body)
 	// signal the evenutal ticker
 	close(done)
 

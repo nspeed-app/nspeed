@@ -24,7 +24,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
-	"nspeed.app/helper/buffer"
+	"nspeed.app/helper/bigbuf"
 	"nspeed.app/helper/crypto"
 	"nspeed.app/helper/humanize"
 	"nspeed.app/helper/network"
@@ -464,7 +464,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 					//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 					//todo: invesstigate why the following gives results too high
 
-					totalread, err := buffer.Copy(wm, resp.Body)
+					totalread, err := bigbuf.Copy(wm, resp.Body)
 
 					// b, err := io.ReadAll(resp.Body)
 					// if err != nil {
