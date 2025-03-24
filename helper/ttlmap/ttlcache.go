@@ -73,11 +73,11 @@ func (m *TTLMap[K, V]) Len() int {
 	return len(m.entries)
 }
 
-// Get returns and optionnaly delete an entry
+// Get returns an entry
 func (m *TTLMap[K, V]) Get(key K) (V, bool) {
+	defer m.mu.Unlock()
 	m.mu.Lock()
 	v, ok := m.entries[key]
-	m.mu.Unlock()
 	return v.value, ok
 }
 
@@ -103,10 +103,8 @@ func (m *TTLMap[K, V]) Set(key K, value V, ttl time.Duration) error {
 		case <-timer.C:
 			_ = m.Delete(key)
 		case <-c:
-			fmt.Println("m CLOSED")
 			timer.Stop()
 		}
-		fmt.Println(key, "exiting")
 	}(*m.close)
 	return nil
 }

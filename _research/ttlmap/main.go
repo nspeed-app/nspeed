@@ -13,6 +13,7 @@ var cache *ttlmap.TTLMap[string, int]
 func init() {
 	cache = ttlmap.New[string, int](20, 100)
 }
+
 func main2(loop int) {
 	err := cache.Set("one", 1, time.Second)
 	if err != nil {

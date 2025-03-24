@@ -18,7 +18,6 @@ import (
 	"golang.org/x/term"
 
 	"nspeed.app/helper/bigbuf"
-	"nspeed.app/helper/cpu"
 	"nspeed.app/helper/humanize"
 	"nspeed.app/helper/network"
 	"nspeed.app/helper/str"
@@ -304,7 +303,7 @@ func Main() {
 		return
 	}
 
-	log.Debug().Msgf("max cores = %d", cpu.MaxParallelism())
+	log.Debug().Msgf("max cores = %d/%d", runtime.GOMAXPROCS(-1), runtime.NumCPU())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
