@@ -9,9 +9,10 @@
 - ui: preview of ui, for now it's just a CLI/terminal in web page
 - charting: moved from chartjs to echarts. `-html` now produces working graphs. use `-rate` for graphing series.
 - charting: use `nspeed ui -viewer` special UI mode to open the json charts viewer (equiv: `-html :` from `-json` file)
-- experimental: disable Go GC during a batch
+- optimization: disable Go GC during a batch
 # v0.0.14
-- functions under "utils" splits in various, more clear packages. (a "utils" package is a bad practive ;)
+- major internal refactoring of packages. more packages open source'd to public repo.
+- `cmd/getroute` demo program for `nspeed.app/network` package
 # v0.0.13
 - deps: updated psutil to v4 to fix Darwin builds
 
