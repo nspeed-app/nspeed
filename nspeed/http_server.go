@@ -308,8 +308,8 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we need a new cmd line parameter for max chunk size ?
 		// since huge chunksize can overload the server memory this is not safe
-		if chunkSize > bigbuf.MaxChunkSize {
-			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", bigbuf.MaxChunkSize), http.StatusBadRequest)
+		if chunkSize > bigbuf.MaxBufferSize {
+			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", bigbuf.MaxBufferSize), http.StatusBadRequest)
 			return
 		}
 		j.Logger().Info().Msgf("chunk_size set to %d", chunkSize)

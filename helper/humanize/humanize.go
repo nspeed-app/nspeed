@@ -2,6 +2,7 @@
 // part of nspeed.app
 // SPDX-License-Identifier: BSD-3-Clause
 
+// Pacakge humanize provides various functions for human readable output/input
 package humanize
 
 import (
@@ -11,8 +12,6 @@ import (
 	"time"
 )
 
-// various functions for human readable output
-
 // prefixes
 const lcPrefixes = "kmgtpe"
 const ucPrefixes = "KMGTPE"
@@ -21,14 +20,14 @@ const decPrefixes = "kMGTPE"
 // regexp to parse prefixes (kilo,mega,giga,etc)
 const ByteUnitsRegexp = "[0-9]+[kmgtpeKMGTPE]?"
 
-// ByteCountDecimal format byte size to human readable format (decimal units, powers of 10)
-// suitable to append a unit name after (B, bps, etc)
+// ByteCountDecimal formats a number b of bytes to human readable format (decimal units, powers of 10)
+// suitable to append a unit name after (B, bps, etc).
 func ByteCountDecimal(b int64) string {
 	s, u := byteCount(b, 1000, decPrefixes)
 	return s + " " + u
 }
 
-// ByteCountBinary format byte size to human readable format (binary units, powers of 2)
+// ByteCountBinary formats a number b of bytes to human readable format (binary units, powers of 2)
 // suitable to append the unit name after (B, bps, etc)
 func ByteCountBinary(b int64) string {
 	s, u := byteCount(b, 1024, ucPrefixes)
@@ -39,14 +38,14 @@ func ByteCountBinary(b int64) string {
 
 }
 
-// FormatByteDecimalUnits format byte size to human readable format (decimal units)
+// FormatByteDecimalUnits formats a number b of bytes to human readable format (decimal units)
 // suitable to be parsed by ParseByteUnits
 func FormatByteDecimalUnits(b int64) string {
 	s, u := byteCount(b, 1000, lcPrefixes)
 	return s + u
 }
 
-// FormatByteDecimalUnits format byte size to human readable format (binary units)
+// FormatByteDecimalUnits formats a number b of bytes to human readable format (binary units)
 // suitable to be parsed by ParseByteUnits
 func FormatByteBinaryUnits(b int64) string {
 	s, u := byteCount(b, 1024, ucPrefixes)
@@ -69,7 +68,7 @@ func byteCount(b int64, unit int64, units string) (string, string) {
 	return fmt.Sprintf("%.1f", float64(b)/float64(div)), units[exp : exp+1]
 }
 
-// ParseByteUnits parse the string s for human friendly units of 2 or 10:
+// ParseByteUnits parses the string s for human friendly units of 2 or 10:
 //   - "<value>kmgtpe" powers of 2 (B) or
 //   - "<value>KMGTPE" powers of 10 (iB)
 //

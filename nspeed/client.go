@@ -421,8 +421,8 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 	j.wm.SetLogger(j.Logger())
 
 	// init metric data
-	j.wm.WriteStepSize = min(bigbuf.MaxChunkSize, 1*1024*1024)
-	j.wm.ReadStepSize = min(bigbuf.MaxChunkSize, 1*1024*1024)
+	j.wm.WriteStepSize = min(bigbuf.MaxBufferSize, 1*1024*1024)
+	j.wm.ReadStepSize = min(bigbuf.MaxBufferSize, 1*1024*1024)
 	chunk := bigbuf.GetChunk(j.wm.WriteStepSize)
 
 	cmd := ""
