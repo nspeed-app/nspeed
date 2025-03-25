@@ -910,7 +910,7 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 
 	// setup debug trace
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = network.GenerateQLogTracer(j.Logger())
+		quicConf.Tracer = GenerateQLogTracer(j.Logger())
 	}
 
 	quicServer := &http3.Server{

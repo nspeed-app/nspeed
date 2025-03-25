@@ -1,17 +1,22 @@
 package nspeed
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"nspeed/metrics"
 
+	"github.com/quic-go/quic-go"
 	quicgo "github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/logging"
+	"github.com/quic-go/quic-go/qlog"
 	"github.com/rs/zerolog"
 	"nspeed.app/network"
 )
@@ -19,7 +24,7 @@ import (
 func quicgoInit(j *JobClient) (*quicgo.Config, *quicgo.Transport) {
 	quicConf := &quicgo.Config{}
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = network.GenerateQLogTracer(j.Logger())
+		quicConf.Tracer = GenerateQLogTracer(j.Logger())
 	} else {
 		quicConf.Tracer = NewQuicTracer(j.wm)
 	}
@@ -146,4 +151,24 @@ func handleQUICGOStreams(ctx context.Context, j *L4Server, conn quicgo.Connectio
 		}
 		go j.handleConnection(quicgoStreamAsConn{str, conn})
 	}
+}
+
+func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) *logging.ConnectionTracer {
+	QLogTracer := func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) *logging.ConnectionTracer {
+		perspectiveNames := [...]string{"server", "client"}
+		perspectiveName := func(p logging.Perspective) string {
+			if p != 1 && p != 2 {
+				return "unknown"
+			}
+			return perspectiveNames[p-1]
+		}
+		filename := fmt.Sprintf("%s_%x.qlog", perspectiveName(p), connID)
+		f, err := os.Create(filename)
+		if err != nil {
+			log.Fatal().Err(err).Send()
+		}
+		log.Trace().Msgf("Creating qlog file %s.\n", filename)
+		return qlog.NewConnectionTracer(network.NewBufferedWriteCloser(bufio.NewWriter(f), f), p, connID)
+	}
+	return QLogTracer
 }
