@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 
-	"nspeed.app/nspeed"
+	"nspeed"
 )
 
 func localAddresses() {

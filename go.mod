@@ -24,7 +24,6 @@ require (
 	golang.org/x/term v0.30.0
 	golang.zx2c4.com/wireguard/windows v0.5.3
 	nspeed.app v0.0.0-00010101000000-000000000000
-	nspeed.app/nspeed v0.12.0
 )
 
 require (

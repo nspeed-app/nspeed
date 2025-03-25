@@ -28,12 +28,12 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"nspeed.app/anonymize"
 	"nspeed.app/crypto"
 	"nspeed.app/generics"
 	"nspeed.app/humanize"
 	"nspeed.app/iobuffer"
 	"nspeed.app/network"
-	nsutl "nspeed.app/nspeed/utils"
 	"nspeed.app/ttlmap"
 )
 
@@ -291,7 +291,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		return
 	}
 
-	// keep multplt of 16384
+	// keep multiples of 16384
 	var chunkSize int64 = 256 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
 
 	//danger zone - the cient is setting the chunk_size - be careful
@@ -483,7 +483,7 @@ func (j *JobHTTPServer) SendCachedMetrics(w http.ResponseWriter, guid string) {
 }
 
 func (j *JobHTTPServer) SendMetric(w http.ResponseWriter, wm *metrics.Metric) error {
-	m := wm.ToNetMetric(nsutl.FormatV4full, nsutl.FormatV6Full)
+	m := wm.ToNetMetric(anonymize.FormatV4full, anonymize.FormatV6Full)
 	result, err := json.MarshalIndent(m, "", "\t")
 	if err != nil {
 		_, err = fmt.Fprintf(w, "error formating metrics: %v", err)

@@ -14,10 +14,10 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"nspeed.app/anonymize"
 	"nspeed.app/crypto"
 	"nspeed.app/generics"
 	"nspeed.app/humanize"
-	nsutl "nspeed.app/nspeed/utils"
 )
 
 const gPrecision = 100 * time.Millisecond
@@ -611,7 +611,7 @@ func GenerateJSONReport(results *Metrics, tick time.Duration, command, fmtV4, fm
 
 func (wm *Metric) MarshalJSON() ([]byte, error) {
 	//log.Warn().Msgf("check me!")
-	return json.Marshal(wm.ToNetMetric(nsutl.FormatV4full, nsutl.FormatV6Full))
+	return json.Marshal(wm.ToNetMetric(anonymize.FormatV4full, anonymize.FormatV6Full))
 }
 
 func (wm *Metric) ToNetMetric(fmtV4, fmtV6 string) NetMetric {
@@ -635,7 +635,7 @@ func (wm *Metric) ToNetMetric(fmtV4, fmtV6 string) NetMetric {
 		RXCount:    wm.ReadCount,
 		TXCount:    wm.WriteCount,
 		Latency:    wm.AvgLatency,
-		Remote:     nsutl.AnonymizeNetIP(wm.Remote.Addr(), fmtV4, fmtV6) + ":" + nsutl.Uitoa(uint(wm.Remote.Port())),
+		Remote:     anonymize.AnonymizeNetIP(wm.Remote.Addr(), fmtV4, fmtV6) + ":" + anonymize.Uitoa(uint(wm.Remote.Port())),
 		Protocol:   wm.Protocol,
 		Cipher:     wm.Cipher,
 		TLSVersion: wm.TLSVersion,
@@ -648,10 +648,10 @@ func (wm *Metric) ToNetMetric(fmtV4, fmtV6 string) NetMetric {
 		nm.Interface = wm.Interface.Name
 	}
 	if wm.Gateway.IsValid() {
-		nm.Gateway = nsutl.AnonymizeNetIP(wm.Gateway, fmtV4, fmtV6)
+		nm.Gateway = anonymize.AnonymizeNetIP(wm.Gateway, fmtV4, fmtV6)
 	}
 	if wm.SourceAddr.IsValid() {
-		nm.SrcAddr = nsutl.AnonymizeNetIP(wm.SourceAddr.Addr(), fmtV4, fmtV6) + ":" + nsutl.Uitoa(uint(wm.SourceAddr.Port()))
+		nm.SrcAddr = anonymize.AnonymizeNetIP(wm.SourceAddr.Addr(), fmtV4, fmtV6) + ":" + anonymize.Uitoa(uint(wm.SourceAddr.Port()))
 	}
 	return nm
 }

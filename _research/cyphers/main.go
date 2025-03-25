@@ -4,9 +4,10 @@ import (
 	"context"
 	"os"
 
+	"nspeed"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	nspeed "nspeed.app/nspeed"
 )
 
 func main() {
