@@ -3,7 +3,7 @@
 // parts are from https://go.dev/
 // SPDX-License-Identifier: BSD-3-Clause
 
-package utils
+package anonymize
 
 import (
 	"net"
@@ -56,14 +56,12 @@ const (
 //   - an IPv6 conforming to RFC 5952 ("2001:db8::1"), if ip is a valid IPv6 address
 //   - the hexadecimal form of ip, without punctuation, if no other cases apply
 //
-// formatV4 and formatV6 are the list of indexes (starting from 1) for which to show their value.
-// IPv4 addresses are 4 bytes with indexes: 1.2.3.4
-// IPv6 addresses are 8 words (1 word = 2 bytes) with indexes: 1:2:3:4:5:6:7:8
-// A byte/word of the address is replaced with "xxx"/"xxxx" if its index is not
-// in the corresponding formatV4/formatV6
-// so 192.168.12.34 will return "192.168.xxx.xxx" is FormatV4 = "12"
-// and fe80::abcd:efab:1234:5678 will return "fe80::xxx:xxxx:xxxx:5678" if FormatV6="18"
-// This function and the 3 other functions it uses are copied and modified from net.IP.String() Go std lib
+// formatV4 and formatV6 specify which parts of the IP address to reveal.
+// IPv4 addresses have four parts (1.2.3.4), and IPv6 addresses have eight (1:2:3:4:5:6:7:8).
+// Parts not listed in formatV4/formatV6 are replaced with "xxx" (IPv4) or "xxxx" (IPv6).
+// For example, with formatV4="12", 192.168.12.34 becomes "192.168.xxx.xxx".
+// With formatV6="18", fe80::abcd:efab:1234:5678 becomes "fe80::xxx:xxxx:xxxx:5678".
+// This function, along with its helpers, is based on a modified version of net.IP.String() from the Go standard library.
 func AnonymizeIP(ip net.IP, formatV4 string, formatV6 string) string {
 	p := ip
 

@@ -1,3 +1,17 @@
+# v0.0.15
+- client: **new flag** repeat flag `-r n` allow to repeat the command `n` times. The client we'll try to reuse the connection if possible.
+- bench: **breaking change** HTTP/1.1 benchmark names are now consistent with HTTP/2 (`h1g` is with tls, `h1cg` without)
+- bench: `-id` are now names of the benchmarks
+- general: `-id` values now support double-quoted values (`-id "my id"`)
+- using [`go 1.24.1`](https://tip.golang.org/doc/devel/release#go1.24.0)
+- general: `-pre` or `post` delays implemented for `then`
+- general: **new flag** `-buffer value` allows to set the buffer size used for i/o operations (-1 for max value, 0 for Go default)
+- ui: preview of ui, for now it's just a CLI/terminal in web page
+- charting: moved from chartjs to echarts. `-html` now produces working graphs. use `-rate` for graphing series.
+- charting: use `nspeed ui -viewer` special UI mode to open the json charts viewer (equiv: `-html :` from `-json` file)
+- experimental: disable Go GC during a batch
+# v0.0.14
+- functions under "utils" splits in various, more clear packages. (a "utils" package is a bad practive ;)
 # v0.0.13
 - deps: updated psutil to v4 to fix Darwin builds
 

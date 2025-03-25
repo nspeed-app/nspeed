@@ -2,7 +2,9 @@
 // parts of nspeed.app
 // parts are from https://go.dev/
 // SPDX-License-Identifier: BSD-3-Clause
-package utils
+
+// Package ping allows to perform network 'ping' operations. See Ping.Ping(...).
+package ping
 
 import (
 	"fmt"
@@ -16,6 +18,8 @@ import (
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
+	"nspeed.app/nspeed/iana"
+	"nspeed.app/nspeed/network"
 )
 
 type PingOptions struct {
@@ -68,12 +72,13 @@ func allocBuffer() {
 var count atomic.Int32
 
 // Ping performs a single ICMP echo request to destination.
-// On Unix platforms requires root or cap_net_raw capability
-// This is not thread safe even at the OS level safe (a concurrent ping or mtr will impact result)
-// the Seq doesn't seem to be used by the icmp package
+// On Unix platforms requires root or cap_net_raw capability.
+//
+// This is not thread safe even at the OS level safe (a concurrent ping or mtr will impact the result)
+// the Seq doesn't seem to be used by the Go x/net/icmp package
 func Ping(destination string, options PingOptions) (peer net.Addr, ping time.Duration, response PingResponse, err error) {
 
-	destAddr, err := Resolve(destination, options.Version)
+	destAddr, err := network.Resolve(destination, options.Version)
 	if err != nil {
 		return
 	}
@@ -88,12 +93,12 @@ func Ping(destination string, options PingOptions) (peer net.Addr, ping time.Dur
 	network := "ip6:ipv6-icmp"
 	laddr := "::"
 	var itype icmp.Type = ipv6.ICMPTypeEchoRequest
-	protonumber := ProtocolIPv6ICMP
+	protonumber := iana.ProtocolIPv6ICMP
 	if isIPv4 {
 		network = "ip4:icmp"
 		laddr = "0.0.0.0"
 		itype = ipv4.ICMPTypeEcho
-		protonumber = ProtocolICMP
+		protonumber = iana.ProtocolICMP
 	}
 
 	c, err := icmp.ListenPacket(network, laddr)
