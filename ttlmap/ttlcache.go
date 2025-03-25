@@ -25,7 +25,7 @@
 // Features:
 //   - Thread-safe: Safe for concurrent access.
 //   - TTL expiration: Entries automatically expire after a specified duration.
-//   - Configurable capacity: Set initial and maximum capacity.
+//   - Configurable capacity: Set initial and maximum capacity (optional)
 //   - Manual deletion: Entries can be manually deleted.
 //   - Generic: Support any type for key and value.
 //

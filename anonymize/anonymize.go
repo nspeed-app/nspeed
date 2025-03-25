@@ -47,21 +47,25 @@ const (
 	FormatV6FirstLast = "18"
 )
 
-// AnonymizeIP is similar to net.IP.String(): it returns the string form of an IP address.
-// Some parts of the address are replaced by "xxx"/"xxxx" depending on the formatV4 and formatV6
-// parameters.
-// It returns one of 4 forms:
-//   - "<nil>", if ip has length 0
-//   - a dotted decimal IPV4 ("192.0.2.1"), if ip is an IPv4 or IP4-mapped IPv6 address
-//   - an IPv6 conforming to RFC 5952 ("2001:db8::1"), if ip is a valid IPv6 address
-//   - the hexadecimal form of ip, without punctuation, if no other cases apply
+// AnonymizeIP converts an IP address to a string representation but with the option to obscure parts of the address.
 //
-// formatV4 and formatV6 specify which parts of the IP address to reveal.
-// IPv4 addresses have four parts (1.2.3.4), and IPv6 addresses have eight (1:2:3:4:5:6:7:8).
-// Parts not listed in formatV4/formatV6 are replaced with "xxx" (IPv4) or "xxxx" (IPv6).
-// For example, with formatV4="12", 192.168.12.34 becomes "192.168.xxx.xxx".
-// With formatV6="18", fe80::abcd:efab:1234:5678 becomes "fe80::xxx:xxxx:xxxx:5678".
-// This function, along with its helpers, is based on a modified version of net.IP.String() from the Go standard library.
+// The function supports IPv4 and IPv6 addresses and returns one of the following:
+//   - "<nil>" if the input IP has zero length.
+//   - A dotted-decimal IPv4 string (e.g., "192.0.2.1") for IPv4 or IPv4-mapped IPv6 addresses.
+//   - An RFC 5952-compliant IPv6 string (e.g., "2001:db8::1") for valid IPv6 addresses.
+//   - A hexadecimal string (without punctuation) if the IP address doesn't fit the above formats.
+//
+// The `formatV4` and `formatV6` parameters control which parts of the IP are visible.
+// IPv4 addresses are divided into four segments (1.2.3.4), and IPv6 into eight (1:2:3:4:5:6:7:8).
+// Segments not included in `formatV4` or `formatV6` are replaced with "xxx" (for IPv4) or "xxxx" (for IPv6).
+//
+// Examples:
+//   - With `formatV4="12"`, "192.168.12.34" becomes "192.168.xxx.xxx".
+//   - With `formatV6="18"`, "fe80::abcd:efab:1234:5678" becomes "fe80::xxxx:xxxx:xxxx:5678".
+//
+// This function and its helper functions are adapted from the net.IP.
+//
+// () implementation in the Go standard library.
 func AnonymizeIP(ip net.IP, formatV4 string, formatV6 string) string {
 	p := ip
 
