@@ -8,8 +8,8 @@ import (
 	"text/template"
 
 	"github.com/rs/zerolog/log"
-	"nspeed.app/helper/str"
-	"nspeed.app/helper/web"
+	"nspeed.app/str"
+	"nspeed.app/web"
 )
 
 //go:embed statics/viewer-echarts.html

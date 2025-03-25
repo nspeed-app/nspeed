@@ -13,6 +13,7 @@ import (
 	"net/netip"
 	"net/textproto"
 	"net/url"
+	"nspeed/metrics"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -24,11 +25,10 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
-	"nspeed.app/helper/bigbuf"
-	"nspeed.app/helper/crypto"
-	"nspeed.app/helper/humanize"
-	"nspeed.app/helper/network"
-	"nspeed.app/metrics"
+	"nspeed.app/crypto"
+	"nspeed.app/humanize"
+	"nspeed.app/iobuffer"
+	"nspeed.app/network"
 )
 
 // HTTP specific client code - complement of client.go
@@ -245,7 +245,11 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 			if err != nil {
 				wm.Logger().Debug().Err(err).Msgf("error parsing local address:%s", connInfo.Conn.LocalAddr())
 			}
-			j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr, _ = network.GetRoute(j.GetDestination())
+			j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr, err = network.GetRouteFromAddrPort(j.GetDestination())
+			if err != nil {
+				wm.Logger().Error().Err(err).Msgf("ClientTrace-GotConn")
+				return
+			}
 			wm.Logger().Trace().Msgf("ClientTrace-GotConn: %v", j.tr.gotConn.Sub(refdate))
 			wm.Logger().Debug().Msgf("GotConn - interface,gw,src: %s %s %s", wm.Interface.Name, wm.Gateway.String(), wm.SourceAddr.String())
 		},
@@ -464,7 +468,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 					//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 					//todo: invesstigate why the following gives results too high
 
-					totalread, err := bigbuf.Copy(wm, resp.Body)
+					totalread, err := iobuffer.Copy(wm, resp.Body)
 
 					// b, err := io.ReadAll(resp.Body)
 					// if err != nil {

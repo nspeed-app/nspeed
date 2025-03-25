@@ -17,14 +17,16 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
 
-	"nspeed.app/helper/bigbuf"
-	"nspeed.app/helper/humanize"
-	"nspeed.app/helper/network"
-	"nspeed.app/helper/str"
-	"nspeed.app/metrics"
-	"nspeed.app/nspeed"
-	nsutl "nspeed.app/nspeed/utils"
-	"nspeed.app/webview"
+	"nspeed/metrics"
+	"nspeed/nspeed"
+
+	"nspeed/webview"
+
+	"nspeed.app/anonymize"
+	"nspeed.app/humanize"
+	"nspeed.app/iobuffer"
+	"nspeed.app/network"
+	"nspeed.app/str"
 )
 
 // global flags
@@ -69,8 +71,8 @@ var optDNSServer = flag.String("dns-server", "", "specify a dns server to use (l
 var optIPv4 = flag.Bool("4", false, "use IPv4 only")
 var optIPv6 = flag.Bool("6", false, "use IPv6 only")
 
-var optFormatV4 = flag.String("formatV4", nsutl.FormatV4First, "specific anonymizer format for IPv4 addresses")
-var optFormatV6 = flag.String("formatV6", nsutl.FormatV6FirstLast, "specific anonymizer format for IPv6 addresses")
+var optFormatV4 = flag.String("formatV4", anonymize.FormatV4First, "specific anonymizer format for IPv4 addresses")
+var optFormatV6 = flag.String("formatV6", anonymize.FormatV6FirstLast, "specific anonymizer format for IPv6 addresses")
 
 var optDefaultClientTimeout = flag.Duration("maxtime", 8*time.Second, "maximum default duration of each commands")
 
@@ -265,7 +267,7 @@ func Main() {
 
 	var err error
 	if *optUseBuffer != 0 {
-		if globalOptions.Buffer, err = bigbuf.UseBuffer(*optUseBuffer); err != nil {
+		if globalOptions.Buffer, err = iobuffer.UseBuffer(*optUseBuffer); err != nil {
 			log.Fatal().Err(err).Msg("error setting buffer size")
 		}
 		log.Warn().Msgf("Buffer size is %s", humanize.FormatByteBinaryUnits(globalOptions.Buffer))
@@ -358,6 +360,7 @@ func Main() {
 		}
 		waitChan <- err
 	}()
+
 	// assumes all jobs are running
 
 	//////////////////
@@ -383,6 +386,11 @@ mainloop:
 			log.Info().Msgf("all jobs ended")
 			break mainloop
 		}
+	}
+
+	// test mode
+	if globalOptions.Test {
+		os.Exit(0)
 	}
 
 	log.Debug().Msgf("main loop ended. total results: %d / active goroutines: %d", len(results.Metrics), runtime.NumGoroutine())

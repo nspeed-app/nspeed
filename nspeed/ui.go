@@ -16,15 +16,18 @@ import (
 	"sync"
 	"time"
 
+	"nspeed/metrics"
+
+	"nspeed/nspeed/ui"
+
+	"nspeed/webview"
+
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/helper/generics"
-	"nspeed.app/helper/str"
-	"nspeed.app/helper/web"
-	"nspeed.app/metrics"
-	"nspeed.app/nspeed/ui"
-	"nspeed.app/webview"
+	"nspeed.app/generics"
+	"nspeed.app/str"
+	"nspeed.app/web"
 )
 
 //go:embed embed/ui/*

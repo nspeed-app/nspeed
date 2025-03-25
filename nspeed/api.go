@@ -15,12 +15,13 @@ import (
 
 	_ "embed"
 
+	"nspeed/metrics"
+	"nspeed/webview"
+
 	"github.com/rs/zerolog"
-	"nspeed.app/helper/generics"
-	"nspeed.app/helper/str"
-	"nspeed.app/helper/web"
-	"nspeed.app/metrics"
-	"nspeed.app/webview"
+	"nspeed.app/generics"
+	"nspeed.app/str"
+	"nspeed.app/web"
 )
 
 const APIVersion string = "1.0"

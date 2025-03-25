@@ -7,9 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"nspeed/metrics"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/metrics"
 )
 
 type Job interface {
@@ -77,6 +78,8 @@ type JobList struct {
 	Groups            map[string][]Job
 	Batches           []*Batch
 	currentBatchEmpty bool
+	currentID         int
+	ids               map[string]int
 }
 
 func NewJoblist() *JobList {
@@ -85,6 +88,7 @@ func NewJoblist() *JobList {
 		Groups:            make(map[string][]Job),
 		Batches:           make([]*Batch, 0, 1),
 		currentBatchEmpty: false,
+		ids:               make(map[string]int),
 	}
 }
 
@@ -164,4 +168,22 @@ func (jl *JobList) BatcheNames() []string {
 		batches = append(batches, b.Name)
 	}
 	return batches
+}
+
+// NextBatchID returns the next value from a counter
+func (jl *JobList) NextBatchID() int {
+	jl.currentID++
+	return jl.currentID
+}
+
+// MakeID returns a unique id made from the provided name
+//
+//	MakeID("foo"," ") will produce: "foo", "foo 1", "foo 3", etc
+func (jl *JobList) MakeID(name string, sep string) string {
+	if _, ok := jl.ids[name]; !ok {
+		jl.ids[name] = 0
+		return name
+	}
+	jl.ids[name]++
+	return name + sep + strconv.Itoa(jl.ids[name])
 }

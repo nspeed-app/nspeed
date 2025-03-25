@@ -9,10 +9,11 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"nspeed/metrics"
+
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
-	"nspeed.app/helper/network"
-	"nspeed.app/metrics"
+	"nspeed.app/network"
 )
 
 func quicgoInit(j *JobClient) (*quicgo.Config, *quicgo.Transport) {

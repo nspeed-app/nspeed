@@ -16,12 +16,13 @@ import (
 	"time"
 	_ "unsafe" //
 
+	"nspeed/metrics"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/cpu"
-	"nspeed.app/helper/crypto"
-	"nspeed.app/helper/network"
-	"nspeed.app/metrics"
+	"nspeed.app/crypto"
+	"nspeed.app/network"
 )
 
 // from: https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/

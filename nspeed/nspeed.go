@@ -11,9 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"nspeed/metrics"
+
 	"github.com/rs/zerolog/log"
-	"nspeed.app/helper/network"
-	"nspeed.app/metrics"
+	"nspeed.app/network"
 )
 
 type Options struct {

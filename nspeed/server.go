@@ -17,13 +17,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"nspeed/metrics"
+
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"
-	"nspeed.app/helper/bigbuf"
-	"nspeed.app/helper/crypto"
-	"nspeed.app/helper/humanize"
-	"nspeed.app/helper/network"
-	"nspeed.app/metrics"
+	"nspeed.app/crypto"
+	"nspeed.app/humanize"
+	"nspeed.app/iobuffer"
+	"nspeed.app/network"
 )
 
 type TLSSettings struct {
@@ -401,7 +402,7 @@ func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*re
 	j.Logger().Warn().Msgf("incoming connection from %s", conn.RemoteAddr())
 
 	var chunkSize int64 = 1 * 1024 * 1024 // todo: move this in a parameter/const, have the client send it eventually or be adaptative?
-	chunk := bigbuf.GetChunk(chunkSize)
+	chunk := iobuffer.GetChunk(chunkSize)
 
 	wm := metrics.Metric{}
 	wm.InitNew()

@@ -14,9 +14,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/helper/crypto"
-	"nspeed.app/helper/generics"
-	"nspeed.app/helper/humanize"
+	"nspeed.app/crypto"
+	"nspeed.app/generics"
+	"nspeed.app/humanize"
 	nsutl "nspeed.app/nspeed/utils"
 )
 

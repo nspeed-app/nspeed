@@ -1,7 +1,7 @@
 package main
 
 import (
-	nspeed "nspeed.app/cmd"
+	nspeed "nspeed/cmd"
 )
 
 func main() {

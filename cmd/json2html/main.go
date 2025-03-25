@@ -8,8 +8,9 @@ import (
 	"log"
 	"os"
 
-	"nspeed.app/helper/web"
-	"nspeed.app/webview"
+	"nspeed/webview"
+
+	"nspeed.app/web"
 )
 
 func main() {

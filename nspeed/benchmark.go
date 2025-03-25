@@ -1,6 +1,8 @@
 package nspeed
 
-import "sort"
+import (
+	"sort"
+)
 
 // banchmark commands, same as nspeed cmd line arguments
 // in Go template format

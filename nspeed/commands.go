@@ -14,9 +14,9 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/helper/humanize"
-	"nspeed.app/helper/str"
-	"nspeed.app/helper/web"
+	"nspeed.app/humanize"
+	"nspeed.app/str"
+	"nspeed.app/web"
 )
 
 // commands
@@ -80,9 +80,6 @@ var CommandDescriptions = map[string]string{
 // global flags
 var OptTLSSelf = false
 
-// global ID for batches
-var batchID = 1
-
 // find command ,try full match first then partial unless ambiguous
 func IsCommand(cmd string) (Command, error) {
 	c, ok := Commands[cmd]
@@ -107,9 +104,12 @@ func IsCommand(cmd string) (Command, error) {
 }
 
 // ParseCommand parses cmdargs for command and its arguments.
+//
 // Commands without a dedicated Parse() method are parsed here.
-// adds work to Job list jl
-// returns the remainder of cmdargs.
+//
+// Parsed jobs are added to the job list jl.
+//
+// Returns the remainder of cmdargs.
 func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Writer) ([]string, error) {
 	cs, ok := Commands[command]
 	if !ok {
@@ -180,7 +180,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			CArgs: argsLine,
 			N:     *nStreams,
 			Size:  *size,
-			ID:    batchID,
+			ID:    jl.NextBatchID(),
 		}
 		for _, arg := range benchs {
 			ct, ok := benchmarksTemplates[arg]
@@ -190,15 +190,13 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			tpl := template.New("T")
 			t := template.Must(tpl.Parse(ct.Tpl))
 
-			values.ID = batchID
-			values.CArgs = argsLine + ` -id "` + ct.Name + " " + fmt.Sprint(batchID) + `"`
-
+			values.ID = jl.NextBatchID()
+			values.CArgs = argsLine + ` -id "` + jl.MakeID(ct.Name, " ") + `"`
 			var c bytes.Buffer
 			if err := t.Execute(&c, values); err != nil {
 				log.Fatal().Err(err).Send()
 			}
 			cmd := str.Fields(c.String())
-			batchID++
 			log.Info().Msgf("benchmark: %s", cmd)
 			err := ParseCommands(cmd, jl, output, false)
 			if err != nil {
@@ -298,17 +296,21 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		}
 		args := fs.Args()
 		return args, nil
-	// case latencyCommand, tracerouteCommand:
-	// 	return args, nil, errors.New("not yet implemented")
 	default:
 		return cmdargs, errors.New("unknown command")
 	}
 }
 
-// flag parsing - thx to https://github.com/artyom for hints
+// Thx to https://github.com/artyom for hints for ParseCommands
+
+// ParseCommands parses multiple commands
+//
 // make sure global args are parsed first
-// this allow parsing of the form
-// program [global flags] command1 .... commandN
+//
+// this allow parsing of the form:
+//
+//	program [global flags] command1 .... commandN
+//
 // where commandX = command [local flags] [args]
 func ParseCommands(rawArgs []string, joblist *JobList, output io.Writer, fromAPI bool) error {
 	args := rawArgs

@@ -9,9 +9,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"nspeed/metrics"
+
 	"golang.org/x/net/quic"
-	"nspeed.app/helper/network"
-	"nspeed.app/metrics"
+	"nspeed.app/network"
 )
 
 // func quicClientInit(j *JobClient) (*quic.Config, *quic.Endpoint) {

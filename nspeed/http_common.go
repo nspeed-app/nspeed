@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"nspeed.app/helper/humanize"
+	"nspeed.app/humanize"
 )
 
 // mostly from go-httbin - todo: refactor / rewrite this

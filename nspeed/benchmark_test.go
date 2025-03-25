@@ -20,6 +20,15 @@ func TestBenchs(t *testing.T) {
 	}
 }
 
+func TestAllBenchs(t *testing.T) {
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	v := strings.Join(benchKeys, ",")
+	fmt.Println(v)
+	t.Run(v, func(t *testing.T) {
+		runBench(t, v, 2)
+	})
+}
+
 // run bench for dur seconds
 func runBench(t *testing.T, bench string, dur int) {
 	// t.Helper() - investigate

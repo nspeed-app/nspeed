@@ -19,15 +19,16 @@ import (
 	"syscall"
 	"time"
 
+	"nspeed/metrics"
+
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/quic"
-	"nspeed.app/helper/bigbuf"
-	"nspeed.app/helper/crypto"
-	"nspeed.app/helper/generics"
-	"nspeed.app/helper/humanize"
-	"nspeed.app/helper/network"
-	"nspeed.app/metrics"
+	"nspeed.app/crypto"
+	"nspeed.app/generics"
+	"nspeed.app/humanize"
+	"nspeed.app/iobuffer"
+	"nspeed.app/network"
 )
 
 // supported L4Protocols
@@ -415,15 +416,15 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 	if err != nil {
 		j.Logger().Debug().Err(err).Msgf("error parsing remote address: %s", conn.RemoteAddr().String())
 	}
-	j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr, _ = network.GetRoute(conn.RemoteAddr().String())
+	j.wm.Interface, j.wm.Gateway, j.wm.RouteSourceAddr, _ = network.GetRouteFromAddrPort(conn.RemoteAddr().String())
 	j.wm.SetTLSInfo(conn)
 	// set the logger for this metric
 	j.wm.SetLogger(j.Logger())
 
 	// init metric data
-	j.wm.WriteStepSize = min(bigbuf.MaxBufferSize, 1*1024*1024)
-	j.wm.ReadStepSize = min(bigbuf.MaxBufferSize, 1*1024*1024)
-	chunk := bigbuf.GetChunk(j.wm.WriteStepSize)
+	j.wm.WriteStepSize = min(iobuffer.MaxBufferSize, 1*1024*1024)
+	j.wm.ReadStepSize = min(iobuffer.MaxBufferSize, 1*1024*1024)
+	chunk := iobuffer.GetChunk(j.wm.WriteStepSize)
 
 	cmd := ""
 	total := int64(0)

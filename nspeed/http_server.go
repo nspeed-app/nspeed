@@ -20,20 +20,21 @@ import (
 	"sync"
 	"time"
 
+	"nspeed/metrics"
+
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"nspeed.app/helper/bigbuf"
-	"nspeed.app/helper/crypto"
-	"nspeed.app/helper/generics"
-	"nspeed.app/helper/humanize"
-	"nspeed.app/helper/network"
-	"nspeed.app/helper/ttlmap"
-	"nspeed.app/metrics"
+	"nspeed.app/crypto"
+	"nspeed.app/generics"
+	"nspeed.app/humanize"
+	"nspeed.app/iobuffer"
+	"nspeed.app/network"
 	nsutl "nspeed.app/nspeed/utils"
+	"nspeed.app/ttlmap"
 )
 
 // name of product, used in user-agent
@@ -308,15 +309,15 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		}
 		// todo- for now we limit chunkSize to maxBodySize. do we need a new cmd line parameter for max chunk size ?
 		// since huge chunksize can overload the server memory this is not safe
-		if chunkSize > bigbuf.MaxBufferSize {
-			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", bigbuf.MaxBufferSize), http.StatusBadRequest)
+		if chunkSize > iobuffer.MaxBufferSize {
+			http.Error(w, fmt.Sprintf("chunk size too big (max allowed is %d)", iobuffer.MaxBufferSize), http.StatusBadRequest)
 			return
 		}
 		j.Logger().Info().Msgf("chunk_size set to %d", chunkSize)
 	}
 	// end danger zone
 
-	chunk := bigbuf.GetChunk(chunkSize)
+	chunk := iobuffer.GetChunk(chunkSize)
 
 	// content-type
 	w.Header().Set("Content-Type", "application/octet-stream")
@@ -556,7 +557,7 @@ func (j *JobHTTPServer) Upload(w http.ResponseWriter, r *http.Request) {
 
 	// do the upload
 	//n, err := io.CopyBuffer(io.Discard, io.TeeReader(r.Body, wm), BigBuffer)
-	n, err := bigbuf.Copy(wm, r.Body)
+	n, err := iobuffer.Copy(wm, r.Body)
 	// signal the evenutal ticker
 	close(done)
 
