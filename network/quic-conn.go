@@ -9,22 +9,23 @@ import (
 	"golang.org/x/net/quic"
 )
 
-// wip. x/net/quic isn't yet production ready
+// WIP. x/net/quic isn't yet production ready
+
 // quicStreamAsConn (temporary name) is a quic.Stream which satisfies the net.Conn interface
 type quicStreamAsConn struct {
 	*quic.Stream
-	c           *quic.Conn
+	c           *quic.Conn // quic.Stream doesn't expose its Conn so we must store it here
 	readCtx     context.Context
 	writeCtx    context.Context
 	readCancel  context.CancelFunc
 	writeCancel context.CancelFunc
 }
 
-// we can enforces here that quicStreamAsConn implements net.Conn
+// we can enforces here that quicStreamAsConn implements net.Conn with:
 // var _ net.Conn = (*quicStreamAsConn)(nil)
 // but NewQuicStreamAsConn does it already
 
-// NewQuicStreamAsConn exposes a net.Conn interface on a quic.Stream
+// NewQuicStreamAsConn wraps a quic.Stream to provide a net.Conn interface.
 func NewQuicStreamAsConn(stream *quic.Stream, qconn *quic.Conn) net.Conn {
 	// should we refuse nil args?
 	return &quicStreamAsConn{
@@ -97,7 +98,6 @@ func (str *quicStreamAsConn) LocalAddr() net.Addr {
 	if str.c == nil {
 		return &net.UDPAddr{}
 	}
-	// nyi in std lib, use x/net fork. see https://github.com/golang/go/issues/70138
 	return net.UDPAddrFromAddrPort(str.c.LocalAddr())
 }
 
@@ -105,12 +105,12 @@ func (str *quicStreamAsConn) RemoteAddr() net.Addr {
 	if str.c == nil {
 		return &net.UDPAddr{}
 	}
-	// nyi in std lib, use x/net fork. see https://github.com/golang/go/issues/70138
 	return net.UDPAddrFromAddrPort(str.c.RemoteAddr())
 }
 
 // end of net.Conn Interface
 
+// Flush attempts to flush any buffered data in the underlying quic.Stream.
 func (str *quicStreamAsConn) Flush() error {
 	if str.Stream == nil {
 		return fmt.Errorf("no stream to flush")
