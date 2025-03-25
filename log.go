@@ -14,7 +14,7 @@ import (
 var BasePath string
 var Logger *slog.Logger
 
-// this allows to sey the base path to the directory containingg this file
+// this allows to seytthe base path to the directory containing this file
 func init() {
 	BasePath = logging.ThisBasePath()
 	Logger = logging.NewSLogger(os.Stderr, slog.LevelInfo, BasePath)
