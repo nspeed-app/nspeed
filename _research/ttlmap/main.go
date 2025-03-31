@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"time"
 
-	"nspeed.app/helper/ttlmap"
+	"nspeed.app/ttlmap"
 )
 
 var cache *ttlmap.TTLMap[string, int]

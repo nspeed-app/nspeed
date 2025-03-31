@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 
-	"nspeed"
+	"nspeed.app/network"
 )
 
 func localAddresses() {
@@ -41,7 +41,7 @@ func main() {
 	}
 	for _, a := range os.Args[1:] {
 		fmt.Printf("calling ResolveInterfaceHostAddress for %s\n", a)
-		ipaddrs, err := nspeed.ResolveInterfaceHostAddress(a)
+		ipaddrs, err := network.ResolveInterfaceHostAddress(a)
 		if err != nil {
 			fmt.Printf("%s\n", err)
 		}
