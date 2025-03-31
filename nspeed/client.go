@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -67,6 +68,7 @@ type JobClient struct {
 	finalTarget string
 	targetURL   *url.URL
 	wm          *metrics.Metric
+	closer      *io.Closer
 }
 
 func (j *JobClient) GoString() string {
@@ -269,6 +271,27 @@ func (j *JobClient) Init(opt Options) error {
 	}
 }
 
+func (j *JobClient) Close() error {
+	if j.closer == nil {
+		return nil
+	}
+	if *j.closer == nil {
+		return nil
+	}
+	err := (*j.closer).Close()
+	j.closer = nil
+	return err
+}
+
+func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metrics.Metric, error) {
+	defer wg.Done()
+	defer j.Close()
+	if j.Protocol == "HTTP" {
+		return j.HTTPRun(ctx, opt)
+	}
+	return j.L4Run(ctx, opt)
+}
+
 func (j *JobClient) L4Init() error {
 
 	if !slices.Contains(L4Protocols[:], j.Protocol) {
@@ -344,7 +367,8 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 		}
 
 	case "QUIC-GO":
-		quicConfig, quicTransport := quicgoInit(j)
+		quicConfig := quicgoInit(j)
+		var quicTransport *quicgo.Transport
 		if j.tlsConfig == nil {
 			return nil, fmt.Errorf("quic-go client error: no tls config")
 		}
@@ -362,6 +386,8 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 					return nil, fmt.Errorf("error for local port: %v", err)
 				}
 				quicTransport = &quicgo.Transport{Conn: udpConn}
+				var closer io.Closer = udpConn
+				j.closer = &closer
 			}
 			conn, err := quicTransport.Dial(ctx, addr, j.tlsConfig, quicConfig)
 			if err != nil {

@@ -3,8 +3,11 @@ package nspeed
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -15,39 +18,12 @@ import (
 
 	"github.com/quic-go/quic-go"
 	quicgo "github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/quic-go/logging"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/rs/zerolog"
 	"nspeed.app/network"
 )
-
-func quicgoInit(j *JobClient) (*quicgo.Config, *quicgo.Transport) {
-	quicConf := &quicgo.Config{}
-	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = GenerateQLogTracer(j.Logger())
-	} else {
-		quicConf.Tracer = NewQuicTracer(j.wm)
-	}
-
-	// with use http3.Transport but it doesnt expose its qTransport member field so we must use our own
-	var qTransport *quicgo.Transport
-	defer func() {
-		if qTransport != nil {
-			j.logger.Debug().Msg("closing local quic-go transport")
-			qTransport.Close()
-			qTransport = nil
-		}
-	}()
-
-	// since we use Dialcontext we need to set a proper local *net.UDPAddr for LocalAddr
-	if j.localAddr != nil {
-		j.dialer.LocalAddr = &net.UDPAddr{
-			IP:   j.localAddr.IP,
-			Zone: j.localAddr.Zone,
-		}
-	}
-	return quicConf, qTransport
-}
 
 // quicgoStreamAsConn make a quicgo Stream a net.Conn interface
 type quicgoStreamAsConn struct {
@@ -171,4 +147,61 @@ func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging
 		return qlog.NewConnectionTracer(network.NewBufferedWriteCloser(bufio.NewWriter(f), f), p, connID)
 	}
 	return QLogTracer
+}
+
+// client
+
+// todo: remove dep from JobClient using a new interface or more arguments.
+
+func quicgoInit(j *JobClient) *quicgo.Config {
+	quicConf := &quicgo.Config{}
+	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
+		quicConf.Tracer = GenerateQLogTracer(j.Logger())
+	} else {
+		quicConf.Tracer = NewQuicTracer(j.wm)
+	}
+
+	// since we use Dialcontext we need to set a proper local *net.UDPAddr for LocalAddr
+	if j.localAddr != nil {
+		j.dialer.LocalAddr = &net.UDPAddr{
+			IP:   j.localAddr.IP,
+			Zone: j.localAddr.Zone,
+		}
+	}
+	return quicConf
+}
+
+// todo: remove dep from JobClient using a new interface or more arguments.
+func NewQUICGOHTTP3Transport(netTransport *http.Transport, j *JobClient) (http.RoundTripper, *io.Closer) {
+	quicConf := quicgoInit(j)
+	var qTransport *quicgo.Transport
+	var closer io.Closer
+	// the roundtrip
+	rtTransport := &http3.Transport{
+		DisableCompression: true,
+		TLSClientConfig:    netTransport.TLSClientConfig,
+		QUICConfig:         quicConf,
+		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quicgo.Config) (quicgo.EarlyConnection, error) {
+			j.Logger().Debug().Msgf("HTTP3 pre dialing %s ", addr)
+			udpAddr, err := netTransport.DialContext(ctx, "udp", addr)
+			if err != nil {
+				return nil, fmt.Errorf("htt3 Dial failed: %w", err)
+			}
+			if qTransport == nil {
+				// check for Zone on IPv6 link-local for instance, some OS might need the Zone too
+				udpConn, err := net.ListenUDP("udp", nil)
+				if err != nil {
+					return nil, err
+				}
+				fmt.Println("NEW QUIC UDP ENDPOINT", udpConn.LocalAddr())
+				qTransport = &quicgo.Transport{Conn: udpConn}
+				closer = udpConn
+			}
+			// use same dialer as other http version
+
+			j.Logger().Debug().Msgf("HTTP3 dialing %s -> %s", addr, udpAddr.RemoteAddr().String())
+			return qTransport.DialEarly(ctx, udpAddr.RemoteAddr(), tlsCfg, cfg)
+		},
+	}
+	return rtTransport, &closer
 }

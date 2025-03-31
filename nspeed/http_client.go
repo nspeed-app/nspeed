@@ -15,7 +15,6 @@ import (
 	"net/url"
 	"nspeed/metrics"
 	"slices"
-	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -110,32 +109,7 @@ func (j *JobClient) HTTPInit() error {
 
 	// HTTP/3
 	if j.HTTPVersion == 3 {
-		quicConf, qTransport := quicgoInit(j)
-		// the roundtrip
-		rtTransport = &http3.Transport{
-			DisableCompression: true,
-			TLSClientConfig:    netTransport.TLSClientConfig,
-			QUICConfig:         quicConf,
-			Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quicgo.Config) (quicgo.EarlyConnection, error) {
-				j.Logger().Debug().Msgf("HTTP3 pre dialing %s ", addr)
-				udpAddr, err := netTransport.DialContext(ctx, "udp", addr)
-				if err != nil {
-					return nil, fmt.Errorf("htt3 Dial failed: %w", err)
-				}
-				if qTransport == nil {
-					// check for Zone on IPv6 link-local for instance, some OS might need the Zone too
-					udpConn, err := net.ListenUDP("udp", nil)
-					if err != nil {
-						return nil, err
-					}
-					qTransport = &quicgo.Transport{Conn: udpConn}
-				}
-				// use same dialer as other http version
-
-				j.Logger().Debug().Msgf("HTTP3 dialing %s -> %s", addr, udpAddr.RemoteAddr().String())
-				return qTransport.DialEarly(ctx, udpAddr.RemoteAddr(), tlsCfg, cfg)
-			},
-		}
+		rtTransport, j.closer = NewQUICGOHTTP3Transport(netTransport, j)
 	}
 
 	// HTTP/1.x
@@ -183,6 +157,7 @@ func (j *JobClient) HTTPInit() error {
 
 	req, err := http.NewRequest(j.Command, j.finalTarget, body)
 	if err != nil {
+		j.Close() // not good, find a better way to clean opened port
 		return err
 	}
 
@@ -200,14 +175,6 @@ func (j *JobClient) HTTPInit() error {
 
 	j.req = req
 	return nil
-}
-
-func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metrics.Metric, error) {
-	defer wg.Done()
-	if j.Protocol == "HTTP" {
-		return j.HTTPRun(ctx, opt)
-	}
-	return j.L4Run(ctx, opt)
 }
 
 func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, error) {
