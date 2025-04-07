@@ -1,6 +1,6 @@
 //@ts-check
 
-//import { Chart } from "chart.js";
+import { Chart } from "chart.js";
 
 function addChart(elem, type, xscales, datasets, labels) {
     console.log("addChart:",type,xscales,datasets,labels)

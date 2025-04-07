@@ -1,6 +1,5 @@
 // @ts-check
-
-import {echarts} from 'echarts';
+/// <reference types="echarts" />
 
 /**
  * @param {any[]} arr1
@@ -111,8 +110,7 @@ function option_testchart(title, yAxisName, series_data, hasSeries) {
                 max: yMax,
                 axisLabel: {
                     formatter: function (/** @type {any} */ value, /** @type {any} */ index) {
-                        return formatBytes(value, 'bps',
-                            2)
+                        return formatBytes(value, 'bps', 2)
                     },
                     showMinLabel: null,
                     showMaxLabel: null

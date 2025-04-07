@@ -30,6 +30,9 @@ function formatSeriesTooltip(params) {
 
 
 // format tooltip for bps 
+/**
+ * @param {any[]} params
+ */
 function formatTooltip(params) {
 	if (params === undefined || params.length == 0) return "NO DATA";
 
