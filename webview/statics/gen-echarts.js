@@ -1,6 +1,5 @@
 // @ts-check
-
-import {echarts} from 'echarts';
+// import echarts from './echarts.min.js';
 
 /**
  * @param {any[]} arr1

@@ -9,7 +9,7 @@ require (
 	github.com/go-echarts/statsview v0.4.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
-	github.com/quic-go/quic-go v0.50.1
+	github.com/quic-go/quic-go v0.49.0
 	github.com/rs/xid v1.6.0
 	github.com/rs/zerolog v1.34.0
 	github.com/shirou/gopsutil/v4 v4.25.3
