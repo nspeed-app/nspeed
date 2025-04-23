@@ -27,7 +27,7 @@ func (h bufferedWriteCloser) Close() error {
 	if h.Writer == nil {
 		return errors.New("bufferedWriteCloser is missing a bufio.Writer")
 	}
-	if err := h.Writer.Flush(); err != nil {
+	if err := h.Flush(); err != nil {
 		return err
 	}
 	return h.Closer.Close()

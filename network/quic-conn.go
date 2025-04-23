@@ -78,7 +78,7 @@ func (str *quicStreamAsConn) SetReadDeadline(t time.Time) error {
 		return fmt.Errorf("read deadline already set")
 	}
 	str.readCtx, str.readCancel = context.WithDeadline(context.Background(), t)
-	str.Stream.SetReadContext(str.readCtx)
+	str.SetReadContext(str.readCtx)
 	return nil
 }
 
@@ -90,7 +90,7 @@ func (str *quicStreamAsConn) SetWriteDeadline(t time.Time) error {
 		return fmt.Errorf("write deadline already set")
 	}
 	str.writeCtx, str.writeCancel = context.WithDeadline(context.Background(), t)
-	str.Stream.SetWriteContext(str.writeCtx)
+	str.SetWriteContext(str.writeCtx)
 	return nil
 }
 
@@ -115,6 +115,5 @@ func (str *quicStreamAsConn) Flush() error {
 	if str.Stream == nil {
 		return fmt.Errorf("no stream to flush")
 	}
-	str.Stream.Flush()
-	return nil
+	return str.Stream.Flush()
 }

@@ -169,6 +169,7 @@ func ToArgv(s string) ([]string, error) {
 		}
 	}
 
+	//nolint:staticcheck
 	if currentState == InArg {
 		argv = append(argv, currentArg)
 	} else if currentState == InArgQuote {

@@ -106,7 +106,9 @@ func Ping(destination string, options PingOptions) (peer net.Addr, ping time.Dur
 		err = fmt.Errorf("listen packet error: %w", err)
 		return
 	}
-	defer c.Close()
+	defer func() {
+		_ = c.Close()
+	}()
 
 	// TTL
 	ttl := options.HopLimit
@@ -137,7 +139,7 @@ func Ping(destination string, options PingOptions) (peer net.Addr, ping time.Dur
 	}
 	wb, err := wm.Marshal(nil)
 	if err != nil {
-		err = fmt.Errorf("Message Marshal error: %w", err)
+		err = fmt.Errorf("message Marshal error: %w", err)
 		return
 	}
 
