@@ -10,7 +10,8 @@ import (
 
 var ErrUnknowCommand = fmt.Errorf("unknown API command")
 
-// return json
+// APIRun executes the specified API command (cmd) with arguments (args).
+// Results are marshalled using the provided marshaller function.
 func APIRun(ctx context.Context, globalOptions Options, cmd string, args []string, output io.Writer, who string, marshaller func(any) ([]byte, error)) ([]byte, error) {
 	if cmd == "version" {
 		v := struct {

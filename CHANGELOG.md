@@ -1,9 +1,10 @@
 # v0.0.15
+- client & server: new `-mtu size` flag to set the initialize packet size (**quic-go related only**)
 - client: **new flag** repeat flag `-r n` allow to repeat the command `n` times. The client we'll try to reuse the connection if possible.
 - bench: **breaking change** HTTP/1.1 benchmark names are now consistent with HTTP/2 (`h1g` is with tls, `h1cg` without)
 - bench: `-id` are now names of the benchmarks
 - general: `-id` values now support double-quoted values (`-id "my id"`)
-- using [`go 1.24.1`](https://tip.golang.org/doc/devel/release#go1.24.0)
+- using `go 1.24.1`
 - general: `-pre` or `post` delays implemented for `then`
 - general: **new flag** `-buffer value` allows to set the buffer size used for i/o operations (-1 for max value, 0 for Go default)
 - ui: preview of ui, for now it's just a CLI/terminal in web page
