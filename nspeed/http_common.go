@@ -187,6 +187,8 @@ type clientFlags struct {
 	UseHTTP3  bool
 	H2C       bool
 	Repeat    uint
+	// low level
+	MTU uint
 }
 
 // common GET/PUT flags
@@ -217,6 +219,7 @@ func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, outpu
 	fs.StringVar(&hf.ID, "id", "", "name/id of this command")
 	fs.UintVar(&hf.Repeat, "r", 1, "number of repeat loops")
 
+	fs.UintVar(&hf.MTU, "mtu", 0, "initial MTU to use")
 	//fs.StringVar(&hf.RemoteHost, "remote", "", "use a remote nspeed instance (hostname:port)")
 	return fs, &hf
 }
@@ -297,5 +300,10 @@ func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClien
 	}
 	// ID
 	job.SetID(hf.ID)
+	// MTU
+	if hf.MTU > 0 && hf.MTU < 1200 && hf.UseIPv6 {
+		return fmt.Errorf("minimum mtu for IPv6 is 1200(+80)")
+	}
+	job.MTU = uint16(hf.MTU)
 	return nil
 }

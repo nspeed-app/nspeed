@@ -160,7 +160,10 @@ func quicgoInit(j *JobClient) *quicgo.Config {
 	} else {
 		quicConf.Tracer = NewQuicTracer(j.wm)
 	}
+	if j.MTU > 0 {
+		quicConf.InitialPacketSize = j.MTU
 
+	}
 	// since we use Dialcontext we need to set a proper local *net.UDPAddr for LocalAddr
 	if j.localAddr != nil {
 		j.dialer.LocalAddr = &net.UDPAddr{

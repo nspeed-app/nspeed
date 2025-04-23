@@ -61,6 +61,7 @@ type HostParameters struct {
 	MaxDuration time.Duration
 	IdleTimeout time.Duration
 	H2C         bool
+	MTU         uint16
 	HTTP11      bool
 	HTTP2       bool
 	HTTP3       bool
@@ -119,6 +120,7 @@ func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Wri
 	fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
 	fs.StringVar(&host.Directory, "dir", "", "directory to serve content from (url will be /dir)")
 	fs.BoolVar(&host.H2C, "h2c", false, "listen in HTTP/2 Cleartext (H2C) mode")
+	mtu := fs.Uint("mtu", 0, "MTU to use (80 will be added)")
 	fs.BoolVar(&host.HTTP11, "http1.1", false, "listen only in HTTP/1.1 (this will disable HTTP/2) - implies -self is no cert/key")
 	fs.BoolVar(&host.HTTP2, "http2", false, "listen only in HTTP/2 (this will disable HTTP/1.1) - implies -self is no cert/key")
 	fs.BoolVar(&host.HTTP3, "http3", false, "also listen using HTTP/3 on QUIC (udp - same port) - EXPERIMENTAL")
@@ -185,6 +187,12 @@ func CmdServerParse(command string, cmdargs []string, jl *JobList, output io.Wri
 	if host.ServeTLS && host.H2C {
 		return cmdargs, errors.New("h2c not compatible with self/http1.1/http2/http3" + host.TLSKeyFile)
 	}
+
+	// MTU
+	if mtu != nil && *mtu > 0 && *mtu < 1200 && host.IPVersion == 6 {
+		return cmdargs, fmt.Errorf("minimum MTU for IPv6 is 1200(+80)")
+	}
+	host.MTU = uint16(*mtu)
 
 	args := fs.Args()
 	var j Job

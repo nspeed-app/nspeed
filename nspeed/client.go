@@ -56,6 +56,7 @@ type JobClient struct {
 	Delay            time.Duration
 	HTTPVersion      int
 	H2C              bool
+	MTU              uint16 // bigger one day ?
 	// private
 	localAddr   *net.IPAddr
 	dialer      *net.Dialer

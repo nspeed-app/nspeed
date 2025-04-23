@@ -907,6 +907,9 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 	defer j.udpConn.Close()
 
 	quicConf := &quicgo.Config{}
+	if j.Parameters.MTU > 0 {
+		quicConf.InitialPacketSize = j.Parameters.MTU
+	}
 
 	// setup debug trace
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
