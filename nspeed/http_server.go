@@ -368,6 +368,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		Cipher:     crypto.TLSCipherSuite(r.TLS),
 		TLSVersion: crypto.TLSVersionFriendlyName(crypto.TLSVersion(r.TLS)),
 	}
+	//nolint: errcheck
 	defer wm.Close()
 
 	wm.SetLogger(generics.Ptr(j.Logger().With().
@@ -904,6 +905,7 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 	if j.udpConn == nil {
 		return errors.New("no udp connection")
 	}
+	//nolint: errcheck
 	defer j.udpConn.Close()
 
 	quicConf := &quicgo.Config{}

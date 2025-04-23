@@ -143,17 +143,21 @@ func (j *JobClient) PrintString(verbose bool, group bool) string {
 	if group {
 		groupFormat = "-n " + strconv.Itoa(j.Instance) + " "
 	}
-	if j.Command == "GET" {
+
+	switch j.Command {
+	case "GET":
 		t := "get " + groupFormat + "%s" + j.finalTarget
 		r := fmt.Sprintf(t, network.HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
 
-	} else if j.Command == "POST" || j.Command == "PUT" {
+	case "POST", "PUT":
 		t := strings.ToLower(j.Command) + " " + groupFormat + "%s" + j.finalTarget + " " + humanize.ByteCountDecimal(j.ContentSize) + "B" //todo
 		r := fmt.Sprintf(t, network.HTTPVersionFlag(j.HTTPVersion, j.H2C))
 		return formatOut(r)
+
+	default:
+		return "unknown command"
 	}
-	return "unknown command"
 }
 
 func (j *JobClient) IsInfinite() bool { return false }
@@ -285,8 +289,10 @@ func (j *JobClient) Close() error {
 }
 
 func (j *JobClient) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metrics.Metric, error) {
-	defer wg.Done()
-	defer j.Close()
+	defer func() {
+		wg.Done()
+		_ = j.Close()
+	}()
 	if j.Protocol == "HTTP" {
 		return j.HTTPRun(ctx, opt)
 	}
@@ -410,6 +416,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 	if err != nil {
 		return nil, fmt.Errorf("dial error: %w", err)
 	}
+	// nolint: errcheck
 	defer conn.Close()
 
 	if j.Timeout != 0 {

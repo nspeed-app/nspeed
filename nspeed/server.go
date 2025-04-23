@@ -405,6 +405,7 @@ func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGr
 
 // MT
 func (j *L4Server) handleConnection( /*ctx context.Context,*/ conn net.Conn /*result chan metric.Metric*/) {
+	//nolint: errcheck
 	defer conn.Close()
 
 	j.Logger().Warn().Msgf("incoming connection from %s", conn.RemoteAddr())

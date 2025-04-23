@@ -73,8 +73,8 @@
             }
         }
         // globals
-        let data = `{{.}}`; // Go template will fill 
-        let jsonreport = null;
+        let datajson = `{{.}}`; // Go template will fill this
+        let data = null;
         let ActiveCharts = [];
         let darkmode = false;
         //
@@ -85,20 +85,20 @@
                 ActiveCharts = [];
                 charts.innerHTML = '';
             }
-            ActiveCharts = genCharts(charts, darkmode ? "dark" : "", jsonreport);
+            ActiveCharts = genCharts(charts, darkmode ? "dark" : "", data);
         }
 
         // load json from data, update jsonreport
         function loadJSON(data, cmd) {
             try {
-                jsonreport = JSON.parse(data); // Go template will replace this with actual json
+                data = JSON.parse(data); // Go template will replace this with actual json
             }
             catch (error) {
                 cmd.textContent = error.name + ":" + error.message;
                 return null
             }
             // for here, jsonreport is valid
-            cmd.textContent = jsonreport.command;
+            cmd.textContent = data.command;
         }
 
         let Command = document.getElementById('#Command');
@@ -115,11 +115,11 @@
         }
         window.onload = function () {
             var dlgJSON = document.getElementById('dlgJSON');
-            if (data.length > 5) {
-                loadJSON(data, Command);
+            if (datajson.length > 5) {
+                loadJSON(datajson, Command);
                 makeCharts();
             }
-            if (jsonreport == null) {
+            if (data == null) {
                 dlgJSON.style.display = "block";
                 let input = document.getElementById('file');
                 input.onchange = loadJSONFiles;

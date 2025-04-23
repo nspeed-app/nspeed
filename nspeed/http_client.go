@@ -157,7 +157,7 @@ func (j *JobClient) HTTPInit() error {
 
 	req, err := http.NewRequest(j.Command, j.finalTarget, body)
 	if err != nil {
-		j.Close() // not good, find a better way to clean opened port
+		_ = j.Close() // not good, find a better way to clean opened port
 		return err
 	}
 
@@ -409,7 +409,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 				if err != nil {
 					j.Logger().Fatal().Err(err).Send()
 				}
-				j.Logger().Debug().Msgf("Response:\n%s", dump)
+				j.Logger().Trace().Msgf("Response:\n%s", dump)
 			}
 
 			if resp.StatusCode != http.StatusOK {
@@ -420,7 +420,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 				if j.Command == "GET" {
 					defer func() {
 						if resp.Body != nil {
-							resp.Body.Close()
+							_ = resp.Body.Close()
 						}
 					}()
 					wm.ContentReadSize += resp.ContentLength
@@ -481,7 +481,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 			}
 		}
 		// this is bad: refactor the 'loop' stuff to store each loop metrics
-		wm.Close() // todo check if loop
+		_ = wm.Close() // todo check if loop
 		totalwrite += j.wm.TotalWrite
 		j.wm.TotalWrite = 0
 		// conditions to stop Repeat

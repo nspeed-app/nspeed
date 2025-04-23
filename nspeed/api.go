@@ -143,7 +143,7 @@ func (j *APIHost) apiHandler(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintf(w, "%v: %v\n", name, h)
 			}
 		}
-		fmt.Fprint(w, "\n")
+		fmt.Fprintf(w, "\n")
 		return
 	}
 	if cmd == "ip" {

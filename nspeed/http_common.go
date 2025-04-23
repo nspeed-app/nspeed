@@ -287,7 +287,7 @@ func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClien
 	}
 	// h2c implied 2
 	if hf.H2C {
-		if hf.H2C && !(job.HTTPVersion == 2 || job.HTTPVersion == 0) {
+		if job.HTTPVersion != 2 && job.HTTPVersion != 0 {
 			return errors.New("H2C only work with -http2")
 		}
 		job.H2C = true

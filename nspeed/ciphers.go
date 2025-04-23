@@ -93,7 +93,7 @@ func supportedTLS13Ciphers(hostname, port string, timeout time.Duration) ([]uint
 
 		client := tls.Client(conn, cfg)
 		_ = client.Handshake()
-		client.Close()
+		_ = client.Close()
 
 		if client.ConnectionState().CipherSuite == c {
 			supportedCiphers = append(supportedCiphers, c)
@@ -152,7 +152,7 @@ func supportedTLS12Ciphers(hostname, port string, timeout time.Duration) ([]uint
 
 		client := tls.Client(conn, cfg)
 		_ = client.Handshake()
-		client.Close()
+		_ = client.Close()
 
 		if client.ConnectionState().CipherSuite == c {
 			supportedCiphers = append(supportedCiphers, c)

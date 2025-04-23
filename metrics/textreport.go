@@ -125,7 +125,7 @@ func GenerateTextReportBatch(batch int, wcWorkers *Metrics, showGroup bool) stri
 		fmt.Fprintf(w, "\t\t\t\t\t\t\n")
 		addLine(w, "Average", elapsedTime, totalRead, totalWrite, "")
 	}
-	w.Flush()
+	_ = w.Flush()
 	return out.String()
 }
 

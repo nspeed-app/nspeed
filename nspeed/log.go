@@ -45,12 +45,12 @@ func CreateFilteredWriter(w zerolog.LevelWriter, level zerolog.Level, exact bool
 	return &FilteredWriter{w: zerolog.MultiLevelWriter(w), level: level, exact: exact}
 }
 
-// should returns true if this logger would log at this lvl
+// ShouldLog returns true if this logger would log at this level
 func ShouldLog(l *zerolog.Logger, lvl zerolog.Level) bool {
 	if l == nil {
 		return false
 	}
-	return !(lvl < l.GetLevel() || lvl < zerolog.GlobalLevel())
+	return lvl >= l.GetLevel() && lvl >= zerolog.GlobalLevel()
 }
 
 type LineInfoHook struct {

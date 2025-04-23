@@ -235,6 +235,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			}
 		}
 		{
+			//nolint: errcheck
 			defer cmdFile.Close()
 
 			cmdScan := bufio.NewScanner(cmdFile)

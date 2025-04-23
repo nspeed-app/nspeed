@@ -16,7 +16,6 @@ import (
 
 	"nspeed/metrics"
 
-	"github.com/quic-go/quic-go"
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/quic-go/quic-go/logging"
@@ -129,8 +128,8 @@ func handleQUICGOStreams(ctx context.Context, j *L4Server, conn quicgo.Connectio
 	}
 }
 
-func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) *logging.ConnectionTracer {
-	QLogTracer := func(ctx context.Context, p logging.Perspective, connID quic.ConnectionID) *logging.ConnectionTracer {
+func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging.Perspective, connID quicgo.ConnectionID) *logging.ConnectionTracer {
+	QLogTracer := func(ctx context.Context, p logging.Perspective, connID quicgo.ConnectionID) *logging.ConnectionTracer {
 		perspectiveNames := [...]string{"server", "client"}
 		perspectiveName := func(p logging.Perspective) string {
 			if p != 1 && p != 2 {

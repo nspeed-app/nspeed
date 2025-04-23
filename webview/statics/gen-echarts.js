@@ -22,13 +22,14 @@ function chart_series(dataset) {
         type: 'line',
         data: d.data,
         smooth: true,
-        // markPoint: {
-        //     data: [
-        //         {
-        //             name: 'Max',
-        //             type: 'average'
-        //         }
-        //     ],
+        markPoint: {
+            data: [
+                {
+                    name: 'Max',
+                    type: 'max'
+                }
+            ]
+        }
         //     label: {
         //         show: true,
         //         formatter: function (/** @type {{ value: any; }} */ params) {
@@ -138,17 +139,10 @@ function option_testchart(title, yAxisName, series_data, hasSeries) {
 function addEChart(container, theme, hasSeries, xscales, datasets) {
     // loop over chart
     let c = echarts.init(container, theme);
-    if (hasSeries) {
-        let data = chart_series(datasets);
-        let opt = option_testchart("", "bps", data, hasSeries)
-        opt.xAxis = [xscales];
-        c.setOption(opt);
-    } else {
-        let data = datasets;
-        let opt = option_testchart("", "bps", data, hasSeries)
-        opt.xAxis = [xscales]
-        c.setOption(opt);
-    }
+    let data = hasSeries ? chart_series(datasets) : datasets;
+    let opt = option_testchart("", "bps", data, hasSeries)
+    opt.xAxis = [xscales];
+    c.setOption(opt);
     c.group = 'group1'; // group to sync mouse
     console.log("INIT:", c)
     return c
@@ -180,19 +174,19 @@ function genChart(container, theme, hasSeries, results) {
                 display: true,
                 text: "batch"
             },
-            data:labels
+            data: labels
         };
-        datasets = results.map((r,i)=> {
-            console.log("i",i,"r",r);
+        datasets = results.map((r, i) => {
+            console.log("i", i, "r", r);
             return {
-                type:'bar',
-                name:r.gid,
-                stack:r.batchname,
-                data: labels.map( (/** @type {any} */ l) => {
-                    if (l==r.batchname) {
-                        return r.rxbps+r.txbps;
+                type: 'bar',
+                name: r.gid,
+                stack: r.batchname,
+                data: labels.map((/** @type {any} */ l) => {
+                    if (l == r.batchname) {
+                        return r.rxbps + r.txbps;
                     }
-                    return ;
+                    return;
                 })
             };
         }); //[{

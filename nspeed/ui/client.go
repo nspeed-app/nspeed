@@ -46,7 +46,7 @@ type Client struct {
 func (c *Client) ReadPump() error {
 	defer func() {
 		c.Hub.Unsubscribe(c)
-		c.Conn.Close()
+		_ = c.Conn.Close()
 	}()
 	if c.Conn == nil {
 		return fmt.Errorf("no connection")
@@ -64,7 +64,7 @@ func (c *Client) ReadPump() error {
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+		message = bytes.TrimSpace(bytes.ReplaceAll(message, newline, space))
 		c.Hub.Execute(string(message[:]))
 	}
 	return nil
@@ -79,7 +79,7 @@ func (c *Client) WritePump() error {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.Conn.Close()
+		_ = c.Conn.Close()
 	}()
 	for {
 		select {

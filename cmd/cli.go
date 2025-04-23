@@ -446,7 +446,7 @@ mainloop:
 		if err != nil {
 			log.Fatal().Err(err).Msgf("could not write json report file (%s)", *optJSONReport)
 		}
-		f.Close()
+		_ = f.Close()
 	}
 
 	// html report:
@@ -464,8 +464,10 @@ mainloop:
 		if err != nil {
 			log.Fatal().Msgf("could not create memory profile: %v", err)
 		}
-		defer f.Close() // error handling omitted for example
-		runtime.GC()    // get up-to-date statistics
+		defer func() {
+			_ = f.Close() // error handling omitted for example
+		}()
+		runtime.GC() // get up-to-date statistics
 		if err := pprof.WriteHeapProfile(f); err != nil {
 			log.Fatal().Msgf("could not write memory profile: %v", err)
 		}
