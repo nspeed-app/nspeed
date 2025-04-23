@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"runtime"
-	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
@@ -33,14 +31,16 @@ type Options struct {
 // update/progress can be obtained thru the optionnal message channel
 func RunJobs(ctx context.Context, jl *JobList, opt Options, message chan any) (*metrics.Metrics, error) {
 
-	// ************************
-	memlimit := debug.SetMemoryLimit(math.MaxInt64)
-	gcpercent := debug.SetGCPercent(-1)
+	// ********* GC ************
+	// {
+	// 	memlimit := debug.SetMemoryLimit(math.MaxInt64)
+	// 	gcpercent := debug.SetGCPercent(-1)
 
-	defer func() {
-		debug.SetMemoryLimit(memlimit)
-		debug.SetGCPercent(gcpercent)
-	}()
+	// 	defer func() {
+	// 		debug.SetMemoryLimit(memlimit)
+	// 		debug.SetGCPercent(gcpercent)
+	// 	}()
+	// }
 	// *************************
 
 	if jl == nil {
