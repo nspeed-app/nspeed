@@ -1,3 +1,7 @@
+// Copyright (c) Jean-Francois Giorgi & AUTHORS
+// part of nspeed.app
+// SPDX-License-Identifier: BSD-3-Clause
+
 package crypto
 
 import _ "embed"
