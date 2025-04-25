@@ -89,9 +89,9 @@
         }
 
         // load json from data, update jsonreport
-        function loadJSON(data, cmd) {
+        function loadJSON(j, cmd) {
             try {
-                data = JSON.parse(data); // Go template will replace this with actual json
+                data = JSON.parse(j); // Go template will replace this with actual json
             }
             catch (error) {
                 cmd.textContent = error.name + ":" + error.message;
@@ -109,7 +109,6 @@
             reader.onload = function (e) {
                 loadJSON(e.target.result, Command);
                 makeCharts();
-
             };
             reader.readAsText(files[0]);
         }

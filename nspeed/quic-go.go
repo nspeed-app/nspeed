@@ -195,7 +195,7 @@ func NewQUICGOHTTP3Transport(netTransport *http.Transport, j *JobClient) (http.R
 				if err != nil {
 					return nil, err
 				}
-				fmt.Println("NEW QUIC UDP ENDPOINT", udpConn.LocalAddr())
+				//fmt.Println("NEW QUIC UDP ENDPOINT", udpConn.LocalAddr())
 				qTransport = &quicgo.Transport{Conn: udpConn}
 				closer = udpConn
 			}

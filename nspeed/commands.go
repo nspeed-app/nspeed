@@ -141,6 +141,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		nStreams := fs.Int("n", 1, "number of streams")
 		size := fs.String("s", "20g", "number of bytes")
 		timeOut := fs.Uint("m", 0, "maximum duration in seconds the command is allowed to take")
+		// id := fs.String("id", "", "name/id of this command")
 
 		if err := fs.Parse(cmdargs); err != nil {
 			return cmdargs, err
@@ -148,7 +149,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		// force IPv4 or IPv6
 		if *useIPv4 && *useIPv6 {
 			fs.Usage()
-			return cmdargs, errors.New("specify IPv4 or IPv6 but not both")
+			return cmdargs, fmt.Errorf("specify IPv4 or IPv6 but not both")
 		}
 		argsLine := ""
 		if *timeOut > 0 {
@@ -170,7 +171,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		args := fs.Args()
 		if len(args) < 1 {
 			fs.Usage()
-			return args, errors.New("missing benchmark parameters")
+			return args, fmt.Errorf("missing benchmark parameters")
 		}
 		benchs := strings.Split(args[0], ",")
 		args = args[1:]
@@ -207,12 +208,16 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 	case fromCommand:
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
 
+		kvs := make(kvMap)
+		fs.Var(&kvs, "kv", "template field name/value (repeatable)")
+
 		fs.Usage = func() {
 			fmt.Fprintf(fs.Output(), "Usage of %s: ", fromCommand)
 			fmt.Fprintf(fs.Output(), "  %s filename\n", fromCommand)
 			fs.PrintDefaults()
 			fmt.Fprintf(fs.Output(), "\n")
 		}
+
 		if err := fs.Parse(cmdargs); err != nil {
 			return cmdargs, err
 		}
@@ -238,7 +243,27 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 			//nolint: errcheck
 			defer cmdFile.Close()
 
-			cmdScan := bufio.NewScanner(cmdFile)
+			//nolint: errcheck
+			tplfile := new(bytes.Buffer)
+			_, err := tplfile.ReadFrom(cmdFile)
+			if err != nil {
+				return args, fmt.Errorf("can't read uri %s (%w)", uri, err)
+			}
+
+			tpl := template.New(uri).Option("missingkey=zero")
+			t, err := tpl.Parse(tplfile.String())
+			if err != nil {
+				return args, fmt.Errorf("can't parse uri %s (%w)", uri, err)
+			}
+
+			var c bytes.Buffer
+			if err := t.Execute(&c, kvs); err != nil {
+				return args, fmt.Errorf("can't templatize uri %s (%w)", uri, err)
+			}
+
+			fmt.Println("\n-----", c.String(), "-----")
+
+			cmdScan := bufio.NewScanner(bytes.NewReader(c.Bytes()))
 
 			log.Warn().Msgf("reading commands from %s", uri)
 			lineNumber := 1
@@ -365,4 +390,31 @@ func LogMemUsage(log *zerolog.Logger, mess string, v ...any) {
 		humanize.FormatByteDecimalUnits(int64(m.TotalAlloc)),
 		humanize.FormatByteDecimalUnits(int64(m.Sys)),
 		m.NumGC)
+}
+
+// k,v as arguments
+
+type kvMap map[string]string
+
+func (s kvMap) String() string {
+	r := ""
+	for k, v := range s {
+		r += fmt.Sprintln(k, "=", v)
+	}
+	return r
+}
+
+// Set is called by the flag package each time the flag appears.
+// It appends the new value to the slice.
+func (s kvMap) Set(value string) error {
+	kv := strings.Split(value, "=")
+	if len(kv) != 2 {
+		return fmt.Errorf("expected k=v entry for %s", value)
+	}
+	_, ok := s[kv[0]]
+	if ok {
+		return fmt.Errorf("duplicate key %s", kv[0])
+	}
+	s[kv[0]] = kv[1]
+	return nil // Indicate success
 }
