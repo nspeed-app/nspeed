@@ -8,6 +8,7 @@ require (
 	github.com/go-echarts/go-echarts/v2 v2.5.3
 	github.com/go-echarts/statsview v0.4.2
 	github.com/gorilla/websocket v1.5.3
+	github.com/maxence-charriere/go-app/v10 v10.1.3
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/quic-go/quic-go v0.51.0
 	github.com/rs/xid v1.6.0

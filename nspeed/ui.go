@@ -19,16 +19,21 @@ import (
 	"nspeed/metrics"
 
 	"nspeed/nspeed/ui"
+	"nspeed/nspeed/ui/goapp"
 
 	"nspeed/webview"
 
 	"github.com/gorilla/websocket"
+	"github.com/maxence-charriere/go-app/v10/pkg/app"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"nspeed.app/generics"
 	"nspeed.app/str"
 	"nspeed.app/web"
 )
+
+//go:embed embed/ui/app.wasm
+var goappwasm []byte
 
 //go:embed embed/ui/*
 var uiRoot embed.FS
@@ -47,6 +52,7 @@ type UIHost struct {
 	globalOptions Options
 	hub           *ui.Hub
 	viewerMode    bool
+	goapp         bool
 }
 
 func (j *UIHost) GetTarget() string {
@@ -95,6 +101,15 @@ func (j *UIHost) Init(opt Options) error {
 		return errors.New("UI: no Mux in server")
 	}
 
+	if j.goapp {
+		//go-app requires "/web", can't be changed
+		j.Server.Mux.Handle("/web/", http.StripPrefix("/web/", j.uiRootHandler()))
+		j.Server.Mux.Handle("/", &app.Handler{
+			Name:        "NSPEED",
+			Description: "NSPEED v0.0.0",
+		})
+		return nil
+	}
 	if !j.viewerMode {
 		j.Server.Mux.Handle("/", j.uiRootHandler())
 		j.Server.Mux.Handle("/ws", http.HandlerFunc(j.uiHandler))
@@ -112,6 +127,9 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 	}
 	j.Server.RunHook = func(c context.Context) error {
 		return j.PostRun()
+	}
+	if j.goapp {
+		goapp.Init()
 	}
 	if !j.viewerMode {
 		// start the hub
@@ -135,6 +153,12 @@ func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*met
 }
 
 func (f *UIHost) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if f.goapp {
+		fmt.Println("serving app.wasm")
+		http.ServeContent(w, r, "app.wasm", time.Now(), bytes.NewReader(goappwasm))
+		return
+	}
+
 	html, err := web.InlineFromString(webview.ViewerTmplHTML, webview.StaticFiles, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -142,6 +166,14 @@ func (f *UIHost) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	http.ServeContent(w, r, "viewer.html", time.Now(), bytes.NewReader([]byte(html)))
 }
+
+// func debugMiddleware(next http.Handler) http.Handler {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		fmt.Println("http request:", r.URL.Path)
+// 		next.ServeHTTP(w, r)
+// 	})
+// }
+
 func (j *UIHost) uiRootHandler() http.Handler {
 	// normal mode
 	sub, err := fs.Sub(uiRoot, uiPrefix)
@@ -211,6 +243,7 @@ func CmdUIParse(command string, cmdargs []string, jl *JobList, output io.Writer)
 	fs.BoolVar(&host.UseTLSSelfConfig, "self", false, "listen in HTTPS using a self-signed TLS certificate")
 	noBrowser := fs.Bool("nobrowse", false, "do not open browser")
 	viewer := fs.Bool("viewer", false, "viewer mode: a page for viewing json result files")
+	goapp := fs.Bool("goapp", true, "use go-app")
 	if err := fs.Parse(cmdargs); err != nil {
 		return cmdargs, err
 	}
@@ -229,6 +262,7 @@ func CmdUIParse(command string, cmdargs []string, jl *JobList, output io.Writer)
 	}
 	j.OpenBrowser = !*noBrowser
 	j.viewerMode = *viewer
+	j.goapp = *goapp
 
 	args := fs.Args()
 	err := jl.AddJobs(&j)
