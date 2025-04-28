@@ -79,12 +79,12 @@ var benchmarksTemplates = map[string]Benchmark{
 	// HTTP/2C
 	"h2cg": {
 		Tpl:  "server -h2c {{.CArgs}} -id s{{.ID}} get {{.CArgs}} -n {{.N}} -h2c nspeed://s{{.ID}}/{{.Size}}",
-		Name: "H2C",
+		Name: "HTTP/2(H2C)",
 		Help: "HTTP/2 GET, localhost, H2C (no encryption)",
 	},
 	"h2cp": {
 		Tpl:  "server -h2c {{.CArgs}} -id s{{.ID}} put {{.CArgs}} -n {{.N}} -h2c nspeed://s{{.ID}}/ {{.Size}}",
-		Name: "H2C",
+		Name: "HTTP/2(H2C)",
 		Help: "HTTP/2 PUT, localhost, H2C (no encryption)",
 	},
 
@@ -123,11 +123,17 @@ var benchmarksTemplates = map[string]Benchmark{
 		Name: "HTTPS/3",
 		Help: "HTTP/3 PUT, localhost, tls, udp",
 	},
-	// compare HTTP versions
+	// compare HTTP versions (without tls)
 	"http": {
-		Tpl:  "b -n {{.N}} -s {{.Size}} {{.SArgs}} h1g,h2g,h3g,h1cg,h2cg",
+		Tpl:  "b -n {{.N}} -s {{.Size}} {{.SArgs}} h1cg,h2cg",
 		Name: "Compare HTTP",
-		Help: "Compare all HTTP versions",
+		Help: "Compare unencrypted HTTP versions",
+	},
+	// compare HTTP versions (with tls)
+	"https": {
+		Tpl:  "b -n {{.N}} -s {{.Size}} {{.SArgs}} h1g,h2g,h3g",
+		Name: "Compare HTTPS",
+		Help: "Compare encrypted HTTP versions",
 	},
 	// compare quic versions
 	"quic": {

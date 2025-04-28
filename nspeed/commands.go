@@ -209,7 +209,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 		fs := flag.NewFlagSet(command, flag.ContinueOnError)
 
 		kvs := make(kvMap)
-		fs.Var(&kvs, "kv", "template field name/value (repeatable)")
+		fs.Var(&kvs, "var", "define a template variable and its value (repeatable)")
 
 		fs.Usage = func() {
 			fmt.Fprintf(fs.Output(), "Usage of %s: ", fromCommand)
@@ -261,7 +261,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 				return args, fmt.Errorf("can't templatize uri %s (%w)", uri, err)
 			}
 
-			fmt.Println("\n-----", c.String(), "-----")
+			log.Debug().Msgf("template result for %s:\n%s\n", uri, c.String())
 
 			cmdScan := bufio.NewScanner(bytes.NewReader(c.Bytes()))
 
