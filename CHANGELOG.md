@@ -3,6 +3,8 @@
 - client: **new flag** repeat flag `-r n` allow to repeat the command `n` times. The client we'll try to reuse the connection if possible.
 - bench: **breaking change** HTTP/1.1 benchmark names are now consistent with HTTP/2 (`h1g` is with tls, `h1cg` without)
 - bench: `-id` are now names of the benchmarks
+- bench: new meta benchs: `http` and `quic`
+- `from` command: new template feature. use repeated `-var a=b` flag(s) to define a variable and its value. Use variables with Go template syntax in content: `{{.a}}` will become `b` or nothing is `a` is not defined. Full go text template features are available. See https://pkg.go.dev/text/template
 - general: `-id` values now support double-quoted values (`-id "my id"`)
 - using `go 1.24.1`
 - general: `-pre` or `post` delays implemented for `then`
