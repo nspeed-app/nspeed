@@ -313,8 +313,13 @@ func Main() {
 	// osInterrupt triggers graceful shutdown on SIGINT or SIGTERM
 	// since we won't call signal.Reset(...), make sure all execution paths exit at some point
 	// otherwise add signal.Reset(...) after main loop
-	osInterrupt := make(chan os.Signal, 1)
-	signal.Notify(osInterrupt, syscall.SIGINT, syscall.SIGTERM)
+	// todo: use signal.NotifyContext (not really?)
+	osSignal := make(chan os.Signal, 1)
+	signal.Notify(osSignal, syscall.SIGINT, syscall.SIGTERM)
+	defer func() {
+		signal.Reset()
+		signal.Stop(osSignal)
+	}()
 
 	errs := make(chan error, 1)
 
@@ -375,7 +380,7 @@ mainloop:
 		select {
 		case m := <-progress:
 			progressHandler(m)
-		case sig := <-osInterrupt:
+		case sig := <-osSignal:
 			log.Warn().Msgf("global shutdown started by signal: %s", sig)
 			cancel() // this should end RunJobs which will signal waitChan
 		case err := <-errs:
