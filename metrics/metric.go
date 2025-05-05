@@ -195,30 +195,30 @@ func (wm *Metric) WriteN(n int64) int64 {
 // investigate if we can implement ReadFrom instead of Write
 // ReadFrom version- performance sensitive, don't do much here
 // it's basically a io.Discard with some metrics stored
-func (wm *Metric) FixMeReadFrom(r io.Reader) (n int64, err error) {
-	wm.mutex.Lock()
-	wm.TotalRead = 0
-	wm.ReadCount = 0
-	wm.ReadStepSize = 0
-	wm.TransfertStartTime = time.Now()
-	wm.mutex.Unlock()
-	for {
-		s := int64(1024 * 1024)
-		wm.mutex.Lock()
-		wm.ReadCount++
-		wm.TotalRead += s
-		if wm.ReadStepSize < s {
-			wm.ReadStepSize = s
-		}
-		wm.mutex.Unlock()
-		// if err != nil {
-		// 	break
-		// }
-	}
-	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
-	fmt.Printf("ReadFrom used with %d Read and %d max buff", wm.ReadCount, wm.ReadStepSize)
-	return wm.TotalRead, nil
-}
+// func (wm *Metric) FixMeReadFrom(r io.Reader) (n int64, err error) {
+// 	wm.mutex.Lock()
+// 	wm.TotalRead = 0
+// 	wm.ReadCount = 0
+// 	wm.ReadStepSize = 0
+// 	wm.TransfertStartTime = time.Now()
+// 	wm.mutex.Unlock()
+// 	for {
+// 		s := int64(1024 * 1024)
+// 		wm.mutex.Lock()
+// 		wm.ReadCount++
+// 		wm.TotalRead += s
+// 		if wm.ReadStepSize < s {
+// 			wm.ReadStepSize = s
+// 		}
+// 		wm.mutex.Unlock()
+// 		// if err != nil {
+// 		// 	break
+// 		// }
+// 	}
+// 	wm.ElapsedTime = time.Since(wm.TransfertStartTime)
+// 	fmt.Printf("ReadFrom used with %d Read and %d max buff", wm.ReadCount, wm.ReadStepSize)
+// 	return wm.TotalRead, nil
+// }
 
 // LogProgress logs the intermediary metrics
 func (wm *Metric) LogProgress(logger *zerolog.Logger) {

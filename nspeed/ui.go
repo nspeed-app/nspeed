@@ -24,7 +24,6 @@ import (
 	"nspeed/webview"
 
 	"github.com/gorilla/websocket"
-	"github.com/maxence-charriere/go-app/v10/pkg/app"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"nspeed.app/generics"
@@ -101,20 +100,21 @@ func (j *UIHost) Init(opt Options) error {
 		return errors.New("UI: no Mux in server")
 	}
 
+	if j.viewerMode {
+		j.Server.Mux.Handle("/", j)
+		return nil
+	}
+
+	j.Server.Mux.Handle("/ws", http.HandlerFunc(j.uiHandler))
+
 	if j.goapp {
 		//go-app requires "/web", can't be changed
 		j.Server.Mux.Handle("/web/", http.StripPrefix("/web/", j.uiRootHandler()))
-		j.Server.Mux.Handle("/", &app.Handler{
-			Name:        "NSPEED",
-			Description: "NSPEED v0.0.0",
-		})
-		return nil
+		j.Server.Mux.Handle("/", &goapp.RootHandler)
 	}
-	if !j.viewerMode {
+
+	if !j.goapp {
 		j.Server.Mux.Handle("/", j.uiRootHandler())
-		j.Server.Mux.Handle("/ws", http.HandlerFunc(j.uiHandler))
-	} else {
-		j.Server.Mux.Handle("/", j)
 	}
 
 	return nil
