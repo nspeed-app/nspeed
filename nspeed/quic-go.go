@@ -26,8 +26,8 @@ import (
 
 // quicgoStreamAsConn make a quicgo Stream a net.Conn interface
 type quicgoStreamAsConn struct {
-	quicgo.Stream
-	c quicgo.Connection
+	*quicgo.Stream
+	c *quicgo.Conn
 }
 
 func (str quicgoStreamAsConn) LocalAddr() net.Addr {
@@ -117,7 +117,7 @@ func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.Wai
 
 }
 
-func handleQUICGOStreams(ctx context.Context, j *L4Server, conn quicgo.Connection) {
+func handleQUICGOStreams(ctx context.Context, j *L4Server, conn *quicgo.Conn) {
 	for {
 		str, err := conn.AcceptStream(ctx)
 		if err != nil {
@@ -183,7 +183,7 @@ func NewQUICGOHTTP3Transport(netTransport *http.Transport, j *JobClient) (http.R
 		DisableCompression: true,
 		TLSClientConfig:    netTransport.TLSClientConfig,
 		QUICConfig:         quicConf,
-		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quicgo.Config) (quicgo.EarlyConnection, error) {
+		Dial: func(ctx context.Context, addr string, tlsCfg *tls.Config, cfg *quicgo.Config) (*quicgo.Conn, error) {
 			j.Logger().Debug().Msgf("HTTP3 pre dialing %s ", addr)
 			udpAddr, err := netTransport.DialContext(ctx, "udp", addr)
 			if err != nil {
