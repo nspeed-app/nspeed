@@ -314,7 +314,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 	}
 
 	dialerContext := j.dialContext
-	netw := j.Protocol
+	netw := strings.ToLower(j.Protocol)
 
 	switch j.Protocol {
 	case "TCP":
