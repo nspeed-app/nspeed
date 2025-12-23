@@ -29,6 +29,7 @@ dist/
 node_modules/
 
 #qlog
+/logs
 *.qlog
 
 tmp

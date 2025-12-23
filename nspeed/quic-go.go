@@ -1,7 +1,6 @@
 package nspeed
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,10 +16,8 @@ import (
 
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/quic-go/quic-go/logging"
-	"github.com/quic-go/quic-go/qlog"
+	"github.com/quic-go/quic-go/http3/qlog"
 	"github.com/rs/zerolog"
-	"nspeed.app/network"
 )
 
 // quicgoStreamAsConn make a quicgo Stream a net.Conn interface
@@ -128,26 +124,6 @@ func handleQUICGOStreams(ctx context.Context, j *L4Server, conn *quicgo.Conn) {
 	}
 }
 
-func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging.Perspective, connID quicgo.ConnectionID) *logging.ConnectionTracer {
-	QLogTracer := func(ctx context.Context, p logging.Perspective, connID quicgo.ConnectionID) *logging.ConnectionTracer {
-		perspectiveNames := [...]string{"server", "client"}
-		perspectiveName := func(p logging.Perspective) string {
-			if p != 1 && p != 2 {
-				return "unknown"
-			}
-			return perspectiveNames[p-1]
-		}
-		filename := fmt.Sprintf("%s_%x.qlog", perspectiveName(p), connID)
-		f, err := os.Create(filename)
-		if err != nil {
-			log.Fatal().Err(err).Send()
-		}
-		log.Trace().Msgf("Creating qlog file %s.\n", filename)
-		return qlog.NewConnectionTracer(network.NewBufferedWriteCloser(bufio.NewWriter(f), f), p, connID)
-	}
-	return QLogTracer
-}
-
 // client
 
 // todo: remove dep from JobClient using a new interface or more arguments.
@@ -155,7 +131,7 @@ func GenerateQLogTracer(log *zerolog.Logger) func(ctx context.Context, p logging
 func quicgoInit(j *JobClient) *quicgo.Config {
 	quicConf := &quicgo.Config{}
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = GenerateQLogTracer(j.Logger())
+		quicConf.Tracer = qlog.DefaultConnectionTracer // j.Logger
 	} else {
 		quicConf.Tracer = NewQuicTracer(j.wm)
 	}

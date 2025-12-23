@@ -24,6 +24,7 @@ import (
 
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
+	"github.com/quic-go/quic-go/http3/qlog"
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
@@ -915,7 +916,7 @@ func (j *JobHTTPServer) HTTP3Serve() error {
 
 	// setup debug trace
 	if zerolog.GlobalLevel() <= zerolog.TraceLevel {
-		quicConf.Tracer = GenerateQLogTracer(j.Logger())
+		quicConf.Tracer = qlog.DefaultConnectionTracer //fixme (j.Logger())
 	}
 
 	quicServer := &http3.Server{
