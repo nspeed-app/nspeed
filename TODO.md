@@ -1,6 +1,3 @@
-# get
-- reuse connection and repeat
-
 # ui
 - web interface to api
 - package webview for android/ios/desktop ?
@@ -24,4 +21,4 @@ more TESTS!!
 - publish to winget, snap, aur, etc
 
 # founding
-- find some
+- find some sponsors ?
