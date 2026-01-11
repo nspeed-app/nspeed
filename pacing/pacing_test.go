@@ -1,3 +1,7 @@
+// Copyright (c) Jean-Francois Giorgi & AUTHORS
+// part of nspeed.app
+// SPDX-License-Identifier: BSD-3-Clause
+
 package pacing
 
 import (
@@ -174,7 +178,7 @@ func TestPacer_ZeroDurations(t *testing.T) {
 	ctx := context.Background()
 	pacer := NewPacer(ctx, schedule)
 
-	// First call -> Wait should process hold(0) effectively skipping it, 
+	// First call -> Wait should process hold(0) effectively skipping it,
 	// then hit work(0) which returns nil immediately (infinite work).
 	start := time.Now()
 	if err := pacer.Wait(); err != nil {
