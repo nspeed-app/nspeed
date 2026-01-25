@@ -12,6 +12,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"nspeed.app/humanize"
+	"nspeed.app/pacing"
 )
 
 // mostly from go-httbin - todo: refactor / rewrite this
@@ -172,6 +173,7 @@ type clientFlags struct {
 	Timeout     uint
 	DialTimeout time.Duration
 	Delay       time.Duration
+	Schedule    string
 	UseIPv4     bool
 	UseIPv6     bool
 	ID          string
@@ -207,6 +209,7 @@ func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, outpu
 	fs.UintVar(&hf.Timeout, "m", 0, "maximum duration in seconds this command is allowed to take (default timeout is used)")
 	fs.DurationVar(&hf.DialTimeout, "connect-timeout", 2*time.Second, "maximum duration allowed for the initial connection")
 	fs.DurationVar(&hf.Delay, "w", 0, "delay to wait before starting the command")
+	fs.StringVar(&hf.Schedule, "schedule", "", "pacing of the command (list of 'hold' then 'work' duration separated by comma)")
 	fs.BoolVar(&hf.UseIPv4, "4", false, "use IPv4 only")
 	fs.BoolVar(&hf.UseIPv6, "6", false, "use IPv6 only")
 
@@ -242,7 +245,8 @@ func IsFlagPassed(fs *flag.FlagSet, name string) bool {
 // parse GET/PUT/POST flags
 func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClient) error {
 
-	if err := fs.Parse(args); err != nil {
+	err := fs.Parse(args)
+	if err != nil {
 		return err
 	}
 
@@ -253,6 +257,11 @@ func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClien
 	job.SkipTLSCheck = hf.SkipTLSCheck
 	job.UserAgent = hf.UserAgent
 	job.Delay = hf.Delay
+
+	job.Schedule, err = pacing.ParsePacingSchedule(hf.Schedule)
+	if err != nil {
+		return fmt.Errorf("invalid schedule %q: %w", hf.Schedule, err)
+	}
 
 	// httpFlags (flags that need convertion or extra controls)
 	job.Timeout = time.Duration(hf.Timeout) * time.Second
@@ -297,6 +306,10 @@ func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClien
 	job.Repeat = hf.Repeat
 	if hf.Repeat == 0 {
 		return errors.New("repeat cannot be zero")
+	}
+	// Repeat and Schedule are not compatible
+	if job.Repeat > 1 && job.Schedule != nil {
+		return errors.New("repeat and schedule are not compatible")
 	}
 	// ID
 	job.SetID(hf.ID)

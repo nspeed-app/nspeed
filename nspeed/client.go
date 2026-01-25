@@ -30,6 +30,7 @@ import (
 	"nspeed.app/humanize"
 	"nspeed.app/iobuffer"
 	"nspeed.app/network"
+	"nspeed.app/pacing"
 )
 
 // supported L4Protocols
@@ -54,6 +55,7 @@ type JobClient struct {
 	SkipTLSCheck     bool
 	UseTLSSelfConfig bool
 	Delay            time.Duration
+	Schedule         *pacing.Schedule
 	HTTPVersion      int
 	H2C              bool
 	MTU              uint16 // bigger one day ?
