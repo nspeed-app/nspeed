@@ -22,7 +22,6 @@ import (
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"golang.org/x/net/http2"
 	"nspeed.app/crypto"
 	"nspeed.app/humanize"
@@ -375,7 +374,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 			}
 
 			if !j.tr.ConnInfo.Reused && loop > 1 {
-				log.Warn().Msg("Repeat no reusing connection") // should we abort ? at least set this somewhere in wm
+				j.Logger().Warn().Msg("Repeat not reusing the connection") // should we abort ? at least set this somewhere in wm
 			}
 
 			if j.tr.TLSDone {

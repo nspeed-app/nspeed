@@ -34,6 +34,10 @@ func (str quicgoStreamAsConn) RemoteAddr() net.Addr {
 	return str.c.RemoteAddr()
 }
 
+func (str quicgoStreamAsConn) ConnectionState() tls.ConnectionState {
+	return str.c.ConnectionState().TLS
+}
+
 func (j *L4Server) ServeQUICGO(ctx context.Context, network string, wg *sync.WaitGroup) (*metrics.Metric, error) {
 	// this avoid calling wg.Done() twice
 	done := false
@@ -178,7 +182,15 @@ func NewQUICGOHTTP3Transport(netTransport *http.Transport, j *JobClient) (http.R
 			// use same dialer as other http version
 
 			j.Logger().Debug().Msgf("HTTP3 dialing %s -> %s", addr, udpAddr.RemoteAddr().String())
-			return qTransport.DialEarly(ctx, udpAddr.RemoteAddr(), tlsCfg, cfg)
+			qConn, err := qTransport.DialEarly(ctx, udpAddr.RemoteAddr(), tlsCfg, cfg)
+			if err != nil {
+				return nil, err
+			}
+			// go func() {
+			// 	<-qConn.HandshakeComplete()
+			// 	j.wm.SetTLSConnectionState(qConn.ConnectionState().TLS)
+			// }()
+			return qConn, nil
 		},
 	}
 	return rtTransport, &closer

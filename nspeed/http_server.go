@@ -172,7 +172,7 @@ func (j *JobHTTPServer) CreateHandler() http.Handler {
 	handler = limitRequestSize(j.Parameters.MaxBodySize, handler)
 	handler = limitNumRequests(j.OnRequestStart, j.OnRequestEnd, handler)
 	if j.Logger() != nil {
-		handler = logger(j.Logger(), handler)
+		handler = logger(j.Logger(), handler) //fixme: move logger in context
 	}
 	// investigate using http.TimeoutHandler
 	// handler = http.TimeoutHandler(handler, j.Parameters.MaxDuration, "...")

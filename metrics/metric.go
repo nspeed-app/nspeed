@@ -77,8 +77,7 @@ type Metric struct {
 func (wm *Metric) SetTLSInfo(conn net.Conn) {
 	if tlsConn, ok := conn.(*tls.Conn); ok {
 		cs := tlsConn.ConnectionState()
-		wm.Cipher = crypto.TLSCipherSuite(&cs)
-		wm.TLSVersion = crypto.TLSVersionFriendlyName(cs.Version)
+		wm.SetTLSConnectionState(cs)
 		wm.Protocol = "IP"
 		if _, ok := tlsConn.NetConn().(*net.TCPConn); ok {
 			wm.Protocol = "TCP"
@@ -86,7 +85,17 @@ func (wm *Metric) SetTLSInfo(conn net.Conn) {
 		if _, ok := tlsConn.NetConn().(*net.UDPConn); ok {
 			wm.Protocol = "UDP"
 		}
+	} else if i, ok := conn.(interface{ ConnectionState() tls.ConnectionState }); ok {
+		cs := i.ConnectionState()
+		wm.SetTLSConnectionState(cs)
 	}
+}
+
+func (wm *Metric) SetTLSConnectionState(cs tls.ConnectionState) {
+	wm.mutex.Lock()
+	defer wm.mutex.Unlock()
+	wm.Cipher = crypto.TLSCipherSuite(&cs)
+	wm.TLSVersion = crypto.TLSVersionFriendlyName(cs.Version)
 }
 
 // set the logger

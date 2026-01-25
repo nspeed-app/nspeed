@@ -16,7 +16,7 @@ require (
 	github.com/magefile/mage v1.15.0
 	github.com/maxence-charriere/go-app/v10 v10.1.8
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
-	github.com/quic-go/quic-go v0.58.0
+	github.com/quic-go/quic-go v0.59.0
 	github.com/rs/xid v1.6.0
 	github.com/rs/zerolog v1.34.0
 	github.com/shirou/gopsutil/v4 v4.25.12
@@ -28,8 +28,8 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.39.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
 	golang.org/x/net v0.48.0
-	golang.org/x/sys v0.39.0
-	golang.org/x/term v0.38.0
+	golang.org/x/sys v0.40.0
+	golang.org/x/term v0.39.0
 	golang.zx2c4.com/wireguard/windows v0.5.3
 	nspeed.app v0.0.0-00010101000000-000000000000
 )
@@ -69,6 +69,6 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/text v0.33.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
