@@ -196,3 +196,60 @@ func TestPacer_ZeroDurations(t *testing.T) {
 		t.Errorf("Subsequent Wait() error = %v, want nil", err)
 	}
 }
+
+func TestPacingSchedule_String(t *testing.T) {
+	tests := []struct {
+		name      string
+		durations []time.Duration
+		want      string
+	}{
+		{
+			name:      "Simple schedule",
+			durations: []time.Duration{2 * time.Second, 5 * time.Second, 1 * time.Second},
+			want:      "2s,5s,1s",
+		},
+		{
+			name:      "Even number of durations (explicit infinite)",
+			durations: []time.Duration{2 * time.Second, 5 * time.Second, 1 * time.Second, 0},
+			want:      "2s,5s,1s",
+		},
+		{
+			name:      "Single hold",
+			durations: []time.Duration{2 * time.Second},
+			want:      "2s",
+		},
+		{
+			name:      "Hold then infinite work",
+			durations: []time.Duration{2 * time.Second, 0},
+			want:      "2s",
+		},
+		{
+			name:      "Empty",
+			durations: []time.Duration{},
+			want:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps, err := NewPacingSchedule(tt.durations...)
+			if err != nil {
+				t.Errorf("NewPacingSchedule(%v) error = %v", tt.durations, err)
+				return
+			}
+			if got := ps.String(); got != tt.want {
+				t.Errorf("PacingSchedule.String() = %q, want %q", got, tt.want)
+			}
+
+			// Verify symmetry
+			parsed, err := ParsePacingSchedule(tt.want)
+			if err != nil {
+				t.Errorf("ParsePacingSchedule(%q) error = %v", tt.want, err)
+				return
+			}
+			if !reflect.DeepEqual(parsed.phases, ps.phases) {
+				t.Errorf("Round trip failed: Parse(%q) = %v, want %v", tt.want, parsed.phases, ps.phases)
+			}
+		})
+	}
+}

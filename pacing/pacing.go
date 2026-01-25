@@ -22,6 +22,17 @@ type phase struct {
 	duration time.Duration
 }
 
+func (ps *PacingSchedule) String() string {
+	var parts []string
+	for _, p := range ps.phases {
+		parts = append(parts, p.duration.String())
+	}
+	if len(parts) > 0 && parts[len(parts)-1] == "0s" {
+		parts = parts[:len(parts)-1]
+	}
+	return strings.Join(parts, ",")
+}
+
 // NewPacingSchedule creates a schedule from alternating h,w durations
 //
 // Example:
