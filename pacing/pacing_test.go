@@ -17,13 +17,13 @@ func TestParsePacingSchedule(t *testing.T) {
 	tests := []struct {
 		name        string
 		scheduleStr string
-		want        *PacingSchedule
+		want        *Schedule
 		wantErr     bool
 	}{
 		{
 			name:        "Valid schedule",
 			scheduleStr: "2s,5s,1s,3s",
-			want: &PacingSchedule{
+			want: &Schedule{
 				phases: []phase{
 					{hold: true, duration: 2 * time.Second},
 					{hold: false, duration: 5 * time.Second},
@@ -36,7 +36,7 @@ func TestParsePacingSchedule(t *testing.T) {
 		{
 			name:        "Valid schedule with spaces",
 			scheduleStr: " 2s , 5s , 1s , 3s ",
-			want: &PacingSchedule{
+			want: &Schedule{
 				phases: []phase{
 					{hold: true, duration: 2 * time.Second},
 					{hold: false, duration: 5 * time.Second},
@@ -49,7 +49,7 @@ func TestParsePacingSchedule(t *testing.T) {
 		{
 			name:        "Empty string",
 			scheduleStr: "",
-			want: &PacingSchedule{
+			want: &Schedule{
 				phases: []phase{},
 			},
 			wantErr: false,
@@ -57,7 +57,7 @@ func TestParsePacingSchedule(t *testing.T) {
 		{
 			name:        "Odd number of durations (infinite last)",
 			scheduleStr: "2s,5s,1s",
-			want: &PacingSchedule{
+			want: &Schedule{
 				phases: []phase{
 					{hold: true, duration: 2 * time.Second},
 					{hold: false, duration: 5 * time.Second},

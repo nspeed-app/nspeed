@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// PacingSchedule represents alternating hold and work durations
-type PacingSchedule struct {
+// Schedule represents alternating hold and work durations
+type Schedule struct {
 	phases []phase
 }
 
@@ -22,7 +22,7 @@ type phase struct {
 	duration time.Duration
 }
 
-func (ps *PacingSchedule) String() string {
+func (ps *Schedule) String() string {
 	var parts []string
 	for _, p := range ps.phases {
 		parts = append(parts, p.duration.String())
@@ -42,12 +42,12 @@ func (ps *PacingSchedule) String() string {
 // means: hold 2s, work 5s, hold 1s, work 3s
 //
 // If the number of durations is odd, the last work phase is assumed to be infinite (duration 0).
-func NewPacingSchedule(durations ...time.Duration) (*PacingSchedule, error) {
+func NewPacingSchedule(durations ...time.Duration) (*Schedule, error) {
 	if len(durations)%2 != 0 {
 		durations = append(durations, 0)
 	}
 
-	ps := &PacingSchedule{
+	ps := &Schedule{
 		phases: make([]phase, len(durations)),
 	}
 
@@ -61,7 +61,7 @@ func NewPacingSchedule(durations ...time.Duration) (*PacingSchedule, error) {
 
 // ParsePacingSchedule parses a comma-separated string of durations into a PacingSchedule
 // Example: "2s,5s,1s,3s" or "2s,5s,1s" (last work phase infinite)
-func ParsePacingSchedule(scheduleStr string) (*PacingSchedule, error) {
+func ParsePacingSchedule(scheduleStr string) (*Schedule, error) {
 	parts := strings.Split(scheduleStr, ",")
 	var durations []time.Duration
 	for _, part := range parts {
@@ -81,13 +81,13 @@ func ParsePacingSchedule(scheduleStr string) (*PacingSchedule, error) {
 // Pacer manages the timing of phases
 type Pacer struct {
 	ctx      context.Context
-	schedule *PacingSchedule
+	schedule *Schedule
 	phaseIdx int
 	phaseEnd time.Time
 	started  bool
 }
 
-func NewPacer(ctx context.Context, schedule *PacingSchedule) *Pacer {
+func NewPacer(ctx context.Context, schedule *Schedule) *Pacer {
 	return &Pacer{
 		ctx:      ctx,
 		schedule: schedule,
@@ -174,7 +174,7 @@ type PacedReader struct {
 	pacer *Pacer
 }
 
-func NewPacedReader(ctx context.Context, r io.Reader, schedule *PacingSchedule) *PacedReader {
+func NewPacedReader(ctx context.Context, r io.Reader, schedule *Schedule) *PacedReader {
 	return &PacedReader{
 		r:     r,
 		pacer: NewPacer(ctx, schedule),
@@ -194,7 +194,7 @@ type PacedWriter struct {
 	pacer *Pacer
 }
 
-func NewPacedWriter(ctx context.Context, w io.Writer, schedule *PacingSchedule) *PacedWriter {
+func NewPacedWriter(ctx context.Context, w io.Writer, schedule *Schedule) *PacedWriter {
 	return &PacedWriter{
 		w:     w,
 		pacer: NewPacer(ctx, schedule),
