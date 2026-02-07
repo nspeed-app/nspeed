@@ -484,6 +484,11 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 		cmd = "sending"
 		j.wm.ContentWriteSize = j.ContentSize
 		j.wm.TotalWrite = 0
+		var writer io.Writer = conn
+		if j.Schedule != nil {
+			writer = pacing.NewPacedWriter(ctx, conn, j.Schedule)
+		}
+
 		iocmd = func(n int64) (int64, error) {
 			nn, err := j.wm.ReadN(n)
 			if err != nil { // ReadN only returns io.EOF
@@ -491,7 +496,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 				j.wm.Done = true
 				return 0, err
 			}
-			nw, err := conn.Write(chunk[:min(j.wm.WriteStepSize, nn)])
+			nw, err := writer.Write(chunk[:min(j.wm.WriteStepSize, nn)])
 			return int64(nw), err
 		}
 		end = func() {
@@ -504,8 +509,13 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 		cmd = "receiving"
 		j.wm.ContentReadSize = j.ContentSize
 		j.wm.TotalRead = 0
+		var reader io.Reader = conn
+		if j.Schedule != nil {
+			reader = pacing.NewPacedReader(ctx, conn, j.Schedule)
+		}
+
 		iocmd = func(n int64) (int64, error) {
-			nw, err := conn.Read(chunk[:j.wm.ReadStepSize])
+			nw, err := reader.Read(chunk[:j.wm.ReadStepSize])
 			nn := j.wm.WriteN(int64(nw))
 
 			if j.wm.TotalRead >= j.wm.ContentReadSize {

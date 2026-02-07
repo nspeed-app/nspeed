@@ -324,7 +324,7 @@ func (j *L4Server) Run(ctx context.Context, wg *sync.WaitGroup, _ Options) (*met
 		return j.ServeQUIC(ctx, network, wg)
 	}
 	defer wg.Done()
-	return nil, fmt.Errorf("protocol %s not yet implemented", j.Parameters.Protocol)
+	return nil, fmt.Errorf("protocol %s not implemented", j.Parameters.Protocol)
 }
 
 func (j *L4Server) ServeTCP(ctx context.Context, network string, wg *sync.WaitGroup) (*metrics.Metric, error) {
