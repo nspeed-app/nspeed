@@ -44,7 +44,7 @@ func (qr *quicConnectionRecorder) RecordEvent(e qlogwriter.Event) {
 			evt.PacketsInFlight)
 		qr.wm.AvgLatency = evt.SmoothedRTT
 	case qlog.KeyUpdated:
-		qr.wm.Logger().Warn().Msgf("key phase: %d", evt.KeyPhase)
+		qr.wm.Logger().Trace().Msgf("key phase: %d", evt.KeyPhase)
 	}
 }
 
