@@ -42,7 +42,13 @@ func (ps *Schedule) String() string {
 // means: hold 2s, work 5s, hold 1s, work 3s
 //
 // If the number of durations is odd, the last work phase is assumed to be infinite (duration 0).
+//
+// note: If no durations are provided, the returned Schedule is nil.
 func NewPacingSchedule(durations ...time.Duration) (*Schedule, error) {
+	if len(durations) == 0 {
+		return nil, nil
+	}
+
 	if len(durations)%2 != 0 {
 		durations = append(durations, 0)
 	}

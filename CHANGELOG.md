@@ -1,5 +1,5 @@
 # v0.0.16 - binaries release (next branch)
-- client: **new feature** **scheduler** (`-schedule` flag): `nspeed get -schedule 1s,1s url` will connect to url, wait 1s, download for 1s, then stop. General format is: `-schedule h0,w0,h1,w1,...,hN[,wN]` = hold h0, work for w0 , hold h1, work w1,...,hold hN, work wN is present or till end of content/timeout. Global timeout (defaut none) and command timeout (defaut 8 seconds) always take priority: `nspeed get -schedule 1s,20s url` won't last 21s but only 8s. For now -scheduler is incompatible with `-repeat` flag and scheduling steps are not visible in logs/traces.
+- client: **new feature** **scheduler** (`-schedule` flag): `nspeed get -schedule 1s,1s url` will connect to url, wait 1s, download for 1s, then stop. General format is: `-schedule h0,w0,h1,w1,...,hN[,wN]` = hold h0, work for w0 , hold h1, work w1,...,hold hN, work wN is present or till end of content/timeout. Global timeout (defaut none) and command timeout (defaut 8 seconds) always take priority: `nspeed get -schedule 1s,20s url` won't last 21s but only 8s. For now the `-schedule` flag is incompatible with the `-repeat` flag and scheduling steps are not reported in verbose/debug/trace logs.
 - ui: Added `matcha` test.
 - bug fixes (tcp client, repeat)
 - chores: Updated dependencies (quic-go, psutils, x/net).
