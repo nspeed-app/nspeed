@@ -1,4 +1,10 @@
-# v0.0.15 - binaries release
+# v0.0.16 - binaries release (next branch)
+- client: **new feature** **scheduler** (`-schedule` flag): `nspeed get -schedule 1s,1s url` will connect to url, wait 1s, download for 1s, then stop. General format is: `-schedule h0,w0,h1,w1,...,hN[,wN]` = hold h0, work for w0 , hold h1, work w1,...,hold hN, work wN is present or till end of content/timeout. Global timeout (defaut none) and command timeout (defaut 8 seconds) always take priority: `nspeed get -schedule 1s,20s url` won't last 21s but only 8s. For now -scheduler is incompatible with `-repeat` flag and scheduling steps are not visible in logs/traces.
+- ui: Added `matcha` test.
+- bug fixes (tcp client, repeat)
+- chores: Updated dependencies (quic-go, psutils, x/net).
+
+# v0.0.15 - binaries release (next branch)
 - client & server: new `-mtu size` flag to set the initialize packet size (**quic-go related only**)
 - client: **new flag** repeat flag `-r n` allow to repeat the command `n` times. The client we'll try to reuse the connection if possible.
 - bench: **breaking change** HTTP/1.1 benchmark names are now consistent with HTTP/2 (`h1g` is with tls, `h1cg` without)
@@ -13,7 +19,7 @@
 - charting: moved from chartjs to echarts. `-html` now produces working graphs. use `-rate` for graphing series.
 - charting: use `nspeed ui -viewer` special UI mode to open the json charts viewer (equiv: `-html :` from `-json` file)
 
-# v0.0.14
+# v0.0.14 (next branch)
 - **breaking change**: global flag `-color` removed. Colors are now on by default, use the new flag `-nocolor` to disable them.
 - major internal refactoring of packages. more packages open source'd to this repo.
 - `cmd/getroute` demo program for `nspeed.app/network` package
