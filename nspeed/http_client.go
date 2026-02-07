@@ -27,6 +27,7 @@ import (
 	"nspeed.app/humanize"
 	"nspeed.app/iobuffer"
 	"nspeed.app/network"
+	"nspeed.app/pacing"
 )
 
 // HTTP specific client code - complement of client.go
@@ -153,7 +154,6 @@ func (j *JobClient) HTTPInit() error {
 		j.wm.ContentReadSize = j.ContentSize * int64(j.Repeat)
 		j.wm.TotalRead = 0
 	}
-
 	req, err := http.NewRequest(j.Command, j.finalTarget, body)
 	if err != nil {
 		_ = j.Close() // not good, find a better way to clean opened port
@@ -301,7 +301,7 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 	// resp, err := client.Transport.RoundTrip(req)
 	wm.InitNew()
 	if j.Repeat == 0 {
-		j.Logger().Warn().Msgf("zero repeat!")
+		j.Logger().Warn().Msgf("zero repeat!") //should this fail?
 	}
 	wm.LoopMax = j.Repeat
 	wm.Loop = 0
@@ -315,6 +315,9 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 			wm.StartTicker(done)
 		}
 		// ***** http request happens here
+		if (j.Command == "PUT" || j.Command == "POST") && j.Schedule != nil {
+			j.req.Body = io.NopCloser(pacing.NewPacedReader(j.req.Context(), j.req.Body, j.Schedule))
+		}
 		resp, err := j.client.Do(j.req)
 		// *****
 		if j.Command == "PUT" || j.Command == "POST" {
@@ -434,7 +437,12 @@ func (j *JobClient) HTTPRun(ctx context.Context, _ Options) (*metrics.Metric, er
 					//wm.TotalReadProcessed, err = io.Copy(ioutil.Discard, io.TeeReader(resp.Body, wm))
 					//todo: invesstigate why the following gives results too high
 
-					totalread, err := iobuffer.Copy(wm, resp.Body)
+					var bodyReader io.Reader = resp.Body
+					if j.Schedule != nil {
+						bodyReader = pacing.NewPacedReader(ctx, resp.Body, j.Schedule)
+					}
+
+					totalread, err := iobuffer.Copy(wm, bodyReader)
 
 					// b, err := io.ReadAll(resp.Body)
 					// if err != nil {
