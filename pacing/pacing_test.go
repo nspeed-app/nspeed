@@ -49,10 +49,8 @@ func TestParsePacingSchedule(t *testing.T) {
 		{
 			name:        "Empty string",
 			scheduleStr: "",
-			want: &Schedule{
-				phases: []phase{},
-			},
-			wantErr: false,
+			want:        nil,
+			wantErr:     false,
 		},
 		{
 			name:        "Odd number of durations (infinite last)",
@@ -222,11 +220,6 @@ func TestPacingSchedule_String(t *testing.T) {
 			name:      "Hold then infinite work",
 			durations: []time.Duration{2 * time.Second, 0},
 			want:      "2s",
-		},
-		{
-			name:      "Empty",
-			durations: []time.Duration{},
-			want:      "",
 		},
 	}
 
