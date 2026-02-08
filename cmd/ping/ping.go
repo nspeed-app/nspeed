@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"nspeed.app/ping"
+	"nspeed.app/nspeed/ping"
 )
 
 func main() {
