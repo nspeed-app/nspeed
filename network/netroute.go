@@ -1,7 +1,8 @@
 // Copyright (c) Jean-Francois Giorgi & AUTHORS
 // parts of nspeed.app
 // SPDX-License-Identifier: BSD-3-Clause
-package utils
+
+package network
 
 import (
 	"fmt"
@@ -39,13 +40,25 @@ func GetRoute(destination string) (iface *net.Interface, gw netip.Addr, src neti
 	}
 	ap, err := netip.ParseAddr(destination)
 	if err != nil {
+		err = fmt.Errorf("parse destination ip error: %w", err)
 		return
 	}
 	iface, g, s, err := router.Route(ap.AsSlice())
 	if err != nil {
+		err = fmt.Errorf("router.Route error: %w", err)
 		return
 	}
 	gw, _ = netip.AddrFromSlice(g)
 	src, _ = netip.AddrFromSlice(s)
 	return
+}
+
+// GetRouteFromAddrPort is the same as GetRoute but argument is in host:port format
+func GetRouteFromAddrPort(destination string) (iface *net.Interface, gw netip.Addr, src netip.Addr, err error) {
+	ip, _, err := net.SplitHostPort(destination)
+	if err != nil {
+		err = fmt.Errorf("split host port error: %w", err)
+		return
+	}
+	return GetRoute(ip)
 }

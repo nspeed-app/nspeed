@@ -1,3 +1,8 @@
+// Copyright (c) Jean-Francois Giorgi & AUTHORS
+// parts of nspeed.app
+// parts are from https://go.dev/
+// SPDX-License-Identifier: BSD-3-Clause
+
 package main
 
 import (
@@ -5,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"nspeed.app/nspeed/utils"
+	"nspeed.app/ping"
 )
 
 func main() {
@@ -18,7 +23,7 @@ func main() {
 
 	flag.Parse()
 
-	options := utils.PingOptions{HopLimit: *m, Timeout: *w}
+	options := ping.PingOptions{HopLimit: *m, Timeout: *w}
 	// additionnal flags checks
 	if *v4 && *v6 {
 		fmt.Println("cannot specify both ip version at the same time")
@@ -30,8 +35,8 @@ func main() {
 	if *v6 {
 		options.Version = 6
 	}
-	if *s > utils.PacketSizeMax {
-		fmt.Println("size if too big, max is", utils.PacketSizeMax)
+	if *s > ping.PacketSizeMax {
+		fmt.Println("size if too big, max is", ping.PacketSizeMax)
 		os.Exit(1)
 	}
 	options.PacketSize = uint16(*s)
@@ -42,7 +47,7 @@ func main() {
 	}
 	for _, host := range flag.Args() {
 
-		peer, ping, response, err := utils.Ping(host, options)
+		peer, ping, response, err := ping.Ping(host, options)
 		if err != nil {
 			fmt.Println("ping error:", err)
 		} else {

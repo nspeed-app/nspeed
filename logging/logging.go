@@ -1,7 +1,8 @@
 // Copyright (c) Jean-Francois Giorgi & AUTHORS
 // parts of nspeed.app
 // SPDX-License-Identifier: BSD-3-Clause
-package utils
+
+package logging
 
 import (
 	"io"
@@ -32,7 +33,7 @@ func NewSLogger(w io.Writer, level slog.Level, basePath string) *slog.Logger {
 	}))
 }
 
-// call this to se base path relat
+// call this to set the base path
 func ThisBasePath() string {
 	_, file, _, ok := runtime.Caller(1)
 	if ok {

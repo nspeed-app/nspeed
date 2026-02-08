@@ -3,7 +3,7 @@
 // parts are from https://go.dev/
 // SPDX-License-Identifier: BSD-3-Clause
 
-package utils // copied from "golang.org/x/net/internal/iana"
+package iana // copied from "golang.org/x/net/internal/iana"
 
 const (
 	ProtocolIP       = 0  // IPv4 encapsulation, pseudo protocol number
