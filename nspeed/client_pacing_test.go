@@ -10,7 +10,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"nspeed.app/pacing"
+
+	"nspeed.app/nspeed/pacing"
 )
 
 func TestL4Pacing(t *testing.T) {

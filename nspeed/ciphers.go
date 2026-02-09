@@ -21,8 +21,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/cpu"
-	"nspeed.app/crypto"
-	"nspeed.app/network"
+	"nspeed.app/nspeed/crypto"
+	"nspeed.app/nspeed/network"
 )
 
 // from: https://www.joeshaw.org/abusing-go-linkname-to-customize-tls13-cipher-suites/

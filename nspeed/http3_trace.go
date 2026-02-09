@@ -11,7 +11,8 @@ import (
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/qlog"
 	"github.com/quic-go/quic-go/qlogwriter"
-	"nspeed.app/network"
+
+	"nspeed.app/nspeed/network"
 )
 
 type quicConnectionTracer struct {

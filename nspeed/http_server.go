@@ -29,13 +29,14 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"nspeed.app/anonymize"
-	"nspeed.app/crypto"
-	"nspeed.app/generics"
-	"nspeed.app/humanize"
-	"nspeed.app/iobuffer"
-	"nspeed.app/network"
-	"nspeed.app/ttlmap"
+
+	"nspeed.app/nspeed/anonymize"
+	"nspeed.app/nspeed/crypto"
+	"nspeed.app/nspeed/generics"
+	"nspeed.app/nspeed/humanize"
+	"nspeed.app/nspeed/iobuffer"
+	"nspeed.app/nspeed/network"
+	"nspeed.app/nspeed/ttlmap"
 )
 
 // name of product, used in user-agent

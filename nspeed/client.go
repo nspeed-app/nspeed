@@ -25,12 +25,12 @@ import (
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/quic"
-	"nspeed.app/crypto"
-	"nspeed.app/generics"
-	"nspeed.app/humanize"
-	"nspeed.app/iobuffer"
-	"nspeed.app/network"
-	"nspeed.app/pacing"
+	"nspeed.app/nspeed/crypto"
+	"nspeed.app/nspeed/generics"
+	"nspeed.app/nspeed/humanize"
+	"nspeed.app/nspeed/iobuffer"
+	"nspeed.app/nspeed/network"
+	"nspeed.app/nspeed/pacing"
 )
 
 // supported L4Protocols

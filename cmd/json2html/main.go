@@ -10,7 +10,7 @@ import (
 
 	"nspeed/webview"
 
-	"nspeed.app/web"
+	"nspeed.app/nspeed/web"
 )
 
 func main() {

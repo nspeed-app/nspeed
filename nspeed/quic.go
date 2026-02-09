@@ -12,7 +12,8 @@ import (
 	"nspeed/metrics"
 
 	"golang.org/x/net/quic"
-	"nspeed.app/network"
+
+	"nspeed.app/nspeed/network"
 )
 
 // func quicClientInit(j *JobClient) (*quic.Config, *quic.Endpoint) {

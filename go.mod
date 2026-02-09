@@ -1,11 +1,11 @@
 module nspeed
 
-go 1.25.5
+go 1.25.7
 
 //replace golang.org/x/net => ../golang-net
 //replace github.com/quic-go/quic-go => ../quic-go
 
-replace nspeed.app => ../nspeed
+replace nspeed.app/nspeed => ../nspeed
 
 require (
 	github.com/arl/statsviz v0.8.0
@@ -31,7 +31,7 @@ require (
 	golang.org/x/sys v0.40.0
 	golang.org/x/term v0.39.0
 	golang.zx2c4.com/wireguard/windows v0.5.3
-	nspeed.app v0.0.0-00010101000000-000000000000
+	nspeed.app/nspeed v0.16.0
 )
 
 require (

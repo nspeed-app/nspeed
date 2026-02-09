@@ -12,7 +12,8 @@ import (
 	"nspeed/metrics"
 
 	"github.com/rs/zerolog/log"
-	"nspeed.app/network"
+
+	"nspeed.app/nspeed/network"
 )
 
 type Options struct {

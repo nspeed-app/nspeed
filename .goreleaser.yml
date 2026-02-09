@@ -25,8 +25,8 @@ builds:
       - mipsle
       - mips64
       - mips64le
-    ldflags:
-      - -s -w -X nspeed/nspeed.Version={{.Summary}}
+    # ldflags:
+    #   - -s -w -X nspeed/nspeed.Version={{.Summary}}
     ignore:
       - goos: windows
         goarch: arm64 arm

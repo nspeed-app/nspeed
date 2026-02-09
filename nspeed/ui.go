@@ -26,9 +26,10 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/generics"
-	"nspeed.app/str"
-	"nspeed.app/web"
+
+	"nspeed.app/nspeed/generics"
+	"nspeed.app/nspeed/str"
+	"nspeed.app/nspeed/web"
 )
 
 //go:embed embed/ui/app.wasm

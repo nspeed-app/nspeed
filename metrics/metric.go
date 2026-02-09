@@ -14,10 +14,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/anonymize"
-	"nspeed.app/crypto"
-	"nspeed.app/generics"
-	"nspeed.app/humanize"
+
+	"nspeed.app/nspeed/anonymize"
+	"nspeed.app/nspeed/crypto"
+	"nspeed.app/nspeed/generics"
+	"nspeed.app/nspeed/humanize"
 )
 
 const gPrecision = 100 * time.Millisecond

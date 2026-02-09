@@ -22,11 +22,11 @@ import (
 
 	"nspeed/webview"
 
-	"nspeed.app/anonymize"
-	"nspeed.app/humanize"
-	"nspeed.app/iobuffer"
-	"nspeed.app/network"
-	"nspeed.app/str"
+	"nspeed.app/nspeed/anonymize"
+	"nspeed.app/nspeed/humanize"
+	"nspeed.app/nspeed/iobuffer"
+	"nspeed.app/nspeed/network"
+	"nspeed.app/nspeed/str"
 )
 
 // global flags

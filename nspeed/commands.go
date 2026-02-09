@@ -14,9 +14,10 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/humanize"
-	"nspeed.app/str"
-	"nspeed.app/web"
+
+	"nspeed.app/nspeed/humanize"
+	"nspeed.app/nspeed/str"
+	"nspeed.app/nspeed/web"
 )
 
 // commands

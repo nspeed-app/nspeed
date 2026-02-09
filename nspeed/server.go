@@ -21,10 +21,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"
-	"nspeed.app/crypto"
-	"nspeed.app/humanize"
-	"nspeed.app/iobuffer"
-	"nspeed.app/network"
+
+	"nspeed.app/nspeed/crypto"
+	"nspeed.app/nspeed/humanize"
+	"nspeed.app/nspeed/iobuffer"
+	"nspeed.app/nspeed/network"
 )
 
 type TLSSettings struct {

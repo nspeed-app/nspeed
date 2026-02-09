@@ -23,11 +23,12 @@ import (
 	"github.com/quic-go/quic-go/http3"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
-	"nspeed.app/crypto"
-	"nspeed.app/humanize"
-	"nspeed.app/iobuffer"
-	"nspeed.app/network"
-	"nspeed.app/pacing"
+
+	"nspeed.app/nspeed/crypto"
+	"nspeed.app/nspeed/humanize"
+	"nspeed.app/nspeed/iobuffer"
+	"nspeed.app/nspeed/network"
+	"nspeed.app/nspeed/pacing"
 )
 
 // HTTP specific client code - complement of client.go

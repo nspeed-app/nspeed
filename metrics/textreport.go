@@ -11,8 +11,9 @@ import (
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
-	"nspeed.app/humanize"
-	"nspeed.app/str"
+
+	"nspeed.app/nspeed/humanize"
+	"nspeed.app/nspeed/str"
 )
 
 // generate a report per batch (sorted), filtering failed jobs

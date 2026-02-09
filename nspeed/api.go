@@ -19,9 +19,9 @@ import (
 	"nspeed/webview"
 
 	"github.com/rs/zerolog"
-	"nspeed.app/generics"
-	"nspeed.app/str"
-	"nspeed.app/web"
+	"nspeed.app/nspeed/generics"
+	"nspeed.app/nspeed/str"
+	"nspeed.app/nspeed/web"
 )
 
 const APIVersion string = "1.0"

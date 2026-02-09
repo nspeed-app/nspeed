@@ -14,7 +14,8 @@ import (
 	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/templates"
 	"github.com/rs/zerolog/log"
-	"nspeed.app/network"
+
+	"nspeed.app/nspeed/network"
 
 	"github.com/go-echarts/statsview/statics"
 	"github.com/go-echarts/statsview/viewer"
