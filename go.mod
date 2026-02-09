@@ -1,4 +1,4 @@
-module nspeed.app/nspeed
+module nspeed.app
 
 go 1.25.7
 

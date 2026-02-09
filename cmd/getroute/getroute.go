@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"nspeed.app/nspeed/network"
+	"nspeed.app/network"
 )
 
 // a sample program to demo parts of the nspeed.app/network package

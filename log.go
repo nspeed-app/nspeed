@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"os"
 
-	"nspeed.app/nspeed/logging"
+	"nspeed.app/logging"
 )
 
 var BasePath string
