@@ -87,7 +87,7 @@ func NewLineInfoHook(rel string) *LineInfoHook {
 const unknownLevel = "???"
 
 // colorize returns the string s wrapped in ANSI code c, unless disabled is true or c is 0.
-func colorize(s interface{}, c int, disabled bool) string {
+func colorize(s any, c int, disabled bool) string {
 	if c == 0 {
 		disabled = true
 	}
@@ -114,7 +114,7 @@ func LogConsoleFormatLevel(noColor bool, displayLevel bool) zerolog.Formatter {
 			return ""
 		}
 	}
-	return func(i interface{}) string {
+	return func(i any) string {
 		if ll, ok := i.(string); ok {
 			level, _ := zerolog.ParseLevel(ll)
 			fl, ok := zerolog.FormattedLevels[level]

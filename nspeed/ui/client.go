@@ -105,7 +105,7 @@ func (c *Client) WritePump() error {
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.Send)
-			for i := 0; i < n; i++ {
+			for range n {
 				_, err = w.Write(newline)
 				if err != nil {
 					return err

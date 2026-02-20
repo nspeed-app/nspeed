@@ -403,7 +403,7 @@ func (j *JobHTTPServer) StreamBytes(w http.ResponseWriter, r *http.Request, size
 		// send the buffer as many times as needed --> todo: why don't we io.copy to a wm like the client ?
 		var numChunk = numBytes / chunkSize
 		wm.WriteStepSize = chunkSize
-		for i := int64(0); i < numChunk; i++ {
+		for range numChunk {
 			n, err := w.Write(chunk)
 			wm.TotalWrite += int64(n)
 			wm.ElapsedTime = time.Since(wm.TransfertStartTime)

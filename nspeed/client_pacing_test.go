@@ -40,8 +40,7 @@ func TestL4Pacing(t *testing.T) {
 	}
 
 	// Run Server
-	ctxServer, cancelServer := context.WithCancel(context.Background())
-	defer cancelServer()
+	ctxServer := t.Context()
 	wgServer := &sync.WaitGroup{}
 	wgServer.Add(1)
 

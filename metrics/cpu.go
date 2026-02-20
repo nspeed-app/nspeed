@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"runtime/metrics"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,8 +27,10 @@ func FormatCPULoad(pcts []float64, colorize bool) (string, string) {
 		red, green, yellow, reset = "", "", "", ""
 	}
 
-	cpuload := "|"
-	headers := "|"
+	var cpuload strings.Builder
+	cpuload.WriteString("|")
+	var headers strings.Builder
+	headers.WriteString("|")
 	for i, pc := range pcts {
 		v := math.Round(pc)
 		color := green
@@ -37,11 +40,11 @@ func FormatCPULoad(pcts []float64, colorize bool) (string, string) {
 		if v > 80 {
 			color = red
 		}
-		headers += fmt.Sprintf("%3s|", "c"+strconv.Itoa(i))
-		cpuload += fmt.Sprintf("%s%3v%s|", color, v, reset)
+		headers.WriteString(fmt.Sprintf("%3s|", "c"+strconv.Itoa(i)))
+		cpuload.WriteString(fmt.Sprintf("%s%3v%s|", color, v, reset))
 
 	}
-	return cpuload, headers
+	return cpuload.String(), headers.String()
 }
 
 func PrintCPULoad(pcts []float64, colorize bool) (string, string, int) {

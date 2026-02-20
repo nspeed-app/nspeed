@@ -398,11 +398,11 @@ func LogMemUsage(log *zerolog.Logger, mess string, v ...any) {
 type kvMap map[string]string
 
 func (s kvMap) String() string {
-	r := ""
+	var r strings.Builder
 	for k, v := range s {
-		r += fmt.Sprintln(k, "=", v)
+		r.WriteString(fmt.Sprintln(k, "=", v))
 	}
-	return r
+	return r.String()
 }
 
 // Set is called by the flag package each time the flag appears.

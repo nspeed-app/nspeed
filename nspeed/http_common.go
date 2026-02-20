@@ -82,7 +82,7 @@ func expandJobs(instances int, j *JobClient) []Job {
 		return []Job{j}
 	}
 	jobs := make([]Job, instances)
-	for i := 0; i < instances; i++ {
+	for i := range instances {
 		jc := *j
 		jc.Instance = i + 1
 		jobs[i] = &jc
