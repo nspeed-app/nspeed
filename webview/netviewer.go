@@ -81,7 +81,7 @@ func NewNetInterfacesViewer(tick time.Duration, ifaces []net.Interface, dir stri
 				charts.WithMarkPointStyleOpts(opts.MarkPointStyle{
 					Label: &opts.Label{
 						Show:      opts.Bool(true),
-						Formatter: string(opts.FuncOpts("function (params) { return formatBytes(params.value,'bps',2) }")),
+						Formatter: opts.FuncOpts("function (params) { return formatBytes(params.value,'bps',2) }"),
 					},
 				}),
 			)
