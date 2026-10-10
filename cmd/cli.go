@@ -403,7 +403,7 @@ mainloop:
 	// print errors in jobs
 	results.Batches = jl.BatcheNames()
 	for _, v := range results.Metrics {
-		if v.Error != nil {
+		if v != nil && v.Error != nil {
 			v.Logger().Warn().Err(v.Error).Msgf("error") // todo move this in text report?
 		}
 	}

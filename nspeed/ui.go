@@ -122,7 +122,6 @@ func (j *UIHost) Init(opt Options) error {
 }
 
 func (j *UIHost) Run(ctx context.Context, wg *sync.WaitGroup, opt Options) (*metrics.Metric, error) {
-
 	if j.Server == nil {
 		return nil, errors.New("ui: no server")
 	}

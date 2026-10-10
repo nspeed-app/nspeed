@@ -4,11 +4,10 @@ go 1.25.7
 
 //replace golang.org/x/net => ../golang-net
 //replace github.com/quic-go/quic-go => ../quic-go
-
-replace nspeed.app/nspeed => ../nspeed
+//replace nspeed.app/nspeed => ../nspeed
 
 require (
-	github.com/arl/statsviz v0.8.0
+	github.com/arl/statsviz v0.8.1
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/go-echarts/go-echarts/v2 v2.7.2
 	github.com/go-echarts/statsview v0.4.2
@@ -19,19 +18,19 @@ require (
 	github.com/quic-go/quic-go v0.60.0
 	github.com/rs/xid v1.6.0
 	github.com/rs/zerolog v1.35.1
-	github.com/shirou/gopsutil/v4 v4.26.5
+	github.com/shirou/gopsutil/v4 v4.26.6
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.44.0
 	go.opentelemetry.io/otel/metric v1.44.0
 	go.opentelemetry.io/otel/sdk v1.44.0
 	go.opentelemetry.io/otel/sdk/metric v1.44.0
-	golang.org/x/exp v0.0.0-20260603202125-055de637280b
-	golang.org/x/net v0.55.0
-	golang.org/x/sys v0.45.0
-	golang.org/x/term v0.43.0
+	golang.org/x/exp v0.0.0-20260709172345-9ea1abe57597
+	golang.org/x/net v0.57.0
+	golang.org/x/sys v0.47.0
+	golang.org/x/term v0.45.0
 	golang.zx2c4.com/wireguard/windows v1.0.1
-	nspeed.app/nspeed v0.16.0
+	nspeed.app/nspeed v0.14.0
 )
 
 require (
@@ -52,7 +51,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/libp2p/go-netroute v0.4.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
-	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
+	github.com/lufia/plan9stats v0.0.0-20260627054121-477a66015f15 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mattn/go-runewidth v0.0.24 // indirect
@@ -67,7 +66,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

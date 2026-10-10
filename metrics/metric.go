@@ -106,7 +106,7 @@ func (wm *Metric) SetLogger(logger *zerolog.Logger) {
 
 // safe Logging, always works
 func (wm *Metric) Logger() *zerolog.Logger {
-	if wm.logger != nil {
+	if wm != nil && wm.logger != nil {
 		return wm.logger
 	}
 	return generics.Ptr(zerolog.Nop())
@@ -468,6 +468,9 @@ func (wc *Metrics) Cleanup() {
 	batchesMap := make(map[int]string, 0)
 	maxIdx := 0
 	for _, v := range wc.Metrics {
+		if v==nil {
+			continue
+		}
 		if !v.Valid {
 			continue
 		}

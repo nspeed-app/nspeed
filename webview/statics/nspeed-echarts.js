@@ -1,6 +1,9 @@
 // helper functions for charting
 
 // humanize bytes using std power of 10 prefix
+/**
+ * @param {number} value
+ */
 function formatBytes(value, unitname = '', precision = 2) {
 	if (value === 0 || isNaN(value)) return '0 ' + unitname;
 	if (value < 1) return value.toFixed(precision);
@@ -12,6 +15,9 @@ function formatBytes(value, unitname = '', precision = 2) {
 }
 
 // format tooltip for bps 
+/**
+ * @param {any[] | undefined} params
+ */
 function formatSeriesTooltip(params) {
 	if (params === undefined || params.length == 0) return "NO DATA";
 

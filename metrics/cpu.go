@@ -15,11 +15,12 @@ import (
 	"github.com/shirou/gopsutil/v4/cpu"
 )
 
-// global const
-const colorReset = "\033[0m"
-const colorRed = "\033[31m"
-const colorGreen = "\033[32m"
-const colorYellow = "\033[33m"
+const (
+	colorReset  = "\033[0m"
+	colorRed    = "\033[31m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+)
 
 func FormatCPULoad(pcts []float64, colorize bool) (string, string) {
 	red, green, yellow, reset := colorRed, colorGreen, colorYellow, colorReset
