@@ -52,10 +52,20 @@ GOARCH=wasm), which `nspeed/ui.go` pulls in via `//go:embed embed/ui/*`, then ru
 `go run cmd/nspeed/main.go ui`. You must rebuild the wasm blob after changing anything under
 `nspeed/ui/goapp` or it won't be reflected when running/serving the UI.
 
-Snapshot release build (goreleaser, see `.goreleaser.yml`):
+Snapshot release build (goreleaser, see `.goreleaser.yml`; builds the wasm UI first, all
+binaries are `CGO_ENABLED=0` cross-compiles into `dist/`):
 ```
 ./build-all.sh
 ```
+
+Releases: rename `# Unreleased` in `CHANGELOG.md` to `# vX.Y.Z ...`, commit, then push a `vX.Y.Z`
+tag. `.github/workflows/release.yml` runs `test.yml` (vet + tests on linux/macos/windows, also run
+on PRs) then goreleaser, publishing a GitHub release with linux/windows/darwin/freebsd archives,
+deb/rpm/apk packages + checksums, and updating the `nspeed-app/homebrew-tap` cask when the
+`HOMEBREW_TAP_TOKEN` secret is set; release notes are that CHANGELOG.md section
+(`.github/scripts/release-notes.sh`), or the generated commit changelog if the section is missing.
+Tags like `vX.Y.Z-rc1` become pre-releases. The repo holds two tag series (old client `v0.0.x`,
+library `v0.x.0`): new tags must sort above `v0.14.0`.
 
 ## Architecture
 

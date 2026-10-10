@@ -1,43 +1,154 @@
+# GoReleaser config, used by .github/workflows/release.yml on `v*` tags.
+# Local dry run: ./build-all.sh  (snapshot build into dist/, nothing published)
 version: 2
 
 before:
   hooks:
-    # You may remove this if you don't use go modules.
-    - go mod tidy
-    # you may remove this if you don't need go generate
-    - go generate ./...
+    # the WASM UI is git-ignored but embedded via //go:embed in nspeed/ui.go: it must exist before building
+    - sh -c "GOOS=js GOARCH=wasm go build -trimpath -o nspeed/embed/ui/app.wasm ./nspeed/ui/goapp/main"
+
 builds:
   - id: nspeed
     binary: nspeed
-    main: cmd/nspeed/main.go
+    main: ./cmd/nspeed
     env:
       - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X nspeed.app/nspeed/nspeed.Version=v{{ .Version }}
     goos:
       - linux
       - windows
-      - freebsd
       - darwin
+      - freebsd
     goarch:
       - amd64
-      - arm
       - arm64
+      - arm
+      - "386"
       - mips
       - mipsle
       - mips64
       - mips64le
-    # ldflags:
-    #   - -s -w -X nspeed/nspeed.Version={{.Summary}}
+    goarm:
+      - "7"
+    # most mips routers have no FPU; softfloat also runs on hardfloat CPUs
+    gomips:
+      - softfloat
     ignore:
       - goos: windows
-        goarch: arm64 arm
-      - goarch: 386
+        goarch: arm
+      - goos: windows
+        goarch: "386"
+      - goos: darwin
+        goarch: "386"
+      - goos: freebsd
+        goarch: "386"
+      - goos: freebsd
+        goarch: arm
+      # mips* are only meaningful on linux (routers / embedded boxes)
+      - goos: windows
+        goarch: mips
+      - goos: windows
+        goarch: mipsle
+      - goos: windows
+        goarch: mips64
+      - goos: windows
+        goarch: mips64le
+      - goos: darwin
+        goarch: mips
+      - goos: darwin
+        goarch: mipsle
+      - goos: darwin
+        goarch: mips64
+      - goos: darwin
+        goarch: mips64le
+      - goos: freebsd
+        goarch: mips
+      - goos: freebsd
+        goarch: mipsle
+      - goos: freebsd
+        goarch: mips64
+      - goos: freebsd
+        goarch: mips64le
+
+archives:
+  - id: nspeed
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+
+nfpms:
+  - id: nspeed
+    package_name: nspeed
+    homepage: https://nspeed.app
+    maintainer: Jean-François Giorgi <jf@giorgi.email>
+    description: Client and server high performance network bandwidth measurement tool (HTTP/1.1, HTTP/2, HTTP/3, QUIC, TCP, UDP)
+    license: BSD-3-Clause
+    formats:
+      - deb
+      - rpm
+      - apk
+    contents:
+      - src: README.md
+        dst: /usr/share/doc/nspeed/README.md
+      - src: CHANGELOG.md
+        dst: /usr/share/doc/nspeed/CHANGELOG.md
+      - src: LICENSE
+        dst: /usr/share/doc/nspeed/LICENSE
+
+# Homebrew tap (brew install nspeed-app/tap/nspeed): pushed to github.com/nspeed-app/homebrew-tap,
+# only when the HOMEBREW_TAP_TOKEN secret is set (fine-grained PAT with contents:write on that repo).
+homebrew_casks:
+  - name: nspeed
+    repository:
+      owner: nspeed-app
+      name: homebrew-tap
+      token: '{{ envOrDefault "HOMEBREW_TAP_TOKEN" "" }}'
+    homepage: https://nspeed.app
+    description: Client and server high performance network bandwidth measurement tool
+    license: BSD-3-Clause
+    skip_upload: '{{ if envOrDefault "HOMEBREW_TAP_TOKEN" "" }}auto{{ else }}true{{ end }}'
+    # binaries are not notarized: drop the quarantine flag so macOS Gatekeeper doesn't block them
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/nspeed"]
+          end
+
 checksum:
-  name_template: 'checksums.txt'
+  name_template: checksums.txt
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
+
+release:
+  # tags like v1.2.3-rc1 are published as GitHub pre-releases
+  prerelease: auto
+
+# used only when CHANGELOG.md has no section for the tag (see .github/scripts/release-notes.sh)
 changelog:
+  use: github
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^Merge "
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
