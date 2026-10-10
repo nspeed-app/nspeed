@@ -13,7 +13,7 @@ import (
 	"net/netip"
 	"net/textproto"
 	"net/url"
-	"nspeed/metrics"
+	"nspeed.app/nspeed/metrics"
 	"slices"
 	"sync/atomic"
 	"syscall"

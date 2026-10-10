@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"nspeed/metrics"
+	"nspeed.app/nspeed/metrics"
 
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"

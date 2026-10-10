@@ -16,7 +16,7 @@ import (
 	"time"
 	_ "unsafe" //
 
-	"nspeed/metrics"
+	"nspeed.app/nspeed/metrics"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"

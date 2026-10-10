@@ -4,18 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`nspeed` is a network speed test / diagnostic CLI (module name `nspeed`, binary built from
-`cmd/nspeed`). A single binary acts as both client and server, speaking HTTP/1.1, HTTP/2, HTTP/3
-(and h2c), plus raw TCP/UDP/QUIC/QUIC-GO for throughput and latency measurement. It also embeds a
+This repository is a monorepo providing the `nspeed` network speed test / diagnostic
+CLI (binary built from `cmd/nspeed`, core runner in `nspeed/`) as well as the underlying
+`nspeed.app/nspeed` networking, crypto, pacing, and utility packages (`network`, `pacing`,
+`humanize`, `crypto`, `iobuffer`, `generics`, `str`, `web`, `anonymize`, `ttlmap`, etc.).
+A single binary acts as both client and server, speaking HTTP/1.1, HTTP/2, HTTP/3 (and h2c),
+plus raw TCP/UDP/QUIC/QUIC-GO for throughput and latency measurement. It also embeds a
 WASM web UI and JSON/HTML/text report generation.
-
-This repo depends heavily on the sibling module `nspeed.app/nspeed` (imported as e.g.
-`nspeed.app/nspeed/network`, `.../humanize`, `.../crypto`, `.../pacing`, `.../iobuffer`,
-`.../generics`, `.../str`, `.../web`, `.../anonymize`). That module lives in a separate repo,
-checked out as `../nspeed` (see `nspeed.code-workspace`, and the commented-out
-`replace nspeed.app/nspeed => ../nspeed` in `go.mod`). Low-level networking/crypto/pacing
-primitives generally belong there, not in this repo — if you're looking for e.g. QUIC dialing
-helpers, IP-version handling, or byte-humanizing and can't find them here, check that repo.
 
 ## Commands
 

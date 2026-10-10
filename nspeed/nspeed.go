@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"nspeed/metrics"
+	"nspeed.app/nspeed/metrics"
 
 	"github.com/rs/zerolog/log"
 

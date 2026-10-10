@@ -17,10 +17,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"golang.org/x/term"
 
-	"nspeed/metrics"
-	"nspeed/nspeed"
+	"nspeed.app/nspeed/metrics"
+	"nspeed.app/nspeed/nspeed"
 
-	"nspeed/webview"
+	"nspeed.app/nspeed/webview"
 
 	"nspeed.app/nspeed/anonymize"
 	"nspeed.app/nspeed/humanize"

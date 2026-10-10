@@ -6,7 +6,7 @@ package nspeed
 import (
 	"context"
 
-	"nspeed/metrics"
+	"nspeed.app/nspeed/metrics"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/qlog"

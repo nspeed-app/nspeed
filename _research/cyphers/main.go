@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"nspeed"
+	"nspeed.app/nspeed/nspeed"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"

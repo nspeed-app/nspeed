@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"nspeed/metrics"
+	"nspeed.app/nspeed/metrics"
 
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"

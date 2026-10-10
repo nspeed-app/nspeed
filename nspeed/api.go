@@ -15,8 +15,8 @@ import (
 
 	_ "embed"
 
-	"nspeed/metrics"
-	"nspeed/webview"
+	"nspeed.app/nspeed/metrics"
+	"nspeed.app/nspeed/webview"
 
 	"github.com/rs/zerolog"
 	"nspeed.app/nspeed/generics"

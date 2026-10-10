@@ -17,7 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"nspeed/metrics"
+	"nspeed.app/nspeed/metrics"
 
 	"github.com/rs/zerolog"
 	"golang.org/x/exp/slices"

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"nspeed/metrics"
+	"nspeed.app/nspeed/metrics"
 
 	"golang.org/x/net/quic"
 

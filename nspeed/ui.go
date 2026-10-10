@@ -16,12 +16,12 @@ import (
 	"sync"
 	"time"
 
-	"nspeed/metrics"
+	"nspeed.app/nspeed/metrics"
 
-	"nspeed/nspeed/ui"
-	"nspeed/nspeed/ui/goapp"
+	"nspeed.app/nspeed/nspeed/ui"
+	"nspeed.app/nspeed/nspeed/ui/goapp"
 
-	"nspeed/webview"
+	"nspeed.app/nspeed/webview"
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"

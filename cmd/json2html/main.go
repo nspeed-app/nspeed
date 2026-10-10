@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"nspeed/webview"
+	"nspeed.app/nspeed/webview"
 
 	"nspeed.app/nspeed/web"
 )

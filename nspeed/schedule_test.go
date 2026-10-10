@@ -1,7 +1,7 @@
 package nspeed_test
 
 import (
-	"nspeed/nspeed"
+	"nspeed.app/nspeed/nspeed"
 	"testing"
 	"time"
 
