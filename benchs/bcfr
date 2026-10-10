@@ -1,0 +1,4 @@
+# serveur CUBIC, 10Gbps
+then get -id "Online Mono Cubic" http://ping.online.net/10000Mo.dat
+# serveur BBR, 40Gps
+then get -id "Appliwave Mono BBR" http://appliwave.testdebit.info/10G/10G.iso

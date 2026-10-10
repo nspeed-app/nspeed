@@ -4,6 +4,11 @@
 *.dll
 *.so
 *.dylib
+nspeed.app
+/main
+
+# test/ folder
+test/
 
 # Test binary, built with `go test -c`
 *.test
@@ -14,3 +19,16 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+# build
+distrib/
+dist/
+
+#js stuff
+.parcel-cache/
+node_modules/
+
+#qlog
+/logs
+*.qlog
+
+tmp

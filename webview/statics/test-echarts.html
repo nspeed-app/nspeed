@@ -1,0 +1,180 @@
+<html>
+
+<head>
+  <title>NSpeed Webview</title>
+  <script src="echarts.min.js"></script>
+  <script src="jquery.min.js"></script>
+  <!-- <script src="nspeed.js"></script> -->
+  <script src="macarons.js"></script>
+</head>
+<!--
+stack bars:
+  https://echarts.apache.org/examples/en/editor.html?c=bar-stack
+-->
+
+<body>
+  <style>
+    .box {
+      justify-content: center;
+      display: flex;
+      flex-wrap: wrap
+    }
+  </style>
+  <div class="box">
+    <div class="container">
+      <div class="item" id="testchart" style="width:800px;height:400px;"></div>
+    </div>
+
+    <script type="text/javascript">
+      function zip(arr1, arr2) {
+        return arr1.map((element, index) => [element, arr2[index]]);
+      }
+
+      function formatBytes(value, unitname = '', precision = 2) {
+        if (value === 0) return '0 ' + unitname;
+        const k = 1000;
+        const dm = precision;
+        const sizes = ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
+        const i = Math.floor(Math.log(value) / Math.log(k));
+        return parseFloat((value / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i] + unitname;
+      }
+
+
+      function formatTooltip(params) {
+        var output = '<b>' + params[0].axisValueLabel + '</b><br/>' // would be nice to have same formating as the axis
+        for (var i = 0; i < params.length; i++) {
+          output += params[i].marker + params[i].seriesName + ': ' + formatBytes(params[i].value[1], "bps"); //
+          if (i != params.length - 1) { // Append a <br/> tag if not last in loop
+            output += '<br/>'
+          }
+        }
+        return output
+      }
+
+
+      let base = Date.now();
+      let onesec = 1000;
+      let xAxisData = [base, base + onesec, base + onesec * 2, base + onesec * 3, base + 1000 * 10]
+      let goecharts_testchart = echarts.init(document.getElementById('testchart'), { renderer: "canvas" });
+      let option_testchart =
+      {
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '3%',
+          containLabel: true
+        },
+        legend: {
+          show: true,
+          align: 'left',
+          type: 'scroll',
+          //   orient: 'vertical'
+        },
+        series: [
+          {
+            name: 'lo',
+            type: 'line',
+            data: zip(xAxisData, [50, 5000, 6000, 10]),
+            markPoint: {
+              data: [
+                {
+                  name: 'Max',
+                  type: 'max'
+                }
+              ],
+              label: {
+                show: true,
+                formatter: function (params) {
+                  return formatBytes(params.value, 'bps',
+                    2)
+                }
+              }
+            }
+          },
+          {
+            name: 'eno1',
+            type: 'line',
+            data: zip(xAxisData, [1000000000, 2000000000, 100000000, 10000]),
+            markPoint: {
+              data: [
+                {
+                  name: "Max",
+                  type: "max"
+                }
+              ],
+              label: {
+                show: true,
+                formatter: function (params) {
+                  return formatBytes(params.value, 'bps',
+                    2)
+                }
+              }
+            }
+          }
+        ],
+        "title": {
+          text: 'NSpeed'
+        },
+        toolbox: {
+          show: true,
+          feature: {
+            saveAsImage: {},
+            dataZoom: {
+              yAxisIndex: 'none'
+            },
+            magicType: { type: ['line', 'bar'] },
+            restore: {},
+            dataView: {
+              show: true,
+              lang: null,
+              backgroundColor: ""
+            }
+          }
+        },
+        dataZoom: [
+          {
+            type: 'inside',
+            start: 0,
+            end: 100
+          },
+          {
+            start: 0,
+            end: 100
+          }
+        ],
+
+        tooltip: {
+          show: true,
+          trigger: 'axis',
+          formatter: function (params) {
+            return formatTooltip(params)
+          }
+        },
+        xAxis: [
+          {
+            type: 'time',
+            name: 'Time',
+          }
+        ],
+        yAxis: [
+          {
+            name: 'Download',
+            axisLabel: {
+              formatter: function (value, index) {
+                return formatBytes(value, 'bps',
+                  2)
+              },
+              showMinLabel: null,
+              showMaxLabel: null
+            }
+          }
+        ]
+      }
+
+      goecharts_testchart.setOption(option_testchart);
+      goecharts_testchart.group = 'group1'; // group to sync mouse
+      console.log(option_testchart)
+    </script>
+</body>
+
+</html>

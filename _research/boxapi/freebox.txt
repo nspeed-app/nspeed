@@ -1,0 +1,3 @@
+ http://mafreebox.freebox.fr/api_version
+
+ https://dev.freebox.fr/sdk/os/

@@ -1,0 +1,7 @@
+then -n "servers" server -self -id s1 server -http3 -id s3
+then -n "HTTP/1.1 GET" get -id "HTTP/1.1 GET" -self -http1.1 nspeed://s1/20g 
+then -n "HTTP/1.1 PUT" put -id "HTTP/1.1 PUT" -self -http1.1 nspeed://s1 20g
+then -n "HTTP/2 GET" get -id "HTTP/2 GET" -self -http2 nspeed://s1/20g 
+then -n "HTTP/2 PUT" put -id "HTTP/2 PUT" -self -http2 nspeed://s1 20g
+then -n "HTTP/3 GET" get -id "HTTP/3 GET" -self -http3 nspeed://s3/20g 
+then -n "HTTP/3 PUT" put -id "HTTP/3 PUT" -self -http3 nspeed://s3 20g

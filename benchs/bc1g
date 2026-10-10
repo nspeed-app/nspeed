@@ -1,0 +1,6 @@
+then -n 'test download BBR mono' get -id BBR-GET https://paris.testdebit.info/1G/1G.iso
+then -n 'test download BBR multi' get -id BBR-GETx4 -n 4 https://paris.testdebit.info/1G/1G.iso
+then -n 'test download CUBIC mono' get -id CUBIC-GET https://paris.planethoster.testdebit.info/1G.iso
+then -n 'test download CUBIC multi' get -id CUBIC-GETx4 -n 4 https://paris.planethoster.testdebit.info/1G.iso
+#then -n 'test download CUBIC mono' get -id CUBIC-GET https://bouygues.testdebit.info/1G/1G.iso
+#then -n 'test download CUBIC multi' get -id CUBIC-GETx4 -n 4 https://bouygues.testdebit.info/1G/1G.iso

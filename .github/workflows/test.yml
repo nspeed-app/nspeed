@@ -1,0 +1,41 @@
+name: test
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_call: # used by release.yml before publishing
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # app.wasm is git-ignored but required by //go:embed in nspeed/ui.go
+      - name: build wasm UI
+        run: GOOS=js GOARCH=wasm go build -o nspeed/embed/ui/app.wasm ./nspeed/ui/goapp/main
+      - run: go vet ./...
+      - run: go test ./...
+      # also check the goreleaser config and that every release target still builds
+      - name: goreleaser snapshot
+        if: runner.os == 'Linux'
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: build --snapshot --clean

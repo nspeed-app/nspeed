@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "allowJs": true,
+        "checkJs": true,
+        "module": "CommonJS",
+        "target": "ES6"
+    },
+    "include": ["*.js"],
+    "typeAcquisition": {
+        "enable": true,
+        "include": [
+            "echarts"
+        ]
+    }
+}

@@ -1,0 +1,130 @@
+package webview
+
+import (
+	"encoding/json"
+	"errors"
+	"net"
+	"net/http"
+	"time"
+
+	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/opts"
+)
+
+var ErrNotImplemented = errors.New("not implemented yet")
+var ErrNotSupported = errors.New("not supported")
+
+const (
+	//
+	VNetInterfaces = "Network Interfaces"
+)
+
+var ChartNames = map[string]string{
+	"rx": "download",
+	"tx": "upload",
+}
+
+// NetInterfacesViewer collects network interfaces counters
+type NetInterfacesViewer struct {
+	smgr       *StatsMgr
+	graph      *charts.Line
+	direction  string
+	name       string
+	interfaces []net.Interface
+	lastvalues []float64
+	lastread   time.Time
+}
+
+// NewNetInterfacesViewer returns the NetInterfacesViewer instance
+// Series: net interfaces
+func NewNetInterfacesViewer(tick time.Duration, ifaces []net.Interface, dir string, path string) Viewer {
+	graph := newBasicView(tick, VNetInterfaces+dir, path)
+	graph.SetGlobalOptions(
+		charts.WithToolboxOpts(opts.Toolbox{
+			Show: opts.Bool(true),
+			Feature: &opts.ToolBoxFeature{
+				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{
+					Show: opts.Bool(true),
+				},
+				DataZoom: &opts.ToolBoxFeatureDataZoom{
+					Show: opts.Bool(true),
+				},
+				DataView: &opts.ToolBoxFeatureDataView{
+					Show: opts.Bool(true),
+				},
+			},
+		}),
+		// charts.WithXAxisOpts(
+		// )
+		charts.WithYAxisOpts(opts.YAxis{
+			Name:      ChartNames[dir],
+			AxisLabel: &opts.AxisLabel{Formatter: opts.FuncOpts("function (value, index) { return formatBytes(value,'bps',2) }")},
+		}),
+		charts.WithLegendOpts(opts.Legend{Show: opts.Bool(true)}),
+		charts.WithTooltipOpts(opts.Tooltip{
+			Show:      opts.Bool(true),
+			Trigger:   "axis",
+			Formatter: opts.FuncOpts("function (params) {return formatTooltip(params) }"),
+		}),
+	)
+	var interfaces []net.Interface
+	for _, itf := range ifaces {
+		if itf.Flags&net.FlagUp != 0 {
+			interfaces = append(interfaces, itf)
+			graph.AddSeries(itf.Name,
+				[]opts.LineData{},
+				charts.WithMarkPointNameTypeItemOpts(opts.MarkPointNameTypeItem{Type: "max", Name: "Max"}),
+				// charts.WithMarkLineNameTypeItemOpts(opts.MarkLineNameTypeItem{
+				// 	Name: "Avg",
+				// 	Type: "average",
+				// }),
+				charts.WithMarkPointStyleOpts(opts.MarkPointStyle{
+					Label: &opts.Label{
+						Show:      opts.Bool(true),
+						Formatter: opts.FuncOpts("function (params) { return formatBytes(params.value,'bps',2) }"),
+					},
+				}),
+			)
+		}
+	}
+
+	return &NetInterfacesViewer{
+		graph:      graph,
+		direction:  dir,
+		name:       VNetInterfaces + dir,
+		interfaces: interfaces,
+		lastvalues: GetNetStats(interfaces, dir),
+		lastread:   time.Now(),
+	}
+}
+
+func (vr *NetInterfacesViewer) SetStatsMgr(smgr *StatsMgr) {
+	vr.smgr = smgr
+}
+
+func (vr *NetInterfacesViewer) Name() string {
+	return vr.name
+}
+
+func (vr *NetInterfacesViewer) View() *charts.Line {
+	return vr.graph
+}
+
+func (vr *NetInterfacesViewer) Serve(w http.ResponseWriter, _ *http.Request) {
+	vr.smgr.Tick()
+
+	now := time.Now()
+	values := GetNetStats(vr.interfaces, vr.direction)
+	elapsed := float64(now.Sub(vr.lastread).Milliseconds())
+	for idx, value := range values {
+		values[idx] = (value - vr.lastvalues[idx]) * 8.0 * 1000.0 / elapsed // convert to bits then to bps (using millisecs precision)
+		vr.lastvalues[idx] = value
+	}
+	vr.lastread = now
+	metrics := Metrics{
+		Values: values,
+		Time:   time.Now().Format(defaultCfg.TimeFormat),
+	}
+	bs, _ := json.Marshal(metrics)
+	_, _ = w.Write(bs)
+}
