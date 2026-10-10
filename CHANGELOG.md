@@ -1,3 +1,15 @@
+# Unreleased (next branch)
+- **monorepo**: merged `nspeed-client` repository into `nspeed`.
+  - Unified all packages under `nspeed.app/nspeed` module.
+  - Integrated the `nspeed` CLI (`cmd/nspeed`), `json2html` utility (`cmd/json2html`), metrics reporting, and real-time web stats dashboard.
+  - Consolidated build tooling (`magefile.go`, `.goreleaser.yml`, embedded WASM UI build).
+- **client & metrics**:
+  - Added nil checks in `Metric.Logger` and `Metrics.Cleanup` to prevent nil pointer panics on invalid or failed jobs.
+  - Added JSDoc type annotations in `webview/statics/nspeed-echarts.js`.
+- **chores & dependencies**:
+  - Updated dependencies (`quic-go`, `statsviz`, `gopsutil`, `golang.org/x/*`).
+  - Added project documentation in `CLAUDE.md`.
+
 # v0.0.16 - binaries release (next branch)
 - client: **new feature** **scheduler** (`-schedule` flag): `nspeed get -schedule 1s,1s url` will connect to url, wait 1s, download for 1s, then stop. General format is: `-schedule h0,w0,h1,w1,...,hN[,wN]` = hold h0, work for w0 , hold h1, work w1,...,hold hN, work wN is present or till end of content/timeout. Global timeout (defaut none) and command timeout (defaut 8 seconds) always take priority: `nspeed get -schedule 1s,20s url` won't last 21s but only 8s. For now the `-schedule` flag is incompatible with the `-repeat` flag and scheduling steps are not reported in verbose/debug/trace logs.
 - ui: Added `matcha` test.
