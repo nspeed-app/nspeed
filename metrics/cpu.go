@@ -41,8 +41,8 @@ func FormatCPULoad(pcts []float64, colorize bool) (string, string) {
 		if v > 80 {
 			color = red
 		}
-		headers.WriteString(fmt.Sprintf("%3s|", "c"+strconv.Itoa(i)))
-		cpuload.WriteString(fmt.Sprintf("%s%3v%s|", color, v, reset))
+		fmt.Fprintf(&headers, "%3s|", "c"+strconv.Itoa(i))
+		fmt.Fprintf(&cpuload, "%s%3v%s|", color, v, reset)
 
 	}
 	return cpuload.String(), headers.String()

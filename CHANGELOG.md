@@ -6,6 +6,7 @@
 - **client & metrics**:
   - Added nil checks in `Metric.Logger` and `Metrics.Cleanup` to prevent nil pointer panics on invalid or failed jobs.
   - Added JSDoc type annotations in `webview/statics/nspeed-echarts.js`.
+- **server**: `-h2c` now uses Go's native unencrypted HTTP/2 (the `x/net/http2/h2c` package is deprecated). HTTP/2 with prior knowledge (`nspeed get -h2c`, `curl --http2-prior-knowledge`) and HTTP/1.1 work as before, but the `Upgrade: h2c` mechanism (deprecated by RFC 9113, e.g. `curl --http2` on `http://`) is no longer supported: such clients now stay on HTTP/1.1.
 - **chores & dependencies**:
   - Updated dependencies (`quic-go`, `statsviz`, `gopsutil`, `golang.org/x/*`).
   - Added project documentation in `CLAUDE.md` for agentic coding.

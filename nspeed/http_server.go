@@ -28,7 +28,6 @@ import (
 	"github.com/rs/xid"
 	"github.com/rs/zerolog"
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"nspeed.app/nspeed/anonymize"
 	"nspeed.app/nspeed/crypto"
@@ -641,7 +640,11 @@ func (j *JobHTTPServer) Init(opt Options) error {
 	}
 
 	if j.Parameters.H2C {
-		j.Server.Handler = h2c.NewHandler(j.Server.Handler, &http2.Server{})
+		// HTTP/1.1 and HTTP/2 with prior knowledge on the same cleartext port
+		// (the "Upgrade: h2c" mechanism is not supported, it was deprecated by RFC 9113)
+		j.Server.Protocols = new(http.Protocols)
+		j.Server.Protocols.SetHTTP1(true)
+		j.Server.Protocols.SetUnencryptedHTTP2(true)
 	}
 
 	if j.Parameters.API {

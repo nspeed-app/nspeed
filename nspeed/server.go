@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,7 +21,6 @@ import (
 	"nspeed.app/nspeed/metrics"
 
 	"github.com/rs/zerolog"
-	"golang.org/x/exp/slices"
 
 	"nspeed.app/nspeed/crypto"
 	"nspeed.app/nspeed/humanize"

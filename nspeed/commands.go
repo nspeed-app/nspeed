@@ -400,7 +400,7 @@ type kvMap map[string]string
 func (s kvMap) String() string {
 	var r strings.Builder
 	for k, v := range s {
-		r.WriteString(fmt.Sprintln(k, "=", v))
+		fmt.Fprintln(&r, k, "=", v)
 	}
 	return r.String()
 }
