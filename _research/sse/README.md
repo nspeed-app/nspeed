@@ -1,0 +1,1 @@
+adapted from https://github.com/plutov/packagemain/tree/master/30-sse

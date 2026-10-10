@@ -1,0 +1,6 @@
+# cloudflare servers - HTTP/3 (QUIC)
+# see https://h3.speed.cloudflare.com/ 
+then -n "mono h3 download from Cloudflare" get -http3 -id "Download HTTP/3 mono" https://h3.speed.cloudflare.com/__down?bytes=500000000
+then -n "mono h3 upload to Cloudflare" post -http3 -id "Upload HTTP/3 mono" https://h3.speed.cloudflare.com/__up 200m
+then -n "multi h3 download from Cloudflare" get -http3 -id "Download HTTP/3 multi" -n 4 https://h3.speed.cloudflare.com/__down?bytes=100000000
+then -n "multi h3 upload to Cloudflare" post -http3 -id "Upload HTTP/3 multi" -n 4 https://h3.speed.cloudflare.com/__up 100m

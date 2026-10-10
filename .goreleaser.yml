@@ -1,0 +1,43 @@
+version: 2
+
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    # you may remove this if you don't need go generate
+    - go generate ./...
+builds:
+  - id: nspeed
+    binary: nspeed
+    main: cmd/nspeed/main.go
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - freebsd
+      - darwin
+    goarch:
+      - amd64
+      - arm
+      - arm64
+      - mips
+      - mipsle
+      - mips64
+      - mips64le
+    # ldflags:
+    #   - -s -w -X nspeed/nspeed.Version={{.Summary}}
+    ignore:
+      - goos: windows
+        goarch: arm64 arm
+      - goarch: 386
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script type="module" src="https://unpkg.com/@microsoft/fast-components"></script>
+    <link rel="stylesheet" href="fast.css">
+</head>
+
+<body>
+    <fast-design-system-provider>
+        <fast-tabs activeid="entrees">
+            <fast-tab id="main">Entrees</fast-tab>
+            <fast-tab id="debug">Desserts</fast-tab>
+            <fast-tab-panel id="mainPanel">
+                <fast-divider></fast-divider>
+                <fast-button class="call-to-action" href="#" appearance="accent">Browse gallery</fast-button>
+                <fast-button>Hello world</fast-button>
+                <fast-progress min="0" max="100" value="75"></fast-progress>
+                <fast-progress-ring min="0" max="100" value="75"></fast-progress-ring>
+
+                <div>
+                    <fast-data-grid id="samplegrid"></fast-data-grid>
+                    <p></p>
+                    <h1>A basic data-grid</h1>
+                    <h2>A row is generated for each object in the rowsData array.</h2>
+                    <h2>A column is automatically generated for each key in the first object in thearray.</h2>
+                </div>
+
+            </fast-tab-panel>
+            <fast-tab-panel id="debugPanel">
+                <fast-divider></fast-divider>
+                <fast-text-area>Lorem ipsum dolor sit amet consectetur adipisicing elit. Fugiat fuga sed laborum.
+                    Debitis impedit eius quis non explicabo fugit consectetur.
+                </fast-text-area>
+            </fast-tab-panel>
+    </fast-design-system-provider>
+    <script src="fast.js"></script>
+</body>
+</html>

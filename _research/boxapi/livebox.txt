@@ -1,0 +1,1 @@
+curl.exe -X POST -H "Accept: */*" -H "Content-Type: application/x-sah-ws-4-call+json" -d '{"service":"sysbus.DeviceInfo", "method":"get", "parameters":\{\}}' http://livebox.home/ws

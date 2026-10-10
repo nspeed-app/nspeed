@@ -1,0 +1,8 @@
+{
+  "name": "nspeed",
+  "version": "1.0.0",
+  "description": "",
+  "dependencies": {
+    "echarts": "^5.6.0"
+  }
+}
