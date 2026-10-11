@@ -18,9 +18,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      # app.wasm is git-ignored but required by //go:embed in nspeed/ui.go
-      - name: build wasm UI
-        run: GOOS=js GOARCH=wasm go build -o nspeed/embed/ui/app.wasm ./nspeed/ui/goapp/main
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:

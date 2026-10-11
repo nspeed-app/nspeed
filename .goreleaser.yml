@@ -2,11 +2,6 @@
 # Local dry run: ./build-all.sh  (snapshot build into dist/, nothing published)
 version: 2
 
-before:
-  hooks:
-    # the WASM UI is git-ignored but embedded via //go:embed in nspeed/ui.go: it must exist before building
-    - sh -c "GOOS=js GOARCH=wasm go build -trimpath -o nspeed/embed/ui/app.wasm ./nspeed/ui/goapp/main"
-
 builds:
   - id: nspeed
     binary: nspeed
