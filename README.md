@@ -2,6 +2,52 @@
 A client and server high performance network bandwidth measurement tool using Internet standards (HTTP/1, HTTP/2, HTTP/3, WebRTC*, WebTransport*)
 Interoperable with standard web clients (like curl, wget and web browsers) and standard web servers (NGinx, Apache, etc)
 
+## Installation
+
+### Pre-built binaries
+
+Download the archive for your system from the [GitHub releases](https://github.com/nspeed-app/nspeed/releases/latest) page and extract it. `checksums.txt` holds the SHA-256 of every file.
+
+Releases are built for:
+
+| OS      | Architectures                       |
+|---------|-------------------------------------|
+| Linux   | amd64, arm64, armv7 (`arm`), 386    |
+| Windows | amd64, arm64                        |
+| macOS   | amd64 (Intel), arm64 (Apple Silicon)|
+| FreeBSD | amd64, arm64                        |
+
+Linux packages are also attached to each release: `.deb` (Debian, Ubuntu), `.rpm` (Fedora, RHEL) and `.apk` (Alpine). For instance:
+
+    sudo apt install ./nspeed_<version>_linux_amd64.deb
+
+macOS binaries are not notarized: if Gatekeeper blocks the binary, run `xattr -d com.apple.quarantine ./nspeed`.
+
+### With Go
+
+Requires [Go](https://go.dev/dl/) 1.26 or newer:
+
+    go install nspeed.app/nspeed/cmd/nspeed@latest
+
+The binary is installed in `$(go env GOPATH)/bin` (or `$GOBIN` if set). Use `@vX.Y.Z` instead of `@latest` for a specific version.
+
+### Build for any other target
+
+NSpeed is pure Go, so it can be built for any target Go supports (`go tool dist list`), for instance routers or boards not covered by the releases. From a clone of this repository, set `GOOS`/`GOARCH`:
+
+    git clone https://github.com/nspeed-app/nspeed.git && cd nspeed
+    CGO_ENABLED=0 GOOS=linux GOARCH=mipsle GOMIPS=softfloat go build -o bin/ ./cmd/nspeed
+
+The binary is written to `bin/` (`bin/nspeed`, or `bin/nspeed.exe` for Windows). `CGO_ENABLED=0` makes it a static binary with no system library dependencies (`ldd` reports "not a dynamic executable"), so it runs on any machine of the same OS/architecture. Common values:
+
+| Target                                 | Settings                             |
+|----------------------------------------|--------------------------------------|
+| MIPS big-endian (many routers)         | `GOARCH=mips GOMIPS=softfloat`       |
+| MIPS little-endian (many routers)      | `GOARCH=mipsle GOMIPS=softfloat`     |
+| MIPS64                                 | `GOARCH=mips64` or `GOARCH=mips64le` |
+| Older ARM boards (Raspberry Pi 1/Zero) | `GOARCH=arm GOARM=6`                 |
+| RISC-V                                 | `GOARCH=riscv64`                     |
+
 ## Usage
     nspeed [global options] <command> ... <command>
 
@@ -9,27 +55,26 @@ Interoperable with standard web clients (like curl, wget and web browsers) and s
     - get   : perform a transfer to measure download speed (receive) (default HTTP GET)
     - put   : perform a transfer to measure upload speed (transmit) (default HTTP PUT)
     - post  : perform an HTTP POST command to measure upload speed (transmit) (default HTTP POST)
-
     - server: launch a nspeed server (default HTTP server)
-
-    - from  : read command lines from file/url (use - for stdin)
+    - from  : read commands from a file or URL (use - for stdin)
     - then  : executes all previous commands then continue
-
     - bench : perform preselected commands
-
     - api   : enable an API endpoint
-
     - ciphers: list cipher suites supported by the target server(s)
 
     use: "nspeed <command> -h" to see each command specific arguments and options
-    
+
     Overview of commands:
 
-        nspeed get [options] url 
+        nspeed get [options] url
         nspeed put [options] url size
+        nspeed post [options] url size
         nspeed server [options]
-        nspeed ciphers [options] target
+        nspeed from [options] file|url
+        nspeed then [options]
+        nspeed bench [options] benchmark[,benchmark]
         nspeed api [options]
+        nspeed ciphers hostname[:port]
 
 ## Examples
 
@@ -110,17 +155,6 @@ Interoperable with standard web clients (like curl, wget and web browsers) and s
 
     # open the monitor , wait 2 secondes and launch a local test (requires on a computer with a local web browser)
     nspeed api -browse then -pre 2s b h1g
-
-## Installation
-
-Binary distribution available here: [dl.nspeed.app](https://dl.nspeed.app) 
-
-Download the one for your system and eventually rename it to `nspeed`.
-On Unix systems make the file executable with: `chmod +x nspeed` 
-
-Source code with be released with v1.0
-
-Preview/insider builds are available here: [PREVIEW.md](PREVIEW.md)
 
 ## What's next?
 - [x] web UI (local & remote) - partitally implemented

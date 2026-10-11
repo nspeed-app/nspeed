@@ -63,15 +63,25 @@ var Commands = map[string]Command{
 	thenCommand:      {thenCommand, 1, true, nil},
 }
 
+// display order of the commands (keep in sync with Commands)
+var CommandOrder = []string{
+	getCommand, putCommand, postCommand,
+	serveCommand,
+	fromCommand, thenCommand,
+	benchmarkCommand,
+	apiCommand,
+	ciphersCommand,
+}
+
 var CommandDescriptions = map[string]string{
-	getCommand:       "perform a transfer to measure download speed (default HTTP GET)",
-	putCommand:       "perform a transfer to measure upload speed (default HTTP PUT)",
-	postCommand:      "perform an HTTP POST command to measure upload speed",
+	getCommand:       "perform a transfer to measure download speed (receive) (default HTTP GET)",
+	putCommand:       "perform a transfer to measure upload speed (transmit) (default HTTP PUT)",
+	postCommand:      "perform an HTTP POST command to measure upload speed (transmit) (default HTTP POST)",
 	serveCommand:     "launch a nspeed server (default HTTP server)",
 	ciphersCommand:   "list cipher suites supported by the target server(s)",
 	apiCommand:       "enable an API endpoint",
 	benchmarkCommand: "perform preselected commands",
-	fromCommand:      "read command from file (use - for stdin)",
+	fromCommand:      "read commands from a file or URL (use - for stdin)",
 	thenCommand:      "executes all previous commands then continue",
 }
 
@@ -211,7 +221,7 @@ func ParseCommand(command string, cmdargs []string, jl *JobList, output io.Write
 
 		fs.Usage = func() {
 			fmt.Fprintf(fs.Output(), "Usage of %s: ", fromCommand)
-			fmt.Fprintf(fs.Output(), "  %s filename\n", fromCommand)
+			fmt.Fprintf(fs.Output(), "  %s [options] file|url\n", fromCommand)
 			fs.PrintDefaults()
 			fmt.Fprintf(fs.Output(), "\n")
 		}
