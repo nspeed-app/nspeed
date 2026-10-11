@@ -17,7 +17,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          # build with the latest Go release (security fixes); go.mod only sets the minimum version
+          go-version: stable
+          check-latest: true
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:

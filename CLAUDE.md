@@ -56,7 +56,8 @@ deb/rpm/apk packages + checksums, and updating the `nspeed-app/homebrew-tap` cas
 `HOMEBREW_TAP_TOKEN` secret is set; release notes are that CHANGELOG.md section
 (`.github/scripts/release-notes.sh`), or the generated commit changelog if the section is missing.
 Tags like `vX.Y.Z-rc1` become pre-releases. The repo holds two tag series (old client `v0.0.x`,
-library `v0.x.0`): new tags must sort above `v0.14.0`.
+library `v0.x.0`), and the Go module proxy permanently caches a deleted accidental `v0.16.0`
+(retracted in `go.mod`): new tags must sort above `v0.16.0`, and never reuse a deleted tag name.
 `go install nspeed.app/nspeed/cmd/nspeed@vX.Y.Z` builds from the tagged git tree only, so the build
 must never depend on git-ignored or generated files (e.g. a `//go:embed` of a build artifact).
 
