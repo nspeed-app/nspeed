@@ -9,8 +9,8 @@ CLI (binary built from `cmd/nspeed`, core runner in `nspeed/`) as well as the un
 `nspeed.app/nspeed` networking, crypto, pacing, and utility packages (`network`, `pacing`,
 `humanize`, `crypto`, `iobuffer`, `generics`, `str`, `web`, `anonymize`, `ttlmap`, etc.).
 A single binary acts as both client and server, speaking HTTP/1.1, HTTP/2, HTTP/3 (and h2c),
-plus raw TCP/UDP/QUIC/QUIC-GO for throughput and latency measurement. It also embeds a
-WASM web UI and JSON/HTML/text report generation.
+plus raw TCP/UDP/QUIC/QUIC-GO for throughput and latency measurement, with JSON/HTML/text
+report generation.
 
 ## Commands
 
@@ -43,17 +43,8 @@ golangci-lint run
 ```
 (`.golangci.yml` configures `errcheck`; `.revive.toml` configures the revive linter rules.)
 
-Build the embedded WASM UI and launch it (via `magefile.go`, requires `mage`):
-```
-mage
-```
-This cross-compiles `nspeed/ui/goapp/main/main.go` to `nspeed/embed/ui/app.wasm` (GOOS=js
-GOARCH=wasm), which `nspeed/ui.go` pulls in via `//go:embed embed/ui/*`, then runs
-`go run cmd/nspeed/main.go ui`. You must rebuild the wasm blob after changing anything under
-`nspeed/ui/goapp` or it won't be reflected when running/serving the UI.
-
-Snapshot release build (goreleaser, see `.goreleaser.yml`; builds the wasm UI first, all
-binaries are `CGO_ENABLED=0` cross-compiles into `dist/`):
+Snapshot release build (goreleaser, see `.goreleaser.yml`; all binaries are `CGO_ENABLED=0`
+cross-compiles into `dist/`):
 ```
 ./build-all.sh
 ```
@@ -66,14 +57,16 @@ deb/rpm/apk packages + checksums, and updating the `nspeed-app/homebrew-tap` cas
 (`.github/scripts/release-notes.sh`), or the generated commit changelog if the section is missing.
 Tags like `vX.Y.Z-rc1` become pre-releases. The repo holds two tag series (old client `v0.0.x`,
 library `v0.x.0`): new tags must sort above `v0.14.0`.
+`go install nspeed.app/nspeed/cmd/nspeed@vX.Y.Z` builds from the tagged git tree only, so the build
+must never depend on git-ignored or generated files (e.g. a `//go:embed` of a build artifact).
 
 ## Architecture
 
 ### Command parsing and job scheduling
 
 - `nspeed/commands.go` holds the `Commands` registry (`get`, `put`, `post`, `server`, `ciphers`,
-  `api`, `bench`, `from`, `then`, `ui`). Each `Command` has a `Set` (commands in set `0` — e.g.
-  `ciphers`, `ui` — must be used alone; others can be mixed within the same set) and a `FromAPI`
+  `api`, `bench`, `from`, `then`). Each `Command` has a `Set` (commands in set `0` — e.g.
+  `ciphers` — must be used alone; others can be mixed within the same set) and a `FromAPI`
   flag gating whether the API endpoint (`nspeed/api.go`) is allowed to trigger it.
 - `ParseCommands`/`ParseCommand` walk the CLI argv left-to-right, each command's `Parse` function
   (e.g. `CmdClientParseGet`, `CmdServerParse`, `CmdAPIParse`) consumes its own flags/args and adds
@@ -82,7 +75,7 @@ library `v0.x.0`): new tags must sort above `v0.14.0`.
   `bench` expands a named benchmark template (`benchmark.go`) into one or more real commands and
   recursively calls `ParseCommands`.
 - `nspeed.go`'s `RunJobs` is the actual scheduler: it runs batches sequentially. Within a batch,
-  jobs are split into "infinite" (long-running: `server`, `api`, `ui`) and "short-lived"
+  jobs are split into "infinite" (long-running: `server`, `api`) and "short-lived"
   (`get`/`put`/etc.). Infinite jobs are started and awaited-ready first, then short-lived jobs run
   to completion; a batch ends when all short-lived jobs finish (unless it's the last batch with no
   short-lived jobs, in which case it runs forever until ctrl-C). Progress/results flow back through
@@ -91,7 +84,7 @@ library `v0.x.0`): new tags must sort above `v0.14.0`.
   bookkeeping via the embeddable `JobData`. Implementations: `JobClient` (client.go/http_client.go,
   the `get`/`put`/`post` commands), `JobHTTPServer` (server.go/http_server.go, the `server`
   command), `APIHost` (api.go, the `api` command, wraps a `JobHTTPServer` and mounts
-  `/api/v1/...`), `UIHost` (ui.go, the `ui` command, also wraps a `JobHTTPServer`).
+  `/api/v1/...`).
 
 ### Client/server transport
 
@@ -100,7 +93,7 @@ library `v0.x.0`): new tags must sort above `v0.14.0`.
   — client.go) which builds a raw `dialContext` per protocol (plain TCP, `golang.org/x/net/quic`,
   or `quic-go`) and speaks a small length-prefixed message protocol (`message.go`,
   `NewL4Message`/`WriteL4Message`) to tell the server GET or PUT.
-- `HostParameters` (server.go) is the shared config struct for server/api/ui hosts (protocol, host,
+- `HostParameters` (server.go) is the shared config struct for server/api hosts (protocol, host,
   port, TLS settings, HTTP/1.1 / HTTP/2 / HTTP/3 toggles, max body size/duration, directory to
   serve, etc).
 - `pacing.Schedule` (parsed by `ParseSchedules` in schedule.go from a `"wait,timeout,..."` string)
@@ -116,16 +109,15 @@ library `v0.x.0`): new tags must sort above `v0.14.0`.
 - `metrics/cpu.go` / `cpu-otel.go` / `otel.go` sample host CPU (via `-cpu`/`-cpurate`) and can
   export through OpenTelemetry.
 
-### Web UI and dashboards
+### Dashboards
 
-- `nspeed/ui.go` serves the embedded WASM front-end (built with `maxence-charriere/go-app`, source
-  in `nspeed/ui/goapp`) plus a websocket hub (`nspeed/ui/hub.go`, `nspeed/ui/client.go`) for
-  pushing live data to connected browsers.
-- `webview/` is a separate, simpler live-dashboard mechanism built on `go-echarts` (charts served
+- There is currently no `ui` command: the former go-app WASM UI was removed in v0.15.1 and a new
+  UI is to be designed.
+- `webview/` is a live-dashboard mechanism built on `go-echarts` (charts served
   via `webview/viewer.go`/`genchart.go`, JS glue in `webview/statics/nspeed-echarts.js`) plus
   OS-specific network interface counter collection (`net_linux.go`, `net_darwin.go`,
   `net_windows.go`, `net_fallback.go`) used for the CPU/network live viewer (`cpuviewer.go`,
-  `netviewer.go`). `APIHost`/`UIHost` mount these routes when `-webstats`-style options are set.
+  `netviewer.go`). `APIHost` mounts these routes when `-webstats`-style options are set.
 
 ### Entry point / global flags
 

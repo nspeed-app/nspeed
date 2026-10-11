@@ -26,9 +26,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      # app.wasm is git-ignored but required by //go:embed in nspeed/ui.go
-      - name: build wasm UI
-        run: GOOS=js GOARCH=wasm go build -o nspeed/embed/ui/app.wasm ./nspeed/ui/goapp/main
       - run: go vet ./...
       - run: go test ./...
       # also check the goreleaser config and that every release target still builds

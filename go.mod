@@ -8,10 +8,7 @@ require (
 	github.com/go-echarts/go-echarts/v2 v2.7.2
 	github.com/go-echarts/statsview v0.4.2
 	github.com/google/gopacket v1.1.19
-	github.com/gorilla/websocket v1.5.3
 	github.com/libp2p/go-netroute v0.4.0
-	github.com/magefile/mage v1.15.0
-	github.com/maxence-charriere/go-app/v10 v10.1.11
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/quic-go/quic-go v0.60.0
 	github.com/rs/xid v1.6.0
@@ -44,6 +41,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260627054121-477a66015f15 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
