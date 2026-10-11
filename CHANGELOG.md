@@ -1,3 +1,7 @@
+# v0.16.1
+- **fix**: `go install nspeed.app/nspeed/cmd/nspeed@latest` resolved to `v0.16.0`, an accidental tag (meant `v0.0.16`) still served by the Go module proxy, and failed with `does not contain package nspeed.app/nspeed/cmd/nspeed`. `v0.16.0` and `v0.15.0` (broken `go install`) are now retracted in `go.mod`; `@latest` resolves to this release.
+- no functional change from `v0.15.1`.
+
 # v0.15.1
 - **fix**: `go install nspeed.app/nspeed/cmd/nspeed@latest` failed (`pattern embed/ui/app.wasm: no matching files found`): the build no longer depends on a generated, git-ignored file.
 - **breaking change**: removed the `ui` command and the go-app WASM web UI (`nspeed ui`, `ui -goapp`, `ui -viewer`) until a new UI is designed. Running `nspeed` without arguments outside a terminal no longer launches the UI, it prints the usage. For charts, use `-html` reports (`-json` + `-rate`).

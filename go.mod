@@ -2,6 +2,11 @@ module nspeed.app/nspeed
 
 go 1.25.7
 
+retract (
+	v0.16.0 // accidental tag (meant v0.0.16), not this module: no cmd/nspeed
+	v0.15.0 // go install broken: missing embedded app.wasm
+)
+
 require (
 	github.com/arl/statsviz v0.8.1
 	github.com/charmbracelet/lipgloss v1.1.0
