@@ -12,6 +12,14 @@ A single binary acts as both client and server, speaking HTTP/1.1, HTTP/2, HTTP/
 plus raw TCP/UDP/QUIC/QUIC-GO for throughput and latency measurement, with JSON/HTML/text
 report generation.
 
+## Git workflow
+
+- Never commit (or push) automatically: leave changes uncommitted in the working tree so they can
+  be reviewed in the IDE diff view, then ask before committing. Approval to commit covers that one
+  change only.
+- If a commit was made by mistake and is not pushed, `git reset --mixed HEAD~1` restores the
+  reviewable diff.
+
 ## Commands
 
 Build the CLI:

@@ -22,15 +22,9 @@ builds:
       - arm64
       - arm
       - "386"
-      - mips
-      - mipsle
-      - mips64
-      - mips64le
     goarm:
       - "7"
-    # most mips routers have no FPU; softfloat also runs on hardfloat CPUs
-    gomips:
-      - softfloat
+    # other targets (mips routers, riscv64, ...): build from source, see README.md "Installation"
     ignore:
       - goos: windows
         goarch: arm
@@ -42,31 +36,6 @@ builds:
         goarch: "386"
       - goos: freebsd
         goarch: arm
-      # mips* are only meaningful on linux (routers / embedded boxes)
-      - goos: windows
-        goarch: mips
-      - goos: windows
-        goarch: mipsle
-      - goos: windows
-        goarch: mips64
-      - goos: windows
-        goarch: mips64le
-      - goos: darwin
-        goarch: mips
-      - goos: darwin
-        goarch: mipsle
-      - goos: darwin
-        goarch: mips64
-      - goos: darwin
-        goarch: mips64le
-      - goos: freebsd
-        goarch: mips
-      - goos: freebsd
-        goarch: mipsle
-      - goos: freebsd
-        goarch: mips64
-      - goos: freebsd
-        goarch: mips64le
 
 archives:
   - id: nspeed

@@ -90,7 +90,7 @@ func Main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s [global options] <command> ... <command>\n\n", name)
 		fmt.Fprintf(flag.CommandLine.Output(), "Available commands:\n")
-		for c := range nspeed.Commands {
+		for _, c := range nspeed.CommandOrder {
 			fmt.Fprintf(flag.CommandLine.Output(), "  - %-6s: %s\n", c, nspeed.CommandDescriptions[c])
 		}
 		fmt.Fprintf(flag.CommandLine.Output(), "\nuse: \"%s <command> -h\" to see each command specific arguments and options\n\n", name)
