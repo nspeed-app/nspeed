@@ -79,13 +79,14 @@ func (j *JobClient) HTTPInit() error {
 	// HTTP/2
 	if j.HTTPVersion == 2 {
 		// get a http2 transport
-		t2, err := http2.ConfigureTransports(netTransport)
+		// todo: migrate to http.Transport.Protocols/HTTP2, keeping the http2.StreamError mapping in the error handling below
+		t2, err := http2.ConfigureTransports(netTransport) //nolint:staticcheck // see todo above
 		if err != nil {
 			j.Logger().Warn().Msgf("something bad happened that shouldn't : %s", err)
 			return err
 		}
 		// default settings of frame size impacts performance, so we bump it
-		t2.MaxReadFrameSize = h2MaxFrameSize
+		t2.MaxReadFrameSize = h2MaxFrameSize //nolint:staticcheck // see todo above
 
 		// force http/2 : this is hacky: remove "http/1.1" from NextProtos.
 		// Forcing a http2.Transport fails unless it's h2c mode.
@@ -97,7 +98,7 @@ func (j *JobClient) HTTPInit() error {
 	}
 	// unencryped (ClearText) HTTP/2
 	if j.HTTPVersion == 2 && j.H2C {
-		rtTransport = &http2.Transport{
+		rtTransport = &http2.Transport{ //nolint:staticcheck // see todo above (HTTP/2)
 			DialTLSContext: func(ctx context.Context, network string, addr string, cfg *tls.Config) (net.Conn, error) {
 				return j.dialContext(ctx, network, addr)
 			},
