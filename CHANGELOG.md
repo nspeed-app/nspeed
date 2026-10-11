@@ -1,4 +1,4 @@
-# Unreleased
+# v0.17.1
 - **build**: release binaries no longer include MIPS targets (`mips`, `mipsle`, `mips64`, `mips64le`) to speed up releases. They (and any other Go target) can be built from source, see the new "Installation" section of `README.md`.
 - **docs**: `README.md` "Installation" rewritten: GitHub releases, Linux packages, `go install`, and cross-compiling for any target.
 - **cli**: `nspeed -h` lists the commands in a fixed order (it was random on each run); command descriptions aligned with `README.md` (`from` reads a file or URL).
