@@ -98,7 +98,8 @@ func (j *JobClient) HTTPInit() error {
 	}
 	// unencryped (ClearText) HTTP/2
 	if j.HTTPVersion == 2 && j.H2C {
-		rtTransport = &http2.Transport{ //nolint:staticcheck // see todo above (HTTP/2)
+		//nolint:staticcheck // see todo above (HTTP/2)
+		rtTransport = &http2.Transport{
 			DialTLSContext: func(ctx context.Context, network string, addr string, cfg *tls.Config) (net.Conn, error) {
 				return j.dialContext(ctx, network, addr)
 			},

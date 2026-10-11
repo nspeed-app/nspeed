@@ -21,7 +21,9 @@ jobs:
           fetch-depth: 0 # goreleaser needs the full history and tags
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          # build with the latest Go release (security fixes); go.mod only sets the minimum version
+          go-version: stable
+          check-latest: true
 
       # the repo carries two tag series (v0.0.x from the old nspeed-client repo, v0.x.0 here):
       # pick the previous tag by semver order, not by git distance, so the changelog range is right.
