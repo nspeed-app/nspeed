@@ -15,12 +15,12 @@ function formatBytes(value, unitname = '', precision = 2) {
 function formatTooltip(params) {
 	if (params === undefined || params.length == 0) return "NO DATA";
 
-	let output = '<b>' + params[0].axisValueLabel + '</b><br/>'
+	let output = '<b>' + echarts.format.encodeHTML(params[0].axisValueLabel) + '</b><br/>'
 	
 	params.sort((a, b) => b.value - a.value);
 
 	for (let i = 0; i < params.length; i++) {
-		output += params[i].marker + params[i].seriesName + ': ' + formatBytes(params[i].value, "bps"); //
+		output += params[i].marker + echarts.format.encodeHTML(params[i].seriesName) + ': ' + formatBytes(params[i].value, "bps"); //
 		if (i != params.length - 1) { // Append a <br/> tag if not last in loop
 			output += '<br/>'
 		}

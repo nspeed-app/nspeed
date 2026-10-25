@@ -60,7 +60,10 @@ func NewNetInterfacesViewer(tick time.Duration, ifaces []net.Interface, dir stri
 			Name:      ChartNames[dir],
 			AxisLabel: &opts.AxisLabel{Formatter: opts.FuncOpts("function (value, index) { return formatBytes(value,'bps',2) }")},
 		}),
-		charts.WithLegendOpts(opts.Legend{Show: opts.Bool(true)}),
+		charts.WithLegendOpts(opts.Legend{
+			Show: opts.Bool(true),
+			Top:  "0",
+		}),
 		charts.WithTooltipOpts(opts.Tooltip{
 			Show:      opts.Bool(true),
 			Trigger:   "axis",

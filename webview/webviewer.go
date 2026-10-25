@@ -100,7 +100,6 @@ func NewViewManager(tick time.Duration, path string, interfaceNames []string, de
 	page := components.NewPage()
 	page.PageTitle = "NSpeed Webview"
 	page.AssetsHost = fmt.Sprintf("/%s/statics/", path)
-	page.JSAssets.Add("jquery.min.js")
 	page.JSAssets.Add("nspeed-monitor.js")
 
 	mgr := &ViewManager{
@@ -207,7 +206,7 @@ func (vm *ViewManager) RegisterRoutes(mux *http.ServeMux) {
 		_ = vm.page.Render(w)
 	})
 
-	_, err = http.FS(fstatic).Open("jquery.min.js")
+	_, err = http.FS(fstatic).Open("echarts.min.js")
 	if err != nil {
 		panic("statsview: failed to get embeded file: " + err.Error())
 	}

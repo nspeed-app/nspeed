@@ -1,3 +1,8 @@
+# Unreleased
+- **security**: updated the embedded Apache ECharts library (used by `-html` reports, `json2html` and the `api -stats` live charts) from 5.6 to 6.1.0, fixing a cross-site scripting vulnerability (CVE-2026-45249, GHSA-fgmj-fm8m-jvvx). Chart layouts adjusted for ECharts 6 (legend kept on top in `-html` reports and `api -stats` live charts, x axis labels above the zoom slider in reports); charts use the new ECharts 6 default colors.
+- **security**: chart tooltips now HTML-escape series names (job `-id`s, network interface names) and axis labels, so a crafted name in a JSON report can no longer inject HTML/JavaScript into `-html` reports or live charts.
+- **chores**: removed the jQuery dependency: the live charts (`api -stats`) now poll with the browser `fetch` API.
+
 # v0.17.1
 - **build**: release binaries no longer include MIPS targets (`mips`, `mipsle`, `mips64`, `mips64le`) to speed up releases. They (and any other Go target) can be built from source, see the new "Installation" section of `README.md`.
 - **docs**: `README.md` "Installation" rewritten: GitHub releases, Linux packages, `go install`, and cross-compiling for any target.

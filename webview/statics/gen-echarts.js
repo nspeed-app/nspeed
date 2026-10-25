@@ -65,11 +65,12 @@ function option_testchart(title, yAxisName, series_data, hasSeries) {
         grid: {
             left: '3%',
             right: '4%',
-            bottom: '3%',
+            bottom: 60, // leave room for the dataZoom slider below the x axis labels
             containLabel: true
         },
         legend: {
             show: true,
+            top: 0, // echarts 6 defaults to bottom, where it overlaps the dataZoom slider
             align: 'left',
             type: 'scroll',
         },

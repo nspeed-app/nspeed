@@ -3,7 +3,6 @@
 <head>
   <title>NSpeed Webview</title>
   <script src="echarts.min.js"></script>
-  <script src="jquery.min.js"></script>
   <!-- <script src="nspeed.js"></script> -->
   <script src="macarons.js"></script>
 </head>
@@ -61,11 +60,12 @@ stack bars:
         grid: {
           left: '3%',
           right: '4%',
-          bottom: '3%',
+          bottom: 60,
           containLabel: true
         },
         legend: {
           show: true,
+          top: 0,
           align: 'left',
           type: 'scroll',
           //   orient: 'vertical'

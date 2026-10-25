@@ -37,15 +37,15 @@ const (
 )
 
 const (
+	// DefaultTemplate polls a view route and appends the result to its chart; a failed poll is
+	// skipped and the next one retries. go-echarts joins it into a single line: no // comments.
 	DefaultTemplate = `
 goecharts_{{ .ViewID }}.group = "group1";
-$(function () { setInterval({{ .ViewID }}_sync, {{ .Interval }}); });
+setInterval({{ .ViewID }}_sync, {{ .Interval }});
 function {{ .ViewID }}_sync() {
-    $.ajax({
-        type: "GET",
-        url: "{{ .Route }}",
-        dataType: "json",
-        success: function (result) {
+    fetch("{{ .Route }}")
+        .then(response => response.ok ? response.json() : Promise.reject(response.status))
+        .then(result => {
             let opt = goecharts_{{ .ViewID }}.getOption();
 
             let x = opt.xAxis[0].data;
@@ -62,11 +62,10 @@ function {{ .ViewID }}_sync() {
                     y = y.slice(1);
                 }
                 opt.series[i].data = y;
-
-                goecharts_{{ .ViewID }}.setOption(opt);
             }
-        }
-    });
+            goecharts_{{ .ViewID }}.setOption(opt);
+        })
+        .catch(() => {});
 }
 `
 	DefaultMaxPoints  = 30
@@ -235,7 +234,10 @@ func genViewTemplate(tick time.Duration, vid, route string, path string) string 
 func newBasicView(tick time.Duration, route string, path string) *charts.Line {
 	graph := charts.NewLine()
 	graph.SetGlobalOptions(
-		charts.WithLegendOpts(opts.Legend{Show: opts.Bool(true)}),
+		charts.WithLegendOpts(opts.Legend{
+			Show: opts.Bool(true),
+			Top:  "0",
+		}),
 		charts.WithTooltipOpts(opts.Tooltip{Show: opts.Bool(true), Trigger: "axis"}),
 		charts.WithXAxisOpts(opts.XAxis{Name: "Time"}),
 		charts.WithInitializationOpts(opts.Initialization{
