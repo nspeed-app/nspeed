@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## What this is
 
@@ -23,37 +23,39 @@ report generation.
 ## Commands
 
 Build the CLI:
-```
+```sh
 go build ./cmd/nspeed
 ```
 
 Run it directly during development:
-```
+```sh
 go run cmd/nspeed/main.go [global flags] <command> [command flags] ...
 ```
 e.g. `go run cmd/nspeed/main.go -debug get -p 7777 -P quic https://target`. Use `-h` for global
 flags and `<command> -h` for a command's own flags (see `nspeed/commands.go` for the list).
 
-Run all tests:
-```
+Vet and run all tests (same as `.github/workflows/test.yml`):
+```sh
+go vet ./...
 go test ./...
 ```
 Run a single test:
-```
+```sh
 go test ./nspeed -run TestParseSchedules -v
 ```
-Test files live under `nspeed/` (`schedule_test.go`, `message_test.go`, `client_pacing_test.go`,
-`benchmark_test.go`).
+CLI/runner tests live under `nspeed/` (`commands_test.go`, `schedule_test.go`, `message_test.go`,
+`client_pacing_test.go`, `benchmark_test.go`), and library packages (`pacing`, `network`,
+`humanize`, `anonymize`, etc.) have unit tests alongside their code.
 
 Lint (same as CI, `.github/workflows/golangci-lint.yml`):
-```
+```sh
 golangci-lint run
 ```
 (`.golangci.yml` configures `errcheck`; `.revive.toml` configures the revive linter rules.)
 
 Snapshot release build (goreleaser, see `.goreleaser.yml`; all binaries are `CGO_ENABLED=0`
 cross-compiles into `dist/`):
-```
+```sh
 ./build-all.sh
 ```
 
@@ -74,39 +76,41 @@ must never depend on git-ignored or generated files (e.g. a `//go:embed` of a bu
 ### Command parsing and job scheduling
 
 - `nspeed/commands.go` holds the `Commands` registry (`get`, `put`, `post`, `server`, `ciphers`,
-  `api`, `bench`, `from`, `then`). Each `Command` has a `Set` (commands in set `0` — e.g.
+  `api`, `bench`, `from`, `then`), along with `CommandOrder` and `CommandDescriptions` (kept in
+  sync and checked by `TestCommandOrder`). Each `Command` has a `Set` (commands in set `0` — e.g.
   `ciphers` — must be used alone; others can be mixed within the same set) and a `FromAPI`
   flag gating whether the API endpoint (`nspeed/api.go`) is allowed to trigger it.
 - `ParseCommands`/`ParseCommand` walk the CLI argv left-to-right, each command's `Parse` function
   (e.g. `CmdClientParseGet`, `CmdServerParse`, `CmdAPIParse`) consumes its own flags/args and adds
   `Job`s to a `JobList` (`nspeed/job.go`). `then` starts a new `Batch`; `from` reads a command
   script from a file/URL (templated with `text/template`, one command line per script line);
-  `bench` expands a named benchmark template (`benchmark.go`) into one or more real commands and
-  recursively calls `ParseCommands`.
-- `nspeed.go`'s `RunJobs` is the actual scheduler: it runs batches sequentially. Within a batch,
-  jobs are split into "infinite" (long-running: `server`, `api`) and "short-lived"
+  `bench` expands a named benchmark template (`nspeed/benchmark.go`) into one or more real commands
+  and recursively calls `ParseCommands`.
+- `nspeed/nspeed.go`'s `RunJobs` is the actual scheduler: it runs batches sequentially. Within a
+  batch, jobs are split into "infinite" (long-running: `server`, `api`) and "short-lived"
   (`get`/`put`/etc.). Infinite jobs are started and awaited-ready first, then short-lived jobs run
   to completion; a batch ends when all short-lived jobs finish (unless it's the last batch with no
   short-lived jobs, in which case it runs forever until ctrl-C). Progress/results flow back through
   a `chan any` carrying `[]*metrics.Metric` or `*metrics.CPUMetric`.
 - `Job` (`nspeed/job.go`) is the common interface: `Init`/`Run`/`IsInfinite` plus ID/GroupID/Batch
-  bookkeeping via the embeddable `JobData`. Implementations: `JobClient` (client.go/http_client.go,
-  the `get`/`put`/`post` commands), `JobHTTPServer` (server.go/http_server.go, the `server`
-  command), `APIHost` (api.go, the `api` command, wraps a `JobHTTPServer` and mounts
-  `/api/v1/...`).
+  bookkeeping via the embeddable `JobData`. Implementations: `JobClient` (`nspeed/client.go`,
+  `nspeed/http_client.go`, the `get`/`put`/`post` commands), `JobHTTPServer` (`nspeed/server.go`,
+  `nspeed/http_server.go`, the `server` command), `APIHost` (`nspeed/api.go`, the `api` command,
+  wraps a `JobHTTPServer` and mounts `/api/v1/...`).
 
 ### Client/server transport
 
 - `JobClient.Init` resolves the target URL's scheme and branches to `HTTPInit` (http/https —
-  http_client.go, supports HTTP/1.1, HTTP/2, HTTP/3, h2c) or `L4Init`/`L4Run` (tcp/udp/quic/quic-go
-  — client.go) which builds a raw `dialContext` per protocol (plain TCP, `golang.org/x/net/quic`,
-  or `quic-go`) and speaks a small length-prefixed message protocol (`message.go`,
-  `NewL4Message`/`WriteL4Message`) to tell the server GET or PUT.
-- `HostParameters` (server.go) is the shared config struct for server/api hosts (protocol, host,
-  port, TLS settings, HTTP/1.1 / HTTP/2 / HTTP/3 toggles, max body size/duration, directory to
-  serve, etc).
-- `pacing.Schedule` (parsed by `ParseSchedules` in schedule.go from a `"wait,timeout,..."` string)
-  drives paced/rate-limited reads and writes via `pacing.NewPacedReader`/`NewPacedWriter`.
+  `nspeed/http_client.go`, supports HTTP/1.1, HTTP/2, HTTP/3, h2c) or `L4Init`/`L4Run`
+  (tcp/udp/quic/quic-go — `nspeed/client.go`, `nspeed/quic.go`, `nspeed/quic-go.go`) which builds a
+  raw `dialContext` per protocol (plain TCP, `golang.org/x/net/quic`, or `quic-go`) and speaks a
+  small length-prefixed message protocol (`nspeed/message.go`, `NewL4Message`/`WriteL4Message`) to
+  tell the server GET or PUT.
+- `HostParameters` (`nspeed/server.go`) is the shared config struct for server/api hosts (protocol,
+  host, port, TLS settings, HTTP/1.1 / HTTP/2 / HTTP/3 toggles, max body size/duration, directory
+  to serve, etc).
+- `pacing.Schedule` (parsed by `ParseSchedules` in `nspeed/schedule.go` from a `"wait,timeout,..."`
+  string) drives paced/rate-limited reads and writes via `pacing.NewPacedReader`/`NewPacedWriter`.
 
 ### Metrics and reporting
 
@@ -122,11 +126,13 @@ must never depend on git-ignored or generated files (e.g. a `//go:embed` of a bu
 
 - There is currently no `ui` command: the former go-app WASM UI was removed in v0.15.1 and a new
   UI is to be designed.
-- `webview/` is a live-dashboard mechanism built on `go-echarts` (charts served
-  via `webview/viewer.go`/`genchart.go`, JS glue in `webview/statics/nspeed-echarts.js`) plus
-  OS-specific network interface counter collection (`net_linux.go`, `net_darwin.go`,
-  `net_windows.go`, `net_fallback.go`) used for the CPU/network live viewer (`cpuviewer.go`,
-  `netviewer.go`). `APIHost` mounts these routes when `-webstats`-style options are set.
+- `webview/` is a live-dashboard mechanism built on `go-echarts` (charts served via
+  `webview/viewer.go` and `webview/genchart.go`, JS glue in `webview/statics/nspeed-echarts.js`)
+  plus OS-specific network interface counter collection (`webview/net_linux.go`,
+  `webview/net_darwin.go`, `webview/net_windows.go`, `webview/net_fallback.go`) used for the
+  CPU/network live viewer (`webview/cpuviewer.go`, `webview/netviewer.go`). `APIHost` mounts these
+  routes at `/rt` when `api` is started with `-stats` (or `-statsonly`, `-statsdebug`, `-browse`,
+  `-statsinterfaces`).
 
 ### Entry point / global flags
 
@@ -141,4 +147,4 @@ must never depend on git-ignored or generated files (e.g. a `//go:embed` of a bu
   shipped build, don't assume it compiles or is maintained.
 - `dist/` is goreleaser build output; treat it as generated.
 - `benchs/` holds predefined benchmark command scripts consumed by the `bench`/`from` commands
-  (see `benchmark.go` for the template mechanism), not Go benchmark code.
+  (see `nspeed/benchmark.go` for the template mechanism), not Go benchmark code.
