@@ -191,7 +191,8 @@ type clientFlags struct {
 	H2C       bool
 	Repeat    uint
 	// low level
-	MTU uint
+	MTU        uint
+	QUICWindow string
 }
 
 // common GET/PUT flags
@@ -224,6 +225,7 @@ func clientCommonFlagSet(command string, errorHandling flag.ErrorHandling, outpu
 	fs.UintVar(&hf.Repeat, "r", 1, "number of repeat loops")
 
 	fs.UintVar(&hf.MTU, "mtu", 0, "initial MTU to use")
+	fs.StringVar(&hf.QUICWindow, "quic-window", "0", quicWindowFlagHelp)
 	//fs.StringVar(&hf.RemoteHost, "remote", "", "use a remote nspeed instance (hostname:port)")
 	return fs, &hf
 }
@@ -319,5 +321,6 @@ func clientParse(fs *flag.FlagSet, hf *clientFlags, args []string, job *JobClien
 		return fmt.Errorf("minimum mtu for IPv6 is 1200(+80)")
 	}
 	job.MTU = uint16(hf.MTU)
-	return nil
+	job.QUICWindow, err = parseQUICWindow(hf.QUICWindow)
+	return err
 }

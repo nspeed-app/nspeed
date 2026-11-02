@@ -24,7 +24,6 @@ import (
 
 	quicgo "github.com/quic-go/quic-go"
 	"github.com/rs/zerolog"
-	"golang.org/x/net/quic"
 	"nspeed.app/nspeed/crypto"
 	"nspeed.app/nspeed/generics"
 	"nspeed.app/nspeed/humanize"
@@ -59,6 +58,7 @@ type JobClient struct {
 	HTTPVersion      int
 	H2C              bool
 	MTU              uint16 // bigger one day ?
+	QUICWindow       int64  // x/net QUIC flow-control window and send buffer, 0 = library default
 	// private
 	localAddr   *net.IPAddr
 	dialer      *net.Dialer
@@ -342,7 +342,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 
 		netw = network.AddIPVersionToNetwork("udp", j.IPVersion)
 
-		quicConf := &quic.Config{TLSConfig: j.tlsConfig}
+		quicConf := newQUICConfig(j.tlsConfig, j.QUICWindow)
 
 		localAddr := ":0"
 		if j.localAddr != nil {
@@ -353,7 +353,7 @@ func (j *JobClient) L4Run(ctx context.Context, opt Options) (*metrics.Metric, er
 			localAddr = j.dialer.LocalAddr.String()
 		}
 
-		endp, err := quic.Listen(netw, localAddr, nil)
+		endp, err := listenQUIC(netw, localAddr, nil, j.Logger())
 
 		if err != nil {
 			return nil, fmt.Errorf("L4 client quic listen error: %w", err)

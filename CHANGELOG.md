@@ -3,6 +3,7 @@
 - **security**: chart tooltips now HTML-escape series names (job `-id`s, network interface names) and axis labels, so a crafted name in a JSON report can no longer inject HTML/JavaScript into `-html` reports or live charts.
 - **chores**: removed the jQuery dependency: the live charts (`api -stats`) now poll with the browser `fetch` API.
 - **fix**: `quic://` (x/net/quic) results now show the TLS version (and the JSON report the cipher), as `quic-go://` results already did.
+- **quic**: `quic://` (x/net/quic) endpoints now size their UDP socket buffers to 7 MiB (matching `quic-go://`), and `server`/`get`/`put`/`post` accept `-quic-window` to override x/net's fixed 1 MiB flow-control window and send buffer on high-latency links.
 
 # v0.17.1
 - **build**: release binaries no longer include MIPS targets (`mips`, `mipsle`, `mips64`, `mips64le`) to speed up releases. They (and any other Go target) can be built from source, see the new "Installation" section of `README.md`.
