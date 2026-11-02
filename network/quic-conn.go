@@ -6,6 +6,7 @@ package network
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"time"
@@ -110,6 +111,15 @@ func (str *quicStreamAsConn) RemoteAddr() net.Addr {
 		return &net.UDPAddr{}
 	}
 	return net.UDPAddrFromAddrPort(str.c.RemoteAddr())
+}
+
+// ConnectionState returns the TLS state of the underlying QUIC connection,
+// used by metrics.Metric.SetTLSInfo to report the TLS version and cipher.
+func (str *quicStreamAsConn) ConnectionState() tls.ConnectionState {
+	if str.c == nil {
+		return tls.ConnectionState{}
+	}
+	return str.c.ConnectionState()
 }
 
 // end of net.Conn Interface
